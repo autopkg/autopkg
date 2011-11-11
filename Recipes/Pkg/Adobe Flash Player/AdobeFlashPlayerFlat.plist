@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Input</key>
+	<dict>
+		<key>url</key>
+		<string>http://fpdownload.macromedia.com/get/flashplayer/current/install_flash_player_osx_intel.dmg</string>
+		<key>NAME</key>
+		<string>AdobeFlashPlayer</string>
+		<key>MUNKI_DISPLAYNAME</key>
+		<string>Adobe Flash Player</string>
+		<key>MUNKI_DESCRIPTION</key>
+		<string>Adobe® Flash® Player is a cross-platform browser-based application runtime that delivers uncompromised viewing of expressive applications, content, and videos across screens and browsers.</string>
+		<key>MUNKI_CATALOG</key>
+		<string>common</string>
+	</dict>
+	<key>Process</key>
+	<array>
+		<dict>
+			<key>Processor</key>
+			<string>URLDownloader</string>
+			<key>Arguments</key>
+			<dict>
+				<key>download_dir</key>
+				<string>%RECIPE_DIR%</string>
+				<key>filename</key>
+				<string>%NAME%.dmg</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>PkgRootCreator</string>
+			<key>Arguments</key>
+			<dict>
+				<key>pkgroot</key>
+				<string>%RECIPE_DIR%/FlashPlugin</string>
+				<key>pkgdirs</key>
+				<dict>
+					<key>Library</key>
+					<string>01775</string>
+					<key>Library/Internet Plug-Ins</key>
+					<string>0775</string>
+				</dict>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>AdobeFlashDmgUnpacker</string>
+			<key>Arguments</key>
+			<dict>
+				<key>dmg_path</key>
+				<string>%pathname%</string>
+				<key>unpack_dir</key>
+				<string>%pkgroot%/Library/Internet Plug-Ins</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>PkgInfoCreator</string>
+			<key>Arguments</key>
+			<dict>
+				<key>template_path</key>
+				<string>%RECIPE_DIR%/info_template.plist</string>
+				<key>infofile</key>
+				<string>%RECIPE_DIR%/PackageInfo</string>
+				<key>pkgtype</key>
+				<string>flat</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>PkgCreator</string>
+			<key>Arguments</key>
+			<dict>
+				<key>template_path</key>
+				<string>%RECIPE_DIR%/pkg_template.plist</string>
+				<key>pkgname</key>
+				<string>%NAME%-%version%</string>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>

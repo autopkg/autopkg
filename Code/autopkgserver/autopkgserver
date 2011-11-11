@@ -1,0 +1,453 @@
+#!/usr/bin/env python
+#
+# Copyright 2010 Per Olofsson
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""LaunchDaemon that creates installer packages.
+
+A packaging request is made by creating a property list file and sending it to
+the daemon's listening socket.
+
+Protocol:
+    
+    When a client connects to the server it should send an authentication
+    request, specifying its uid and gid:
+    
+        AUTH:AUTHENTICATE 501:20
+    
+    The server presents an authentication challenge in the form of a path to a
+    random filename:
+    
+        AUTH:CHALLENGE /tmp/aps_B9F4387E9805/5CF0929700A240C7
+    
+    The client must then create a file with that exact name, and send back the
+    path to the server:
+    
+        AUTH:REPLY /tmp/aps_B9F4387E9805/5CF0929700A240C7
+    
+    The UID and GID of the newly created file is accepted to be that of the
+    connecting client's. If there are any irregularities the server will reply
+    with an error message:
+    
+        AUTH:FAILED <reason>
+    
+    Otherwise it'll reply with:
+    
+        AUTH:OK
+    
+    The client can then send an XML property list with a packaging request.
+    The server will process the request, and if there are any problems it'll
+    reply with one or more lines of:
+    
+        ERROR:<error message 1>
+        ERROR:<error message 2>
+        ERROR:<error message 3...>
+    
+    Otherwise it'll reply with OK and the path to the package:
+    
+        OK:/Users/example/Downloads/example.pkg
+
+Request format:
+
+    Requests should be xml property list with a dictionary as the root object
+    and the following keys:
+
+    pkgroot         The virtual root of the files to be packaged, must be a
+                    directory owned by the calling user.
+    
+    pkgdir          The directory where the pkg will be created, must be a
+                    directory owned by the calling user.
+    
+    pkgname         The file or bundle name of the pkg, without pkg extension.
+    
+    pkgtype         The package type, "flat" or "bundle".
+    
+    id              The package ID.
+    
+    version         The package version.
+    
+    infofile        A path to an Info.plist file for the package.
+    
+    resources       A path to a directory to be included as Resources in the
+                    package.
+    
+    chown           An array of dictionaries with paths, relative to the
+                    pkgroot, and the desired owner. Keys:
+                    
+                    path    Path relative to pkgroot. Symlinks and .. are not
+                            allowed in the path.
+                    user    A string with a user name, or an int with a uid.
+                    group   A string with a group name, or an int with a gid.
+
+"""
+
+import os
+import sys
+import time
+import stat
+import logging, logging.handlers
+import SocketServer
+import socket
+import plistlib
+import re
+
+from packager import Packager, PackagerError
+import launch
+
+
+###############
+## Constants ##
+###############
+
+
+APPNAME = "autopkgserver"
+VERSION = "0.2"
+
+SOCKET = "/var/run/%s" % APPNAME
+
+request_structure = {
+    "pkgroot": str,
+    "pkgdir": str,
+    "pkgname": str,
+    "pkgtype": str,
+    "id": str,
+    "version": str,
+    "infofile": str,
+    "resources": str,
+    "chown": list,
+}
+chown_structure = {
+    "path": str,
+    "user": (str, int),
+    "group": (str, int),
+}
+
+
+#################
+## Global Init ##
+#################
+    
+
+# Set up signal handlers.
+#def sig_handler(num, frame):
+#    log.error("%s aborted with signal %d" % (APPNAME, num))
+#
+#signal.signal(signal.SIGHUP, sig_handler)
+#signal.signal(signal.SIGINT, sig_handler)
+#signal.signal(signal.SIGTERM, sig_handler)
+
+
+class PkgHandler(SocketServer.StreamRequestHandler):
+    """Handler for packaging requests."""
+    
+    re_uid_gid = re.compile(r'^AUTH:AUTHENTICATE (?P<uid>\d{1,10}):(?P<gid>\d{1,10})$')
+    
+    def verify_request_syntax(self, plist):
+        """Verify the basic syntax of request plist."""
+        
+        # Keep a list of error messages.
+        errors = list()
+        
+        # Root should be a dictionary.
+        if not isinstance(plist, dict):
+            errors.append("Request root is not a dictionary")
+            # Bail out early if it's not.
+            return False
+        
+        syntax_ok = True
+        
+        # Verify existance and type of keys in the root.
+        for key, keytype in request_structure.items():
+            if not key in plist:
+                errors.append("Request is missing key '%s'" % key)
+                syntax_ok = False
+            else:
+                if not isinstance(plist[key], keytype):
+                    errors.append( \
+                        "Request key %s is not of type %s" % \
+                        (key, str(keytype)))
+                    syntax_ok = False
+        
+        if syntax_ok:
+            
+            # Check package type.
+            if plist.pkgtype not in ("bundle", "flat"):
+                errors.append("pkgtype must be flat or bundle")
+                syntax_ok = False
+            
+            # Make sure all chown entries are dictionaries, and children are
+            # the correct type.
+            for chown_entry in plist.chown:
+                if not isinstance(chown_entry, dict):
+                    errors.append("chown entry isn't dictionary")
+                    syntax_ok = False
+                for key, keytype in chown_structure.items():
+                    if key not in chown_entry:
+                        errors.append("chown entry is missing %s" % key)
+                    else:
+                        if not isinstance(chown_entry[key], keytype):
+                            errors.append( \
+                                "Request key chown.%s is not of type %s" % \
+                                (key, str(keytype)))
+                            syntax_ok = False
+        
+        return (syntax_ok, errors)
+    
+    def handle(self):
+        """Handle an incoming packaging request."""
+        
+        # Log through server parent.
+        self.log = self.server.log
+        self.log.debug("Handling request")
+        
+        # Wait for the client to send an authentication request.
+        auth_request = self.request.recv(1024).rstrip()
+        self.log.debug("Got auth request: %s" % auth_request)
+        if not auth_request.startswith("AUTH:AUTHENTICATE "):
+            self.request.send("AUTH:FAILED Invalid authentication request.\n")
+            return
+        
+        # Verify that the client sends a valid uid:gid.
+        m = self.re_uid_gid.search(auth_request)
+        if not m:
+            self.request.send("AUTH:FAILED Invalid authentication request.\n")
+            return
+        
+        req_uid = int(m.group("uid"))
+        req_gid = int(m.group("gid"))
+        
+        # Verify uid and gid of the client by sending a random filename to the
+        # client. The client must create a file with that name and the owner
+        # of the file is used for verification.
+        
+        # Create a directory that can only be accessed by the proposed uid and
+        # gid.
+        random_dirname = "".join(["%02x" % ord(x) for x in os.urandom(8)])
+        challenge_dir = "/tmp/aps_%s" % random_dirname
+        os.mkdir(challenge_dir)
+        os.chmod(challenge_dir, 0700)
+        os.chown(challenge_dir, req_uid, req_gid)
+        try:
+            # Generate a random filename to be created inside that dir.
+            random_filename = "".join(["%02x" % ord(x) for x in os.urandom(8)])
+            challenge_path = os.path.join(challenge_dir, random_filename)
+            self.request.send("AUTH:CHALLENGE %s\n" % challenge_path)
+            
+            # Wait for client to reply with a pathname.
+            auth_reply = str(self.request.recv(1024)).rstrip()
+            if not auth_reply.startswith("AUTH:REPLY "):
+                self.request.send("AUTH:FAILED Invalid challenge response.\n")
+                return
+            auth_path = auth_reply.replace("AUTH:REPLY ", "")
+            if auth_path != challenge_path:
+                self.request.send("AUTH:FAILED Challenge path mismatch.\n")
+                return
+            
+            info = os.lstat(auth_path)
+            if not stat.S_ISREG(info.st_mode):
+                self.request.send("AUTH:FAILED Not a regular file.\n")
+                return
+            
+            uid = info.st_uid
+            gid = info.st_gid
+            if uid == 0:
+                self.request.send("AUTH:FAILED Root auth denied.\n")
+                return
+            
+            self.request.send("AUTH:OK\n")
+        finally:
+            # Remove authentication directory.
+            try:
+                os.unlink(challenge_path)
+            except OSError as e:
+                # Ignore ENOENT, that just means the client removed it before us.
+                if e.errno != 2:
+                    raise
+            os.rmdir(challenge_dir)
+        
+        # Receive a plist.
+        plist_string = self.request.recv(8192)
+        
+        # Try to parse it.
+        try:
+            plist = plistlib.readPlistFromString(plist_string)
+        except BaseException as e:
+            self.log.error("Malformed request")
+            self.request.send("ERROR:Malformed request\n")
+            return
+        self.log.debug("Parsed request plist")
+        
+        # Verify the plist syntax.
+        syntax_ok, errors = self.verify_request_syntax(plist)
+        if not syntax_ok:
+            self.log.error("Plist syntax error")
+            self.request.send("".join(["ERROR:%s\n" % e for e in errors]))
+            return
+        
+        if os.path.exists(plist.pkgroot):
+            name = os.path.basename(plist.pkgroot)
+        else:
+            self.request.send("ERROR:Can't find pkgroot")
+            return
+        
+        self.log.info("Dispatching worker to process request for user %d" % (uid))
+        try:
+            p = Packager(self.log, plist, name, uid, gid)
+            pkgpath = p.package()
+            self.log.info("Package built at %s" % pkgpath)
+            self.request.send("OK:%s\n" % pkgpath)
+        except PackagerError as e:
+            self.log.error("Packaging failed: %s" % (e))
+            self.request.send(str(e) + "\n")
+    
+
+class AutoPkgServer(SocketServer.UnixStreamServer):
+    """Daemon that runs as root, receiving requests to create installer packages."""
+    
+    allow_reuse_address = True
+    request_queue_size = 10
+    timeout = 10
+    
+    def __init__(self, socket_fd, RequestHandlerClass):
+        # Avoid initialization of UnixStreamServer as we need to open the
+        # socket from a file descriptor instead of creating our own.
+        self.socket = socket.fromfd(socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
+        self.socket.listen(self.request_queue_size)
+        SocketServer.BaseServer.__init__(self,
+                                         self.socket.getsockname(),
+                                         RequestHandlerClass)
+        self.timed_out = False
+    
+    #def server_bind(self):
+    #    """Override binding to inherit socket from launchd."""
+    #    
+    
+    def setup_logging(self):
+        try:
+            self.log = logging.getLogger(APPNAME)
+            self.log.setLevel(logging.DEBUG)
+            
+            log_console = logging.StreamHandler()
+            log_console.setLevel(logging.DEBUG)
+            log_file = logging.handlers.RotatingFileHandler(
+                "/private/var/log/%s" % APPNAME,
+                "a",
+                100000,
+                9,
+                "utf-8")
+            log_file.setLevel(logging.DEBUG)
+            
+            console_formatter = logging.Formatter("%(message)s")
+            file_formatter = \
+                logging.Formatter("%(asctime)s %(module)s[%(process)d]: " + \
+                                  "%(message)s   (%(funcName)s)")
+            
+            log_console.setFormatter(console_formatter)
+            log_file.setFormatter(file_formatter)
+            
+            self.log.addHandler(log_console)
+            self.log.addHandler(log_file)
+        except (OSError, IOError) as e:
+            raise AutoPkgServerError("Can't open log: %s" % (e.strerror))
+    
+    def handle_timeout(self):
+        self.timed_out = True
+    
+
+def main(argv):
+    # Make sure we're launched as root
+    if os.geteuid() != 0:
+        print >>sys.stderr, "%s must be run as root." % APPNAME
+        # Sleep to avoid respawn.
+        time.sleep(10)
+        return 1
+    
+    # Make sure that the executable and all containing directories are owned
+    # by root:wheel or root:admin, and not writeable by other users.
+    root_uid = 0
+    wheel_gid = 0
+    admin_gid = 80
+    
+    exepath = os.path.realpath(os.path.abspath(__file__))
+    path_ok = True
+    while True:
+        info = os.stat(exepath)
+        if info.st_uid != root_uid:
+            print >>sys.stderr, "%s must be owned by root." % exepath
+            path_ok = False
+        if info.st_gid not in (wheel_gid, admin_gid):
+            print >>sys.stderr, "%s must have group wheel or admin." % exepath
+            path_ok = False
+        if info.st_mode & stat.S_IWOTH:
+            print >>sys.stderr, "%s mustn't be world writeable." % exepath
+            path_ok = False
+        exepath = os.path.dirname(exepath)
+        if exepath == "/":
+            break
+    
+    if not path_ok:
+        # Sleep to avoid respawn.
+        time.sleep(10)
+        return 1
+    
+    # Keep track of time for launchd.
+    start_time = time.time()
+    
+    # Get socket file descriptors from launchd.
+    try:
+        sockets = launch.get_launchd_socket_fds()
+    except launch.LaunchDCheckInError as e:
+        print >>sys.stderr, "launchd check-in failed: %s" % e
+        time.sleep(10)
+        return 1
+    
+    if not "AutoPkgServer" in sockets:
+        print >>sys.stderr, "No AutoPkgServer in launchd sockets"
+        time.sleep(10)
+        return 1
+    
+    # Create the server object.
+    server = AutoPkgServer(sockets["AutoPkgServer"][0], PkgHandler)
+    server.setup_logging()
+    
+    # Wrap main loop in try/finally to unlink the socket when we exit.
+    try:
+        server.log.info("%s v%s starting" % (APPNAME, VERSION))
+        
+        # Serve all pending requests until we time out.
+        while True:
+            server.handle_request()
+            if server.timed_out == False:
+                continue
+            
+            # Keep running for at least 10 seconds make launchd happy.
+            run_time = time.time() - start_time
+            server.log.info("run time: %fs" % run_time)
+            if run_time < 10.0:
+                # Only sleep for a short while in case new requests pop up.
+                sleep_time = min(1.0, 10.0 - run_time)
+                server.log.debug( \
+                    "sleeping for %f seconds to make launchd happy" % sleep_time)
+                time.sleep(sleep_time)
+            else:
+                break
+    finally:
+        # Make sure the socket is removed.
+        #os.unlink(SOCKET)
+        pass
+    
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

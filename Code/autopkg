@@ -1,0 +1,172 @@
+#!/usr/bin/env python
+#
+# Copyright 2010 Per Olofsson
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+import sys
+import os
+import optparse
+import plistlib
+import pprint
+import time
+
+from autopkglib import BUNDLE_ID
+from autopkglib.Processor import Processor, ProcessorError
+import autopkglib
+
+
+class AutoPackagerError(Exception):
+    pass
+
+class AutoPackager(object):
+    """Instantiate and execute processors from a recipe."""
+    
+    def __init__(self, options, env):
+        self.verbose = options.verbose
+        self.quiet = options.quiet
+        self.env = env
+    
+    def verify(self, recipe):
+        """Verify a recipe and check for errors."""
+        
+        # Initialize variable set with input variables.
+        variables = set(recipe.Input.keys())
+        # Add environment.
+        variables.update(set(self.env.keys()))
+        # Check each step of the process.
+        for step in recipe.Process:
+            # Make sure the class exists.
+            try:
+                processor_class = getattr(autopkglib, step.Processor)
+            except AttributeError:
+                raise AutoPackagerError("Unknown processor '%s'" % step.Processor)
+            # Add arguments to set of variables.
+            variables.update(set(step.Arguments.keys()))
+            # Make sure all required input variables exist.
+            for key, flags in processor_class.input_variables.items():
+                if flags["required"] and (key not in variables):
+                    raise AutoPackagerError("%s requires missing argument %s" % (
+                                             step.Processor, key))
+            # Add output variables to set.
+            variables.update(set(processor_class.output_variables.keys()))
+    
+    def process(self, recipe):
+        """Process a recipe."""
+        
+        
+        self.env.update(recipe.Input)
+        
+        if self.verbose:
+            pprint.pprint(self.env)
+        
+        for step in recipe.Process:
+            
+            if not self.quiet:
+                print step.Processor
+            
+            processor_class = getattr(autopkglib, step.Processor)
+            processor = processor_class(self.env)
+            
+            try:
+                self.env = processor.process(step.Arguments)
+            except ProcessorError as e:
+                print >>sys.stderr, str(e)
+                raise AutoPackagerError("Recipe processing failed.")
+            
+            if self.verbose:
+                pprint.pprint(self.env)
+    
+
+def main(argv):
+    # Parse arguments.
+    p = optparse.OptionParser()
+    p.set_usage("""Usage: %prog [options] recipe.plist [key=value key=value ...]""")
+    p.add_option("-v", "--verbose", action="store_true",
+                 help="Verbose output.")
+    p.add_option("-q", "--quiet", action="store_true",
+                 help="Be quiet.")
+    options, argv = p.parse_args(argv)
+    if len(argv) < 2:
+        print >>sys.stderr, p.get_usage()
+        return 1
+    
+    recipe_path = argv[1]
+    
+    try:
+        recipe = plistlib.readPlist(recipe_path)
+    except BaseException as e:
+        print >>sys.stderr, "Can't read %s: %s" % (recipe_path, e)
+        return 1
+    
+    # Create empty plist object to hold preferences.
+    prefs = plistlib.readPlistFromString(plistlib.writePlistToString({}))
+    
+    # Read preferences from system and user's library path.
+    for libdir in ("/Library", os.path.expanduser("~/Library")):
+        prefpath = os.path.join(libdir, "Preferences", BUNDLE_ID + ".plist")
+        if os.path.exists(prefpath):
+            try:
+                prefs = plistlib.readPlist(prefpath)
+            except BaseException as e:
+                print >>sys.stderr, "Can't read preferences from %s: %s" % (
+                                     prefpath, e)
+    
+    # Add RECIPE_DIR variable.
+    prefs["RECIPE_DIR"] = os.path.dirname(os.path.abspath(recipe_path))
+    
+    # Add variables from commandline.
+    for arg in sys.argv[2:]:
+        (key, sep, value) = arg.partition("=")
+        if sep != "=":
+            print >>sys.stderr, "Invalid variable [key=value]: %s" % arg
+            print >>sys.stderr, p.get_usage()
+            return 1
+        prefs[key] = value
+    
+    autopackager = AutoPackager(options, prefs)
+    
+    exit_status = 0
+    exit_string = ""
+    
+    try:
+        autopackager.verify(recipe)
+        autopackager.process(recipe)
+    except AutoPackagerError as e:
+        exit_status += 1
+        exit_string = str(e)
+        print >>sys.stderr, e
+    
+    if recipe_path.endswith(".plist"):
+        rp = recipe_path[:-6]
+    else:
+        rp = recipe_path
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    receipt_path = "%s-receipt-%s.plist" % (rp, timestamp)
+    try:
+        plistlib.writePlist({
+                "Exit Status": exit_status,
+                "Exit String": exit_string,
+                "Receipt": autopackager.env
+            }, receipt_path)
+    except IOError as e:
+        exit_status += 1
+        print >>sys.stderr, "Can't write receipt to %s: %s" % (receipt_path, e.strerror)
+    
+    return exit_status
+    
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
+    

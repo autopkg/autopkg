@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Input</key>
+	<dict>
+		<key>NAME</key>
+		<string>Firefox_SV</string>
+		<key>LOCALE</key>
+		<string>sv_SE</string>
+		<key>MUNKI_DISPLAYNAME</key>
+		<string>Firefox (Swedish)</string>
+		<key>MUNKI_DESCRIPTION</key>
+		<string>Mozilla Firefox is a free and open source web browser.</string>
+		<key>MUNKI_CATALOG</key>
+		<string>swedish</string>
+	</dict>
+	<key>Process</key>
+	<array>
+		<dict>
+			<key>Processor</key>
+			<string>FirefoxURLProvider</string>
+			<key>Arguments</key>
+			<dict>
+				<key>build</key>
+				<string>mac</string>
+				<key>locale</key>
+				<string>%LOCALE%</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>URLDownloader</string>
+			<key>Arguments</key>
+			<dict>
+				<key>download_dir</key>
+				<string>%RECIPE_DIR%</string>
+				<key>filename</key>
+				<string>%NAME%.dmg</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>AppDmgVersioner</string>
+			<key>Arguments</key>
+			<dict>
+				<key>dmg_path</key>
+				<string>%pathname%</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>Copier</string>
+			<key>Arguments</key>
+			<dict>
+				<key>source_path</key>
+				<string>%pathname%</string>
+				<key>destination_path</key>
+				<string>%MUNKI_REPO%/pkgs/%NAME%-%version%.dmg</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>MunkiInfoCreator</string>
+			<key>Arguments</key>
+			<dict>
+				<key>pkg_path</key>
+				<string>%destination_path%</string>
+				<key>info_path</key>
+				<string>%MUNKI_REPO%/pkgsinfo/%NAME%-%version%.plist</string>
+				<key>displayname</key>
+				<string>%MUNKI_DISPLAYNAME%</string>
+				<key>name</key>
+				<string>%NAME%</string>
+				<key>description</key>
+				<string>%MUNKI_DESCRIPTION%</string>
+				<key>catalog</key>
+				<string>%MUNKI_CATALOG%</string>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>

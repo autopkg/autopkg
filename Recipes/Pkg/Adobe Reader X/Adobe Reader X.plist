@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Input</key>
+	<dict>
+		<key>NAME</key>
+		<string>AdobeReaderX_EN</string>
+		<key>LANGUAGE</key>
+		<string>English</string>
+		<key>MUNKI_DISPLAYNAME</key>
+		<string>Adobe Reader X (English)</string>
+		<key>MUNKI_DESCRIPTION</key>
+		<string>Adobe® Reader® is the global standard for reliably viewing, printing, and commenting on PDF documents. It&apos;s the only PDF file viewer that can open and interact with all types of PDF content, including forms and multimedia.</string>
+		<key>MUNKI_CATALOG</key>
+		<string>english</string>
+	</dict>
+	<key>Process</key>
+	<array>
+		<dict>
+			<key>Processor</key>
+			<string>AdobeReaderURLProvider</string>
+			<key>Arguments</key>
+			<dict>
+				<key>language</key>
+				<string>%LANGUAGE%</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>URLDownloader</string>
+			<key>Arguments</key>
+			<dict>
+				<key>download_dir</key>
+				<string>%RECIPE_DIR%</string>
+				<key>filename</key>
+				<string>%NAME%.dmg</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>PkgRootCreator</string>
+			<key>Arguments</key>
+			<dict>
+				<key>pkgroot</key>
+				<string>%RECIPE_DIR%/%NAME%</string>
+				<key>pkgdirs</key>
+				<dict>
+					<key>Applications</key>
+					<string>01775</string>
+					<key>Library</key>
+					<string>01775</string>
+					<key>Library/Application Support</key>
+					<string>0775</string>
+					<key>Library/Internet Plug-Ins</key>
+					<string>0775</string>
+				</dict>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>AdobeReaderDmgUnpacker</string>
+			<key>Arguments</key>
+			<dict>
+				<key>dmg_path</key>
+				<string>%pathname%</string>
+				<key>unpack_root</key>
+				<string>%pkgroot%</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>PkgInfoCreator</string>
+			<key>Arguments</key>
+			<dict>
+				<key>template_path</key>
+				<string>%RECIPE_DIR%/info_template.plist</string>
+				<key>infofile</key>
+				<string>%RECIPE_DIR%/PackageInfo</string>
+				<key>version</key>
+				<string>%app_version%</string>
+				<key>pkgtype</key>
+				<string>flat</string>
+			</dict>
+		</dict>
+		<dict>
+			<key>Processor</key>
+			<string>PkgCreator</string>
+			<key>Arguments</key>
+			<dict>
+				<key>template_path</key>
+				<string>%RECIPE_DIR%/pkg_template.plist</string>
+				<key>pkgname</key>
+				<string>%NAME%-%version%</string>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>
