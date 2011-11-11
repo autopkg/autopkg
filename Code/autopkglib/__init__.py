@@ -19,6 +19,7 @@ BUNDLE_ID = "com.googlecode.autopkg"
 
 
 from AdiumURLProvider           import AdiumURLProvider
+from AdobeFlashURLProvider      import AdobeFlashURLProvider
 from AdobeReaderDmgUnpacker     import AdobeReaderDmgUnpacker
 from AdobeReaderURLProvider     import AdobeReaderURLProvider
 from AppDmgVersioner            import AppDmgVersioner

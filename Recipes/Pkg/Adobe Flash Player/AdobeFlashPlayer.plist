@@ -4,8 +4,6 @@
 <dict>
 	<key>Input</key>
 	<dict>
-		<key>url</key>
-		<string>http://fpdownload.macromedia.com/get/flashplayer/current/install_flash_player_osx_intel.dmg</string>
 		<key>NAME</key>
 		<string>AdobeFlashPlayer</string>
 		<key>MUNKI_DISPLAYNAME</key>
@@ -17,6 +15,12 @@
 	</dict>
 	<key>Process</key>
 	<array>
+		<dict>
+			<key>Processor</key>
+			<string>AdobeFlashURLProvider</string>
+			<key>Arguments</key>
+			<dict/>
+		</dict>
 		<dict>
 			<key>Processor</key>
 			<string>URLDownloader</string>
