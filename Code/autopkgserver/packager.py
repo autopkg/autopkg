@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2010 Per Olofsson
+# Copyright 2010-2012 Per Olofsson
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,6 +29,26 @@ __all__ = [
     'Packager',
     'PackagerError'
 ]
+
+
+def find_packagemaker():
+    """Find packagemaker binary."""
+    
+    p = subprocess.Popen(["/usr/bin/mdfind",
+                          "(kMDItemCFBundleIdentifier == com.apple.PackageMaker)"],
+                         stdout=subprocess.PIPE)
+    out, _ = p.communicate()
+    if p.returncode != 0:
+        # Return legacy path, better than nothing.
+        return "/Developer/usr/bin/packagemaker"
+    for path in out.splitlines():
+        binpath = os.path.join(path, "Contents", "MacOS", "PackageMaker")
+        if os.path.isfile(binpath):
+            return binpath
+    # If mdfind can't find PackageMaker.app, our best bet is the legacy path.
+    return "/Developer/usr/bin/packagemaker"
+
+PACKAGEMAKER = find_packagemaker()
 
 
 class PackagerError(Exception):
@@ -283,7 +303,7 @@ class Packager(object):
         try:
             # Execute packagemaker.
             try:
-                p = subprocess.Popen(("/Developer/usr/bin/packagemaker",
+                p = subprocess.Popen((PACKAGEMAKER,
                                       "--root", self.tmp_pkgroot,
                                       "--info", self.request.infofile,
                                       "--resources", self.request.resources,
