@@ -24,7 +24,7 @@ from Processor import Processor, ProcessorError
 __all__ = ["AdobeFlashURLProvider"]
 
 
-ADOBEFLASH_BASE_URL = "http://get.adobe.com/flashplayer/completion/?installer=Flash_Player_11_for_Mac_OS_X_10.6_-_10.7"
+ADOBEFLASH_BASE_URL = "http://get.adobe.com/flashplayer/completion/?installer=Flash_Player_11_for_Mac_OS_X_10.6_-_10.8"
 #re_adobeflash_ver = re.compile(r'Adobe Flash Player \S+ version (?P<version>[\d.]+)', re.I)
 re_adobeflash_dmg = re.compile(r'(?P<url>http://fpdownload.macromedia.com/get/flashplayer/pdc/[\d.]+/install_flash_player_osx.dmg)', re.I)
 
