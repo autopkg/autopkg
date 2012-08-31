@@ -5,7 +5,7 @@
 	<key>Input</key>
 	<dict>
 		<key>NAME</key>
-		<string>Firefox_SV</string>
+		<string>FirefoxESR_SV</string>
 		<key>LOCALE</key>
 		<string>sv_SE</string>
 		<key>MUNKI_DISPLAYNAME</key>
@@ -23,7 +23,7 @@
 			<key>Arguments</key>
 			<dict>
 				<key>build</key>
-				<string>mac</string>
+				<string>esr</string>
 				<key>locale</key>
 				<string>%LOCALE%</string>
 			</dict>
