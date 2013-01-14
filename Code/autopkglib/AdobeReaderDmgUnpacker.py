@@ -105,7 +105,7 @@ class AdobeReaderDmgUnpacker(DmgMounter):
             raise ProcessorError("%s root isn't pkg-info" % packageinfo_path)
         
         target = pkg_info.get("install-location", "")
-        destination_path = self.env.pkgroot + target
+        destination_path = self.env['pkgroot'] + target
         
         payload_path = os.path.join(path, "Payload")
         
@@ -140,7 +140,7 @@ class AdobeReaderDmgUnpacker(DmgMounter):
                 if name.endswith(".pkg"):
                     self.unpack_payload(os.path.join(expand_path, name))
             
-            app_path = os.path.join(self.env.pkgroot,
+            app_path = os.path.join(self.env['pkgroot'],
                                     "Applications",
                                     "Adobe Reader.app",
                                     "Contents")
@@ -173,7 +173,7 @@ class AdobeReaderDmgUnpacker(DmgMounter):
             # Read versions.
             app_info_path = os.path.join(app_path, "Info.plist")
             self.env["app_version"] = self.read_info_plist_version(app_info_path)
-            plugin_info_path = os.path.join(self.env.pkgroot,
+            plugin_info_path = os.path.join(self.env['pkgroot'],
                                             "Library",
                                             "Internet Plug-Ins",
                                             "AdobePDFViewer.plugin",

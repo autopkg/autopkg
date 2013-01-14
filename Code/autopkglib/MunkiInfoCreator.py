@@ -94,7 +94,7 @@ class MunkiInfoCreator(Processor):
                 raise ProcessorError("makepkginfo execution failed with error code %d: %s" % (
                                       e.errno, e.strerror))
             if p.returncode != 0:
-                raise ProcessorError("creating pkginfo for %s failed: %s" % (self.env.pkg_path, err))
+                raise ProcessorError("creating pkginfo for %s failed: %s" % (self.env['pkg_path'], err))
             
         # makepkginfo cleanup.
         finally:

@@ -77,7 +77,7 @@ class URLDownloader(Processor):
             # Generate filename.
             filename = self.env["url"].rpartition("/")[2]
         else:
-            filename = self.env.filename
+            filename = self.env['filename']
         pathname = os.path.join(self.env["download_dir"], filename)
         
         # Download URL.

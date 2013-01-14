@@ -49,7 +49,7 @@ class Copier(DmgMounter):
     
     def main(self):
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.env.source_path.partition(".dmg/")
+        (dmg_path, dmg, dmg_source_path) = self.env['source_path'].partition(".dmg/")
         dmg_path += ".dmg"
         try:
             if dmg:
@@ -58,29 +58,29 @@ class Copier(DmgMounter):
                 source_path = os.path.join(mount_point, dmg_source_path)
             else:
                 # Straight copy from file system.
-                source_path = self.env.source_path
+                source_path = self.env['source_path']
             
             # Remove destination if needed.
-            if os.path.exists(self.env.destination_path):
-                if "overwrite" in self.env and self.env.overwrite:
+            if os.path.exists(self.env['destination_path']):
+                if "overwrite" in self.env and self.env['overwrite']:
                     try:
-                        if os.path.isdir(self.env.destination_path) and not os.path.islink(self.env.destination_path):
-                            shutil.rmtree(self.env.destination_path)
+                        if os.path.isdir(self.env['destination_path']) and not os.path.islink(self.env['destination_path']):
+                            shutil.rmtree(self.env['destination_path'])
                         else:
-                            os.unlink(self.env.destination_path)
+                            os.unlink(self.env['destination_path'])
                     except OSError as e:
-                        raise ProcessorError("Can't remove %s: %s" % (self.env.destination_path, e.strerror))
+                        raise ProcessorError("Can't remove %s: %s" % (self.env['destination_path'], e.strerror))
             
             # Copy file or directory.
             try:
                 if os.path.isdir(source_path):
-                    shutil.copytree(source_path, self.env.destination_path, symlinks=True)
+                    shutil.copytree(source_path, self.env['destination_path'], symlinks=True)
                 else:
-                    shutil.copy(source_path, self.env.destination_path)
+                    shutil.copy(source_path, self.env['destination_path'])
             except BaseException as e:
                 raise ProcessorError("Can't copy %s to %s: %s" % (
                                       source_path,
-                                      self.env.destination_path,
+                                      self.env['destination_path'],
                                       e))
         finally:
             if dmg:

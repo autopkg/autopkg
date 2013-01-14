@@ -85,10 +85,10 @@ class PkgCreator(Processor):
         # paths are converted to absolute.
         if "template_path" in self.env:
             try:
-                request = plistlib.readPlist(self.env.template_path)
+                request = plistlib.readPlist(self.env['template_path'])
             except BaseException as e:
-                raise ProcessorError("Malformed plist template %s" % self.env.template_path)
-            base_dir = os.path.dirname(os.path.abspath(self.env.template_path))
+                raise ProcessorError("Malformed plist template %s" % self.env['template_path'])
+            base_dir = os.path.dirname(os.path.abspath(self.env['template_path']))
             # Convert relative paths to absolute.
             for key, value in request.items():
                 if key in ("pkgroot", "pkgdir", "infofile", "resources"):

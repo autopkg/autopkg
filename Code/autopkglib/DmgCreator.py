@@ -45,23 +45,23 @@ class DmgCreator(Processor):
     
     def main(self):
         # Remove existing dmg if it exists.
-        if os.path.exists(self.env.dmg_path):
-            os.unlink(self.env.dmg_path)
+        if os.path.exists(self.env['dmg_path']):
+            os.unlink(self.env['dmg_path'])
         
         # Call hdiutil.
         try:
             p = subprocess.Popen(("/usr/bin/hdiutil",
                                   "create",
                                   "-plist",
-                                  "-srcfolder", self.env.dmg_root,
-                                  self.env.dmg_path),
+                                  "-srcfolder", self.env['dmg_root'],
+                                  self.env['dmg_path']),
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (out, err) = p.communicate()
         except OSError as e:
             raise ProcessorError("hdiutil execution failed with error code %d: %s" % (
                                   e.errno, e.strerror))
         if p.returncode != 0:
-            raise ProcessorError("creation of %s failed: %s" % (self.env.dmg_path, err))
+            raise ProcessorError("creation of %s failed: %s" % (self.env['dmg_path'], err))
         
         # Read output plist.
         #output = plistlib.readPlistFromString(out)

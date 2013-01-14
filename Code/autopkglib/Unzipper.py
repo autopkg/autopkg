@@ -48,14 +48,14 @@ class Unzipper(Processor):
     
     def main(self):
         # Create the directory if needed.
-        if not os.path.exists(self.env.destination_path):
+        if not os.path.exists(self.env['destination_path']):
             try:
-                os.mkdir(self.env.destination_path)
+                os.mkdir(self.env['destination_path'])
             except OSError as e:
                 raise ProcessorError("Can't create %s: %s" % (path, e.strerror))
-        elif self.env.purge_destination:
-            for entry in os.listdir(self.env.destination_path):
-                path = os.path.join(self.env.destination_path, entry)
+        elif self.env.get('purge_destination'):
+            for entry in os.listdir(self.env['destination_path']):
+                path = os.path.join(self.env['destination_path'], entry)
                 try:
                     if os.path.isdir(path) and not os.path.islink(path):
                         shutil.rmtree(path)
@@ -70,8 +70,8 @@ class Unzipper(Processor):
                                   "--noqtn",
                                   "-x",
                                   "-k",
-                                  self.env.archive_path,
-                                  self.env.destination_path],
+                                  self.env['archive_path'],
+                                  self.env['destination_path']],
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
             (out, err) = p.communicate()
@@ -79,7 +79,7 @@ class Unzipper(Processor):
             raise ProcessorError("ditto execution failed with error code %d: %s" % (
                                   e.errno, e.strerror))
         if p.returncode != 0:
-            raise ProcessorError("unzipping %s with ditto failed: %s" % (self.env.archive_path, err))
+            raise ProcessorError("unzipping %s with ditto failed: %s" % (self.env['archive_path'], err))
     
 
 if __name__ == '__main__':

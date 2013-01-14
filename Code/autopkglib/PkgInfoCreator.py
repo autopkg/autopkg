@@ -57,10 +57,10 @@ class PkgInfoCreator(Processor):
     __doc__ = description
     
     def main(self):
-        if self.env.pkgtype not in ("bundle", "flat"):
-            raise ProcessorError("Unknown pkgtype %s" % self.env.pkgtype)
-        template = self.load_template(self.env.template_path, self.env.pkgtype)
-        if self.env.pkgtype == "bundle":
+        if self.env['pkgtype'] not in ("bundle", "flat"):
+            raise ProcessorError("Unknown pkgtype %s" % self.env['pkgtype'])
+        template = self.load_template(self.env['template_path'], self.env['pkgtype'])
+        if self.env['pkgtype'] == "bundle":
             self.create_bundle_info(template)
         else:
             self.create_flat_info(template)
@@ -143,9 +143,9 @@ class PkgInfoCreator(Processor):
         if template_path.endswith(".plist"):
             # Try to load Info.plist in bundle format.
             try:
-                info = plistlib.readPlist(self.env.template_path)
+                info = plistlib.readPlist(self.env['template_path'])
             except BaseException as e:
-                raise ProcessorError("Malformed Info.plist template %s" % self.env.template_path)
+                raise ProcessorError("Malformed Info.plist template %s" % self.env['template_path'])
             if template_type == "bundle":
                 return info
             else:
@@ -155,7 +155,7 @@ class PkgInfoCreator(Processor):
             try:
                 info = ElementTree.parse(template_path)
             except BaseException as e:
-                raise ProcessorError("Malformed PackageInfo template %s" % self.env.template_path)
+                raise ProcessorError("Malformed PackageInfo template %s" % self.env['template_path'])
             if template_type == "flat":
                 return info
             else:
@@ -185,33 +185,33 @@ class PkgInfoCreator(Processor):
         if pkg_info.tag != "pkg-info":
             raise ProcessorError("PackageInfo root should be pkg-info")
         
-        pkg_info.set("version", self.env.version)
+        pkg_info.set("version", self.env['version'])
         
         payload = pkg_info.find("payload")
         if payload is None:
             payload = ElementTree.SubElement(pkg_info, "payload")
-        size, nfiles = self.get_pkgroot_size(self.env.pkgroot)
+        size, nfiles = self.get_pkgroot_size(self.env['pkgroot'])
         payload.set("installKBytes", str(size))
         payload.set("numberOfFiles", str(nfiles))
         
-        info.write(self.env.infofile)
+        info.write(self.env['infofile'])
 
     
     def create_bundle_info(self, template):
         info = template
         
-        info["CFBundleShortVersionString"] = self.env.version
-        ver = self.env.version.split(".")
+        info["CFBundleShortVersionString"] = self.env['version']
+        ver = self.env['version'].split(".")
         info["IFMajorVersion"] = ver[0]
         info["IFMinorVersion"] = ver[1]
         
-        size, nfiles = self.get_pkgroot_size(self.env.pkgroot)
+        size, nfiles = self.get_pkgroot_size(self.env['pkgroot'])
         info["IFPkgFlagInstalledSize"] = size
         
         try:
-            plistlib.writePlist(info, self.env.infofile)
+            plistlib.writePlist(info, self.env['infofile'])
         except BaseException as e:
-            raise ProcessorError("Couldn't write %s: %s" % (self.env.infofile, e))
+            raise ProcessorError("Couldn't write %s: %s" % (self.env['infofile'], e))
     
 
 if __name__ == '__main__':

@@ -48,24 +48,24 @@ class PkgRootCreator(Processor):
     def main(self):
         # Delete pkgroot if it exists.
         try:
-            if os.path.islink(self.env.pkgroot) or os.path.isfile(self.env.pkgroot):
-                os.unlink(self.env.pkgroot)
-            elif os.path.isdir(self.env.pkgroot):
-                shutil.rmtree(self.env.pkgroot)
+            if os.path.islink(self.env['pkgroot']) or os.path.isfile(self.env['pkgroot']):
+                os.unlink(self.env['pkgroot'])
+            elif os.path.isdir(self.env['pkgroot']):
+                shutil.rmtree(self.env['pkgroot'])
         except OSError as e:
-            raise ProcessorError("Can't remove %s: %s" % (self.env.pkgroot,
+            raise ProcessorError("Can't remove %s: %s" % (self.env['pkgroot'],
                                                           e.strerror))
         
         # Create pkgroot. autopkghelper sets it to root:admin 01775.
         try:
-            os.makedirs(self.env.pkgroot)
+            os.makedirs(self.env['pkgroot'])
         except OSError as e:
-            raise ProcessorError("Can't create %s: %s" % (self.env.pkgroot,
+            raise ProcessorError("Can't create %s: %s" % (self.env['pkgroot'],
                                                           e.strerror))
         
         # Create directories.
-        absroot = os.path.abspath(self.env.pkgroot)
-        for directory, mode in sorted(self.env.pkgdirs.items()):
+        absroot = os.path.abspath(self.env['pkgroot'])
+        for directory, mode in sorted(self.env['pkgdirs'].items()):
             print "Creating %s" % directory
             # Make sure we don't get an absolute path.
             if directory.startswith("/"):

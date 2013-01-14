@@ -44,11 +44,11 @@ class FileCreator(Processor):
     
     def main(self):
         try:
-            with open(self.env.file_path, "w") as f:
-                f.write(self.env.file_content)
+            with open(self.env['file_path'], "w") as f:
+                f.write(self.env['file_content'])
         except BaseException as e:
             raise ProcessorError("Can't create file at %s: %s" % (
-                                  self.env.file_path,
+                                  self.env['file_path'],
                                   e))
     
 

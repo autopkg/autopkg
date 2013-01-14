@@ -63,10 +63,7 @@ class AdiumURLProvider(Processor):
     
     def main(self):
         # Determine base_url.
-        if "base_url" in self.env:
-            base_url = self.env.base_url
-        else:
-            base_url = ADIUM_BASE_URL
+        base_url = self.env.get('base_url', ADIUM_BASE_URL)
         
         self.env["url"] = self.get_adium_dmg_url(base_url)
     
