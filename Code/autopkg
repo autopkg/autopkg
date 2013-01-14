@@ -127,7 +127,7 @@ def main(argv):
     prefs["RECIPE_DIR"] = os.path.dirname(os.path.abspath(recipe_path))
     
     # Add variables from commandline.
-    for arg in sys.argv[2:]:
+    for arg in argv[2:]:
         (key, sep, value) = arg.partition("=")
         if sep != "=":
             print >>sys.stderr, "Invalid variable [key=value]: %s" % arg
