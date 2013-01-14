@@ -24,8 +24,8 @@ from Processor import Processor, ProcessorError
 __all__ = ["AdiumURLProvider"]
 
 
-ADIUM_BASE_URL = "http://adium.im/?download=10.6"
-re_adium_dmg = re.compile(r'CONTENT="\d+;URL=(?P<url>http://download.adium.im/Adium[^"]+\.dmg)"', re.I)
+ADIUM_BASE_URL = "http://adium.im"
+re_adium_dmg = re.compile(r'(?P<url>http://sourceforge.net/projects/adium/files/Adium_[^"]+\.dmg/download)"', re.I)
 
 
 class AdiumURLProvider(Processor):
@@ -33,7 +33,7 @@ class AdiumURLProvider(Processor):
     input_variables = {
         "base_url": {
             "required": False,
-            "description": "Default is 'http://adium.im/?download=10.6'.",
+            "description": "Default is 'http://adium.im'.",
         },
     }
     output_variables = {
