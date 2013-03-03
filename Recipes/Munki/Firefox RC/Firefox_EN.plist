@@ -20,13 +20,13 @@
 		<dict>
 			<key>Arguments</key>
 			<dict>
-				<key>build</key>
-				<string>mac</string>
+			    <key>build</key>
+				<string>stable</string>
 				<key>locale</key>
 				<string>%LOCALE%</string>
 			</dict>
 			<key>Processor</key>
-			<string>FirefoxRCURLProvider</string>
+			<string>FirefoxURLProvider</string>
 		</dict>
 		<dict>
 			<key>Arguments</key>
