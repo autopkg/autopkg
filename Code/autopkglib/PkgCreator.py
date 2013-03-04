@@ -130,8 +130,6 @@ class PkgCreator(Processor):
         try:
             print "Connecting"
             self.connect()
-            print "Authenticating"
-            self.authenticate()
             print "Sending packaging request"
             pkg_path = self.send_request(request)
         finally:
@@ -147,31 +145,6 @@ class PkgCreator(Processor):
             self.socket.connect(AUTO_PKG_SOCKET)
         except socket.error as e:
             raise ProcessorError("Couldn't connect to autopkgserver: %s" % e.strerror)
-    
-    def authenticate(self):
-        # Send an authentication request to the server.
-        self.socket.send("AUTH:AUTHENTICATE %d:%d\n" % (os.geteuid(), os.getegid()))
-        auth_challenge = str(self.socket.recv(1024)).rstrip()
-        if auth_challenge.startswith("AUTH:FAILED"):
-            raise ProcessorError("Authentication failed: %s" % (
-                                  auth_challenge.replace("AUTH:FAILED ", "")))
-        if not auth_challenge.startswith("AUTH:CHALLENGE "):
-            raise ProcessorError("Unknown auth challenge %s" % auth_challenge)
-        auth_path = auth_challenge.replace("AUTH:CHALLENGE ", "")
-        with open(auth_path, "wb") as f:
-            pass
-        self.socket.send("AUTH:REPLY %s\n" % auth_path)
-        
-        auth_reply = str(self.socket.recv(1024)).rstrip()
-        try:
-            os.unlink(auth_path)
-        except OSError as e:
-            # Ignore ENOENT, that just means the server removed it before us.
-            if e.errno != 2:
-                raise
-        if auth_reply != "AUTH:OK":
-            raise ProcessorError("Authentication failed: %s" % (
-                                  auth_reply.replace("AUTH:FAILED ", "")))
     
     def send_request(self, request):
         self.socket.send(plistlib.writePlistToString(request))

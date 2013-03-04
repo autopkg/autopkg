@@ -101,6 +101,7 @@ import SocketServer
 import socket
 import plistlib
 import re
+import struct
 
 from packager import Packager, PackagerError
 import launch
@@ -204,6 +205,37 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         
         return (syntax_ok, errors)
     
+    def getpeerid(self):
+        """
+        Get peer credentials on a UNIX domain socket.
+        Returns uid, gids.
+        """
+    
+        # /usr/include/sys/ucred.h
+        #
+        # struct xucred {
+        #         u_int   cr_version;             /* structure layout version */
+        #         uid_t   cr_uid;                 /* effective user id */
+        #         short   cr_ngroups;             /* number of advisory groups */
+        #         gid_t   cr_groups[NGROUPS];     /* advisory group list */
+        # };
+    
+        LOCAL_PEERCRED = 0x001
+        XUCRED_VERSION = 0
+        NGROUPS = 16
+        cr_version = 0
+        cr_uid = 1
+        cr_ngroups = 2
+        cr_groups = 3
+    
+        xucred_fmt = "IIh%dI" % NGROUPS
+        res = struct.unpack(xucred_fmt, self.request.getsockopt(0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)))
+    
+        if res[cr_version] != XUCRED_VERSION:
+            raise OSError("Incompatible struct xucred version")
+    
+        return res[cr_uid], res[cr_groups:cr_groups + res[cr_ngroups]]
+    
     def handle(self):
         """Handle an incoming packaging request."""
         
@@ -211,70 +243,10 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         self.log = self.server.log
         self.log.debug("Handling request")
         
-        # Wait for the client to send an authentication request.
-        auth_request = self.request.recv(1024).rstrip()
-        self.log.debug("Got auth request: %s" % auth_request)
-        if not auth_request.startswith("AUTH:AUTHENTICATE "):
-            self.request.send("AUTH:FAILED Invalid authentication request.\n")
-            return
-        
-        # Verify that the client sends a valid uid:gid.
-        m = self.re_uid_gid.search(auth_request)
-        if not m:
-            self.request.send("AUTH:FAILED Invalid authentication request.\n")
-            return
-        
-        req_uid = int(m.group("uid"))
-        req_gid = int(m.group("gid"))
-        
-        # Verify uid and gid of the client by sending a random filename to the
-        # client. The client must create a file with that name and the owner
-        # of the file is used for verification.
-        
-        # Create a directory that can only be accessed by the proposed uid and
-        # gid.
-        random_dirname = "".join(["%02x" % ord(x) for x in os.urandom(8)])
-        challenge_dir = "/tmp/aps_%s" % random_dirname
-        os.mkdir(challenge_dir)
-        os.chmod(challenge_dir, 0700)
-        os.chown(challenge_dir, req_uid, req_gid)
-        try:
-            # Generate a random filename to be created inside that dir.
-            random_filename = "".join(["%02x" % ord(x) for x in os.urandom(8)])
-            challenge_path = os.path.join(challenge_dir, random_filename)
-            self.request.send("AUTH:CHALLENGE %s\n" % challenge_path)
-            
-            # Wait for client to reply with a pathname.
-            auth_reply = str(self.request.recv(1024)).rstrip()
-            if not auth_reply.startswith("AUTH:REPLY "):
-                self.request.send("AUTH:FAILED Invalid challenge response.\n")
-                return
-            auth_path = auth_reply.replace("AUTH:REPLY ", "")
-            if auth_path != challenge_path:
-                self.request.send("AUTH:FAILED Challenge path mismatch.\n")
-                return
-            
-            info = os.lstat(auth_path)
-            if not stat.S_ISREG(info.st_mode):
-                self.request.send("AUTH:FAILED Not a regular file.\n")
-                return
-            
-            uid = info.st_uid
-            gid = info.st_gid
-            if uid == 0:
-                self.request.send("AUTH:FAILED Root auth denied.\n")
-                return
-            
-            self.request.send("AUTH:OK\n")
-        finally:
-            # Remove authentication directory.
-            try:
-                os.unlink(challenge_path)
-            except OSError as e:
-                # Ignore ENOENT, that just means the client removed it before us.
-                if e.errno != 2:
-                    raise
-            os.rmdir(challenge_dir)
+        # Get uid and primary gid of connecting peer.
+        uid, gids = self.getpeerid()
+        gid = gids[0]
+        self.log.debug("Got packaging request from uid %d gid %d" % (uid, gid[0]))
         
         # Receive a plist.
         plist_string = self.request.recv(8192)
