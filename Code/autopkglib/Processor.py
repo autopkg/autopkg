@@ -92,11 +92,20 @@ class Processor(object):
         
         def getdata(m):
             return self.env[m.group("key")]
+            
+        def do_variable_substitution(item):
+            '''Do variable substitution for item'''
+            if isinstance(item, str):
+                item = re_keyref.sub(getdata, item)
+            elif isinstance(item, list):
+                for index in range(len(item)):
+                    item[index] = do_variable_substitution(item[index])
+            elif isinstance(item, dict):
+                for key, value in item.iteritems():
+                    item[key] = do_variable_substitution(value)
+            return item
         
-        # Perform variable substitution if value is a string.
-        if isinstance(value, str):
-            value = re_keyref.sub(getdata, value)
-        self.env[key] = value
+        self.env[key] = do_variable_substitution(value)
     
     def parse_arguments(self):
         """Parse arguments as key='value'."""
