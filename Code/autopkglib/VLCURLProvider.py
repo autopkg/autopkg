@@ -41,7 +41,7 @@ class VLCURLProvider(Processor):
         },
         "base_url": {
             "required": False,
-            "description": "Default is 'http://releases.mozilla.org/pub/mozilla.org/firefox/releases/latest'.",
+            "description": "Default is '%s'." % VLC_BASE_URL,
         },
     }
     output_variables = {
@@ -69,7 +69,8 @@ class VLCURLProvider(Processor):
         # Search for download links.
         matches = re_vlc_dmg.finditer(html)
         if not matches:
-            raise ProcessorError("Couldn't find VLC download URL in %s" % base_url)
+            raise ProcessorError(
+                "Couldn't find VLC download URL in %s" % base_url)
         
         # Find match with the requested build.
         for m in matches:
