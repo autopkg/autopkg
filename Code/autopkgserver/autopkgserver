@@ -210,7 +210,7 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         Get peer credentials on a UNIX domain socket.
         Returns uid, gids.
         """
-    
+        
         # /usr/include/sys/ucred.h
         #
         # struct xucred {
@@ -219,7 +219,7 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         #         short   cr_ngroups;             /* number of advisory groups */
         #         gid_t   cr_groups[NGROUPS];     /* advisory group list */
         # };
-    
+        
         LOCAL_PEERCRED = 0x001
         XUCRED_VERSION = 0
         NGROUPS = 16
@@ -227,61 +227,67 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         cr_uid = 1
         cr_ngroups = 2
         cr_groups = 3
-    
+        
         xucred_fmt = "IIh%dI" % NGROUPS
         res = struct.unpack(xucred_fmt, self.request.getsockopt(0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)))
-    
+        
         if res[cr_version] != XUCRED_VERSION:
             raise OSError("Incompatible struct xucred version")
-    
+        
         return res[cr_uid], res[cr_groups:cr_groups + res[cr_ngroups]]
     
     def handle(self):
         """Handle an incoming packaging request."""
         
-        # Log through server parent.
-        self.log = self.server.log
-        self.log.debug("Handling request")
-        
-        # Get uid and primary gid of connecting peer.
-        uid, gids = self.getpeerid()
-        gid = gids[0]
-        self.log.debug("Got packaging request from uid %d gid %d" % (uid, gid[0]))
-        
-        # Receive a plist.
-        plist_string = self.request.recv(8192)
-        
-        # Try to parse it.
         try:
-            plist = plistlib.readPlistFromString(plist_string)
+            # Log through server parent.
+            self.log = self.server.log
+            self.log.debug("Handling request")
+            
+            # Get uid and primary gid of connecting peer.
+            uid, gids = self.getpeerid()
+            gid = gids[0]
+            self.log.debug("Got packaging request from uid %d gid %d" % (uid, gid))
+            
+            # Receive a plist.
+            plist_string = self.request.recv(8192)
+            
+            # Try to parse it.
+            try:
+                plist = plistlib.readPlistFromString(plist_string)
+            except BaseException as e:
+                self.log.error("Malformed request")
+                self.request.send("ERROR:Malformed request\n")
+                return
+            self.log.debug("Parsed request plist")
+            
+            # Verify the plist syntax.
+            syntax_ok, errors = self.verify_request_syntax(plist)
+            if not syntax_ok:
+                self.log.error("Plist syntax error")
+                self.request.send("".join(["ERROR:%s\n" % e for e in errors]))
+                return
+            
+            if os.path.exists(plist.pkgroot):
+                name = os.path.basename(plist.pkgroot)
+            else:
+                self.request.send("ERROR:Can't find pkgroot")
+                return
+            
+            self.log.info("Dispatching worker to process request for user %d" % (uid))
+            try:
+                p = Packager(self.log, plist, name, uid, gid)
+                pkgpath = p.package()
+                self.log.info("Package built at %s" % pkgpath)
+                self.request.send("OK:%s\n" % pkgpath)
+            except PackagerError as e:
+                self.log.error("Packaging failed: %s" % (e))
+                self.request.send(str(e) + "\n")
+        
         except BaseException as e:
-            self.log.error("Malformed request")
-            self.request.send("ERROR:Malformed request\n")
+            self.log.error("Caught exception: %s" % repr(e))
+            self.request.send("ERROR:Caught exception: %s" % repr(e))
             return
-        self.log.debug("Parsed request plist")
-        
-        # Verify the plist syntax.
-        syntax_ok, errors = self.verify_request_syntax(plist)
-        if not syntax_ok:
-            self.log.error("Plist syntax error")
-            self.request.send("".join(["ERROR:%s\n" % e for e in errors]))
-            return
-        
-        if os.path.exists(plist.pkgroot):
-            name = os.path.basename(plist.pkgroot)
-        else:
-            self.request.send("ERROR:Can't find pkgroot")
-            return
-        
-        self.log.info("Dispatching worker to process request for user %d" % (uid))
-        try:
-            p = Packager(self.log, plist, name, uid, gid)
-            pkgpath = p.package()
-            self.log.info("Package built at %s" % pkgpath)
-            self.request.send("OK:%s\n" % pkgpath)
-        except PackagerError as e:
-            self.log.error("Packaging failed: %s" % (e))
-            self.request.send(str(e) + "\n")
     
 
 class AutoPkgServer(SocketServer.UnixStreamServer):
