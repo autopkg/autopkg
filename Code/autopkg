@@ -68,7 +68,7 @@ class AutoPackager(object):
         
         self.env.update(recipe.Input)
         
-        if self.verbose:
+        if self.verbose > 1:
             pprint.pprint(self.env)
         
         for step in recipe.Process:
@@ -78,22 +78,42 @@ class AutoPackager(object):
             
             processor_class = getattr(autopkglib, step.Processor)
             processor = processor_class(self.env)
+            processor.inject(step.Arguments)
+            
+            if self.verbose:
+                # pretty print any defined input variables
+                p_dict = {}
+                for key in processor.input_variables.keys():
+                    if key in processor.env:
+                        p_dict[key] = processor.env[key]
+                pprint.pprint({"Input": p_dict})
             
             try:
-                self.env = processor.process(step.Arguments)
+                self.env = processor.process()
             except ProcessorError as e:
                 print >>sys.stderr, str(e)
                 raise AutoPackagerError("Recipe processing failed.")
             
             if self.verbose:
-                pprint.pprint(self.env)
-    
+                # pretty print output variables
+                p_dict = {}
+                for key in processor.output_variables.keys():
+                    p_dict[key] = self.env[key]
+                pprint.pprint({"Output": p_dict})
+                
+            if self.env.get("stop_processing_recipe"):
+                # processing should stop now
+                break
+
+        if self.verbose > 1:
+            pprint.pprint(self.env)
+
 
 def main(argv):
     # Parse arguments.
     p = optparse.OptionParser()
     p.set_usage("""Usage: %prog [options] recipe.plist [key=value key=value ...]""")
-    p.add_option("-v", "--verbose", action="store_true",
+    p.add_option("-v", "--verbose", action="count", default=0,
                  help="Verbose output.")
     p.add_option("-q", "--quiet", action="store_true",
                  help="Be quiet.")

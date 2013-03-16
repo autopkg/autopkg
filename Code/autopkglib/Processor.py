@@ -36,7 +36,7 @@ class ProcessorError(Exception):
 class Processor(object):
     """Processor base class.
     
-    Processors accept a propert list as input, process its contents, and
+    Processors accept a property list as input, process its contents, and
     returns a new or updated property list that can be processed further.
     """
     
@@ -94,7 +94,7 @@ class Processor(object):
             return self.env[m.group("key")]
             
         def do_variable_substitution(item):
-            '''Do variable substitution for item'''
+            """Do variable substitution for item"""
             if isinstance(item, str):
                 item = re_keyref.sub(getdata, item)
             elif isinstance(item, list):
@@ -115,18 +115,20 @@ class Processor(object):
             if sep != "=":
                 raise ProcessorError("Illegal argument '%s'" % arg)
             self.update_data(key, value)
-    
-    def process(self, arguments):
-        """Main processing loop."""
-        
+            
+    def inject(self, arguments):
         # Update data with arguments.
         for key, value in arguments.items():
             self.update_data(key, value)
         
+    def process(self):
+        """Main processing loop."""
+        
         # Make sure all required arguments have been supplied.
         for variable, flags in self.input_variables.items():
             if flags["required"] and (variable not in self.env):
-                raise ProcessorError("%s requires %s" % (self.__name__, variable))
+                raise ProcessorError(
+                    "%s requires %s" % (self.__name__, variable))
         
         self.main()
         return self.env
@@ -140,8 +142,9 @@ class Processor(object):
                                  stderr=subprocess.PIPE)
             (out, err) = p.communicate()
         except OSError as e:
-            raise ProcessorError("%s execution failed with error code %d: %s" % (
-                                  command[0], e.errno, e.strerror))
+            raise ProcessorError(
+                "%s execution failed with error code %d: %s" 
+                % (command[0], e.errno, e.strerror))
         if p.returncode != 0:
             raise ProcessorError("%s failed: %s" % (description, err))
         
@@ -156,7 +159,7 @@ class Processor(object):
             self.main()
             self.write_output_plist()
         except ProcessorError as e:
-            print >>sys.stderr, "ProcessorError: %s" % e
+            print >> sys.stderr, "ProcessorError: %s" % e
             sys.exit(10)
         else:
             sys.exit(0)
