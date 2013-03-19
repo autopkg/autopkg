@@ -75,6 +75,8 @@ class Copier(DmgMounter):
             try:
                 if os.path.isdir(source_path):
                     shutil.copytree(source_path, self.env['destination_path'], symlinks=True)
+                elif not os.path.isdir(self.env['destination_path']):
+                    shutil.copyfile(source_path, self.env['destination_path'])
                 else:
                     shutil.copy(source_path, self.env['destination_path'])
             except BaseException as e:
