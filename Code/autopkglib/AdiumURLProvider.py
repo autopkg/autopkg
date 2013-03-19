@@ -20,7 +20,6 @@ import urllib2
 
 from Processor import Processor, ProcessorError
 
-
 __all__ = ["AdiumURLProvider"]
 
 
@@ -63,12 +62,12 @@ class AdiumURLProvider(Processor):
     
     def main(self):
         # Determine base_url.
-        base_url = self.env.get('base_url', ADIUM_BASE_URL)
+        base_url = self.env.get("base_url", ADIUM_BASE_URL)
         
         self.env["url"] = self.get_adium_dmg_url(base_url)
     
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     processor = AdiumURLProvider()
     processor.execute_shell()
     
