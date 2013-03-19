@@ -15,7 +15,7 @@
 # limitations under the License.
 
 
-import re
+import json
 import urllib2
 
 from Processor import Processor, ProcessorError
@@ -24,21 +24,32 @@ from Processor import Processor, ProcessorError
 __all__ = ["AdobeReaderURLProvider"]
 
 
-AR_BASE_URL = "http://get.adobe.com/se/reader/completion/?installer=Reader_10_%s_for_Mac_Intel"
-# location.href = 'http://ardownload.adobe.com/pub/adobe/reader/mac/10.x/10.0.0/en_US/AdbeRdr1000_en_US.dmg';
-re_reader_dmg = re.compile(r'location\.href *= *\'(?P<url>http://ardownload\.adobe\.com/pub/adobe/reader/mac/[0-9.x]+/[0-9.]+/[a-zA-Z_]+/AdbeRdr[0-9]+_[a-zA-Z_]+\.dmg)\'')
+AR_BASE_URL = ("http://get.adobe.com/reader/webservices/json/standalone/"
+    "?platform_type=Macintosh&platform_dist=OSX&platform_arch=x86-32"
+    "&platform_misc=10.8.0&language=%s&eventname=readerotherversions")
 
+LANGUAGE_DEFAULT = "English"
+MAJOR_VERSION_DEFAULT = "11"
+
+MAJOR_VERSION_MATCH_STR = "adobe/reader/mac/%s"
 
 class AdobeReaderURLProvider(Processor):
     description = "Provides URL to the latest Adobe Reader release."
     input_variables = {
         "language": {
             "required": False,
-            "description": "Which localization to download, default is 'English'.",
+            "description": ("Which language to download. Examples: 'English', "
+                            "'German', 'Japanese', 'Swedish'. Default is %s."
+                            % LANGUAGE_DEFAULT),
+        },
+        "major_version": {
+            "required": False,
+            "description": ("Major version. Examples: '10', '11'. Defaults to "
+                            "%s" % MAJOR_VERSION_DEFAULT)
         },
         "base_url": {
             "required": False,
-            "description": "Default is 'http://get.adobe.com/se/reader/completion/?installer=Reader_10_%s_for_Mac_Intel'.",
+            "description": "Default is %s" % AR_BASE_URL,
         },
     }
     output_variables = {
@@ -49,41 +60,38 @@ class AdobeReaderURLProvider(Processor):
     
     __doc__ = description
     
-    def get_reader_dmg_url(self, base_url, language):
-        # Construct download directory URL.
-        index_url = base_url % language
-        
-        # Read HTML index.
+    def get_reader_dmg_url(self, base_url, language, major_version):
+        request = urllib2.Request(base_url % language)
+        request.add_header("x-requested-with", "XMLHttpRequest")
         try:
-            f = urllib2.urlopen(index_url)
-            html = f.read()
-            f.close()
+            url_handle = urllib2.urlopen(request)
+            json_response = url_handle.read()
+            url_handle.close()
         except BaseException as e:
-            raise ProcessorError("Can't download %s: %s" % (index_url, e))
-        
-        # Search for download link.
-        m = re_reader_dmg.search(html)
-        if not m:
-            raise ProcessorError("Couldn't find Adobe Reader download URL in %s" % index_url)
-        
-        # Return URL.
-        return m.group("url")
+            raise ProcessorError("Can't open %s: %s" % (base_url, e))
+            
+        reader_info = json.loads(json_response)
+        major_version_string = MAJOR_VERSION_MATCH_STR % major_version
+        matches = [item["download_url"] for item in reader_info 
+                   if major_version_string in item["download_url"]]
+        try:
+            return matches[0]
+        except IndexError:
+            raise ProcessorError(
+                "Can't find Adobe Reader download URL for %s, version %s" 
+                % (language, major_version))
     
     def main(self):
-        # Determine language and base_url.
-        if "language" in self.env:
-            language = self.env["language"]
-        else:
-            language = "English"
-        if "base_url" in self.env:
-            base_url = self.env["base_url"]
-        else:
-            base_url = AR_BASE_URL
+        # Determine base_url, language and major_version.
+        base_url = self.env.get("base_url", AR_BASE_URL)
+        language = self.env.get("language", LANGUAGE_DEFAULT)
+        major_version = self.env.get("major_version", MAJOR_VERSION_DEFAULT)
         
-        self.env["url"] = self.get_reader_dmg_url(base_url, language)
+        self.env["url"] = self.get_reader_dmg_url(
+            base_url, language, major_version)
     
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     processor = AdobeReaderURLProvider()
     processor.execute_shell()
     
