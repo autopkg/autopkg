@@ -17,15 +17,30 @@
 
 import os.path
 import urllib2
+import xattr
 
 from Processor import Processor, ProcessorError
+try:
+    from autopkglib import BUNDLE_ID
+except ImportError:
+    BUNDLE_ID = "com.googlecode.autopkg"
 
 
 __all__ = ["URLDownloader"]
 
+# XATTR names for Etag and Last-Modified headers
+XATTR_ETAG = "%s.etag" % BUNDLE_ID
+XATTR_LAST_MODIFIED = "%s.last-modified" % BUNDLE_ID
 
 # Download URLs in chunks of 256 kB.
 CHUNK_SIZE = 256 * 1024
+
+def getxattr(pathname, attr):
+    """Get a named xattr from a file. Return None if not present"""
+    if attr in xattr.listxattr(pathname):
+        return xattr.getxattr(pathname, attr)
+    else:
+        return None
 
 
 class URLDownloader(Processor):
@@ -36,8 +51,10 @@ class URLDownloader(Processor):
             "description": "The URL to download.",
         },
         "download_dir": {
-            "required": True,
-            "description": "The directory where the file will be downloaded to.",
+            "required": False,
+            "description": 
+                ("The directory where the file will be downloaded to. Defaults "
+                 "to RECIPE_CACHE_DIR/downloads."),
         },
         "filename": {
             "required": False,
@@ -48,70 +65,92 @@ class URLDownloader(Processor):
         "pathname": {
             "description": "Path to the downloaded file.",
         },
+        "download_changed": {
+            "description": 
+                ("Boolean indicating if the download has changed since the "
+                 "last time it was downloaded."),
+        },
     }
     
     __doc__ = description
     
-    def has_changed(self, url_info, pathname):
-        """Check if data at URL is different from the already downloaded copy."""
-        
-        # Get file info.
-        try:
-            file_info = os.stat(pathname)
-        except BaseException as e:
-            raise ProcessorError("Couldn't get info for %s: %s" % (pathname, e))
-        
-        # Compare size.
-        content_length = url_info.get("Content-Length", None)
-        if content_length:
-            content_length = int(content_length)
-            if content_length == file_info.st_size:
-                return False
-        
-        # Time comparison and If-Modified-Since not implemented due to lack of
-        # decent timezone handling in Python.
-        return True
     
     def main(self):
         if not "filename" in self.env:
             # Generate filename.
             filename = self.env["url"].rpartition("/")[2]
         else:
-            filename = self.env['filename']
-        pathname = os.path.join(self.env["download_dir"], filename)
+            filename = self.env["filename"]
+        download_dir = (self.env.get("download_dir") or
+                        os.path.join(self.env["RECIPE_CACHE_DIR"], "downloads"))
+        pathname = os.path.join(download_dir, filename)
+        # Save pathname to environment
+        self.env["pathname"] = pathname
+        
+        # create download_dir if needed
+        if not os.path.exists(download_dir):
+            try:
+                os.makedirs(download_dir)
+            except OSError, e:
+                raise ProcessorError(
+                    "Can't create %s: %s" 
+                    % (download_dir, e.strerror))
         
         # Download URL.
         url_handle = None
         try:
-            # Open URL.
-            url_handle = urllib2.urlopen(self.env["url"])
+            request = urllib2.Request(url=self.env["url"])
             
-            # If file already exists, check if it has changed.
+            # if file already exists, add some headers to the request
+            # so we don't retrieve the content if it hasn't changed
             if os.path.exists(pathname):
-                download = self.has_changed(url_handle.info(), pathname)
-            else:
-                download = True
+                etag = getxattr(pathname, XATTR_ETAG)
+                last_modified = getxattr(pathname, XATTR_LAST_MODIFIED)
+                if etag:
+                    request.add_header("If-None-Match", etag)
+                if last_modified:
+                    request.add_header("If-Modified-Since", last_modified)
+                    
+            # Open URL.
+            try:
+                url_handle = urllib2.urlopen(request)
+            except urllib2.HTTPError, http_err:
+                if http_err.code == 304:
+                    # resource not modified
+                    self.env["download_changed"] = False
+                    return
+                else:
+                    raise
             
-            # Download if file has changed, or doesn't exist.
-            if download:
-                with open(pathname, "wb") as file_handle:
-                    while True:
-                        data = url_handle.read(CHUNK_SIZE)
-                        if len(data) == 0:
-                            break
-                        file_handle.write(data)
+            # Download file.
+            self.env["download_changed"] = True
+            with open(pathname, "wb") as file_handle:
+                while True:
+                    data = url_handle.read(CHUNK_SIZE)
+                    if len(data) == 0:
+                        break
+                    file_handle.write(data)
+                    
+            # save last-modified header if it exists
+            if url_handle.info().get("last-modified"):
+                xattr.setxattr(
+                    pathname, XATTR_LAST_MODIFIED,
+                    url_handle.info().get("last-modified"))
+                            
+            # save etag if it exists
+            if url_handle.info().get("etag"):
+                xattr.setxattr(
+                    pathname, XATTR_ETAG, url_handle.info().get("etag"))
         
         except BaseException as e:
-            raise ProcessorError("Couldn't download %s: %s" % (self.env["url"], e))
+            raise ProcessorError(
+                "Couldn't download %s: %s" % (self.env["url"], e))
         finally:
             if url_handle is not None:
                 url_handle.close()
-        
-        # Save path to downloaded file.
-        self.env["pathname"] = pathname
-    
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     processor = URLDownloader()
     processor.execute_shell()
     

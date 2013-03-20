@@ -5,23 +5,25 @@
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
-        <string>com.googlecode.autopkg.munki.Cyberduck</string>
+        <string>com.googlecode.autopkg.munki.FlashPlayerNoRepackage</string>
         <key>NAME</key>
-        <string>Cyberduck</string>
+        <string>AdobeFlashPlayer</string>
         <key>MUNKI_DISPLAYNAME</key>
-        <string>Cyberduck</string>
+        <string>Adobe Flash Player</string>
         <key>MUNKI_DESCRIPTION</key>
-        <string>With an easy to use interface, connect to FTP, SFTP, WebDAV, Amazon S3, Google Storage, Windows Azure, Rackspace Cloud Files and even Google Docs.</string>
+        <string>Adobe® Flash® Player is a cross-platform browser-based application runtime that delivers uncompromised viewing of expressive applications, content, and videos across screens and browsers.</string>
         <key>MUNKI_CATALOG</key>
         <string>testing</string>
         <key>MUNKI_REPO_SUBDIR</key>
-        <string>apps</string>
+        <string>internet_plugins</string>
+        <key>MAKEPKGINFO_PKGNAME</key>
+        <string>Install Adobe Flash Player.app/Contents/Resources/Adobe Flash Player.pkg</string>
     </dict>
     <key>Process</key>
     <array>
         <dict>
             <key>Processor</key>
-            <string>CyberduckURLProvider</string>
+            <string>AdobeFlashURLProvider</string>
             <key>Arguments</key>
             <dict/>
         </dict>
@@ -31,40 +33,18 @@
             <key>Arguments</key>
             <dict>
                 <key>filename</key>
-                <string>%NAME%.zip</string>
-            </dict>
-        </dict>
-        <dict>
-            <key>Processor</key>
-            <string>Unzipper</string>
-            <key>Arguments</key>
-            <dict>
-                <key>archive_path</key>
-                <string>%pathname%</string>
-                <key>destination_path</key>
-                <string>%RECIPE_CACHE_DIR%/%NAME%</string>
-                <key>purge_destination</key>
-                <true/>
-            </dict>
-        </dict>
-        <dict>
-            <key>Processor</key>
-            <string>DmgCreator</string>
-            <key>Arguments</key>
-            <dict>
-                <key>dmg_root</key>
-                <string>%RECIPE_CACHE_DIR%/%NAME%</string>
-                <key>dmg_path</key>
-                <string>%RECIPE_CACHE_DIR%/%NAME%.dmg</string>
+                <string>%NAME%.dmg</string>
             </dict>
         </dict>
         <dict>
             <key>Arguments</key>
             <dict>
                 <key>pkg_path</key>
-                <string>%dmg_path%</string>
+                <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
+                <key>makepkginfo_pkgname</key>
+                <string>%MAKEPKGINFO_PKGNAME%</string>
                 <key>pkginfo</key>
                 <dict>
                     <key>catalogs</key>

@@ -5,23 +5,23 @@
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
-        <string>com.googlecode.autopkg.munki.Cyberduck</string>
+        <string>com.googlecode.autopkg.munki.FlashPlayerExtractPackage</string>
         <key>NAME</key>
-        <string>Cyberduck</string>
+        <string>AdobeFlashPlayer</string>
         <key>MUNKI_DISPLAYNAME</key>
-        <string>Cyberduck</string>
+        <string>Adobe Flash Player</string>
         <key>MUNKI_DESCRIPTION</key>
-        <string>With an easy to use interface, connect to FTP, SFTP, WebDAV, Amazon S3, Google Storage, Windows Azure, Rackspace Cloud Files and even Google Docs.</string>
+        <string>Adobe® Flash® Player is a cross-platform browser-based application runtime that delivers uncompromised viewing of expressive applications, content, and videos across screens and browsers.</string>
         <key>MUNKI_CATALOG</key>
         <string>testing</string>
         <key>MUNKI_REPO_SUBDIR</key>
-        <string>apps</string>
+        <string>internet_plugins</string>
     </dict>
     <key>Process</key>
     <array>
         <dict>
             <key>Processor</key>
-            <string>CyberduckURLProvider</string>
+            <string>AdobeFlashURLProvider</string>
             <key>Arguments</key>
             <dict/>
         </dict>
@@ -31,21 +31,19 @@
             <key>Arguments</key>
             <dict>
                 <key>filename</key>
-                <string>%NAME%.zip</string>
+                <string>%NAME%.dmg</string>
             </dict>
         </dict>
         <dict>
-            <key>Processor</key>
-            <string>Unzipper</string>
             <key>Arguments</key>
             <dict>
-                <key>archive_path</key>
-                <string>%pathname%</string>
+                <key>source_path</key>
+                <string>%pathname%/Install Adobe Flash Player.app/Contents/Resources/Adobe Flash Player.pkg</string>
                 <key>destination_path</key>
-                <string>%RECIPE_CACHE_DIR%/%NAME%</string>
-                <key>purge_destination</key>
-                <true/>
+                <string>%RECIPE_CACHE_DIR%/Flash Plugin/Adobe Flash Player.pkg</string>
             </dict>
+            <key>Processor</key>
+            <string>Copier</string>
         </dict>
         <dict>
             <key>Processor</key>
@@ -53,7 +51,7 @@
             <key>Arguments</key>
             <dict>
                 <key>dmg_root</key>
-                <string>%RECIPE_CACHE_DIR%/%NAME%</string>
+                <string>%RECIPE_CACHE_DIR%/Flash Plugin</string>
                 <key>dmg_path</key>
                 <string>%RECIPE_CACHE_DIR%/%NAME%.dmg</string>
             </dict>

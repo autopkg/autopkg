@@ -5,34 +5,41 @@
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
-        <string>com.google.code.autopkg.munki.Adium</string>
-        <key>NAME</key>
-        <string>Adium</string>
-        <key>MUNKI_DISPLAYNAME</key>
-        <string>Adium</string>
+        <string>com.googlecode.autopkg.munki.firefox-rc-en_US</string>
+        <key>FIREFOX_BUILD</key>
+        <string>latest</string>
+        <key>LOCALE</key>
+        <string>en_US</string>
         <key>MUNKI_DESCRIPTION</key>
-        <string>Adium is a free instant messaging application for Mac OS X that can connect to AIM, MSN, Jabber, Yahoo, and more.</string>
-        <key>MUNKI_CATALOG</key>
-        <string>testing</string>
+        <string>Mozilla Firefox is a free and open source web browser.</string>
+        <key>MUNKI_DISPLAYNAME</key>
+        <string>Firefox</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>apps</string>
+        <key>NAME</key>
+        <string>Firefox</string>
     </dict>
     <key>Process</key>
     <array>
         <dict>
-            <key>Processor</key>
-            <string>AdiumURLProvider</string>
             <key>Arguments</key>
-            <dict/>
+            <dict>
+                <key>build</key>
+                <string>%FIREFOX_BUILD%</string>
+                <key>locale</key>
+                <string>%LOCALE%</string>
+            </dict>
+            <key>Processor</key>
+            <string>FirefoxURLProvider</string>
         </dict>
         <dict>
-            <key>Processor</key>
-            <string>URLDownloader</string>
             <key>Arguments</key>
             <dict>
                 <key>filename</key>
                 <string>%NAME%.dmg</string>
             </dict>
+            <key>Processor</key>
+            <string>URLDownloader</string>
         </dict>
         <dict>
             <key>Arguments</key>
@@ -45,7 +52,8 @@
                 <dict>
                     <key>catalogs</key>
                     <array>
-                        <string>%MUNKI_CATALOG%</string>
+                        <string>testing</string>
+                        <string>firefox-testing</string>
                     </array>
                     <key>description</key>
                     <string>%MUNKI_DESCRIPTION%</string>

@@ -21,9 +21,10 @@ import optparse
 import plistlib
 import pprint
 import time
+import imp
 
 from autopkglib import BUNDLE_ID
-from autopkglib.Processor import Processor, ProcessorError
+from autopkglib.Processor import ProcessorError
 import autopkglib
 
 
@@ -45,28 +46,69 @@ class AutoPackager(object):
         variables = set(recipe.Input.keys())
         # Add environment.
         variables.update(set(self.env.keys()))
+        recipe_dir = self.env.get('RECIPE_DIR')
         # Check each step of the process.
         for step in recipe.Process:
-            # Make sure the class exists.
+            # Look for the processor in the same directory as the recipe
+            processor_filename = os.path.join(
+                                    recipe_dir, step.Processor + '.py')
+            if os.path.exists(processor_filename):
+                try:
+                    # attempt to import the module
+                    _tmp = imp.load_source(
+                        step.Processor, processor_filename)
+                    # look for an attribute with the step.Processor name
+                    _processor = getattr(_tmp, step.Processor)
+                    # add the processor to autopkglib's namespace
+                    autopkglib.add_processor(step.Processor, _processor)
+                except (ImportError, AttributeError):
+                    # if we aren't successful, that's OK, we're going
+                    # see if the processor was already imported
+                    pass
             try:
                 processor_class = getattr(autopkglib, step.Processor)
             except AttributeError:
-                raise AutoPackagerError("Unknown processor '%s'" % step.Processor)
+                raise AutoPackagerError(
+                        "Unknown processor '%s'" % step.Processor)
             # Add arguments to set of variables.
             variables.update(set(step.Arguments.keys()))
             # Make sure all required input variables exist.
             for key, flags in processor_class.input_variables.items():
                 if flags["required"] and (key not in variables):
-                    raise AutoPackagerError("%s requires missing argument %s" % (
-                                             step.Processor, key))
+                    raise AutoPackagerError("%s requires missing argument %s" 
+                                            % (step.Processor, key))
             # Add output variables to set.
             variables.update(set(processor_class.output_variables.keys()))
     
     def process(self, recipe):
         """Process a recipe."""
         
-        
         self.env.update(recipe.Input)
+        
+        # get or create unique identifier for this recipe
+        identifier = self.env.get("IDENTIFIER")
+        if not identifier:
+            # build a pseudo-identifier based on the recipe pathname
+            recipe_path = self.env.get("RECIPE_PATH")
+            # get rid of filename extension
+            recipe_path = os.path.splitext(recipe_path)[0]
+            path_parts = recipe_path.split("/")
+            identifier = "-".join(path_parts)
+            
+        # define a cache/work directory for use by the recipe
+        cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
+            "~/Library/AutoPkg/Cache")
+        self.env["RECIPE_CACHE_DIR"] = os.path.join(
+            self.env["CACHE_DIR"], identifier)
+            
+        # make sure the RECIPE_CACHE_DIR exists, creating it if needed
+        if not os.path.exists(self.env["RECIPE_CACHE_DIR"]):
+            try:
+                os.makedirs(self.env["RECIPE_CACHE_DIR"])
+            except OSError, e:
+                raise AutoPackagerError(
+                    "Could not create RECIPE_CACHE_DIR %s: %s"
+                    % (self.env["RECIPE_CACHE_DIR"], e))
         
         if self.verbose > 1:
             pprint.pprint(self.env)
@@ -91,7 +133,7 @@ class AutoPackager(object):
             try:
                 self.env = processor.process()
             except ProcessorError as e:
-                print >>sys.stderr, str(e)
+                print >> sys.stderr, str(e)
                 raise AutoPackagerError("Recipe processing failed.")
             
             if self.verbose:
@@ -112,14 +154,14 @@ class AutoPackager(object):
 def main(argv):
     # Parse arguments.
     p = optparse.OptionParser()
-    p.set_usage("""Usage: %prog [options] recipe.plist [key=value key=value ...]""")
+    p.set_usage("Usage: %prog [options] recipe.plist [key=value key=value ...]")
     p.add_option("-v", "--verbose", action="count", default=0,
                  help="Verbose output.")
     p.add_option("-q", "--quiet", action="store_true",
                  help="Be quiet.")
     options, argv = p.parse_args(argv)
     if len(argv) < 2:
-        print >>sys.stderr, p.get_usage()
+        print >> sys.stderr, p.get_usage()
         return 1
     
     recipe_path = argv[1]
@@ -127,7 +169,7 @@ def main(argv):
     try:
         recipe = plistlib.readPlist(recipe_path)
     except BaseException as e:
-        print >>sys.stderr, "Can't read %s: %s" % (recipe_path, e)
+        print >> sys.stderr, "Can't read %s: %s" % (recipe_path, e)
         return 1
     
     # Create empty plist object to hold preferences.
@@ -140,18 +182,19 @@ def main(argv):
             try:
                 prefs = plistlib.readPlist(prefpath)
             except BaseException as e:
-                print >>sys.stderr, "Can't read preferences from %s: %s" % (
+                print >> sys.stderr, "Can't read preferences from %s: %s" % (
                                      prefpath, e)
     
-    # Add RECIPE_DIR variable.
+    # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
+    prefs["RECIPE_PATH"] = os.path.abspath(recipe_path)
     prefs["RECIPE_DIR"] = os.path.dirname(os.path.abspath(recipe_path))
     
     # Add variables from commandline.
     for arg in argv[2:]:
         (key, sep, value) = arg.partition("=")
         if sep != "=":
-            print >>sys.stderr, "Invalid variable [key=value]: %s" % arg
-            print >>sys.stderr, p.get_usage()
+            print >> sys.stderr, "Invalid variable [key=value]: %s" % arg
+            print >> sys.stderr, p.get_usage()
             return 1
         prefs[key] = value
     
@@ -166,14 +209,23 @@ def main(argv):
     except AutoPackagerError as e:
         exit_status += 1
         exit_string = str(e)
-        print >>sys.stderr, e
+        print >> sys.stderr, e
     
-    if recipe_path.endswith(".plist"):
-        rp = recipe_path[:-6]
-    else:
-        rp = recipe_path
+    # build a pathname for a receipt
+    recipe_basename = os.path.splitext(os.path.basename(recipe_path))[0]
+    receipt_dir = os.path.join(autopackager.env["RECIPE_CACHE_DIR"], "receipts")
     timestamp = time.strftime("%Y%m%d-%H%M%S")
-    receipt_path = "%s-receipt-%s.plist" % (rp, timestamp)
+    receipt_name = "%s-receipt-%s.plist" % (recipe_basename, timestamp)
+    if not os.path.exists(receipt_dir):
+        try:
+            os.makedirs(receipt_dir)
+        except OSError, e:
+            exit_status += 1
+            print >> sys.stderr, (
+                "Can't create %s: %s" % (receipt_dir, e.strerror))
+            return exit_status
+            
+    receipt_path = os.path.join(receipt_dir, receipt_name)
     try:
         plistlib.writePlist({
                 "Exit Status": exit_status,
@@ -182,11 +234,18 @@ def main(argv):
             }, receipt_path)
     except IOError as e:
         exit_status += 1
-        print >>sys.stderr, "Can't write receipt to %s: %s" % (receipt_path, e.strerror)
+        print >> sys.stderr, (
+            "Can't write receipt to %s: %s" % (receipt_path, e.strerror))
+    except Exception:
+        print >> sys.stderr, {
+                "Exit Status": exit_status,
+                "Exit String": exit_string,
+                "Receipt": autopackager.env
+                }
     
     return exit_status
     
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main(sys.argv))
     

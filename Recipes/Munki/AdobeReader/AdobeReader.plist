@@ -5,64 +5,49 @@
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
-        <string>com.googlecode.autopkg.munki.Cyberduck</string>
-        <key>NAME</key>
-        <string>Cyberduck</string>
-        <key>MUNKI_DISPLAYNAME</key>
-        <string>Cyberduck</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>With an easy to use interface, connect to FTP, SFTP, WebDAV, Amazon S3, Google Storage, Windows Azure, Rackspace Cloud Files and even Google Docs.</string>
+        <string>com.googlecode.autopkg.munki.AdobeReader</string>
+        <key>LANGUAGE</key>
+        <string>English</string>
+        <key>MAJOR_VERSION</key>
+        <string>11</string>
         <key>MUNKI_CATALOG</key>
         <string>testing</string>
+        <key>MUNKI_DESCRIPTION</key>
+        <string>Adobe® Reader® is the global standard for reliably viewing, printing, and commenting on PDF documents. It&apos;s the only PDF file viewer that can open and interact with all types of PDF content, including forms and multimedia.</string>
+        <key>MUNKI_DISPLAYNAME</key>
+        <string>Adobe Reader</string>
         <key>MUNKI_REPO_SUBDIR</key>
-        <string>apps</string>
+        <string>apps/Adobe</string>
+        <key>NAME</key>
+        <string>AdobeReader</string>
     </dict>
     <key>Process</key>
     <array>
         <dict>
-            <key>Processor</key>
-            <string>CyberduckURLProvider</string>
             <key>Arguments</key>
-            <dict/>
+            <dict>
+                <key>language</key>
+                <string>%LANGUAGE%</string>
+                <key>major_version</key>
+                <string>%MAJOR_VERSION%</string>
+            </dict>
+            <key>Processor</key>
+            <string>AdobeReaderURLProvider</string>
         </dict>
         <dict>
-            <key>Processor</key>
-            <string>URLDownloader</string>
             <key>Arguments</key>
             <dict>
                 <key>filename</key>
-                <string>%NAME%.zip</string>
+                <string>%NAME%.dmg</string>
             </dict>
-        </dict>
-        <dict>
             <key>Processor</key>
-            <string>Unzipper</string>
-            <key>Arguments</key>
-            <dict>
-                <key>archive_path</key>
-                <string>%pathname%</string>
-                <key>destination_path</key>
-                <string>%RECIPE_CACHE_DIR%/%NAME%</string>
-                <key>purge_destination</key>
-                <true/>
-            </dict>
-        </dict>
-        <dict>
-            <key>Processor</key>
-            <string>DmgCreator</string>
-            <key>Arguments</key>
-            <dict>
-                <key>dmg_root</key>
-                <string>%RECIPE_CACHE_DIR%/%NAME%</string>
-                <key>dmg_path</key>
-                <string>%RECIPE_CACHE_DIR%/%NAME%.dmg</string>
-            </dict>
+            <string>URLDownloader</string>
         </dict>
         <dict>
             <key>Arguments</key>
             <dict>
                 <key>pkg_path</key>
-                <string>%dmg_path%</string>
+                <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
                 <key>pkginfo</key>
@@ -77,6 +62,13 @@
                     <string>%MUNKI_DISPLAYNAME%</string>
                     <key>name</key>
                     <string>%NAME%</string>
+                    <key>preinstall_script</key>
+                    <string>#!/bin/sh
+if [ -e "/Applications/Adobe Reader.app" ]; then
+    rm -r "/Applications/Adobe Reader.app"
+fi
+exit 0
+                    </string>
                     <key>unattended_install</key>
                     <true/>
                 </dict>

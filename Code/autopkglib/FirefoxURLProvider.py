@@ -18,13 +18,14 @@
 import re
 import urllib2
 
-from Processor import Processor, ProcessorError
+from autopkglib.Processor import Processor, ProcessorError
 
 
 __all__ = ["FirefoxURLProvider"]
 
 
-FF_BASE_URL = "http://download-origin.cdn.mozilla.net/pub/mozilla.org/firefox/releases"
+FF_BASE_URL = ("http://download-origin.cdn.mozilla.net/pub/mozilla.org/"
+               "firefox/releases")
 re_firefox_dmg = re.compile(r'a[^>]* href="(?P<filename>Firefox[^"]+\.dmg)"')
 re_locale = re.compile(r'^(?P<lang>[a-z]{2,3})([\-_](?P<region>[A-Z]{2}))?$')
 
@@ -34,15 +35,19 @@ class FirefoxURLProvider(Processor):
     input_variables = {
         "build": {
             "required": False,
-            "description": "Which build to download, 'stable' or 'esr'.",
+            "description": ("Which build to download. Examples: 'latest', "
+                "'latest-10.0esr', 'latest-esr', 'latest-3.6', 'latest-beta'."),
         },
         "locale": {
             "required": False,
-            "description": "Which localization to download, default is 'en_US'.",
+            "description": 
+                    "Which localization to download, default is 'en_US'.",
         },
         "base_url": {
             "required": False,
-            "description": "Default is 'http://download-origin.cdn.mozilla.net/pub/mozilla.org/firefox/releases'.",
+            "description": (
+                "Default is 'http://download-origin.cdn.mozilla.net/"
+                "pub/mozilla.org/firefox/releases'."),
         },
     }
     output_variables = {
@@ -57,15 +62,11 @@ class FirefoxURLProvider(Processor):
         # Allow locale as both en-US and en_US.
         m = re_locale.search(locale)
         if m:
-            locale = "%s-%s" % (m.group("lang").lower(), m.group("region").upper())
+            locale = "%s-%s" % (m.group("lang").lower(),
+                                m.group("region").upper())
         
         # Construct download directory URL.
-        if build.lower() == "stable":
-            build_dir = "latest"
-        elif build.lower() == "esr":
-            build_dir = "latest-10.0esr"
-        else:
-            raise ProcessorError("Unknown build '%s'" % build)
+        build_dir = build.lower()
         
         index_url = "/".join((base_url, build_dir, "mac", locale))
         #print >>sys.stderr, index_url
@@ -81,17 +82,19 @@ class FirefoxURLProvider(Processor):
         # Search for download link.
         m = re_firefox_dmg.search(html)
         if not m:
-            raise ProcessorError("Couldn't find Firefox download URL in %s" % index_url)
+            raise ProcessorError(
+                "Couldn't find Firefox download URL in %s" % index_url)
         
         # Return URL.
-        return "/".join((base_url, build_dir, "mac", locale, m.group("filename")))
+        return "/".join(
+            (base_url, build_dir, "mac", locale, m.group("filename")))
     
     def main(self):
         # Determine build, locale, and base_url.
         if "build" in self.env:
             build = self.env["build"]
         else:
-            build = "mac"
+            build = "latest"
         if "locale" in self.env:
             locale = self.env["locale"]
         else:
@@ -104,7 +107,7 @@ class FirefoxURLProvider(Processor):
         self.env["url"] = self.get_firefox_dmg_url(base_url, build, locale)
     
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     processor = FirefoxURLProvider()
     processor.execute_shell()
     

@@ -4,6 +4,8 @@
 <dict>
 	<key>Input</key>
 	<dict>
+	    <key>IDENTIFIER</key>
+        <string>com.googlecode.autopkg.munki.VLC</string>
 		<key>NAME</key>
 		<string>VLC</string>
 		<key>MUNKI_DISPLAYNAME</key>
@@ -11,7 +13,9 @@
 		<key>MUNKI_DESCRIPTION</key>
 		<string>VLC is a powerful media player, playing most of the media codecs and video formats out there.</string>
 		<key>MUNKI_CATALOG</key>
-		<string>common</string>
+		<string>production</string>
+		<key>MUNKI_REPO_SUBDIR</key>
+		<string>apps</string>
 	</dict>
 	<key>Process</key>
 	<array>
@@ -26,50 +30,35 @@
 			<string>URLDownloader</string>
 			<key>Arguments</key>
 			<dict>
-				<key>download_dir</key>
-				<string>%RECIPE_DIR%</string>
 				<key>filename</key>
 				<string>%NAME%.dmg</string>
 			</dict>
 		</dict>
 		<dict>
-			<key>Processor</key>
-			<string>AppDmgVersioner</string>
-			<key>Arguments</key>
-			<dict>
-				<key>dmg_path</key>
-				<string>%pathname%</string>
-			</dict>
-		</dict>
-		<dict>
-			<key>Processor</key>
-			<string>Copier</string>
-			<key>Arguments</key>
-			<dict>
-				<key>source_path</key>
-				<string>%pathname%</string>
-				<key>destination_path</key>
-				<string>%MUNKI_REPO%/pkgs/%NAME%-%version%.dmg</string>
-			</dict>
-		</dict>
-		<dict>
-			<key>Processor</key>
-			<string>MunkiInfoCreator</string>
 			<key>Arguments</key>
 			<dict>
 				<key>pkg_path</key>
-				<string>%destination_path%</string>
-				<key>info_path</key>
-				<string>%MUNKI_REPO%/pkgsinfo/%NAME%-%version%.plist</string>
-				<key>name</key>
-				<string>%NAME%</string>
-				<key>displayname</key>
-				<string>%MUNKI_DISPLAYNAME%</string>
-				<key>description</key>
-				<string>%MUNKI_DESCRIPTION%</string>
-				<key>catalog</key>
-				<string>%MUNKI_CATALOG%</string>
+				<string>%pathname%</string>
+				<key>repo_subdirectory</key>
+				<string>%MUNKI_REPO_SUBDIR%</string>
+				<key>pkginfo</key>
+				<dict>
+				    <key>catalogs</key>
+				    <array>
+				        <string>%MUNKI_CATALOG%</string>
+				    </array>
+				    <key>description</key>
+				    <string>%MUNKI_DESCRIPTION%</string>
+				    <key>display_name</key>
+				    <string>%MUNKI_DISPLAYNAME%</string>
+				    <key>name</key>
+    				<string>%NAME%</string>
+    				<key>unattended_install</key>
+    				<true/>
+				</dict>
 			</dict>
+			<key>Processor</key>
+			<string>MunkiImporter</string>
 		</dict>
 	</array>
 </dict>
