@@ -31,45 +31,9 @@ __all__ = ["PkgCreator"]
 class PkgCreator(Processor):
     description = "Calls autopkgserver to create a package."
     input_variables = {
-        "template_path": {
-            "required": False,
-            "description": "A package request template.",
-        },
-        "pkgroot": {
-            "required": False,
-            "description": "Virtual root of the package.",
-        },
-        "pkgdir": {
-            "required": False,
-            "description": "Output directory for the pkg.",
-        },
-        "pkgname": {
-            "required": False,
-            "description": "Name of the pkg, without the .pkg extension.",
-        },
-        "pkgtype": {
-            "required": False,
-            "description": "'bundle' or 'flat'.",
-        },
-        "id": {
-            "required": False,
-            "description": "Package bundle ID.",
-        },
-        "version": {
-            "required": False,
-            "description": "Package version.",
-        },
-        "infofile": {
-            "required": False,
-            "description": "Path to a package info file.",
-        },
-        "resources": {
-            "required": False,
-            "description": "Path to a Resources directory.",
-        },
-        "options": {
-            "required": False,
-            "description": "Space delimited string of packaging options.",
+        "pkg_request": {
+            "required": True,
+            "description": "A package request dictionary."
         },
     }
     output_variables = {
@@ -81,27 +45,12 @@ class PkgCreator(Processor):
     __doc__ = description
     
     def main(self):
-        # Populate request with values from the template if given. Relative
-        # paths are converted to absolute.
-        if "template_path" in self.env:
-            try:
-                request = plistlib.readPlist(self.env['template_path'])
-            except BaseException as e:
-                raise ProcessorError("Malformed plist template %s" % self.env['template_path'])
-            base_dir = os.path.dirname(os.path.abspath(self.env['template_path']))
-            # Convert relative paths to absolute.
-            for key, value in request.items():
-                if key in ("pkgroot", "pkgdir", "infofile", "resources"):
-                    if not value.startswith("/"):
-                        # Relative to template directory.
-                        value = os.path.normpath(os.path.join(base_dir, value))
-                request[key] = value
-        else:
-            request = dict()
+        request = self.env["pkg_request"]
+        if not 'pkgdir' in request:
+            request['pkgdir'] = self.env['RECIPE_CACHE_DIR']
         
         # Set variables, and check that all keys are in request.
         for key in ("pkgroot",
-                    "pkgdir",
                     "pkgname",
                     "pkgtype",
                     "id",
@@ -109,10 +58,10 @@ class PkgCreator(Processor):
                     "infofile",
                     "resources",
                     "options"):
-            if key in self.env:
-                request[key] = self.env[key]
-            else:
-                if not key in request:
+            if not key in request:
+                if key in self.env:
+                    request[key] = self.env[key]
+                else:
                     raise ProcessorError("Request key %s missing" % key)
         
         # Make sure chown dict is present.
@@ -123,8 +72,9 @@ class PkgCreator(Processor):
         for key, value in request.items():
             if key in ("pkgroot", "pkgdir", "infofile", "resources"):
                 if not value.startswith("/"):
-                    # Relative to current directory.
-                    request[key] = os.path.normpath(os.path.join(os.getcwdu(), value))
+                    # Relative to work directory
+                    request[key] = os.path.normpath(
+                        os.path.join(self.env['RECIPE_CACHE_DIR'], value))
         
         # Send packaging request.
         try:
