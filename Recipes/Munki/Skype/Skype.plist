@@ -16,6 +16,8 @@
         <string>testing</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>apps</string>
+        <key>DOWNLOAD_URL</key>
+        <string>http://www.skype.com/go/getskype-macosx.dmg</string>
     </dict>
     <key>Process</key>
     <array>
@@ -25,7 +27,9 @@
             <key>Arguments</key>
             <dict>
                 <key>url</key>
-                <string>http://www.skype.com/go/getskype-macosx.dmg</string>
+                <string>%DOWNLOAD_URL%</string>
+                <key>filename</key>
+                <string>%NAME%.dmg</string>
             </dict>
         </dict>
         <dict>
