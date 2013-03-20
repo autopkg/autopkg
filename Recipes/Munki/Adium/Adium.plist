@@ -5,7 +5,7 @@
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
-        <string>com.google.code.autopkg.munki.Adium</string>
+        <string>com.googlecode.autopkg.munki.Adium</string>
         <key>NAME</key>
         <string>Adium</string>
         <key>MUNKI_DISPLAYNAME</key>
