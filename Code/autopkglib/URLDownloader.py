@@ -50,6 +50,12 @@ class URLDownloader(Processor):
             "required": True,
             "description": "The URL to download.",
         },
+        "request_headers": {
+            "required": False,
+            "description": 
+                ("Optional dictionary of headers to include with the download "
+                "request.")
+        },
         "download_dir": {
             "required": False,
             "description": 
@@ -101,6 +107,11 @@ class URLDownloader(Processor):
         try:
             request = urllib2.Request(url=self.env["url"])
             
+            if "request_headers" in self.env:
+                headers = self.env["request_headers"]
+                for header, value in headers.items():
+                    request.add_header(header, value)
+                    
             # if file already exists, add some headers to the request
             # so we don't retrieve the content if it hasn't changed
             if os.path.exists(pathname):
