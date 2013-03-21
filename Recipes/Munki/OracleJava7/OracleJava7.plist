@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+<!-- A few notes on disabling update checks:
+
+http://www.itninja.com/question/java-7-update-11-insecure-version-prompt-with-upgrade-button
+https://forums.oracle.com/forums/thread.jspa?threadID=2488735&tstart=0
+http://macops.ca/everything-youll-wish-you-didnt-know-about-disabling-java-7-updates
+ -->
+    <key>Input</key>
+    <dict>
+        <key>ABORT_IF_CACHED</key>
+        <false/>
+        <key>IDENTIFIER</key>
+        <string>com.googlecode.autopkg.munki.OracleJava7</string>
+        <key>MUNKI_CATALOG</key>
+        <string>testing</string>
+        <key>MUNKI_DESCRIPTION</key>
+        <string>Java SE Runtime Environment 7 enables support for running Java-powered applets and applications.</string>
+        <key>MUNKI_DISPLAYNAME</key>
+        <string>%plugin_displayname%</string>
+        <key>MUNKI_REPO_SUBDIR</key>
+        <string>plugins/Java</string>
+        <key>MUNKI_POSTINSTALL_SCRIPT</key>
+        <string>#!/bin/sh
+BUNDLE_PLIST=/Library/Internet\ Plug-Ins/JavaAppletPlugin.plugin/Contents/Enabled.plist
+DEPLOY_VERS=$(/bin/cat $BUNDLE_PLIST | grep deploy | cut -d\= -f2 | cut -d\&lt; -f1)
+PROPFILE="/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home/lib/deployment.properties"
+cat &gt; "$PROPFILE" &lt;&lt; EOF
+# These three settings will suppress the Sparkle updater from displaying on-demand
+# and should also suppress 'insecure' warnings from within the plugin itself
+deployment.macosx.check.update=false
+deployment.expiration.decision.suppression.$DEPLOY_VERS=true
+deployment.expiration.decision.$DEPLOY_VERS=never
+
+# Extra-draconian settings below
+# deployment.macosx.check.update.locked
+# deployment.expiration.decision.suppression.$DEPLOY_VERS.locked
+# deployment.expiration.decision.$DEPLOY_VERS.locked
+EOF
+
+# Unload the now-System-managed-instead-of-regular-user launchdaemons,
+# remove symlinks so they don't reload on restarts
+/bin/launchctl unload /Library/LaunchDaemons/com.oracle.java.Helper-Tool.plist
+/bin/launchctl unload /Library/LaunchAgents/com.oracle.java.Java-Updater.plist
+/bin/rm -f /Library/LaunchDaemons/com.oracle.java.Helper-Tool.plist
+/bin/rm -f /Library/LaunchAgents/com.oracle.java.Java-Updater.plist
+</string>
+        <key>NAME</key>
+        <string>OracleJava7</string>
+    </dict>
+    <key>Process</key>
+    <array>
+        <dict>
+            <key>Arguments</key>
+            <dict/>
+            <key>Processor</key>
+            <string>OracleJava7URLProvider</string>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>filename</key>
+                <string>%NAME%.dmg</string>
+            </dict>
+            <key>Processor</key>
+            <string>URLDownloader</string>
+        </dict>
+        <dict>
+            <key>Processor</key>
+            <string>StopProcessingIf</string>
+            <key>Arguments</key>
+            <dict>
+                <key>predicate</key>
+                <string>ABORT_IF_CACHED == YES AND download_changed == NO</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>dmg_path</key>
+                <string>%pathname%</string>
+            </dict>
+            <key>Processor</key>
+            <string>OracleJava7Versioner</string>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>pkg_path</key>
+                <string>%pathname%</string>
+                <key>repo_subdirectory</key>
+                <string>%MUNKI_REPO_SUBDIR%</string>
+                <key>pkginfo</key>
+                <dict>
+                    <key>catalogs</key>
+                    <array>
+                        <string>%MUNKI_CATALOG%</string>
+                    </array>
+                    <key>description</key>
+                    <string>%MUNKI_DESCRIPTION%</string>
+                    <key>display_name</key>
+                    <string>%plugin_displayname%</string>
+                    <key>installs</key>
+                    <array>
+                        <dict>
+                            <key>CFBundleVersion</key>
+                            <string>%plugin_cfbundleversion%</string>
+                            <key>path</key>
+                            <string>/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Info.plist</string>
+                            <key>type</key>
+                            <string>plist</string>
+                            <key>version_comparison_key</key>
+                            <string>CFBundleVersion</string>
+                        </dict>
+                    </array>
+                    <key>minimum_munki_version</key>
+                    <string>0.8.4.1710.0</string>
+                    <key>minimum_os_version</key>
+                    <string>10.7.3</string>
+                    <key>name</key>
+                    <string>%NAME%</string>
+                    <key>postinstall_script</key>
+                    <string>%MUNKI_POSTINSTALL_SCRIPT%</string>
+                    <key>unattended_install</key>
+                    <true/>
+                    <key>version</key>
+                    <string>%plugin_cfbundleversion%</string>
+                </dict>
+            </dict>
+            <key>Processor</key>
+            <string>MunkiImporter</string>
+        </dict>
+    </array>
+</dict>
+</plist>
