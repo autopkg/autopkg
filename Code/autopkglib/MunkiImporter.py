@@ -157,10 +157,10 @@ class MunkiImporter(Processor):
         
         # Generate arguments for makepkginfo.
         args = ["/usr/local/munki/makepkginfo", self.env["pkg_path"]]
-        if self.env.get("makepkginfo_pkgname"):
-            args.extend(["--pkgname", self.env["makepkginfo_pkgname"]])
-        if self.env.get("makepkginfo_appname"):
-            args.extend(["--appname", self.env["makepkginfo_appname"]])
+        if self.env.get("munkiimport_pkgname"):
+            args.extend(["--pkgname", self.env["munkiimport_pkgname"]])
+        if self.env.get("munkiimport_appname"):
+            args.extend(["--appname", self.env["munkiimport_appname"]])
         
         # Call makepkginfo.
         try:
