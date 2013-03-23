@@ -43,7 +43,7 @@ class Versioner(Processor):
     }
     output_variables = {
         "version": {
-            "description": "Version of the app.",
+            "description": "Version of the item.",
         },
     }
     
