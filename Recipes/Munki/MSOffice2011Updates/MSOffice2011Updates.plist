@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Input</key>
+    <dict>
+        <key>IDENTIFIER</key>
+        <string>com.googlecode.autopkg.munki.Office2011Updates</string>
+        <key>NAME</key>
+        <string>Office2011_update</string>
+        <key>MUNKI_CATALOG</key>
+        <string>testing</string>
+        <key>MUNKI_REPO_SUBDIR</key>
+        <string>apps/Office2011</string>
+        <key>OFFICE2011_MUNKI_NAME</key>
+        <string>Office2011</string>
+    </dict>
+    <key>Process</key>
+    <array>
+        <dict>
+            <key>Processor</key>
+            <string>MSOffice2011UpdateInfoProvider</string>
+            <key>Arguments</key>
+            <dict>
+                <key>munki_update_name</key>
+                <string>%NAME%</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Processor</key>
+            <string>URLDownloader</string>
+            <key>Arguments</key>
+            <dict/>
+        </dict>
+        <dict>
+            <key>Processor</key>
+            <string>MunkiPkginfoMerger</string>
+            <key>Arguments</key>
+            <dict>
+                <key>pkginfo</key>
+                <dict>
+                    <key>catalogs</key>
+                    <array>
+                        <string>%MUNKI_CATALOG%</string>
+                    </array>
+                    <key>update_for</key>
+                    <array>
+                        <string>%OFFICE2011_MUNKI_NAME%</string>
+                    </array>
+                </dict>
+            </dict>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>pkg_path</key>
+                <string>%pathname%</string>
+                <key>repo_subdirectory</key>
+                <string>%MUNKI_REPO_SUBDIR%</string>
+            </dict>
+            <key>Processor</key>
+            <string>MunkiImporter</string>
+        </dict>
+    </array>
+</dict>
+</plist>
