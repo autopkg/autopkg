@@ -14,10 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
-from operator import itemgetter
+
 import plistlib
+import re
 import urllib2
+
+from distutils.version import LooseVersion
+from operator import itemgetter
 
 from autopkglib.Processor import Processor, ProcessorError
 
@@ -69,12 +72,20 @@ class MSOffice2011UpdateInfoProvider(Processor):
     def getRequiresFromUpdateItem(self, item):
         """Attempts to determine what earlier updates are
         required by this update"""
+        
+        def compare_versions(a, b):
+            """Internal comparison function for use with sorting"""
+            return cmp(LooseVersion(a), LooseVersion(b))
+        
         self.sanityCheckTriggerCondition(item)
         munki_update_name = self.env.get("munki_update_name", MUNKI_UPDATE_NAME)
         mcp_versions = item.get(
             "Triggers", {}).get("MCP", {}).get("Versions", [])
         if not mcp_versions:
             return None
+        # Versions array is already sorted in current 0409MSOf14.xml,
+        # may be no need to sort; but we should just to be safe...
+        mcp_versions.sort(compare_versions)
         if mcp_versions[0] == "14.0.0":
             # works with original Office release, so no requires array
             return None
@@ -105,15 +116,15 @@ class MSOffice2011UpdateInfoProvider(Processor):
         TITLE_START = "Office 2011 "
         TITLE_END = " Update"
         title = item.get("Title", "")
-        version = title.replace(TITLE_START, "").replace(TITLE_END, "")
-        return version
+        version_str = title.replace(TITLE_START, "").replace(TITLE_END, "")
+        return version_str
     
     def valueToOSVersionString(self, value):
         if isinstance(value, int):
-            version = hex(value)[2:]
+            version_str = hex(value)[2:]
         elif isinstance(value, basestring):
             if value.startswith('0x'):
-                version = value[2:]
+                version_str = value[2:]
         # OS versions are encoded as hex:
         # 4184 = 0x1058 = 10.5.8
         # not sure how 10.4.11 would be encoded;
@@ -122,21 +133,21 @@ class MSOffice2011UpdateInfoProvider(Processor):
         minor = 0
         patch = 0
         try:
-            if len(version) == 1:
-                major = int(version[0])
-            if len(version) > 1:
-                major = int(version[0:2])
-            if len(version) > 2:
-                minor = int(version[2], 16)
-            if len(version) > 3:
-                patch = int(version[3], 16)
+            if len(version_str) == 1:
+                major = int(version_str[0])
+            if len(version_str) > 1:
+                major = int(version_str[0:2])
+            if len(version_str) > 2:
+                minor = int(version_str[2], 16)
+            if len(version_str) > 3:
+                patch = int(version_str[3], 16)
         except ValueError, err:
             raise ProcessorError("Unexpected value in version: %s" % value)
         return "%s.%s.%s" % (major, minor, patch)
 
     def get_mso2011update_info(self):
         base_url = self.env.get("base_url", BASE_URL)
-        version = self.env.get("version")
+        version_str = self.env.get("version")
         # Get metadata URL
         try:
             f = urllib2.urlopen(base_url)
@@ -146,7 +157,7 @@ class MSOffice2011UpdateInfoProvider(Processor):
             raise ProcessorError("Can't download %s: %s" % (base_url, e))
         
         metadata = plistlib.readPlistFromString(data)
-        if not version:
+        if not version_str:
             # Office 2011 update metadata is a list of dicts.
             # we need to sort by date.
             sorted_metadata = sorted(metadata, key=itemgetter('Date'))
@@ -158,13 +169,13 @@ class MSOffice2011UpdateInfoProvider(Processor):
             # The version is only in text in the update's Title. So we look for 
             # that...
             # Titles are in the format "Office 2011 x.y.z Update"
-            version_str = " " + version + " "
+            padded_version_str = " " + version_str + " "
             matched_items = [item for item in metadata 
-                            if version_str in item["Title"]]
+                            if padded_version_str in item["Title"]]
             if len(matched_items) != 1:
                 raise ProcessorError(
                     "Could not find version %s in update metadata" 
-                    % version)
+                    % version_str)
             item = matched_items[0]
         
         self.env["url"] = item["Location"]
