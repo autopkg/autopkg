@@ -4,6 +4,8 @@
 <dict>
     <key>Input</key>
     <dict>
+        <key>ABORT_IF_CACHED</key>
+        <false/>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.firefox-3.6-en_US</string>
         <key>FIREFOX_BUILD</key>
@@ -42,6 +44,15 @@
             </dict>
             <key>Processor</key>
             <string>URLDownloader</string>
+        </dict>
+        <dict>
+            <key>Processor</key>
+            <string>StopProcessingIf</string>
+            <key>Arguments</key>
+            <dict>
+                <key>predicate</key>
+                <string>ABORT_IF_CACHED == YES AND download_changed == NO</string>
+            </dict>
         </dict>
         <dict>
             <key>Arguments</key>

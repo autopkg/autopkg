@@ -4,7 +4,9 @@
 <dict>
 	<key>Input</key>
 	<dict>
-	    <key>IDENTIFIER</key>
+	    <key>ABORT_IF_CACHED</key>
+        <false/>
+        <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.VLC</string>
 		<key>NAME</key>
 		<string>VLC</string>
@@ -35,6 +37,15 @@
 			</dict>
 		</dict>
 		<dict>
+            <key>Processor</key>
+            <string>StopProcessingIf</string>
+            <key>Arguments</key>
+            <dict>
+                <key>predicate</key>
+                <string>ABORT_IF_CACHED == YES AND download_changed == NO</string>
+            </dict>
+        </dict>
+        <dict>
 			<key>Arguments</key>
 			<dict>
 				<key>pkg_path</key>
