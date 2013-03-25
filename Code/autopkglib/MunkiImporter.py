@@ -52,10 +52,6 @@ class MunkiImporter(Processor):
             "description": ("Dictionary of pkginfo keys to copy to "
                 "generated pkginfo."),
         },
-        "pkginfo_installs": {
-            "required": False,
-            "description": "Installs array to copy to generated pkginfo.",
-        }
     }
     output_variables = {
         "pkginfo_repo_path": {
@@ -183,14 +179,10 @@ class MunkiImporter(Processor):
         # Get pkginfo from output plist.
         pkginfo = plistlib.readPlistFromString(out)
         
-        # copy any keys from pkginfo in recipe
+        # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:
             for key in self.env["pkginfo"]:
                 pkginfo[key] = self.env["pkginfo"][key]
-                
-        # copy pkginfo_installs
-        if "pkginfo_installs" in self.env:
-            pkginfo["installs"] = self.env["pkginfo_installs"]
                 
         # copy pkg/dmg to repo
         relative_path = self.copyItemToRepo(pkginfo)

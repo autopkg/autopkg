@@ -92,14 +92,10 @@
             <string>MunkiInstallsItemsCreator</string>
         </dict>
         <dict>
+            <key>Processor</key>
+            <string>MunkiPkginfoMerger</string>
             <key>Arguments</key>
             <dict>
-                <key>pkg_path</key>
-                <string>%pathname%</string>
-                <key>munkiimport_pkgname</key>
-                <string>%MUNKIIMPORT_PKG_NAME%</string>
-                <key>repo_subdirectory</key>
-                <string>%MUNKI_REPO_SUBDIR%</string>
                 <key>pkginfo</key>
                 <dict>
                     <key>catalogs</key>
@@ -119,6 +115,17 @@
                     <key>version</key>
                     <string>%version%</string>
                 </dict>
+            </dict>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>pkg_path</key>
+                <string>%pathname%</string>
+                <key>munkiimport_pkgname</key>
+                <string>%MUNKIIMPORT_PKG_NAME%</string>
+                <key>repo_subdirectory</key>
+                <string>%MUNKI_REPO_SUBDIR%</string>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>

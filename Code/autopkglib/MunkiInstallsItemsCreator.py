@@ -40,8 +40,8 @@ class MunkiInstallsItemsCreator(Processor):
         
     }
     output_variables = {
-        "pkginfo_installs": {
-            "description": "Installs array for pkginfo.",
+        "additional_pkginfo": {
+            "description": "Pkginfo dictionary containing installs array.",
         },
     }
     
@@ -78,8 +78,9 @@ class MunkiInstallsItemsCreator(Processor):
             for item in installs_array:
                 if item["path"].startswith(faux_root):
                     item["path"] = item["path"][len(faux_root):]
-        
-        self.env["pkginfo_installs"] = installs_array
+        if not "additional_pkginfo" in self.env:
+            self.env["additional_pkginfo"] = {}
+        self.env["additional_pkginfo"]["installs"] = installs_array
 
 
     def main(self):
