@@ -33,8 +33,7 @@ re_ver3_dmg_link = re.compile(r'href="(?P<url>http://.*? 3[.0-9]*.dmg)"')
 
 
 class Flip4MacURLProvider(Processor):
-    description = ("Provides a download URL for the latest Flip4Mac "
-                   "release.")
+    """Provides a download URL for the latest Flip4Mac release."""
     input_variables = {
         "base_url": {
             "required": False,
@@ -50,8 +49,7 @@ class Flip4MacURLProvider(Processor):
             "description": "URL to the latest Flip4Mac release.",
         },
     }
-    
-    __doc__ = description
+    description = __doc__
 
     def get_flip4mac_dmg_url(self, base_url, major_version):
         # Read HTML index.
@@ -59,8 +57,8 @@ class Flip4MacURLProvider(Processor):
             f = urllib2.urlopen(base_url)
             html = f.read()
             f.close()
-        except BaseException as e:
-            raise ProcessorError("Can't download %s: %s" % (base_url, e))
+        except BaseException as err:
+            raise ProcessorError("Can't download %s: %s" % (base_url, err))
         
         # Search for download page link.
         m = re_download_link.search(html)
@@ -74,8 +72,8 @@ class Flip4MacURLProvider(Processor):
             f = urllib2.urlopen(download_page_url)
             html = f.read()
             f.close()
-        except BaseException as e:
-            raise ProcessorError("Can't download %s: %s" % (base_url, e))
+        except BaseException as err:
+            raise ProcessorError("Can't download %s: %s" % (base_url, err))
             
         if major_version == 3:
             m = re_ver3_dmg_link.search(html)

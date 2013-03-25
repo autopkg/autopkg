@@ -24,7 +24,7 @@ __all__ = ["PathDeleter"]
 
 
 class PathDeleter(Processor):
-    description = "Deletes file paths"
+    """Deletes file paths."""
     input_variables = {
         "path_list": {
             "required": True,
@@ -34,8 +34,7 @@ class PathDeleter(Processor):
     }
     output_variables = {
     }
-    
-    __doc__ = description
+    description = __doc__
     
     def main(self):
         for path in self.env["path_list"]:

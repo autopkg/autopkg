@@ -31,8 +31,7 @@ jre_download_link = re.compile(
 
 
 class OracleJava7URLProvider(Processor):
-    description = ("Provides a download URL for the latest Oracle Java 7 "
-                   "JRE release.")
+    """Provides a download URL for the latest Oracle Java 7 JRE release."""
     input_variables = {
         "base_url": {
             "required": False,
@@ -44,17 +43,17 @@ class OracleJava7URLProvider(Processor):
             "description": "URL to the latest Oracle Java 7 JRE release.",
         },
     }
-    
-    __doc__ = description
+    description = __doc__
 
     def get_java_dmg_url(self, base_url):
+        """Finds a download URL for latest Oracle Java 7 release."""
         # Read HTML from base URL.
         try:
             f = urllib2.urlopen(base_url)
             html = f.read()
             f.close()
-        except BaseException as e:
-            raise ProcessorError("Can't download %s: %s" % (base_url, e))
+        except BaseException as err:
+            raise ProcessorError("Can't download %s: %s" % (base_url, err))
         
         # Search for JRE downlaods link
         m = jre_download_link.search(html)

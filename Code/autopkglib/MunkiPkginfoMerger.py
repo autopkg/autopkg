@@ -22,8 +22,7 @@ __all__ = ["MunkiPkginfoMerger"]
 
 
 class MunkiPkginfoMerger(Processor):
-    description = (
-        "Merges two pkginfo dictionaries.")
+    """Merges two pkginfo dictionaries."""
     input_variables = {
         "pkginfo": {
             "required": False,
@@ -41,8 +40,7 @@ class MunkiPkginfoMerger(Processor):
             "description": "Merged pkginfo.",
         },
     }
-    
-    __doc__ = description
+    description = __doc__
     
     def main(self):
         if "pkginfo" not in self.env:
@@ -50,3 +48,7 @@ class MunkiPkginfoMerger(Processor):
             
         for key in self.env["additional_pkginfo"].keys():
             self.env["pkginfo"][key] = self.env["additional_pkginfo"][key]
+
+if __name__ == "__main__":
+    processor = MunkiPkginfoMerger()
+    processor.execute_shell()

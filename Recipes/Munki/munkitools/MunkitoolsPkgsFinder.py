@@ -31,7 +31,7 @@ LAUNCHD = "*.mpkg/Contents/Packages/munkitools_launchd*.pkg"
 
 
 class MunkitoolsPkgsFinder(DmgMounter):
-    description = "Mounts a munkitools dmg and finds the sub packages."
+    """Mounts a munkitools dmg and finds the sub packages."""
     input_variables = {
         "dmg_path": {
             "required": True,
@@ -52,13 +52,13 @@ class MunkitoolsPkgsFinder(DmgMounter):
             "description": "Relative path to munkitools_launchd.pkg.",
         },
     }
-    
-    __doc__ = description
+    description = __doc__
     
     def find_match(self, mount_point, match_string):
+        """Finds a file using shell globbing"""
         matches = glob.glob(os.path.join(mount_point, match_string))
         if matches:
-            return matches[0][len(mount_point)+1:]
+            return matches[0][len(mount_point) + 1:]
         else:
             return ""
     
@@ -73,8 +73,8 @@ class MunkitoolsPkgsFinder(DmgMounter):
             self.env["munki_app_pkg"] = self.find_match(mount_point, APP)
             self.env["munki_launchd_pkg"] = self.find_match(
                 mount_point, LAUNCHD)
-        except BaseException as e:
-            raise ProcessorError(e)
+        except BaseException as err:
+            raise ProcessorError(err)
         finally:
             self.unmount(self.env["dmg_path"])
         

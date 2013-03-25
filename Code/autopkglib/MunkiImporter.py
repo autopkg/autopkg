@@ -27,7 +27,7 @@ __all__ = ["MunkiImporter"]
 
 
 class MunkiImporter(Processor):
-    description = "Imports a pkg or dmg to the Munki repo."
+    """Imports a pkg or dmg to the Munki repo."""
     input_variables = {
         "pkg_path": {
             "required": True,
@@ -64,8 +64,7 @@ class MunkiImporter(Processor):
             "description": "The pkginfo property list.",
         },
     }
-    
-    __doc__ = description
+    description = __doc__
     
     def copyItemToRepo(self, pkginfo):
         """Copies an item to the appropriate place in the repo.
@@ -85,9 +84,9 @@ class MunkiImporter(Processor):
         if not os.path.exists(destination_path):
             try:
                 os.makedirs(destination_path)
-            except OSError, e:
+            except OSError, err:
                 raise ProcessorError("Could not create %s: %s" %
-                                        (destination_path, e.strerror))
+                                        (destination_path, err.strerror))
 
         item_name = os.path.basename(itempath)
         destination_pathname = os.path.join(destination_path, item_name)
@@ -116,10 +115,10 @@ class MunkiImporter(Processor):
 
         try:
             shutil.copy(itempath, destination_pathname)
-        except OSError, e:
+        except OSError, err:
             raise ProcessorError(
                 "Can't copy %s to %s: %s" 
-                % (self.env["pkg_path"], destination_pathname, e.strerror))
+                % (self.env["pkg_path"], destination_pathname, err.strerror))
 
         return os.path.join(subdirectory, item_name)
 
@@ -133,9 +132,9 @@ class MunkiImporter(Processor):
         if not os.path.exists(destination_path):
             try:
                 os.makedirs(destination_path)
-            except OSError, e:
+            except OSError, err:
                 raise ProcessorError("Could not create %s: %s"
-                                      % (destination_path, e.strerror))
+                                      % (destination_path, err.strerror))
 
         pkginfo_name = "%s-%s.plist" % (pkginfo["name"], pkginfo["version"])
         pkginfo_path = os.path.join(destination_path, pkginfo_name)
@@ -148,9 +147,9 @@ class MunkiImporter(Processor):
 
         try:
             plistlib.writePlist(pkginfo, pkginfo_path)
-        except OSError, e:
+        except OSError, err:
             raise ProcessorError("Could not write pkginfo %s: %s"
-                                 % (pkginfo_path, e.strerror))
+                                 % (pkginfo_path, err.strerror))
         return pkginfo_path
     
     def main(self):
@@ -164,17 +163,17 @@ class MunkiImporter(Processor):
         
         # Call makepkginfo.
         try:
-            p = subprocess.Popen(
+            proc = subprocess.Popen(
                 args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            (out, err) = p.communicate()
-        except OSError as e:
+            (out, err_out) = proc.communicate()
+        except OSError as err:
             raise ProcessorError(
                 "makepkginfo execution failed with error code %d: %s" 
-                % (e.errno, e.strerror))
-        if p.returncode != 0:
+                % (err.errno, err.strerror))
+        if proc.returncode != 0:
             raise ProcessorError(
                 "creating pkginfo for %s failed: %s" 
-                % (self.env["pkg_path"], err))
+                % (self.env["pkg_path"], err_out))
         
         # Get pkginfo from output plist.
         pkginfo = plistlib.readPlistFromString(out)

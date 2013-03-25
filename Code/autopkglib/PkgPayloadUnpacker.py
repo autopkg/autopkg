@@ -26,7 +26,7 @@ __all__ = ["PkgPayloadUnpacker"]
 
 
 class PkgPayloadUnpacker(Processor):
-    description = "Imports a pkg or dmg to the Munki repo."
+    """Imports a pkg or dmg to the Munki repo."""
     input_variables = {
         "pkg_payload_path": {
             "required": True,
@@ -47,18 +47,18 @@ class PkgPayloadUnpacker(Processor):
     }
     output_variables = {
     }
-    
-    __doc__ = description
+    description = __doc__
     
     def unpackPkgPayload(self):
+        """Uses ditto to unpack a package payload into destination_path"""
         # Create the destination directory if needed.
         if not os.path.exists(self.env['destination_path']):
             try:
                 os.mkdir(self.env['destination_path'])
-            except OSError as e:
+            except OSError as err:
                 raise ProcessorError(
                     "Can't create %s: %s" 
-                    % (self.env['destination_path'], e.strerror))
+                    % (self.env['destination_path'], err.strerror))
         elif self.env.get('purge_destination'):
             for entry in os.listdir(self.env['destination_path']):
                 path = os.path.join(self.env['destination_path'], entry)
@@ -67,9 +67,9 @@ class PkgPayloadUnpacker(Processor):
                         shutil.rmtree(path)
                     else:
                         os.unlink(path)
-                except OSError as e:
+                except OSError as err:
                     raise ProcessorError(
-                        "Can't remove %s: %s" % (path, e.strerror))
+                        "Can't remove %s: %s" % (path, err.strerror))
 
         try:
             dittocmd = ["/usr/bin/ditto",
@@ -77,18 +77,18 @@ class PkgPayloadUnpacker(Processor):
                         "-z",
                         self.env["pkg_payload_path"],
                         self.env["destination_path"]]
-            p = subprocess.Popen(dittocmd,
+            proc = subprocess.Popen(dittocmd,
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
-            (out, err) = p.communicate()
-        except OSError as e:
+            (unused_out, err_out) = proc.communicate()
+        except OSError as err:
             raise ProcessorError(
                 "ditto execution failed with error code %d: %s" 
-                % (e.errno, e.strerror))
-        if p.returncode != 0:
+                % (err.errno, err.strerror))
+        if proc.returncode != 0:
             raise ProcessorError(
                 "extraction of %s with ditto failed: %s" 
-                % (self.env['flat_pkg_path'], err))
+                % (self.env['flat_pkg_path'], err_out))
     
     
     def main(self):
@@ -97,4 +97,4 @@ class PkgPayloadUnpacker(Processor):
 
 if __name__ == "__main__":
     processor = PkgPayloadUnpacker()
-
+    processor.execute_shell()

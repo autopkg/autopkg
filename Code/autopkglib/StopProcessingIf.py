@@ -23,8 +23,8 @@ __all__ = ["StopProcessingIf"]
 
 
 class StopProcessingIf(Processor):
-    description = ("Sets a variable to tell AutoPackager to stop processing a "
-                   "recipe if a predicate comparison evaluates to true.")
+    """Sets a variable to tell AutoPackager to stop processing a recipe if a
+       predicate comparison evaluates to true."""
     input_variables = {
         "predicate": {
             "required": True,
@@ -39,19 +39,18 @@ class StopProcessingIf(Processor):
             "description": "Boolean. Should we stop processing the recipe?",
         },
     }
-    
-    __doc__ = description
+    description = __doc__
     
     def predicateEvaluatesAsTrue(self, predicate_string):
         '''Evaluates predicate against our environment dictionary'''
         try:
-            p = NSPredicate.predicateWithFormat_(predicate_string)
-        except Exception, e:
+            predicate = NSPredicate.predicateWithFormat_(predicate_string)
+        except Exception, err:
             raise ProcessorError(
                 "Predicate error for '%s': %s" 
-                % (predicate_string, e))
+                % (predicate_string, err))
 
-        result = p.evaluateWithObject_(self.env)
+        result = predicate.evaluateWithObject_(self.env)
         return result
         
     def main(self):

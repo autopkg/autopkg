@@ -27,7 +27,7 @@ __all__ = ["Versioner"]
 
 
 class Versioner(Processor):
-    description = ("Returns version information from a plist")
+    """Returns version information from a plist"""
     input_variables = {
         "input_plist_path": {
             "required": True,
@@ -46,8 +46,7 @@ class Versioner(Processor):
             "description": "Version of the item.",
         },
     }
-    
-    __doc__ = description
+    description = __doc__
     
     def readPlist(self, filepath):
         """

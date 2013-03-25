@@ -15,7 +15,6 @@
 # limitations under the License.
 
 
-import os
 import plistlib
 import subprocess
 
@@ -26,7 +25,7 @@ __all__ = ["MunkiInstallsItemsCreator"]
 
 
 class MunkiInstallsItemsCreator(Processor):
-    description = "Adds or replaces an installs array in a pkginfo file."
+    """Generates an installs array for a pkginfo file."""
     input_variables = {
         "installs_item_paths": {
             "required": True,
@@ -44,11 +43,10 @@ class MunkiInstallsItemsCreator(Processor):
             "description": "Pkginfo dictionary containing installs array.",
         },
     }
-    
-    __doc__ = description
-    
+    description = __doc__
     
     def createInstallsItems(self):
+        """Calls makepkginfo to create an installs array."""
         faux_root = ""
         if self.env.get("faux_root"):
             faux_root = self.env["faux_root"].rstrip("/")
@@ -59,14 +57,14 @@ class MunkiInstallsItemsCreator(Processor):
         
         # Call makepkginfo.
         try:
-            p = subprocess.Popen(
+            proc = subprocess.Popen(
                 args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            (out, err) = p.communicate()
-        except OSError as e:
+            (out, err) = proc.communicate()
+        except OSError as err:
             raise ProcessorError(
                 "makepkginfo execution failed with error code %d: %s" 
-                % (e.errno, e.strerror))
-        if p.returncode != 0:
+                % (err.errno, err.strerror))
+        if proc.returncode != 0:
             raise ProcessorError(
                 "creating pkginfo failed: %s" % err)
 
