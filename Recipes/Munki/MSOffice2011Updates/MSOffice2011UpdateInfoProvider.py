@@ -26,6 +26,16 @@ from autopkglib.Processor import Processor, ProcessorError
 
 __all__ = ["MSOffice2011UpdateInfoProvider"]
 
+# Some interesting URLs:
+
+# Office 2011
+# http://www.microsoft.com/mac/autoupdate/0409MSOf14.xml
+
+# Microsoft Auto Update 2
+# http://www.microsoft.com/mac/autoupdate/0409MSau02.xml
+
+# Microsoft Error Reporting 2
+# http://www.microsoft.com/mac/autoupdate/0409Merp2.xml
 
 BASE_URL = "http://www.microsoft.com/mac/autoupdate/0409MSOf14.xml"
 MUNKI_UPDATE_NAME = "Office2011_update"
