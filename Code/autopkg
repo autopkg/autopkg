@@ -99,7 +99,7 @@ class AutoPackager(object):
         cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
             "~/Library/AutoPkg/Cache")
         self.env["RECIPE_CACHE_DIR"] = os.path.join(
-            self.env["CACHE_DIR"], identifier)
+            cache_dir, identifier)
             
         # make sure the RECIPE_CACHE_DIR exists, creating it if needed
         if not os.path.exists(self.env["RECIPE_CACHE_DIR"]):
