@@ -66,6 +66,37 @@ class MunkiImporter(Processor):
     }
     description = __doc__
     
+    def findMatchingItemInRepo(self, pkginfo):
+        """Looks through all catalog for matching installer_item_hash"""
+        if not pkginfo['installer_item_hash']:
+            return None
+            
+        repo_path = self.env["MUNKI_REPO"]
+        all_items_path = os.path.join(repo_path, 'catalogs', 'all')
+        if not os.path.exists(all_items_path):
+            raise ProcessorError("Could not find 'all' catalog in Munki repo")
+        try:
+            catalogitems = plistlib.readPlist(all_items_path)
+        except OSErr, err:
+            raise ProcessorError(
+                "Error reading 'all' catalog from Munki repo: %s" % err)
+        
+        hash_table = {}
+        itemindex = -1
+        for item in catalogitems:
+            itemindex = itemindex + 1
+            # add to hash table
+            if 'installer_item_hash' in item:
+                if not item['installer_item_hash'] in hash_table:
+                    hash_table[item['installer_item_hash']] = []
+                hash_table[item['installer_item_hash']].append(itemindex)
+                
+        matchingindexes = hash_table.get(pkginfo['installer_item_hash'])
+        if matchingindexes:
+            return catalogitems[matchingindexes[0]]
+        else:
+            return None
+    
     def copyItemToRepo(self, pkginfo):
         """Copies an item to the appropriate place in the repo.
         If itempath is a path within the repo/pkgs directory, copies nothing.
@@ -177,6 +208,14 @@ class MunkiImporter(Processor):
         
         # Get pkginfo from output plist.
         pkginfo = plistlib.readPlistFromString(out)
+        
+        # check to see if this item is already in the repo
+        matchingitem = self.findMatchingItemInRepo(pkginfo)
+        if matchingitem:
+            self.env["pkginfo_repo_path"] = ""
+            self.env["pkg_repo_path"] = ""
+            self.env["munki_info"] = pkginfo
+            return
         
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:
