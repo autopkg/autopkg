@@ -31,26 +31,6 @@ __all__ = [
 ]
 
 
-def find_packagemaker():
-    """Find packagemaker binary."""
-    
-    p = subprocess.Popen(["/usr/bin/mdfind",
-                          "(kMDItemCFBundleIdentifier == com.apple.PackageMaker)"],
-                         stdout=subprocess.PIPE)
-    out, _ = p.communicate()
-    if p.returncode != 0:
-        # Return legacy path, better than nothing.
-        return "/Developer/usr/bin/packagemaker"
-    for path in out.splitlines():
-        binpath = os.path.join(path, "Contents", "MacOS", "PackageMaker")
-        if os.path.isfile(binpath):
-            return binpath
-    # If mdfind can't find PackageMaker.app, our best bet is the legacy path.
-    return "/Developer/usr/bin/packagemaker"
-
-PACKAGEMAKER = find_packagemaker()
-
-
 class PackagerError(Exception):
     pass
 
@@ -153,12 +133,13 @@ class Packager(object):
             raise PackagerError("Can't open infofile: %s" % e)
         self.log.debug("infofile ok")
         
-        if self.request.resources:
-            try:
-                os.listdir(self.request.resources)
-            except OSError as e:
-                raise PackagerError("Can't list Resources: %s" % e)
-            self.log.debug("resources ok")
+        # FIXME: resources temporarily unsupported.
+        #if self.request.resources:
+        #    try:
+        #        os.listdir(self.request.resources)
+        #    except OSError as e:
+        #        raise PackagerError("Can't list Resources: %s" % e)
+        #    self.log.debug("resources ok")
         
         # Leave chown verification until after the pkgroot has been copied.
         
@@ -271,10 +252,9 @@ class Packager(object):
     
     def create_pkg(self):
         self.log.info("Creating package")
-        if self.request.pkgtype == "bundle":
-            target = "10.4"
-        else:
-            target = "10.5"
+        if self.request.pkgtype != "flat":
+            raise PackagerError("Unsupported pkgtype %s" % (
+                                repr(self.request.pkgtype)))
         
         pkgname = self.request.pkgname + ".pkg"
         pkgpath = os.path.join(self.request.pkgdir, pkgname)
@@ -301,40 +281,37 @@ class Packager(object):
         # Wrap package building in try/finally to remove temporary package if
         # it fails.
         try:
-            # Execute packagemaker.
+            # Execute pkgbuild.
             try:
-                p = subprocess.Popen((PACKAGEMAKER,
+                p = subprocess.Popen(("/usr/bin/pkgbuild",
                                       "--root", self.tmp_pkgroot,
                                       "--info", self.request.infofile,
-                                      "--resources", self.request.resources,
-                                      "--id", self.request.id,
+                                      # FIXME: We have to build a distribution
+                                      # package with productbuild to include
+                                      # resources.
+                                      #"--resources", self.request.resources,
+                                      "--identifier", self.request.id,
                                       "--version", self.request.version,
-                                      "--no-recommend",
-                                      "--no-relocate",
-                                      "--target", target,
-                                      "--out", temppkgpath),
+                                      "--ownership", "preserve",
+                                      # FIXME: have to analyze package and
+                                      # generate a template to control
+                                      # relocation.
+                                      #"--no-relocate",
+                                      temppkgpath),
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
                 (out, err) = p.communicate()
             except OSError as e:
-                raise PackagerError("packagemaker execution failed with error code %d: %s" % (
+                raise PackagerError("pkgbuild execution failed with error code %d: %s" % (
                                      e.errno, e.strerror))
             if p.returncode != 0:
-                raise PackagerError("packagemaker failed with exit code %d: %s" % (
+                raise PackagerError("pkgbuild failed with exit code %d: %s" % (
                                      p.returncode,
                                      " ".join(str(err).split())))
             
             # Change to final name and owner.
             os.rename(temppkgpath, pkgpath)
-            if os.path.isdir(pkgpath):
-                for (dirpath, dirnames, filenames) in os.walk(pkgpath):
-                    os.lchown(dirpath, self.uid, self.gid)
-                    for dirname in dirnames:
-                        os.lchown(os.path.join(dirpath, dirname), self.uid, self.gid)
-                    for filename in filenames:
-                        os.lchown(os.path.join(dirpath, filename), self.uid, self.gid)
-            else:
-                os.chown(pkgpath, self.uid, self.gid)
+            os.chown(pkgpath, self.uid, self.gid)
             
             self.log.info("Created package at %s" % pkgpath)
             return pkgpath
@@ -342,13 +319,11 @@ class Packager(object):
         finally:
             # Remove temporary package.
             try:
-                if os.path.exists(temppkgpath):
-                    if os.path.islink(temppkgpath) or os.path.isfile(temppkgpath):
-                        os.remove(temppkgpath)
-                    else:
-                        shutil.rmtree(temppkgpath)
-            except OSError:
-                self.log.warn("Can't remove temporary package at %s" % temppkgpath)
+                os.remove(temppkgpath)
+            except OSError as e:
+                if e.errno != 2:
+                    self.log.warn("Can't remove temporary package at %s: %s" % (
+                                  temppkgpath, e.strerror))
     
     def cleanup(self):
         """Clean up resources."""

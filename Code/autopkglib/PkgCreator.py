@@ -56,7 +56,7 @@ class PkgCreator(Processor):
                     "id",
                     "version",
                     "infofile",
-                    "resources",
+                    #"resources",
                     "options"):
             if not key in request:
                 if key in self.env:
