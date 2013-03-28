@@ -88,8 +88,7 @@ class PkgPayloadUnpacker(Processor):
         if proc.returncode != 0:
             raise ProcessorError(
                 "extraction of %s with ditto failed: %s" 
-                % (self.env['flat_pkg_path'], err_out))
-    
+                % (self.env['pkg_payload_path'], err_out))
     
     def main(self):
         self.unpackPkgPayload()
