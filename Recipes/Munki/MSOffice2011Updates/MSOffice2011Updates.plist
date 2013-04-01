@@ -50,6 +50,34 @@
             <dict>
                 <key>pkginfo</key>
                 <dict>
+                    <key>blocking_applications</key>
+                    <array>
+                      <string>MSN Messenger</string>
+                      <string>Microsoft AutoUpdate</string>
+                      <string>Microsoft Cert Manager</string>
+                      <string>Microsoft Chart Converter</string>
+                      <string>Microsoft Clip Gallery</string>
+                      <string>Microsoft Entourage</string>
+                      <string>Microsoft Outlook</string>
+                      <string>Microsoft Error Reporting</string>
+                      <string>Microsoft Excel</string>
+                      <string>Microsoft Graph</string>
+                      <string>Microsoft Help Viewer</string>
+                      <string>Microsoft Language Register</string>
+                      <string>Microsoft Communicator</string>
+                      <string>Microsoft Messenger</string>
+                      <string>Microsoft PowerPoint</string>
+                      <string>Microsoft Query</string>
+                      <string>Microsoft Word</string>
+                      <string>My Day</string>
+                      <string>Organization Chart</string>
+                      <string>Expression Media</string>
+                      <string>Remote Desktop Connection</string>
+                      <string>Opera</string>
+                      <string>Google Chrome</string>
+                      <string>Firefox</string>
+                      <string>Safari</string>
+                    </array>
                     <key>catalogs</key>
                     <array>
                         <string>%MUNKI_CATALOG%</string>
