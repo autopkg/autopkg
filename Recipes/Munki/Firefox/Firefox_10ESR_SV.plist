@@ -7,21 +7,21 @@
         <key>ABORT_IF_CACHED</key>
         <false/>
         <key>IDENTIFIER</key>
-        <string>com.googlecode.autopkg.munki.firefox-10ESR-en_US</string>
+        <string>com.googlecode.autopkg.munki.firefox-10esr-sv_SE</string>
         <key>FIREFOX_BUILD</key>
-        <string>latest-esr</string>
+        <string>latest-10.0esr</string>
         <key>LOCALE</key>
-        <string>en_US</string>
+        <string>sv_SE</string>
         <key>MUNKI_DISPLAYNAME</key>
-        <string>Firefox (English)</string>
+        <string>Firefox (Swedish)</string>
         <key>MUNKI_DESCRIPTION</key>
         <string>Mozilla Firefox is a free and open source web browser.</string>
         <key>MUNKI_CATALOG</key>
-        <string>english</string>
+        <string>swedish</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>apps/firefox</string>
         <key>NAME</key>
-        <string>Firefox_EN</string>
+        <string>FirefoxESR_SV</string>
     </dict>
     <key>Process</key>
     <array>

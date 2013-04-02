@@ -9,7 +9,7 @@
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.firefox-10esr-sv_SE</string>
         <key>FIREFOX_BUILD</key>
-        <string>latest-10.0esr</string>
+        <string>latest-esr</string>
         <key>LOCALE</key>
         <string>sv_SE</string>
         <key>MUNKI_DISPLAYNAME</key>
