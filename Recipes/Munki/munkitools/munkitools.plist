@@ -83,7 +83,7 @@
                 <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>makepkginfo_pkgname</key>
+                <key>munkiimport_pkgname</key>
                 <string>%munki_core_pkg%</string>
                 <key>pkginfo</key>
                 <dict>
@@ -115,7 +115,7 @@
                 <string>%pkg_repo_path%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>makepkginfo_pkgname</key>
+                <key>munkiimport_pkgname</key>
                 <string>%munki_admin_pkg%</string>
                 <key>pkginfo</key>
                 <dict>
@@ -147,7 +147,7 @@
                 <string>%pkg_repo_path%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>makepkginfo_pkgname</key>
+                <key>munkiimport_pkgname</key>
                 <string>%munki_app_pkg%</string>
                 <key>pkginfo</key>
                 <dict>
@@ -180,7 +180,7 @@
                 <string>%pkg_repo_path%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>makepkginfo_pkgname</key>
+                <key>munkiimport_pkgname</key>
                 <string>%munki_launchd_pkg%</string>
                 <key>pkginfo</key>
                 <dict>
