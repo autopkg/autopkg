@@ -54,7 +54,7 @@
                 <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>makepkginfo_pkgname</key>
+                <key>munkiimport_pkgname</key>
                 <string>%MAKEPKGINFO_PKGNAME%</string>
                 <key>pkginfo</key>
                 <dict>
