@@ -17,6 +17,7 @@
 import os
 
 BUNDLE_ID = "com.googlecode.autopkg"
+LOCAL_OVERRIDE_KEY = "RecipeInputOverrides"
 
 # get the directory this __init__.py file is in
 mydir = os.path.dirname(os.path.abspath(__file__))

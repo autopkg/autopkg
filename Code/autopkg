@@ -23,7 +23,8 @@ import pprint
 import time
 import imp
 
-from autopkglib import BUNDLE_ID
+from autopkglib import BUNDLE_ID, \
+                       LOCAL_OVERRIDE_KEY
 from autopkglib.Processor import ProcessorError
 import autopkglib
 
@@ -39,6 +40,44 @@ class AutoPackager(object):
         self.quiet = options.quiet
         self.env = env
     
+    def get_recipe_identifier(self, recipe):
+        """Return the identifier given an input recipe plist."""
+        identifier = recipe.Input.get("IDENTIFIER")
+        if not identifier:
+            print "ID NOT FOUND"
+            # build a pseudo-identifier based on the recipe pathname
+            recipe_path = self.env.get("RECIPE_PATH")
+            # get rid of filename extension
+            recipe_path = os.path.splitext(recipe_path)[0]
+            path_parts = recipe_path.split("/")
+            identifier = "-".join(path_parts)
+        return identifier
+
+    def process_input_overrides(self, recipe, cli_values):
+        """Update env with 'composited' input values using the following
+        precedence hierarchy:
+        - recipe
+          - pref[LOCAL_OVERRIDE_KEY][RECIPE_ID]
+            - key-value pairs given at the CLI, ie. 'NAME=value'"""
+
+        # Set up empty container for final output
+        inputs = {}
+        inputs.update(recipe.Input)
+        identifier = self.get_recipe_identifier(recipe)
+        if self.env.get(LOCAL_OVERRIDE_KEY):
+            recipe_overrides = self.env.get(LOCAL_OVERRIDE_KEY).get(identifier)
+            if recipe_overrides:
+                if not hasattr(recipe_overrides, "has_key"):
+                    raise AutoPackagerError(
+                        "Local recipe values for %s found in %s, but is of type %s, when it should "
+                        "be a dict of variables and values."
+                        % (identifier, LOCAL_OVERRIDE_KEY, recipe_overrides.__class__.__name__))
+                inputs.update(recipe_overrides)
+
+        # handle CLI
+        inputs.update(cli_values)
+        self.env.update(inputs)
+
     def verify(self, recipe):
         """Verify a recipe and check for errors."""
         
@@ -82,19 +121,7 @@ class AutoPackager(object):
     
     def process(self, recipe):
         """Process a recipe."""
-        
-        self.env.update(recipe.Input)
-        
-        # get or create unique identifier for this recipe
-        identifier = self.env.get("IDENTIFIER")
-        if not identifier:
-            # build a pseudo-identifier based on the recipe pathname
-            recipe_path = self.env.get("RECIPE_PATH")
-            # get rid of filename extension
-            recipe_path = os.path.splitext(recipe_path)[0]
-            path_parts = recipe_path.split("/")
-            identifier = "-".join(path_parts)
-            
+        identifier = self.get_recipe_identifier(recipe)
         # define a cache/work directory for use by the recipe
         cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
             "~/Library/AutoPkg/Cache")
@@ -190,13 +217,14 @@ def main(argv):
     prefs["RECIPE_DIR"] = os.path.dirname(os.path.abspath(recipe_path))
     
     # Add variables from commandline.
+    cli_values = {}
     for arg in argv[2:]:
         (key, sep, value) = arg.partition("=")
         if sep != "=":
             print >> sys.stderr, "Invalid variable [key=value]: %s" % arg
             print >> sys.stderr, p.get_usage()
             return 1
-        prefs[key] = value
+        cli_values[key] = value
     
     autopackager = AutoPackager(options, prefs)
     
@@ -204,6 +232,7 @@ def main(argv):
     exit_string = ""
     
     try:
+        autopackager.process_input_overrides(recipe, cli_values)
         autopackager.verify(recipe)
         autopackager.process(recipe)
     except AutoPackagerError as e:

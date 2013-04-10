@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Input</key>
+    <dict>
+        <key>ABORT_IF_CACHED</key>
+        <false/>
+        <key>IDENTIFIER</key>
+        <string>com.googlecode.autopkg.munki.hiera</string>
+        <key>MUNKI_CATALOG</key>
+        <string>testing</string>
+        <key>MUNKI_DESCRIPTION</key>
+        <string>Hiera is a simple pluggable Hierarchical Database.</string>
+        <key>MUNKI_REPO_SUBDIR</key>
+        <string>support/Hiera</string>
+        <key>NAME</key>
+        <string>Hiera</string>
+        <key>VERSION</key>
+        <string>latest</string>
+    </dict>
+    <key>Process</key>
+    <array>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>get_version</key>
+                <string>%VERSION%</string>
+                <key>product_name</key>
+                <string>hiera</string>
+            </dict>
+            <key>Processor</key>
+            <string>PuppetlabsProductsURLProvider</string>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>url</key>
+                <string>%url%</string>
+                <key>filename</key>
+                <string>%NAME%-%version%.dmg</string>
+            </dict>
+            <key>Processor</key>
+            <string>URLDownloader</string>
+        </dict>
+        <dict>
+            <key>Processor</key>
+            <string>StopProcessingIf</string>
+            <key>Arguments</key>
+            <dict>
+                <key>predicate</key>
+                <string>ABORT_IF_CACHED == YES AND download_changed == NO</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>pkg_path</key>
+                <string>%pathname%</string>
+                <key>repo_subdirectory</key>
+                <string>%MUNKI_REPO_SUBDIR%</string>
+                <key>pkginfo</key>
+                <dict>
+                    <key>catalogs</key>
+                    <array>
+                        <string>%MUNKI_CATALOG%</string>
+                    </array>
+                    <key>description</key>
+                    <string>%MUNKI_DESCRIPTION%</string>
+                    <key>display_name</key>
+                    <string>%NAME%</string>
+                    <key>name</key>
+                    <string>%NAME%</string>
+                    <key>unattended_install</key>
+                    <true/>
+                </dict>
+            </dict>
+            <key>Processor</key>
+            <string>MunkiImporter</string>
+        </dict>
+    </array>
+</dict>
+</plist>
