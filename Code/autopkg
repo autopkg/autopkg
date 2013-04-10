@@ -54,11 +54,20 @@ class AutoPackager(object):
         return identifier
 
     def process_input_overrides(self, recipe, cli_values):
-        """Update env with 'composited' input values using the following
-        precedence hierarchy:
-        - recipe
-          - pref[LOCAL_OVERRIDE_KEY][RECIPE_ID]
-            - key-value pairs given at the CLI, ie. 'NAME=value'"""
+        """Update env with 'composited' input values from overrides:
+        1. Start with items in recipe's 'Input' dict
+        2. Merge and overwrite any keys defined in app plist:
+        <key>RecipeInputOverrides</key>
+        <dict>
+            <key>com.googlecode.autopkg.some_app</key>
+            <dict>
+                <key>MUNKI_CATALOG</key>
+                <string>my_custom_catalog</string>
+        3. Merge and overwrite any key-value pairs appended to the
+        autopkg command invocation, of the form: NAME=value
+
+        (3) takes precedence over (2), which takes precedence over (1)
+        """
 
         # Set up empty container for final output
         inputs = {}
