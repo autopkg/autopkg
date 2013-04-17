@@ -52,23 +52,37 @@ class MunkiImporter(Processor):
             "description": ("Dictionary of pkginfo keys to copy to "
                 "generated pkginfo."),
         },
+        "force_munkiimport": {
+            "required": False,
+            "description": ("If not False or Null, causes the pkg/dmg to be "
+                "imported even if there is a matching pkg already in the "
+                "repo."),        
+        },
     }
     output_variables = {
         "pkginfo_repo_path": {
-            "description": "The repo path where the pkginfo was written.",
+            "description": ("The repo path where the pkginfo was written. "
+                "Empty if item not imported."),
         },
         "pkg_repo_path": {
-            "description": "The repo path where the pkg was written.",
+            "description": ("The repo path where the pkg was written. "
+                "Empty if item not imported."),
         },
         "munki_info": {
-            "description": "The pkginfo property list.",
+            "description": 
+                "The pkginfo property list. Empty if item not imported.",
         },
     }
     description = __doc__
     
     def findMatchingItemInRepo(self, pkginfo):
         """Looks through all catalog for matching installer_item_hash"""
-        if not pkginfo['installer_item_hash']:
+        if not pkginfo.get('installer_item_hash'):
+            return None
+            
+        if self.env.get("force_munkiimport"):
+            # we need to import even if there's a match, so skip
+            # the check
             return None
             
         repo_path = self.env["MUNKI_REPO"]
@@ -213,8 +227,16 @@ class MunkiImporter(Processor):
         matchingitem = self.findMatchingItemInRepo(pkginfo)
         if matchingitem:
             self.env["pkginfo_repo_path"] = ""
-            self.env["pkg_repo_path"] = ""
-            self.env["munki_info"] = pkginfo
+            # set env["pkg_repo_path"] to the path of the matching item
+            self.env["pkg_repo_path"] = os.path.join(
+                self.env["MUNKI_REPO"], "pkgs",
+                matchingitem['installer_item_location'])
+            self.env["munki_info"] = {}
+            
+            self.output("Item %s already exists in the munki repo as %s."
+                % (os.path.basename(self.env["pkg_path"]),
+                   "pkgs/" + matchingitem['installer_item_location']))
+                
             return
         
         # copy any keys from pkginfo in self.env
@@ -233,6 +255,9 @@ class MunkiImporter(Processor):
         self.env["pkg_repo_path"] = os.path.join(
             self.env["MUNKI_REPO"], "pkgs", relative_path)
         self.env["munki_info"] = pkginfo
+        
+        self.output("Copied pkginfo to %s" % self.env["pkginfo_repo_path"])
+        self.output("Copied pkg to %s" % self.env["pkg_repo_path"])
 
 if __name__ == "__main__":
     processor = MunkiImporter()
