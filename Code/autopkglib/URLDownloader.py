@@ -92,6 +92,7 @@ class URLDownloader(Processor):
         if "PKG" in self.env:
             self.env["pathname"] = os.path.expanduser(self.env["PKG"])
             self.env["download_changed"] = True
+            self.output("Given %s, no download needed." % self.env["pathname"])
             return
             
         if not "filename" in self.env:
@@ -141,6 +142,8 @@ class URLDownloader(Processor):
                 if http_err.code == 304:
                     # resource not modified
                     self.env["download_changed"] = False
+                    self.output("Item at URL is unchanged.")
+                    self.output("Using existing %s" % pathname)
                     return
                 else:
                     raise
@@ -164,6 +167,8 @@ class URLDownloader(Processor):
             if url_handle.info().get("etag"):
                 xattr.setxattr(
                     pathname, XATTR_ETAG, url_handle.info().get("etag"))
+                    
+            self.output("Downloaded %s" % pathname)
         
         except BaseException as e:
             raise ProcessorError(

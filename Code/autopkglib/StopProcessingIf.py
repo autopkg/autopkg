@@ -51,6 +51,7 @@ class StopProcessingIf(Processor):
                 % (predicate_string, err))
 
         result = predicate.evaluateWithObject_(self.env)
+        self.output("%s is %s" % (predicate_string, result))
         return result
         
     def main(self):

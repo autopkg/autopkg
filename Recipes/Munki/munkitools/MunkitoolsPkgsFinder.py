@@ -69,10 +69,14 @@ class MunkitoolsPkgsFinder(DmgMounter):
         # unmounted.
         try:
             self.env["munki_core_pkg"] = self.find_match(mount_point, CORE)
+            self.output("Found %s" % self.env["munki_core_pkg"])
             self.env["munki_admin_pkg"] = self.find_match(mount_point, ADMIN)
+            self.output("Found %s" % self.env["munki_admin_pkg"])
             self.env["munki_app_pkg"] = self.find_match(mount_point, APP)
+            self.output("Found %s" % self.env["munki_app_pkg"])
             self.env["munki_launchd_pkg"] = self.find_match(
                 mount_point, LAUNCHD)
+            self.output("Found %s" % self.env["munki_launchd_pkg"])
         except BaseException as err:
             raise ProcessorError(err)
         finally:
