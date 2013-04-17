@@ -39,6 +39,10 @@ class AutoPackager(object):
         self.verbose = options.verbose
         self.quiet = options.quiet
         self.env = env
+        
+    def output(msg, verbose_level=1):
+        if self.verbose >= verbose_level:
+            print msg
     
     def get_recipe_identifier(self, recipe):
         """Return the identifier given an input recipe plist."""
@@ -78,9 +82,11 @@ class AutoPackager(object):
             if recipe_overrides:
                 if not hasattr(recipe_overrides, "has_key"):
                     raise AutoPackagerError(
-                        "Local recipe values for %s found in %s, but is of type %s, when it should "
+                        "Local recipe values for %s found in %s, "
+                        "but is of type %s, when it should "
                         "be a dict of variables and values."
-                        % (identifier, LOCAL_OVERRIDE_KEY, recipe_overrides.__class__.__name__))
+                        % (identifier, LOCAL_OVERRIDE_KEY, 
+                           recipe_overrides.__class__.__name__))
                 inputs.update(recipe_overrides)
 
         # handle CLI
@@ -146,19 +152,19 @@ class AutoPackager(object):
                     "Could not create RECIPE_CACHE_DIR %s: %s"
                     % (self.env["RECIPE_CACHE_DIR"], e))
         
-        if self.verbose > 1:
+        if self.verbose > 2:
             pprint.pprint(self.env)
         
         for step in recipe.Process:
             
-            if not self.quiet:
+            if self.verbose:
                 print step.Processor
             
             processor_class = getattr(autopkglib, step.Processor)
             processor = processor_class(self.env)
             processor.inject(step.Arguments)
             
-            if self.verbose:
+            if self.verbose > 1:
                 # pretty print any defined input variables
                 p_dict = {}
                 for key in processor.input_variables.keys():
@@ -172,7 +178,7 @@ class AutoPackager(object):
                 print >> sys.stderr, str(e)
                 raise AutoPackagerError("Recipe processing failed.")
             
-            if self.verbose:
+            if self.verbose > 1:
                 # pretty print output variables
                 p_dict = {}
                 for key in processor.output_variables.keys():
@@ -183,7 +189,7 @@ class AutoPackager(object):
                 # processing should stop now
                 break
 
-        if self.verbose > 1:
+        if self.verbose > 2:
             pprint.pprint(self.env)
 
 
@@ -191,7 +197,7 @@ def main(argv):
     # Parse arguments.
     p = optparse.OptionParser()
     p.set_usage("Usage: %prog [options] recipe.plist [key=value key=value ...]")
-    p.add_option("-v", "--verbose", action="count", default=0,
+    p.add_option("-v", "--verbose", action="count", default=1,
                  help="Verbose output.")
     p.add_option("-q", "--quiet", action="store_true",
                  help="Be quiet.")
@@ -201,6 +207,9 @@ def main(argv):
         return 1
     
     recipe_path = argv[1]
+    
+    if options.quiet:
+        options.verbose = 0
     
     try:
         recipe = plistlib.readPlist(recipe_path)
@@ -224,6 +233,9 @@ def main(argv):
     # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
     prefs["RECIPE_PATH"] = os.path.abspath(recipe_path)
     prefs["RECIPE_DIR"] = os.path.dirname(os.path.abspath(recipe_path))
+    
+    # Add our verbosity level
+    prefs["verbose"] = options.verbose
     
     # Add variables from commandline.
     cli_values = {}

@@ -51,6 +51,10 @@ class Processor(object):
             self.outfile = sys.stdout
         else:
             self.outfile = outfile
+            
+    def output(self, msg, verbose_level=1):
+        if self.env.get('verbose', 0) >= verbose_level:
+            print "%s: %s" % (self.__class__.__name__, msg)
     
     def main(self):
         raise ProcessorError("Abstract method main() not implemented.")
