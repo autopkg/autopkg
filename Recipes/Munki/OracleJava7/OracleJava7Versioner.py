@@ -53,17 +53,23 @@ class OracleJava7Versioner(DmgMounter):
         try:
             tmp = mkdtemp(prefix='autopkg')
             pkgpath = glob(os.path.join(mount_point, "*.pkg"))[0]
-            xarcmd = ["/usr/bin/xar", "-x", "-C", tmp, "-f", pkgpath, "--exclude", "Payload"]
+            xarcmd = ["/usr/bin/xar", "-x", "-C", tmp, "-f", 
+                      pkgpath, "--exclude", "Payload"]
             subprocess.call(xarcmd)
-            with open(os.path.join(tmp, "javaappletplugin.pkg/PackageInfo"), "r") as fd:
+            with open(os.path.join(
+                tmp, "javaappletplugin.pkg/PackageInfo"), "r") as fd:
                 pkginfo = fd.read()
             rmtree(tmp)
 
             root = ET.fromstring(pkginfo)
-            version = root.find("./bundle[@id='com.oracle.java.JavaAppletPlugin']").get("CFBundleVersion")
+            version = root.find(
+                "./bundle[@id='com.oracle.java.JavaAppletPlugin']").get(
+                "CFBundleVersion")
 
             self.env["plugin_cfbundleversion"] = version
-            self.env["plugin_displayname"] = os.path.basename(pkgpath).split(".pkg")[0]
+            self.env["plugin_displayname"] = os.path.basename(
+                pkgpath).split(".pkg")[0]
+            self.output("CFBundleVersion is %s" % version)
         except BaseException as e:
             raise ProcessorError(e)
         finally:

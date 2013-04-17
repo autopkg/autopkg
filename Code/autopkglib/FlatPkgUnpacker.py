@@ -29,24 +29,29 @@ __all__ = ["FlatPkgUnpacker"]
 
 
 class FlatPkgUnpacker(DmgMounter):
-    description = "Expands a flat package using xar, optionally skipping the payload."
+    description = ("Expands a flat package using xar, optionally skipping "
+        "the payload.")
     input_variables = {
         "flat_pkg_path": {
             "required": True,
-            "description": "Path to a flat package. "
-                "Can point to a globbed path inside a .dmg which will be mounted.",
+            "description": ("Path to a flat package. "
+                "Can point to a globbed path inside a .dmg which will "
+                "be mounted."),
         },
         "skip_payload": {
             "required": False,
-            "description": "If true, 'Payload' files will be skipped. Defaults to False.",
+            "description": ("If true, 'Payload' files will be skipped. "
+                "Defaults to False."),
         },
         "destination_path": {
             "required": True,
-            "description": "Directory where archive will be unpacked, created if necessary.",
+            "description": ("Directory where archive will be unpacked, created "
+                "if necessary."),
         },
         "purge_destination": {
             "required": False,
-            "description": "Whether the contents of the destination directory will be removed before unpacking.",
+            "description": ("Whether the contents of the destination directory "
+                "will be removed before unpacking."),
         },
     }
     output_variables = {
@@ -61,7 +66,8 @@ class FlatPkgUnpacker(DmgMounter):
             try:
                 os.mkdir(self.env['destination_path'])
             except OSError as e:
-                raise ProcessorError("Can't create %s: %s" % (self.env['destination_path'], e.strerror))
+                raise ProcessorError("Can't create %s: %s" 
+                    % (self.env['destination_path'], e.strerror))
         elif self.env.get('purge_destination'):
             for entry in os.listdir(self.env['destination_path']):
                 path = os.path.join(self.env['destination_path'], entry)
@@ -71,7 +77,8 @@ class FlatPkgUnpacker(DmgMounter):
                     else:
                         os.unlink(path)
                 except OSError as e:
-                    raise ProcessorError("Can't remove %s: %s" % (path, e.strerror))
+                    raise ProcessorError(
+                        "Can't remove %s: %s" % (path, e.strerror))
 
         try:
             xarcmd = ["/usr/bin/xar",
@@ -85,26 +92,29 @@ class FlatPkgUnpacker(DmgMounter):
                                  stderr=subprocess.PIPE)
             (out, err) = p.communicate()
         except OSError as e:
-            raise ProcessorError("xar execution failed with error code %d: %s" % (
-                                  e.errno, e.strerror))
+            raise ProcessorError("xar execution failed with error code %d: %s" 
+                % (e.errno, e.strerror))
         if p.returncode != 0:
-            raise ProcessorError("extraction of %s with xar failed: %s" % (self.env['flat_pkg_path'], err))
-
+            raise ProcessorError("extraction of %s with xar failed: %s" 
+                % (self.env['flat_pkg_path'], err))
 
     def main(self):
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.env['flat_pkg_path'].partition(".dmg/")
+        (dmg_path, dmg, dmg_source_path) = self.env[
+            'flat_pkg_path'].partition(".dmg/")
         dmg_path += ".dmg"
         try:
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                self.source_path = glob(os.path.join(mount_point, dmg_source_path))[0]
+                self.source_path = glob(
+                    os.path.join(mount_point, dmg_source_path))[0]
             else:
                 # Straight copy from file system.
                 self.source_path = self.env['flat_pkg_path']
             self.unpackFlatPkg()
-
+            self.output("Unpacked %s to %s" 
+                % (self.source_path, self.env['destination_path']))
         finally:
             if dmg:
                 self.unmount(dmg_path)

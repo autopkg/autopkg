@@ -34,7 +34,7 @@ class MunkiInstallsItemsCreator(Processor):
         },
         "faux_root": {
             "required": False,
-            "description": "foo bar baz",
+            "description": "The root of an expanded package or filesystem.",
         },
         
     }
@@ -76,6 +76,7 @@ class MunkiInstallsItemsCreator(Processor):
             for item in installs_array:
                 if item["path"].startswith(faux_root):
                     item["path"] = item["path"][len(faux_root):]
+                self.output("Created installs item for %s" % item["path"])
         if not "additional_pkginfo" in self.env:
             self.env["additional_pkginfo"] = {}
         self.env["additional_pkginfo"]["installs"] = installs_array

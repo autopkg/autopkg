@@ -66,7 +66,7 @@ class OracleJava7URLProvider(Processor):
         """Find and return a download URL"""
         base_url = self.env.get("base_url", BASE_URL)
         self.env["url"] = self.get_java_dmg_url(base_url)
-
+        self.output("Found URL %s" % self.env["url"])
 
 if __name__ == "__main__":
     processor = OracleJava7URLProvider()

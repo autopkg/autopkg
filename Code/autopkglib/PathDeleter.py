@@ -50,6 +50,7 @@ class PathDeleter(Processor):
                     raise ProcessorError(
                         "Could not remove %s - it is not a file, link, "
                         "or directory" % path)
+                self.output("Deleted %s" % path)
             except OSError, err:
                 raise ProcessorError(
                     "Could not remove %s: %s" % (path, err))

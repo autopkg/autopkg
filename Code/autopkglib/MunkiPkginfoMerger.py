@@ -48,6 +48,7 @@ class MunkiPkginfoMerger(Processor):
             
         for key in self.env["additional_pkginfo"].keys():
             self.env["pkginfo"][key] = self.env["additional_pkginfo"][key]
+        self.output("Merged %s into pkginfo" % self.env["additional_pkginfo"])
 
 if __name__ == "__main__":
     processor = MunkiPkginfoMerger()
