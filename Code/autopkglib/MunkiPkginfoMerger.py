@@ -31,7 +31,7 @@ class MunkiPkginfoMerger(Processor):
         "additional_pkginfo": {
             "required": True,
             "description": ("Dictionary containing additional Munki pkginfo. "
-                "This will be added to or replace info in the input_pkginfo."),
+                "This will be added to or replace keys in the pkginfo."),
         },
         
     }
