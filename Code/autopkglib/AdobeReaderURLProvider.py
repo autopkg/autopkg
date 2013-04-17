@@ -89,6 +89,7 @@ class AdobeReaderURLProvider(Processor):
         
         self.env["url"] = self.get_reader_dmg_url(
             base_url, language, major_version)
+        self.output("Found URL %s" % self.env["url"])
     
 
 if __name__ == "__main__":

@@ -80,6 +80,8 @@ class AppDmgVersioner(DmgMounter):
             try:
                 self.env["bundleid"] = info["CFBundleIdentifier"]
                 self.env["version"] = info["CFBundleShortVersionString"]
+                self.output("BundleID: %s" % self.env["bundleid"])
+                self.output("Version: %s" % self.env["version"])
             except BaseException as e:
                 raise ProcessorError(e)
         finally:

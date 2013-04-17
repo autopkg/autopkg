@@ -105,6 +105,7 @@ class FirefoxURLProvider(Processor):
             base_url = FF_BASE_URL
         
         self.env["url"] = self.get_firefox_dmg_url(base_url, build, locale)
+        self.output("Found URL %s" % self.env["url"])
     
 
 if __name__ == "__main__":

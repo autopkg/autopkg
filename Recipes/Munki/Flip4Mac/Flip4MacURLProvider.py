@@ -95,6 +95,7 @@ class Flip4MacURLProvider(Processor):
         major_version = int(self.env.get("major_version", 3))
         base_url = self.env.get("base_url", BASE_URL)
         self.env["url"] = self.get_flip4mac_dmg_url(base_url, major_version)
+        self.output("Found URL %s" % self.env["url"])
 
 
 if __name__ == "__main__":

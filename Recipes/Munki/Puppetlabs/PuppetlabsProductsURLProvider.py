@@ -79,6 +79,7 @@ class PuppetlabsProductsURLProvider(Processor):
         ver, url = highest[1], "%s/%s" % (DL_INDEX, highest[0])
         self.env["version"] = ver
         self.env["url"] = url
+        self.output("Found URL %s" % self.env["url"])
 
 if __name__ == "__main__":
     processor = PuppetlabsProductsURLProvider()

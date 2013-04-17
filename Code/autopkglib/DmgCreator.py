@@ -65,7 +65,8 @@ class DmgCreator(Processor):
         
         # Read output plist.
         #output = plistlib.readPlistFromString(out)
-    
+        self.output("Created dmg from %s at %s" 
+            % (self.env['dmg_root'], self.env['dmg_path']))
 
 if __name__ == '__main__':
     processor = DmgCreator()

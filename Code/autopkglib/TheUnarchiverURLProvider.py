@@ -66,6 +66,7 @@ class TheUnarchiverURLProvider(Processor):
         base_url = self.env.get('base_url', THEUNARCHIVER_BASE_URL)
         
         self.env["url"] = self.get_theunarchiver_zip_url(base_url)
+        self.output("Found URL %s" % self.env["url"])
     
 
 if __name__ == '__main__':

@@ -91,6 +91,7 @@ class VLCURLProvider(Processor):
             base_url = VLC_BASE_URL
         
         self.env["url"] = self.get_vlc_dmg_url(base_url, build)
+        self.output("Found URL %s" % self.env["url"])
     
 
 if __name__ == '__main__':

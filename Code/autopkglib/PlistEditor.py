@@ -76,6 +76,7 @@ class PlistEditor(Processor):
             
         # write changed plist
         self.writePlist(working_plist, self.env["output_plist_path"])
+        self.output("Updated plist at %s" % self.env["output_plist_path"])
 
 if __name__ == '__main__':
     processor = PlistEditor()

@@ -80,7 +80,9 @@ class Unzipper(Processor):
                                   e.errno, e.strerror))
         if p.returncode != 0:
             raise ProcessorError("unzipping %s with ditto failed: %s" % (self.env['archive_path'], err))
-    
+        
+        self.output("Unzipped %s to %s" 
+                    % (self.env['archive_path'], self.env['destination_path']))
 
 if __name__ == '__main__':
     processor = Unzipper()
