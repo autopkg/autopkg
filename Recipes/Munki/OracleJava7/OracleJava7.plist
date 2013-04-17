@@ -7,7 +7,8 @@
 http://www.itninja.com/question/java-7-update-11-insecure-version-prompt-with-upgrade-button
 https://forums.oracle.com/forums/thread.jspa?threadID=2488735&tstart=0
 http://macops.ca/everything-youll-wish-you-didnt-know-about-disabling-java-7-updates
- -->
+https://jamfnation.jamfsoftware.com/discussion.html?id=6489
+-->
     <key>Input</key>
     <dict>
         <key>ABORT_IF_CACHED</key>
@@ -24,8 +25,8 @@ http://macops.ca/everything-youll-wish-you-didnt-know-about-disabling-java-7-upd
         <string>plugins/Java</string>
         <key>MUNKI_POSTINSTALL_SCRIPT</key>
         <string>#!/bin/sh
-BUNDLE_PLIST=/Library/Internet\ Plug-Ins/JavaAppletPlugin.plugin/Contents/Enabled.plist
-DEPLOY_VERS=$(/bin/cat $BUNDLE_PLIST | grep deploy | cut -d\= -f2 | cut -d\&lt; -f1)
+BUNDLE_PLIST="/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Enabled.plist"
+DEPLOY_VERS=$(/bin/cat "$BUNDLE_PLIST" | grep deploy | cut -d\= -f2 | cut -d\&lt; -f1)
 PROPFILE="/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home/lib/deployment.properties"
 cat &gt; "$PROPFILE" &lt;&lt; EOF
 # These three settings will suppress the Sparkle updater from displaying on-demand
@@ -88,10 +89,65 @@ EOF
         <dict>
             <key>Arguments</key>
             <dict>
-                <key>pkg_path</key>
-                <string>%pathname%</string>
-                <key>repo_subdirectory</key>
-                <string>%MUNKI_REPO_SUBDIR%</string>
+                <key>flat_pkg_path</key>
+                <string>%pathname%/*.pkg</string>
+                <key>destination_path</key>
+                <string>%RECIPE_CACHE_DIR%/unpack</string>
+            </dict>
+            <key>Processor</key>
+            <string>FlatPkgUnpacker</string>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>pkgroot</key>
+                <string>%RECIPE_CACHE_DIR%/unpack/root/Library/Internet Plug-Ins/JavaAppletPlugin.plugin</string>
+                <key>pkgdirs</key>
+                <dict/>
+            </dict>
+            <key>Processor</key>
+            <string>PkgRootCreator</string>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>pkg_payload_path</key>
+                <string>%RECIPE_CACHE_DIR%/unpack/javaappletplugin.pkg/Payload</string>
+                <key>destination_path</key>
+                <string>%RECIPE_CACHE_DIR%/unpack/root/Library/Internet Plug-Ins/JavaAppletPlugin.plugin</string>
+            </dict>
+            <key>Processor</key>
+            <string>PkgPayloadUnpacker</string>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>installs_item_paths</key>
+                <array>
+                    <string>/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home/lib/deploy/JavaControlPanel.prefPane</string>
+                </array>
+                <key>faux_root</key>
+                <string>%RECIPE_CACHE_DIR%/unpack/root</string>
+            </dict>
+            <key>Processor</key>
+            <string>MunkiInstallsItemsCreator</string>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>path_list</key>
+                <array>
+                    <string>%RECIPE_CACHE_DIR%/unpack</string>
+                </array>
+            </dict>
+            <key>Processor</key>
+            <string>PathDeleter</string>
+        </dict>
+        <dict>
+            <key>Processor</key>
+            <string>MunkiPkginfoMerger</string>
+            <key>Arguments</key>
+            <dict>
                 <key>pkginfo</key>
                 <dict>
                     <key>catalogs</key>
@@ -102,21 +158,6 @@ EOF
                     <string>%MUNKI_DESCRIPTION%</string>
                     <key>display_name</key>
                     <string>%plugin_displayname%</string>
-                    <key>installs</key>
-                    <array>
-                        <dict>
-                            <key>CFBundleVersion</key>
-                            <string>%plugin_cfbundleversion%</string>
-                            <key>path</key>
-                            <string>/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Info.plist</string>
-                            <key>type</key>
-                            <string>plist</string>
-                            <key>version_comparison_key</key>
-                            <string>CFBundleVersion</string>
-                        </dict>
-                    </array>
-                    <key>minimum_munki_version</key>
-                    <string>0.8.4.1710.0</string>
                     <key>minimum_os_version</key>
                     <string>10.7.3</string>
                     <key>name</key>
@@ -128,6 +169,15 @@ EOF
                     <key>version</key>
                     <string>%plugin_cfbundleversion%</string>
                 </dict>
+            </dict>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>pkg_path</key>
+                <string>%pathname%</string>
+                <key>repo_subdirectory</key>
+                <string>%MUNKI_REPO_SUBDIR%</string>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>
