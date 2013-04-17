@@ -72,6 +72,9 @@ class MunkiImporter(Processor):
             "description": 
                 "The pkginfo property list. Empty if item not imported.",
         },
+        "munki_repo_changed": {
+            "description": "True if item was imported."
+        },
     }
     description = __doc__
     
@@ -255,6 +258,7 @@ class MunkiImporter(Processor):
         self.env["pkg_repo_path"] = os.path.join(
             self.env["MUNKI_REPO"], "pkgs", relative_path)
         self.env["munki_info"] = pkginfo
+        self.env["munki_repo_changed"] = True
         
         self.output("Copied pkginfo to %s" % self.env["pkginfo_repo_path"])
         self.output("Copied pkg to %s" % self.env["pkg_repo_path"])

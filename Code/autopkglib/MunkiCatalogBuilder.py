@@ -31,12 +31,23 @@ class MunkiCatalogBuilder(Processor):
             "required": True,
             "description": "Path to the Munki repo.",
         },
+        "munki_repo_changed": {
+            "required": False,
+            "description": ("If not defined or False, causes running "
+                "makecatalogs to be skipped."),
+        },
     }
     output_variables = {
     }
     description = __doc__
     
     def main(self):
+        # MunkiImporter or other processor must set
+        # env["munki_repo_changed"] = True in order for makecatalogs
+        # to run
+        if not self.env.get("munki_repo_changed"):
+            self.output("Skipping makecatalogs because repo is unchanged.")
+            return
         
         # Generate arguments for makecatalogs.
         args = ["/usr/local/munki/makecatalogs", self.env["MUNKI_REPO"]]
