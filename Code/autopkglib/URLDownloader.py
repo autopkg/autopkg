@@ -66,6 +66,13 @@ class URLDownloader(Processor):
             "required": False,
             "description": "Filename to override the URL's tail.",
         },
+        "PKG": {
+            "required": False,
+            "description": 
+                ("Local path to the pkg/dmg we'd otherwise download. "
+                 "If provided, the download is skipped and we just use "
+                 "this package or disk image."),
+        },
     }
     output_variables = {
         "pathname": {
@@ -82,6 +89,11 @@ class URLDownloader(Processor):
     
     
     def main(self):
+        if "PKG" in self.env:
+            self.env["pathname"] = os.path.expanduser(self.env["PKG"])
+            self.env["download_changed"] = True
+            return
+            
         if not "filename" in self.env:
             # Generate filename.
             filename = self.env["url"].rpartition("/")[2]
