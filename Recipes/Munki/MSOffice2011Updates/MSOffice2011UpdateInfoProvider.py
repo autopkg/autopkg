@@ -41,7 +41,7 @@ BASE_URL = "http://www.microsoft.com/mac/autoupdate/0409MSOf14.xml"
 MUNKI_UPDATE_NAME = "Office2011_update"
 
 class MSOffice2011UpdateInfoProvider(Processor):
-    """Provides a download URL for the latest Flip4Mac release."""
+    """Provides a download URL for an Office 2011 update."""
     input_variables = {
         "base_url": {
             "required": False,
@@ -193,6 +193,7 @@ class MSOffice2011UpdateInfoProvider(Processor):
             item = matched_items[0]
         
         self.env["url"] = item["Location"]
+        self.output("Found URL %s" % self.env["url"])
         
         # now extract useful info from the rest of the metadata that could
         # be used in a pkginfo
@@ -213,6 +214,7 @@ class MSOffice2011UpdateInfoProvider(Processor):
             pkginfo["requires"] = requires
         pkginfo['name'] = self.env.get("munki_update_name", MUNKI_UPDATE_NAME)
         self.env["additional_pkginfo"] = pkginfo
+        self.output("Additional pkginfo: %s" % self.env["additional_pkginfo"])
 
     def main(self):
         """Get information about an update"""
