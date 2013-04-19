@@ -39,6 +39,7 @@ class AutoPackager(object):
         self.verbose = options.verbose
         self.quiet = options.quiet
         self.env = env
+        self.results = []
         
     def output(msg, verbose_level=1):
         if self.verbose >= verbose_level:
@@ -143,6 +144,11 @@ class AutoPackager(object):
         self.env["RECIPE_CACHE_DIR"] = os.path.join(
             cache_dir, identifier)
             
+        recipt_input_dict = {}
+        for key in self.env.keys():
+            recipt_input_dict[key] = self.env[key]
+        self.results.append({"Recipe input": recipt_input_dict})
+            
         # make sure the RECIPE_CACHE_DIR exists, creating it if needed
         if not os.path.exists(self.env["RECIPE_CACHE_DIR"]):
             try:
@@ -164,13 +170,14 @@ class AutoPackager(object):
             processor = processor_class(self.env)
             processor.inject(step.Arguments)
             
+            input_dict = {}
+            for key in processor.input_variables.keys():
+                if key in processor.env:
+                    input_dict[key] = processor.env[key]
+            
             if self.verbose > 1:
                 # pretty print any defined input variables
-                p_dict = {}
-                for key in processor.input_variables.keys():
-                    if key in processor.env:
-                        p_dict[key] = processor.env[key]
-                pprint.pprint({"Input": p_dict})
+                pprint.pprint({"Input": input_dict})
             
             try:
                 self.env = processor.process()
@@ -178,12 +185,16 @@ class AutoPackager(object):
                 print >> sys.stderr, str(e)
                 raise AutoPackagerError("Recipe processing failed.")
             
+            output_dict = {}
+            for key in processor.output_variables.keys():
+                output_dict[key] = self.env[key]
             if self.verbose > 1:
                 # pretty print output variables
-                p_dict = {}
-                for key in processor.output_variables.keys():
-                    p_dict[key] = self.env[key]
-                pprint.pprint({"Output": p_dict})
+                pprint.pprint({"Output": output_dict})
+                
+            self.results.append({'Processor': step.Processor,
+                                 'Input': input_dict,
+                                 'Output': output_dict})
                 
             if self.env.get("stop_processing_recipe"):
                 # processing should stop now
@@ -260,6 +271,7 @@ def main(argv):
         exit_status += 1
         exit_string = str(e)
         print >> sys.stderr, e
+        
     
     # build a pathname for a receipt
     recipe_basename = os.path.splitext(os.path.basename(recipe_path))[0]
@@ -280,8 +292,10 @@ def main(argv):
         plistlib.writePlist({
                 "Exit Status": exit_status,
                 "Exit String": exit_string,
-                "Receipt": autopackager.env
+                "Receipt": autopackager.results
             }, receipt_path)
+        if options.verbose:
+            print "Receipt written to %s" % receipt_path
     except IOError as e:
         exit_status += 1
         print >> sys.stderr, (

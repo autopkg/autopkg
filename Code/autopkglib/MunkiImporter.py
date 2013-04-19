@@ -235,6 +235,8 @@ class MunkiImporter(Processor):
                 self.env["MUNKI_REPO"], "pkgs",
                 matchingitem['installer_item_location'])
             self.env["munki_info"] = {}
+            if not "munki_repo_changed" in self.env:
+                self.env["munki_repo_changed"] = False
             
             self.output("Item %s already exists in the munki repo as %s."
                 % (os.path.basename(self.env["pkg_path"]),
