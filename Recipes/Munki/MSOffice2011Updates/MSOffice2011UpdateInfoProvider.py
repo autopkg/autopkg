@@ -162,6 +162,8 @@ class MSOffice2011UpdateInfoProvider(Processor):
         """Gets info about an Office 2011 update from MS metadata."""
         base_url = self.env.get("base_url", BASE_URL)
         version_str = self.env.get("version")
+        if not version_str:
+            version_str = "latest"
         # Get metadata URL
         try:
             f = urllib2.urlopen(base_url)
@@ -171,7 +173,7 @@ class MSOffice2011UpdateInfoProvider(Processor):
             raise ProcessorError("Can't download %s: %s" % (base_url, err))
         
         metadata = plistlib.readPlistFromString(data)
-        if not version_str:
+        if version_str == "latest":
             # Office 2011 update metadata is a list of dicts.
             # we need to sort by date.
             sorted_metadata = sorted(metadata, key=itemgetter('Date'))
@@ -188,13 +190,13 @@ class MSOffice2011UpdateInfoProvider(Processor):
                             if padded_version_str in item["Title"]]
             if len(matched_items) != 1:
                 raise ProcessorError(
-                    "Could not find version %s in update metadata" 
-                    % version_str)
+                    "Could not find version %s in update metadata. Updates that are available: %s" 
+                    % (version_str, ", ".join(["'%s'" % item["Title"] for item in metadata])))
             item = matched_items[0]
         
         self.env["url"] = item["Location"]
         self.output("Found URL %s" % self.env["url"])
-        
+        self.output("Got update: '%s'" % item["Title"])
         # now extract useful info from the rest of the metadata that could
         # be used in a pkginfo
         pkginfo = {}
@@ -212,6 +214,8 @@ class MSOffice2011UpdateInfoProvider(Processor):
         requires = self.getRequiresFromUpdateItem(item)
         if requires:
             pkginfo["requires"] = requires
+            self.output("Update requires previous update version %s" % requires[0].split("-")[1])
+
         pkginfo['name'] = self.env.get("munki_update_name", MUNKI_UPDATE_NAME)
         self.env["additional_pkginfo"] = pkginfo
         self.output("Additional pkginfo: %s" % self.env["additional_pkginfo"])

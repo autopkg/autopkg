@@ -16,6 +16,8 @@
         <string>apps/Office2011</string>
         <key>OFFICE2011_MUNKI_NAME</key>
         <string>Office2011</string>
+        <key>VERSION</key>
+        <string>latest</string>
     </dict>
     <key>Process</key>
     <array>
@@ -26,6 +28,8 @@
             <dict>
                 <key>munki_update_name</key>
                 <string>%NAME%</string>
+                <key>version</key>
+                <string>%VERSION%</string>
             </dict>
         </dict>
         <dict>
