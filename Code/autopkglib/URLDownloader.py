@@ -162,11 +162,15 @@ class URLDownloader(Processor):
                 xattr.setxattr(
                     pathname, XATTR_LAST_MODIFIED,
                     url_handle.info().get("last-modified"))
+                self.output("Storing new Last-Modified header: %s" %
+                    url_handle.info().get("last-modified"))
                             
             # save etag if it exists
             if url_handle.info().get("etag"):
                 xattr.setxattr(
                     pathname, XATTR_ETAG, url_handle.info().get("etag"))
+                self.output("Storing new ETag header: %s" %
+                    url_handle.info().get("etag"))
                     
             self.output("Downloaded %s" % pathname)
         

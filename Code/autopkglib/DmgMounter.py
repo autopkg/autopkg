@@ -62,8 +62,9 @@ class DmgMounter(Processor):
             if "mount-point" in part:
                 # Add to mount list.
                 self.mounts[pathname] = part["mount-point"]
+                self.output("Mounted disk image %s" % (pathname))
                 return self.mounts[pathname]
-    
+
     def unmount(self, pathname):
         """Unmount previously mounted image."""
         
