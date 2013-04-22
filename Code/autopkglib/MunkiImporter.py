@@ -91,7 +91,10 @@ class MunkiImporter(Processor):
         repo_path = self.env["MUNKI_REPO"]
         all_items_path = os.path.join(repo_path, 'catalogs', 'all')
         if not os.path.exists(all_items_path):
-            raise ProcessorError("Could not find 'all' catalog in Munki repo")
+            #raise ProcessorError("Could not find 'all' catalog in Munki repo")
+            # no all catalog; this might be an error, or it might just be a
+            # new repo with nothing in it!
+            return None
         try:
             catalogitems = plistlib.readPlist(all_items_path)
         except OSErr, err:
