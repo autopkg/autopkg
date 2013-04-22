@@ -20,7 +20,7 @@ import glob
 from Foundation import NSData, NSPropertyListSerialization, NSPropertyListMutableContainers
 
 from DmgMounter import DmgMounter
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["AppDmgVersioner"]

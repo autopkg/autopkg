@@ -21,7 +21,7 @@ import urllib2
 from distutils.version import LooseVersion
 from operator import itemgetter
 
-from autopkglib.Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["MSOffice2011UpdateInfoProvider"]

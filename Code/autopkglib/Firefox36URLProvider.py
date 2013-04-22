@@ -18,7 +18,7 @@
 import re
 import urllib2
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["Firefox36URLProvider"]

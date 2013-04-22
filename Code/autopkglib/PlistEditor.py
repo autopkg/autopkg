@@ -15,7 +15,7 @@
 # limitations under the License.
 
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 import plistlib
 
 

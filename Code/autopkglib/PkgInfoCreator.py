@@ -21,7 +21,7 @@ import plistlib
 import math
 from xml.etree import ElementTree
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["PkgInfoCreator"]

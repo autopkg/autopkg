@@ -21,7 +21,7 @@ from Foundation import NSData, \
                        NSPropertyListXMLFormat_v1_0, \
                        NSPropertyListMutableContainers
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["PraatVersionFixer"]

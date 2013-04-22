@@ -21,7 +21,7 @@ import subprocess
 import shutil
 
 from glob import glob
-from Processor import ProcessorError
+from autopkglib import ProcessorError
 from DmgMounter import DmgMounter
 
 

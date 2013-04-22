@@ -18,7 +18,7 @@
 import subprocess
 import plistlib
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["DmgMounter"]

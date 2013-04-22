@@ -21,7 +21,7 @@ import plistlib
 import shutil
 import tempfile
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["MunkiInfoCreator"]

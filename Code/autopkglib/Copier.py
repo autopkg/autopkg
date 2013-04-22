@@ -18,7 +18,7 @@
 import os.path
 import shutil
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 from DmgMounter import DmgMounter
 
 

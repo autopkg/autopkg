@@ -19,7 +19,7 @@ import os
 import subprocess
 import shutil
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["Unzipper"]

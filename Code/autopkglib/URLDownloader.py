@@ -19,7 +19,7 @@ import os.path
 import urllib2
 import xattr
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 try:
     from autopkglib import BUNDLE_ID
 except ImportError:

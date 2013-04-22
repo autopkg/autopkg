@@ -22,7 +22,7 @@ import shutil
 import subprocess
 
 from DmgMounter import DmgMounter
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["AdobeFlashDmgUnpacker"]

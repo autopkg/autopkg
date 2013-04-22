@@ -19,7 +19,7 @@ import os.path
 import socket
 import plistlib
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"

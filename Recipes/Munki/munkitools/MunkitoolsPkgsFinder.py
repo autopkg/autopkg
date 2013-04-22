@@ -19,7 +19,7 @@ import os
 import glob
 
 from autopkglib.DmgMounter import DmgMounter
-from autopkglib.Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["MunkitoolsPkgsFinder"]

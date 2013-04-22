@@ -23,7 +23,7 @@ import zipfile
 from xml.etree import ElementTree
 
 from DmgMounter import DmgMounter
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["AdobeReaderDmgUnpacker"]

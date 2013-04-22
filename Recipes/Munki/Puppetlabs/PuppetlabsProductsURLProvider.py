@@ -18,7 +18,7 @@ import urllib2
 import re
 from distutils.version import LooseVersion
 
-from autopkglib.Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 __all__ = ["PuppetlabsProductsURLProvider"]
 

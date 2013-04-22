@@ -18,7 +18,7 @@
 import os
 import subprocess
 
-from Processor import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 
 __all__ = ["MunkiCatalogBuilder"]
