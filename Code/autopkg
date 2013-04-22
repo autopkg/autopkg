@@ -22,7 +22,7 @@ import plistlib
 import time
 
 from autopkglib import BUNDLE_ID
-from autopkglib.autopackager import AutoPackagerError, AutoPackager
+from autopkglib import AutoPackagerError, AutoPackager
 
 
 def main(argv):
