@@ -127,8 +127,13 @@ def main(argv):
             print >> sys.stderr, e
 
         # look through results for interesting info
+        # and record for later summary and use
         for item in autopackager.results:
             if item.get("Recipe input"):
+                # the assumption is that the MUNKI_REPO does not
+                # change from recipe to recipe; if it does, running
+                # makecatalogs later will affect only the "last"
+                # MUNKI_REPO
                 munki_repo_path = item["Recipe input"].get("MUNKI_REPO")
             if item.get("Processor") == "URLDownloader":
                 if item["Output"].get("download_changed"):
@@ -152,6 +157,7 @@ def main(argv):
         for item in new_imports:
             print "    %s" % item[0]
             
+        print
         # rebuild Munki catalogs
         makecatalogs(munki_repo_path)
             
