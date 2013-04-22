@@ -1,0 +1,165 @@
+#!/usr/bin/env python
+#
+# Copyright 2013 Greg Neagle
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+import sys
+import os
+import optparse
+import plistlib
+import subprocess
+import time
+
+from autopkglib import BUNDLE_ID
+from autopkglib import AutoPackagerError, AutoPackager
+
+
+def makecatalogs(repo_path):
+    # Generate arguments for makecatalogs.
+    args = ["/usr/local/munki/makecatalogs", repo_path]
+    
+    # Call makecatalogs.
+    try:
+        proc = subprocess.Popen(
+            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (out, err_out) = proc.communicate()
+    except OSError as err:
+        print >> sys.stderr, (
+            "makecatalog execution failed with error code %d: %s" 
+            % (err.errno, err.strerror))
+    if proc.returncode != 0:
+        print >> sys.stderr, (
+            "makecatalogs failed: %s" % err_out)
+    print "Munki catalogs rebuilt!"
+
+
+def main(argv):
+    # Parse arguments.
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %prog [options] recipe.plist [recipe.plist ...]")
+    p.add_option("-k", "--key", action="append", dest="variables", default=[],
+                 help="Provide key/value pairs.")
+    p.add_option("-l", "--list", 
+                 help="Path to a text file listing recipes to run")
+    p.add_option("-v", "--verbose", action="count", default=0,
+                 help="Verbose output.")
+    options, argv = p.parse_args(argv)
+    
+    munki_repo_path = None
+    new_downloads = []
+    new_imports = []
+    
+    # Add variables from commandline.
+    cli_values = {}
+    for arg in options.variables:
+        (key, sep, value) = arg.partition("=")
+        if sep != "=":
+            print >> sys.stderr, "Invalid variable [key=value]: %s" % arg
+            print >> sys.stderr, p.get_usage()
+            return 1
+        cli_values[key] = value
+        
+    recipe_paths = []
+    recipe_paths.extend(argv[1:])
+    if options.list:
+        with open(options.list, "r") as fd:
+            data = fd.read()
+        recipes = [line for line in data.splitlines() if line]
+        recipe_paths.extend(recipes)
+        
+    if not recipe_paths:
+        print >> sys.stderr, p.get_usage()
+        return 1
+    
+    for recipe_path in recipe_paths:
+        try:
+            recipe = plistlib.readPlist(recipe_path)
+        except BaseException as e:
+            print >> sys.stderr, "Can't read %s: %s" % (recipe_path, e)
+            continue
+    
+        print "Processing %s..." % recipe_path
+        # Create empty plist object to hold preferences.
+        prefs = plistlib.readPlistFromString(plistlib.writePlistToString({}))
+    
+        # Read preferences from system and user's library path.
+        for libdir in ("/Library", os.path.expanduser("~/Library")):
+            prefpath = os.path.join(libdir, "Preferences", BUNDLE_ID + ".plist")
+            if os.path.exists(prefpath):
+                try:
+                    prefs = plistlib.readPlist(prefpath)
+                except BaseException as e:
+                    print >> sys.stderr, (
+                        "Can't read preferences from %s: %s" 
+                        % (prefpath, e))
+    
+        # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
+        prefs["RECIPE_PATH"] = os.path.abspath(recipe_path)
+        prefs["RECIPE_DIR"] = os.path.dirname(os.path.abspath(recipe_path))
+    
+        # Add our verbosity level
+        prefs["verbose"] = options.verbose
+    
+        autopackager = AutoPackager(options, prefs)
+    
+        exit_status = 0
+        exit_string = ""
+    
+        try:
+            autopackager.process_input_overrides(recipe, cli_values)
+            autopackager.verify(recipe)
+            autopackager.process(recipe)
+        except AutoPackagerError as e:
+            exit_status += 1
+            exit_string = str(e)
+            print >> sys.stderr, e
+
+        # look through results for interesting info
+        for item in autopackager.results:
+            if item.get("Recipe input"):
+                munki_repo_path = item["Recipe input"].get("MUNKI_REPO")
+            if item.get("Processor") == "URLDownloader":
+                if item["Output"].get("download_changed"):
+                     new_downloads.append(item["Output"].get("pathname"))
+            if item.get("Processor") == "MunkiImporter":
+                if item["Output"].get("pkginfo_repo_path"):
+                    new_imports.append(
+                        (item["Output"].get("pkginfo_repo_path"), 
+                         item["Output"].get("pkg_repo_path")))
+                         
+    # done running recipes, print a summary
+    if new_downloads:
+        print
+        print "The following new items were downloaded:"
+        for item in new_downloads:
+            print "    %s" % item
+    
+    if new_imports:
+        print
+        print "The following new items were imported:"
+        for item in new_imports:
+            print "    %s" % item[0]
+            
+        # rebuild Munki catalogs
+        makecatalogs(munki_repo_path)
+            
+    if not new_downloads and not new_imports:
+        print
+        print "No changes found."
+        
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
+    
