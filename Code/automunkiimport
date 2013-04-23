@@ -19,6 +19,7 @@ import sys
 import os
 import optparse
 import plistlib
+import pprint
 import subprocess
 import time
 
@@ -50,9 +51,15 @@ def main(argv):
     p = optparse.OptionParser()
     p.set_usage("Usage: %prog [options] recipe.plist [recipe.plist ...]")
     p.add_option("-k", "--key", action="append", dest="variables", default=[],
-                 help="Provide key/value pairs.")
-    p.add_option("-l", "--list", 
-                 help="Path to a text file listing recipes to run")
+                 metavar="KEY=VALUE",
+                 help=("Provide key/value pairs for recipe input. "
+                       "Caution: values specified here will be applied "
+                       "to all recipes."))
+    p.add_option("-l", "--list", metavar="TEXT_FILE",
+                 help="Path to a text file with a list of recipes to run.")
+    p.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
+                 help=("Path to a pkg or dmg to provide to a recipe. "
+                       "Downloading will be skipped."))
     p.add_option("-v", "--verbose", action="count", default=0,
                  help="Verbose output.")
     options, argv = p.parse_args(argv)
@@ -71,18 +78,28 @@ def main(argv):
             return 1
         cli_values[key] = value
         
+    if options.pkg:
+        cli_values["PKG"] = options.pkg
+        
     recipe_paths = []
     recipe_paths.extend(argv[1:])
     if options.list:
         with open(options.list, "r") as fd:
             data = fd.read()
-        recipes = [line for line in data.splitlines() if line]
+        recipes = [line for line in data.splitlines() 
+                   if line and not line.startswith("#")]
         recipe_paths.extend(recipes)
         
     if not recipe_paths:
         print >> sys.stderr, p.get_usage()
         return 1
+        
+    if len(recipe_paths) > 1 and options.pkg:
+        print >> sys.stderr, (
+            "-p/--pkg option can't be used with multiple recipes!")
+        return 1
     
+    run_results = []
     for recipe_path in recipe_paths:
         try:
             recipe = plistlib.readPlist(recipe_path)
@@ -126,6 +143,7 @@ def main(argv):
             exit_string = str(e)
             print >> sys.stderr, e
 
+        run_results.append(autopackager.results)
         # look through results for interesting info
         # and record for later summary and use
         for item in autopackager.results:
@@ -164,6 +182,8 @@ def main(argv):
     if not new_downloads and not new_imports:
         print
         print "No changes found."
+        
+    pprint.pprint(run_results)
         
 
 if __name__ == "__main__":
