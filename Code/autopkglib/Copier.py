@@ -79,7 +79,7 @@ class Copier(DmgMounter):
                     shutil.copyfile(source_path, self.env['destination_path'])
                 else:
                     shutil.copy(source_path, self.env['destination_path'])
-                self.output("Copied % to %s" 
+                self.output("Copied %s to %s" 
                             % (source_path, self.env['destination_path']))
             except BaseException as e:
                 raise ProcessorError("Can't copy %s to %s: %s" % (
