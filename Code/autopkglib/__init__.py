@@ -252,7 +252,7 @@ class AutoPackager(object):
                     # attempt to import the module
                     _tmp = imp.load_source(
                         step["Processor"], processor_filename)
-                    # look for an attribute with the step.Processor name
+                    # look for an attribute with the step Processor name
                     _processor = getattr(_tmp, step["Processor"])
                     # add the processor to autopkglib's namespace
                     add_processor(step["Processor"], _processor)
