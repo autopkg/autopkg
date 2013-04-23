@@ -190,8 +190,10 @@ class MSOffice2011UpdateInfoProvider(Processor):
                             if padded_version_str in item["Title"]]
             if len(matched_items) != 1:
                 raise ProcessorError(
-                    "Could not find version %s in update metadata. Updates that are available: %s" 
-                    % (version_str, ", ".join(["'%s'" % item["Title"] for item in metadata])))
+                    "Could not find version %s in update metadata. "
+                    "Updates that are available: %s" 
+                    % (version_str, ", ".join(["'%s'" % item["Title"] 
+                                               for item in metadata])))
             item = matched_items[0]
         
         self.env["url"] = item["Location"]
@@ -214,7 +216,9 @@ class MSOffice2011UpdateInfoProvider(Processor):
         requires = self.getRequiresFromUpdateItem(item)
         if requires:
             pkginfo["requires"] = requires
-            self.output("Update requires previous update version %s" % requires[0].split("-")[1])
+            self.output(
+                "Update requires previous update version %s" 
+                % requires[0].split("-")[1])
 
         pkginfo['name'] = self.env.get("munki_update_name", MUNKI_UPDATE_NAME)
         self.env["additional_pkginfo"] = pkginfo
