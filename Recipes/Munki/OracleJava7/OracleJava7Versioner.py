@@ -22,7 +22,7 @@ from glob import glob
 from tempfile import mkdtemp
 from shutil import rmtree
 from autopkglib.DmgMounter import DmgMounter
-from autopkglib.Processor import ProcessorError
+from autopkglib import ProcessorError
 
 __all__ = ["OracleJava7Versioner"]
 
