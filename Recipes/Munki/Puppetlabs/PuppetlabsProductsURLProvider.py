@@ -30,13 +30,15 @@ class PuppetlabsProductsURLProvider(Processor):
     input_variables = {
         "product_name": {
             "required": True,
-            "description": "Product to fetch URL for. One of 'puppet', 'facter', 'hiera'.",
+            "description": 
+                "Product to fetch URL for. One of 'puppet', 'facter', 'hiera'.",
         },
         "get_version": {
             "required": False,
-            "description": "Specific version to request. Defaults to '%s', which "
-                           "automatically finds the highest available release version." % (
-                            DEFAULT_VERSION),
+            "description": 
+                ("Specific version to request. Defaults to '%s', which "
+                 "automatically finds the highest available release version." 
+                 % (DEFAULT_VERSION)),
         },
     }
     output_variables = {
