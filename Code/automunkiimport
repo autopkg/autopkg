@@ -67,6 +67,7 @@ def main(argv):
     munki_repo_path = None
     new_downloads = []
     new_imports = []
+    failures = []
     
     # Add variables from commandline.
     cli_values = {}
@@ -139,9 +140,11 @@ def main(argv):
             autopackager.verify(recipe)
             autopackager.process(recipe)
         except AutoPackagerError as e:
-            exit_status += 1
-            exit_string = str(e)
-            print >> sys.stderr, e
+            print "Failed."
+            failure = {}
+            failure["recipe"] = recipe_path
+            failure["message"] = str(e)
+            failures.append(failure)
 
         run_results.append(autopackager.results)
         # look through results for interesting info
@@ -163,6 +166,13 @@ def main(argv):
                          item["Output"].get("pkg_repo_path")))
                          
     # done running recipes, print a summary
+    if failures:
+        print
+        print "The following recipes failed:"
+        for item in failures:
+            print "    %s" % item["recipe"]
+            print "        %s" % item["message"]
+            
     if new_downloads:
         print
         print "The following new items were downloaded:"
@@ -183,7 +193,7 @@ def main(argv):
         print
         print "No changes found."
         
-    pprint.pprint(run_results)
+    #pprint.pprint(run_results)
         
 
 if __name__ == "__main__":
