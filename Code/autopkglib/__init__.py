@@ -187,7 +187,7 @@ class AutoPackager(object):
 
     def get_recipe_identifier(self, recipe):
         """Return the identifier given an input recipe plist."""
-        identifier = recipe.Input.get("IDENTIFIER")
+        identifier = recipe["Input"].get("IDENTIFIER")
         if not identifier:
             print "ID NOT FOUND"
             # build a pseudo-identifier based on the recipe pathname
@@ -216,7 +216,7 @@ class AutoPackager(object):
 
         # Set up empty container for final output
         inputs = {}
-        inputs.update(recipe.Input)
+        inputs.update(recipe["Input"])
         identifier = self.get_recipe_identifier(recipe)
         if self.env.get(LOCAL_OVERRIDE_KEY):
             recipe_overrides = self.env.get(LOCAL_OVERRIDE_KEY).get(identifier)
@@ -238,40 +238,40 @@ class AutoPackager(object):
         """Verify a recipe and check for errors."""
 
         # Initialize variable set with input variables.
-        variables = set(recipe.Input.keys())
+        variables = set(recipe["Input"].keys())
         # Add environment.
         variables.update(set(self.env.keys()))
         recipe_dir = self.env.get('RECIPE_DIR')
         # Check each step of the process.
-        for step in recipe.Process:
+        for step in recipe["Process"]:
             # Look for the processor in the same directory as the recipe
             processor_filename = os.path.join(
-                                    recipe_dir, step.Processor + '.py')
+                                    recipe_dir, step["Processor"] + '.py')
             if os.path.exists(processor_filename):
                 try:
                     # attempt to import the module
                     _tmp = imp.load_source(
-                        step.Processor, processor_filename)
+                        step["Processor"], processor_filename)
                     # look for an attribute with the step.Processor name
-                    _processor = getattr(_tmp, step.Processor)
+                    _processor = getattr(_tmp, step["Processor"])
                     # add the processor to autopkglib's namespace
-                    add_processor(step.Processor, _processor)
+                    add_processor(step["Processor"], _processor)
                 except (ImportError, AttributeError):
                     # if we aren't successful, that's OK, we're going
                     # see if the processor was already imported
                     pass
             try:
-                processor_class = get_processor(step.Processor)
+                processor_class = get_processor(step["Processor"])
             except AttributeError:
                 raise AutoPackagerError(
-                        "Unknown processor '%s'" % step.Processor)
+                        "Unknown processor '%s'" % step["Processor"])
             # Add arguments to set of variables.
-            variables.update(set(step.Arguments.keys()))
+            variables.update(set(step["Arguments"].keys()))
             # Make sure all required input variables exist.
             for key, flags in processor_class.input_variables.items():
                 if flags["required"] and (key not in variables):
                     raise AutoPackagerError("%s requires missing argument %s" 
-                                            % (step.Processor, key))
+                                            % (step["Processor"], key))
             # Add output variables to set.
             variables.update(set(processor_class.output_variables.keys()))
 
@@ -301,14 +301,14 @@ class AutoPackager(object):
         if self.verbose > 2:
             pprint.pprint(self.env)
 
-        for step in recipe.Process:
+        for step in recipe["Process"]:
 
             if self.verbose:
-                print step.Processor
+                print step["Processor"]
 
-            processor_class = get_processor(step.Processor)
+            processor_class = get_processor(step["Processor"])
             processor = processor_class(self.env)
-            processor.inject(step.Arguments)
+            processor.inject(step["Arguments"])
 
             input_dict = {}
             for key in processor.input_variables.keys():
@@ -332,7 +332,7 @@ class AutoPackager(object):
                 # pretty print output variables
                 pprint.pprint({"Output": output_dict})
 
-            self.results.append({'Processor': step.Processor,
+            self.results.append({'Processor': step["Processor"],
                                  'Input': input_dict,
                                  'Output': output_dict})
 
