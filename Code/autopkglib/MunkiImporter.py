@@ -20,6 +20,8 @@ import subprocess
 import plistlib
 import shutil
 
+from distutils import version
+
 from autopkglib import Processor, ProcessorError
 
 
@@ -78,8 +80,100 @@ class MunkiImporter(Processor):
     }
     description = __doc__
     
+    def makeCatalogDB(self):
+        """Reads the 'all' catalog and returns a dict we can use like a
+         database"""
+        
+        repo_path = self.env["MUNKI_REPO"]
+        all_items_path = os.path.join(repo_path, 'catalogs', 'all')
+        if not os.path.exists(all_items_path):
+            # might be an error, or might be a brand-new empty repo
+            catalogitems = []
+        else:
+            try:
+                catalogitems = plistlib.readPlist(all_items_path)
+            except OSError, err:
+                raise ProcessorError(
+                    "Error reading 'all' catalog from Munki repo: %s" % err)
+
+        pkgid_table = {}
+        app_table = {}
+        installer_item_table = {}
+        hash_table = {}
+
+        itemindex = -1
+        for item in catalogitems:
+            itemindex = itemindex + 1
+            name = item.get('name', 'NO NAME')
+            vers = item.get('version', 'NO VERSION')
+
+            if name == 'NO NAME' or vers == 'NO VERSION':
+                # skip this item
+                continue
+
+            # add to hash table
+            if 'installer_item_hash' in item:
+                if not item['installer_item_hash'] in hash_table:
+                    hash_table[item['installer_item_hash']] = []
+                hash_table[item['installer_item_hash']].append(itemindex)
+
+            # add to installer item table
+            if 'installer_item_location' in item:
+                installer_item_name = os.path.basename(
+                    item['installer_item_location'])
+                if not installer_item_name in installer_item_table:
+                    installer_item_table[installer_item_name] = {}
+                if not vers in installer_item_table[installer_item_name]:
+                    installer_item_table[installer_item_name][vers] = []
+                installer_item_table[
+                                installer_item_name][vers].append(itemindex)
+
+            # add to table of receipts
+            for receipt in item.get('receipts', []):
+                try:
+                    if 'packageid' in receipt and 'version' in receipt:
+                        if not receipt['packageid'] in pkgid_table:
+                            pkgid_table[receipt['packageid']] = {}
+                        if not vers in pkgid_table[receipt['packageid']]:
+                            pkgid_table[receipt['packageid']][vers] = []
+                        pkgid_table[receipt['packageid']][
+                                                    vers].append(itemindex)
+                except TypeError:
+                    # skip this receipt
+                    continue
+                
+            # add to table of installed applications
+            for install in item.get('installs', []):
+                try:
+                    if install.get('type') == 'application':
+                        if 'path' in install:
+                            if not install['path'] in app_table:
+                                app_table[install['path']] = {}
+                            if not vers in app_table[install['path']]:
+                                app_table[install['path']][vers] = []
+                            app_table[install['path']][vers].append(itemindex)
+                except TypeError:
+                    # skip this item
+                    continue
+
+        pkgdb = {}
+        pkgdb['hashes'] = hash_table
+        pkgdb['receipts'] = pkgid_table
+        pkgdb['applications'] = app_table
+        pkgdb['installer_items'] = installer_item_table
+        pkgdb['items'] = catalogitems
+
+        return pkgdb
+    
     def findMatchingItemInRepo(self, pkginfo):
-        """Looks through all catalog for matching installer_item_hash"""
+        """Looks through all catalog for items matching the one
+        described by pkginfo. Returns a matching item if found."""
+        
+        def compare_version_keys(value_a, value_b):
+            """Internal comparison function for use in sorting"""
+            return cmp(version.LooseVersion(value_b),
+                       version.LooseVersion(value_a))
+        
         if not pkginfo.get('installer_item_hash'):
             return None
             
@@ -87,35 +181,50 @@ class MunkiImporter(Processor):
             # we need to import even if there's a match, so skip
             # the check
             return None
-            
-        repo_path = self.env["MUNKI_REPO"]
-        all_items_path = os.path.join(repo_path, 'catalogs', 'all')
-        if not os.path.exists(all_items_path):
-            #raise ProcessorError("Could not find 'all' catalog in Munki repo")
-            # no all catalog; this might be an error, or it might just be a
-            # new repo with nothing in it!
-            return None
-        try:
-            catalogitems = plistlib.readPlist(all_items_path)
-        except OSErr, err:
-            raise ProcessorError(
-                "Error reading 'all' catalog from Munki repo: %s" % err)
         
-        hash_table = {}
-        itemindex = -1
-        for item in catalogitems:
-            itemindex = itemindex + 1
-            # add to hash table
-            if 'installer_item_hash' in item:
-                if not item['installer_item_hash'] in hash_table:
-                    hash_table[item['installer_item_hash']] = []
-                hash_table[item['installer_item_hash']].append(itemindex)
-                
-        matchingindexes = hash_table.get(pkginfo['installer_item_hash'])
-        if matchingindexes:
-            return catalogitems[matchingindexes[0]]
-        else:
-            return None
+        if 'installer_item_hash' in pkginfo:
+            pkgdb = self.makeCatalogDB()
+            matchingindexes = pkgdb['hashes'].get(
+                                        pkginfo['installer_item_hash'])
+            if matchingindexes:
+                return pkgdb['items'][matchingindexes[0]]
+        
+        if 'receipts' in pkginfo:
+            pkgids = [item['packageid']
+                      for item in pkginfo['receipts']
+                      if 'packageid' in item]
+            if pkgids:
+                possiblematches = pkgdb['receipts'].get(pkgids[0])
+                if possiblematches:
+                    versionlist = possiblematches.keys()
+                    versionlist.sort(compare_version_keys)
+                    # go through possible matches, newest version first
+                    for versionkey in versionlist:
+                        testpkgindexes = possiblematches[versionkey]
+                        for pkgindex in testpkgindexes:
+                            testpkginfo = pkgdb['items'][pkgindex]
+                            testpkgids = [item['packageid'] for item in
+                                          testpkginfo.get('receipts',[])
+                                          if 'packageid' in item]
+                            if set(testpkgids) == set(pkgids):
+                                return testpkginfo
+        
+        if 'installs' in pkginfo:
+            applist = [item for item in pkginfo['installs']
+                       if item['type'] == 'application'
+                       and 'path' in item]
+            if applist:
+                app = applist[0]['path']
+                possiblematches = pkgdb['applications'].get(app)
+                if possiblematches:
+                    versionlist = possiblematches.keys()
+                    versionlist.sort(compare_version_keys)
+                    indexes = pkgdb['applications'][app][versionlist[0]]
+                    return pkgdb['items'][indexes[0]]
+                    
+        # if we get here, we found no matches
+        return None
+    
     
     def copyItemToRepo(self, pkginfo):
         """Copies an item to the appropriate place in the repo.
