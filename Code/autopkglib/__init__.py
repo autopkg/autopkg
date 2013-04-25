@@ -284,10 +284,10 @@ class AutoPackager(object):
         self.env["RECIPE_CACHE_DIR"] = os.path.join(
             cache_dir, identifier)
 
-        recipt_input_dict = {}
+        recipe_input_dict = {}
         for key in self.env.keys():
-            recipt_input_dict[key] = self.env[key]
-        self.results.append({"Recipe input": recipt_input_dict})
+            recipe_input_dict[key] = self.env[key]
+        self.results.append({"Recipe input": recipe_input_dict})
 
         # make sure the RECIPE_CACHE_DIR exists, creating it if needed
         if not os.path.exists(self.env["RECIPE_CACHE_DIR"]):
