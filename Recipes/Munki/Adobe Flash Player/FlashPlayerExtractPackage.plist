@@ -8,14 +8,23 @@
         <string>com.googlecode.autopkg.munki.FlashPlayerExtractPackage</string>
         <key>NAME</key>
         <string>AdobeFlashPlayer</string>
-        <key>MUNKI_DISPLAYNAME</key>
-        <string>Adobe Flash Player</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>Adobe® Flash® Player is a cross-platform browser-based application runtime that delivers uncompromised viewing of expressive applications, content, and videos across screens and browsers.</string>
-        <key>MUNKI_CATALOG</key>
-        <string>testing</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>internet_plugins</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>Adobe® Flash® Player is a cross-platform browser-based application runtime that delivers uncompromised viewing of expressive applications, content, and videos across screens and browsers.</string>
+            <key>display_name</key>
+            <string>Adobe Flash Player</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>unattended_install</key>
+            <true/>
+        </dict>
     </dict>
     <key>Process</key>
     <array>
@@ -69,21 +78,6 @@
                 <string>%dmg_path%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>pkginfo</key>
-                <dict>
-                    <key>catalogs</key>
-                    <array>
-                        <string>%MUNKI_CATALOG%</string>
-                    </array>
-                    <key>description</key>
-                    <string>%MUNKI_DESCRIPTION%</string>
-                    <key>display_name</key>
-                    <string>%MUNKI_DISPLAYNAME%</string>
-                    <key>name</key>
-                    <string>%NAME%</string>
-                    <key>unattended_install</key>
-                    <true/>
-                </dict>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>

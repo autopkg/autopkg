@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Input</key>
+    <dict>
+        <key>IDENTIFIER</key>
+        <string>com.googlecode.autopkg.pkg.AdobeAIR</string>
+        <key>NAME</key>
+        <string>AdobeAIR</string>
+        <key>URL</key>
+        <string>http://airdownload.adobe.com/air/mac/download/latest/AdobeAIR.dmg</string>
+        <key>MUNKI_REPO_SUBDIR</key>
+        <string>apps/adobe</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>Adobe AIR</string>
+            <key>display_name</key>
+            <string>Adobe® Integrated Runtime.</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>unattended_install</key>
+            <true/>
+            <key>update_for</key>
+            <array>
+                <string>foo</string>
+                <string>bar</string>
+            </array>
+        </dict>
+    </dict>
+    <key>Process</key>
+    <array>
+        <dict>
+            <key>Comment</key>
+            <string>Download latest Adobe AIR disk image</string>
+            <key>Processor</key>
+            <string>URLDownloader</string>
+            <key>Arguments</key>
+            <dict>
+                <key>url</key>
+                <string>%URL%</string>
+                <key>filename</key>
+                <string>%NAME%.dmg</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Processor</key>
+            <string>EndOfCheckPhase</string>
+            <key>Arguments</key>
+            <dict/>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Create a pkg root; we'll extract things from the disk image here.</string>
+            <key>Processor</key>
+            <string>PkgRootCreator</string>
+            <key>Arguments</key>
+            <dict>
+                <key>pkgroot</key>
+                <string>%RECIPE_CACHE_DIR%/AdobeAIR</string>
+                <key>pkgdirs</key>
+                <dict>
+                    <key>Applications</key>
+                    <string>01775</string>
+                    <key>Applications/Adobe</key>
+                    <string>0775</string>
+                    <key>Applications/Adobe/Flash Player</key>
+                    <string>0775</string>
+                    <key>Applications/Adobe/Flash Player/AddIns</key>
+                    <string>0775</string>
+                    <key>Applications/Adobe/Flash Player/AddIns/airappinstaller</key>
+                    <string>0775</string>
+                    <key>Applications/Utilities</key>
+                    <string>0775</string>
+                    <key>Library</key>
+                    <string>01775</string>
+                    <key>Library/Frameworks</key>
+                    <string>0775</string>
+                </dict>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Copy AIR installer as Adobe AIR Uninstaller.app(!)</string>
+            <key>Processor</key>
+            <string>Copier</string>
+            <key>Arguments</key>
+            <dict>
+                <key>source_path</key>
+                <string>%pathname%/Adobe AIR Installer.app</string>
+                <key>destination_path</key>
+                <string>%pkgroot%/Applications/Utilities/Adobe AIR Uninstaller.app</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Copy embedded Adobe AIR.framework to pkgroot/Library/Frameworks/</string>
+            <key>Processor</key>
+            <string>Copier</string>
+            <key>Arguments</key>
+            <dict>
+                <key>source_path</key>
+                <string>%pkgroot%/Applications/Utilities/Adobe AIR Uninstaller.app/Contents/Frameworks/Adobe AIR.framework</string>
+                <key>destination_path</key>
+                <string>%pkgroot%/Library/Frameworks/Adobe AIR.framework</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Remove unneeded Adobe AIR Application Installer.app from inside Uninstaller.app</string>
+            <key>Processor</key>
+            <string>PathDeleter</string>
+            <key>Arguments</key>
+            <dict>
+                <key>path_list</key>
+                <array>
+                    <string>%pkgroot%/Applications/Utilities/Adobe AIR Uninstaller.app/Contents/Frameworks/Adobe AIR.framework/Versions/Current/Adobe AIR Application Installer.app</string>
+                </array>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Copy embedded Adobe AIR Application Installer.app to /Applications/Utilities</string>
+            <key>Processor</key>
+            <string>Copier</string>
+            <key>Arguments</key>
+            <dict>
+                <key>source_path</key>
+                <string>%pkgroot%/Library/Frameworks/Adobe AIR.framework/Versions/Current/Adobe AIR Application Installer.app</string>
+                <key>destination_path</key>
+                <string>%pkgroot%/Applications/Utilities/Adobe AIR Application Installer.app</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Copy embedded airappinstaller tool to /Applications/Adobe/Flash Player/AddIns/airappinstaller/</string>
+            <key>Processor</key>
+            <string>Copier</string>
+            <key>Arguments</key>
+            <dict>
+                <key>source_path</key>
+                <string>%pkgroot%/Library/Frameworks/Adobe AIR.framework/Resources/airappinstaller</string>
+                <key>destination_path</key>
+                <string>%pkgroot%/Applications/Adobe/Flash Player/AddIns/airappinstaller/airappinstaller</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Copy and merge resource fork for airappinstaller tool</string>
+            <key>Processor</key>
+            <string>Copier</string>
+            <key>Arguments</key>
+            <dict>
+                <key>source_path</key>
+                <string>%pkgroot%/Library/Frameworks/Adobe AIR.framework/Resources/airappinstaller.rsrc</string>
+                <key>destination_path</key>
+                <string>%pkgroot%/Applications/Adobe/Flash Player/AddIns/airappinstaller/airappinstaller/..namedfork/rsrc</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Copy digest.s (library?) for airappinstaller tool</string>
+            <key>Processor</key>
+            <string>Copier</string>
+            <key>Arguments</key>
+            <dict>
+                <key>source_path</key>
+                <string>%pkgroot%/Library/Frameworks/Adobe AIR.framework/Resources/digest.s</string>
+                <key>destination_path</key>
+                <string>%pkgroot%/Applications/Adobe/Flash Player/AddIns/airappinstaller/digest.s</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Make Adobe AIR Application Installer.app be able to open .air files</string>
+            <key>Processor</key>
+            <string>PlistEditor</string>
+            <key>Arguments</key>
+            <dict>
+                <key>input_plist_path</key>
+                <string>%pkgroot%/Applications/Utilities/Adobe AIR Application Installer.app/Contents/Info.plist</string>
+                <key>output_plist_path</key>
+                <string>%pkgroot%/Applications/Utilities/Adobe AIR Application Installer.app/Contents/Info.plist</string>
+                <key>plist_data</key>
+                <dict>
+                    <key>CFBundleDocumentTypes</key>
+                    <array>
+                        <dict>
+                            <key>CFBundleTypeExtensions</key>
+                            <array>
+                                <string>air</string>
+                            </array>
+                            <key>CFBundleTypeIconFile</key>
+                            <string>Adobe AIR Installer Package.icns</string>
+                            <key>CFBundleTypeMIMETypes</key>
+                            <array>
+                                <string>application/vnd.adobe.air-application-installer-package+zip</string>
+                            </array>
+                            <key>CFBundleTypeName</key>
+                            <string>com.adobe.air.InstallerPackage</string>
+                            <key>CFBundleTypeRole</key>
+                            <string>Viewer</string>
+                        </dict>
+                    </array>
+                </dict>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Get Adobe AIR version from the framework bundle</string>
+            <key>Processor</key>
+            <string>Versioner</string>
+            <key>Arguments</key>
+            <dict>
+                <key>input_plist_path</key>
+                <string>%pkgroot%/Library/Frameworks/Adobe AIR.framework/Resources/Info.plist</string>
+                <key>plist_version_key</key>
+                <string>CFBundleVersion</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Make PackageInfo file for our package</string>
+            <key>Processor</key>
+            <string>PkgInfoCreator</string>
+            <key>Arguments</key>
+            <dict>
+                <key>template_path</key>
+                <string>%RECIPE_DIR%/PackageInfoTemplate</string>
+                <key>infofile</key>
+                <string>%RECIPE_CACHE_DIR%/PackageInfo</string>
+                <key>pkgtype</key>
+                <string>flat</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Finally! Build a real Apple package from Adobe's Inception-esque blob</string>
+            <key>Processor</key>
+            <string>PkgCreator</string>
+            <key>Arguments</key>
+            <dict>
+                <key>pkgname</key>
+                <string>%NAME%-%version%</string>
+                <key>pkg_request</key>
+                <dict>
+                    <key>pkgdir</key>
+                    <string>%RECIPE_CACHE_DIR%</string>
+                    <key>id</key>
+                    <string>com.adobe.pkg.AIR</string>
+                    <key>infofile</key>
+                    <string>%RECIPE_CACHE_DIR%/PackageInfo</string>
+                    <key>resources</key>
+                    <string>%RECIPE_DIR%/Resources</string>
+                    <key>options</key>
+                    <string>purge_ds_store</string>
+                    <key>chown</key>
+                    <array>
+                        <dict>
+                            <key>path</key>
+                            <string>Applications</string>
+                            <key>user</key>
+                            <string>root</string>
+                            <key>group</key>
+                            <string>admin</string>
+                        </dict>
+                        <dict>
+                            <key>path</key>
+                            <string>Library</string>
+                            <key>user</key>
+                            <string>root</string>
+                            <key>group</key>
+                            <string>admin</string>
+                        </dict>
+                    </array>
+                </dict>
+            </dict>
+        </dict>
+        <dict>
+            <key>Comment</key>
+            <string>Import the pkg into Munki!</string>
+            <key>Processor</key>
+            <string>MunkiImporter</string>
+            <key>Arguments</key>
+            <dict>
+                <key>repo_subdirectory</key>
+                <string>%MUNKI_REPO_SUBDIR%</string>
+            </dict>
+        </dict>
+    </array>
+</dict>
+</plist>
