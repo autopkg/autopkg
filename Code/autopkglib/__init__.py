@@ -323,7 +323,9 @@ class AutoPackager(object):
                 self.env = processor.process()
             except ProcessorError as e:
                 print >> sys.stderr, str(e)
-                raise AutoPackagerError("Recipe processing failed.")
+                raise AutoPackagerError(
+                    "Error in %s: Processor: %s: Error: %s"
+                    %(identifier, step["Processor"], str(e)))
 
             output_dict = {}
             for key in processor.output_variables.keys():
