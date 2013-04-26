@@ -62,6 +62,9 @@ def main(argv):
                        "Downloading will be skipped."))
     p.add_option("-v", "--verbose", action="count", default=0,
                  help="Verbose output.")
+    p.add_option("-r", "--recipe-dir", metavar="RECIPE_ROOT_DIR",
+                 help=("Path to a directory that will be searched "
+                       "recursively for all autopkg recipe plists."))
     options, argv = p.parse_args(argv)
     
     munki_repo_path = None
@@ -90,6 +93,22 @@ def main(argv):
         recipes = [line for line in data.splitlines() 
                    if line and not line.startswith("#")]
         recipe_paths.extend(recipes)
+
+    if options.recipe_dir:
+        for root, dirs, files in os.walk(options.recipe_dir):
+            for f in [r for r in files if r.endswith(".plist")]:
+                recipe_path = os.path.join(root, f)
+                try:
+                    recipe_plist = plistlib.readPlist(recipe_path)
+                except:
+                    print >> sys.stderr, "Error reading plist file %s" % recipe_path
+                    return 1
+                if all(k in recipe_plist.keys() for k in ["Input", "Process"]):
+                    recipe_paths.append(recipe_path)
+                else:
+                    print >> sys.stderr, ("Skipping plist %s as it's not a "
+                                          "(properly-formatted) autopkg recipe plist." %
+                                          recipe_path)
         
     if not recipe_paths:
         print >> sys.stderr, p.get_usage()
