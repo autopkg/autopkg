@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Input</key>
+    <dict>
+        <key>ABORT_IF_CACHED</key>
+        <false/>
+        <key>IDENTIFIER</key>
+        <string>com.googlecode.autopkg.munki.bbedit</string>
+        <key>MUNKI_CATALOG</key>
+        <string>testing</string>
+        <key>MUNKI_DESCRIPTION</key>
+        <string>BBEdit is the leading professional HTML and text editor for the Mac. Specifically crafted in response to the needs of Web authors and software developers, this award-winning product provides a plethora of features for editing, searching, and manipulation of text. BBEdit transforms text with high performance.</string>
+        <key>MUNKI_POSTINSTALL_SCRIPT</key>
+        <string>#!/bin/sh
+# Copy command-line tool resources out of .app bundle
+CMD_TOOL_DIR=/usr/local/bin
+CMD_MAN_DIR=/usr/local/share/man/man1
+HELPER_BIN_SRC_DIR=/Applications/BBEdit.app/Contents/Helpers
+HELPER_MAN_SRC_DIR=/Applications/BBEdit.app/Contents/Resources
+LN=/bin/ln
+
+# create dirs if they don't already exist
+for DIR in "$CMD_TOOL_DIR" "$CMD_MAN_DIR"; do
+    [ -d "$DIR" ] || mkdir -p -m 775 "$DIR"
+done
+# make symlinks to binaries and manpages
+for TOOL in bbdiff bbfind; do
+    "$LN" -sf "$HELPER_BIN_SRC_DIR/$TOOL" "$CMD_TOOL_DIR/$TOOL"
+    "$LN" -sf "$HELPER_MAN_SRC_DIR/$TOOL.1" "$CMD_MAN_DIR/$TOOL.1"
+done
+"$LN" -sf "$HELPER_BIN_SRC_DIR/bbedit_tool" "$CMD_TOOL_DIR/bbedit"
+"$LN" -sf "$HELPER_MAN_SRC_DIR/bbedit.1" "$CMD_MAN_DIR/bbedit.1"
+
+</string>
+        <key>MUNKI_REPO_SUBDIR</key>
+        <string>apps/BBEdit</string>
+        <key>NAME</key>
+        <string>BBEdit</string>
+    </dict>
+    <key>Process</key>
+    <array>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>product_name</key>
+                <string>bbedit</string>
+            </dict>
+            <key>Processor</key>
+            <string>BarebonesURLProvider</string>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>url</key>
+                <string>%url%</string>
+            </dict>
+            <key>Processor</key>
+            <string>URLDownloader</string>
+        </dict>
+        <dict>
+            <key>Processor</key>
+            <string>EndOfCheckPhase</string>
+            <key>Arguments</key>
+            <dict/>
+        </dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>pkg_path</key>
+                <string>%pathname%</string>
+                <key>repo_subdirectory</key>
+                <string>%MUNKI_REPO_SUBDIR%</string>
+                <key>pkginfo</key>
+                <dict>
+                    <key>catalogs</key>
+                    <array>
+                        <string>%MUNKI_CATALOG%</string>
+                    </array>
+                    <key>description</key>
+                    <string>%MUNKI_DESCRIPTION%</string>
+                    <key>display_name</key>
+                    <string>%NAME%</string>
+                    <key>minimum_os_version</key>
+                    <string>%minimum_os_version%</string>
+                    <key>name</key>
+                    <string>%NAME%</string>
+                    <key>postinstall_script</key>
+                    <string>%MUNKI_POSTINSTALL_SCRIPT%</string>
+                    <key>unattended_install</key>
+                    <true/>
+                </dict>
+            </dict>
+            <key>Processor</key>
+            <string>MunkiImporter</string>
+        </dict>
+    </array>
+</dict>
+</plist>
