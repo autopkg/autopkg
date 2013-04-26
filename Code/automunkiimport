@@ -44,12 +44,25 @@ def makecatalogs(repo_path):
         print >> sys.stderr, (
             "makecatalogs failed: %s" % err_out)
     print "Munki catalogs rebuilt!"
+    
+    
+def print_new_imports(new_imports):
+    print "    %-24s %-16s %-32s %s" % (
+        "Name", "Version", "Catalogs", "Pkginfo Path")
+    print "    %-24s %-16s %-32s %s" % (
+        "----", "-------", "--------", "------------")
+    for item in new_imports:
+        print "    %-24s %-16s %-32s %s" % (
+            item["name"], item["version"], item["catalogs"],
+            item["pkginfo_path"].partition("pkgsinfo/")[2])
 
 
 def main(argv):
     # Parse arguments.
     p = optparse.OptionParser()
     p.set_usage("Usage: %prog [options] recipe.plist [recipe.plist ...]")
+    p.add_option("-c", "--check", action="store_true",
+                 help="Only check for new/changed downloads.")
     p.add_option("-k", "--key", action="append", dest="variables", default=[],
                  metavar="KEY=VALUE",
                  help=("Provide key/value pairs for recipe input. "
@@ -107,6 +120,12 @@ def main(argv):
         except BaseException as e:
             print >> sys.stderr, "Can't read %s: %s" % (recipe_path, e)
             continue
+            
+        if options.check:
+            # remove steps from the end of the recipe Process until we find a 
+            # EndOfCheckPhase step
+            while recipe["Process"][-1]["Processor"] != "EndOfCheckPhase":
+                del recipe["Process"][-1]
     
         print "Processing %s..." % recipe_path
         # Create empty plist object to hold preferences.
@@ -158,12 +177,20 @@ def main(argv):
                 munki_repo_path = item["Recipe input"].get("MUNKI_REPO")
             if item.get("Processor") == "URLDownloader":
                 if item["Output"].get("download_changed"):
-                     new_downloads.append(item["Output"].get("pathname"))
+                    new_downloads.append(item["Output"].get("pathname"))
             if item.get("Processor") == "MunkiImporter":
                 if item["Output"].get("pkginfo_repo_path"):
-                    new_imports.append(
-                        (item["Output"].get("pkginfo_repo_path"), 
-                         item["Output"].get("pkg_repo_path")))
+                    imported_item = {}
+                    imported_item["name"] = item["Output"]["munki_info"]["name"]
+                    imported_item["version"] = item[
+                                            "Output"]["munki_info"]["version"]
+                    imported_item["catalogs"] = item[
+                                            "Output"]["munki_info"]["catalogs"]
+                    imported_item["pkginfo_path"] = item["Output"].get(
+                                                            "pkginfo_repo_path")
+                    imported_item["pkg_path"] = item["Output"].get(
+                                                                "pkg_repo_path")
+                    new_imports.append(imported_item)
                          
     # done running recipes, print a summary
     if failures:
@@ -182,11 +209,9 @@ def main(argv):
     if new_imports:
         print
         print "The following new items were imported:"
-        for item in new_imports:
-            print "    %s" % item[0]
-            
+        print_new_imports(new_imports)
         print
-        # rebuild Munki catalogs
+        # rebuild Munki catalogs since we imported new items
         makecatalogs(munki_repo_path)
             
     if not new_downloads and not new_imports:
