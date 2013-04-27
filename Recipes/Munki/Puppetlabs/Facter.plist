@@ -6,16 +6,27 @@
     <dict>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.facter</string>
-        <key>MUNKI_CATALOG</key>
-        <string>testing</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>Facter is an independent, cross-platform Ruby library designed to gather information on all the nodes you will managing with Puppet.</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>support/Facter</string>
         <key>NAME</key>
         <string>Facter</string>
         <key>VERSION</key>
         <string>latest</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>Facter is an independent, cross-platform Ruby library designed to gather information on all the nodes you will managing with Puppet.</string>
+            <key>display_name</key>
+            <string>%NAME%</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>unattended_install</key>
+            <true/>
+        </dict>
     </dict>
     <key>Process</key>
     <array>
@@ -54,21 +65,6 @@
                 <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>pkginfo</key>
-                <dict>
-                    <key>catalogs</key>
-                    <array>
-                        <string>%MUNKI_CATALOG%</string>
-                    </array>
-                    <key>description</key>
-                    <string>%MUNKI_DESCRIPTION%</string>
-                    <key>display_name</key>
-                    <string>%NAME%</string>
-                    <key>name</key>
-                    <string>%NAME%</string>
-                    <key>unattended_install</key>
-                    <true/>
-                </dict>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>

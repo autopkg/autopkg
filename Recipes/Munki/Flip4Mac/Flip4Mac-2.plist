@@ -10,18 +10,27 @@
         <string>2</string>
         <key>MUNKIIMPORT_PKG_NAME</key>
         <string>Flip4Mac WMV.mpkg</string>
-        <key>MUNKI_CATALOG</key>
-        <string>testing</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>Windows Media Components for QuickTime.</string>
-        <key>MUNKI_DISPLAYNAME</key>
-        <string>Flip4Mac</string>
-        <key>MUNKI_MINIMUM_OS_VERSION</key>
-        <string>10.5</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>internet</string>
         <key>NAME</key>
         <string>Flip4Mac</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>Windows Media Components for QuickTime.</string>
+            <key>display_name</key>
+            <string>Flip4Mac</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>minimum_os_version</key>
+            <string>10.5</string>
+            <key>unattended_install</key>
+            <true/>
+        </dict>
     </dict>
     <key>Process</key>
     <array>
@@ -58,23 +67,6 @@
                 <string>%MUNKIIMPORT_PKG_NAME%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>pkginfo</key>
-                <dict>
-                    <key>catalogs</key>
-                    <array>
-                        <string>%MUNKI_CATALOG%</string>
-                    </array>
-                    <key>description</key>
-                    <string>%MUNKI_DESCRIPTION%</string>
-                    <key>display_name</key>
-                    <string>%MUNKI_DISPLAYNAME%</string>
-                    <key>name</key>
-                    <string>%NAME%</string>
-                    <key>minimum_os_version</key>
-                    <string>%MUNKI_MINIMUM_OS_VERSION%</string>
-                    <key>unattended_install</key>
-                    <true/>
-                </dict>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>

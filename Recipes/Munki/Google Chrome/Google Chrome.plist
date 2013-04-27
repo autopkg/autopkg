@@ -10,16 +10,25 @@
         <string>com.googlecode.autopkg.munki.google-chrome</string>
         <key>NAME</key>
         <string>GoogleChrome</string>
-        <key>MUNKI_DISPLAYNAME</key>
-        <string>Google Chrome</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>Google's web browser.</string>
-        <key>MUNKI_CATALOG</key>
-        <string>production</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>apps</string>
         <key>DOWNLOAD_URL</key>
         <string>https://dl.google.com/chrome/mac/stable/GGRO/googlechrome.dmg</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>Google's web browser.</string>
+            <key>display_name</key>
+            <string>Google Chrome</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>unattended_install</key>
+            <true/>
+        </dict>
     </dict>
     <key>Process</key>
     <array>
@@ -47,21 +56,6 @@
                 <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>pkginfo</key>
-                <dict>
-                    <key>catalogs</key>
-                    <array>
-                        <string>%MUNKI_CATALOG%</string>
-                    </array>
-                    <key>description</key>
-                    <string>%MUNKI_DESCRIPTION%</string>
-                    <key>display_name</key>
-                    <string>%MUNKI_DISPLAYNAME%</string>
-                    <key>name</key>
-                    <string>%NAME%</string>
-                    <key>unattended_install</key>
-                    <true/>
-                </dict>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>

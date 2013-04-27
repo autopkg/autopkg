@@ -8,18 +8,27 @@
         <string>com.googlecode.autopkg.munki.Silverlight</string>
         <key>NAME</key>
         <string>Silverlight</string>
-        <key>MUNKI_DISPLAYNAME</key>
-        <string>Microsoft Silverlight</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>Rich media web plugin.</string>
-        <key>MUNKI_CATALOG</key>
-        <string>testing</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>apps</string>
         <key>DOWNLOAD_URL</key>
         <string>http://www.microsoft.com/getsilverlight/handlers/getsilverlight.ashx</string>
         <key>USER_AGENT</key>
         <string>Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_3) AppleWebKit/536.28.10 (KHTML, like Gecko) Version/6.0.3 Safari/536.28.10</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>Rich media web plugin.</string>
+            <key>display_name</key>
+            <string>Microsoft Silverlight</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>unattended_install</key>
+            <true/>
+        </dict>
     </dict>
     <key>Process</key>
     <array>
@@ -52,21 +61,6 @@
                 <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>pkginfo</key>
-                <dict>
-                    <key>catalogs</key>
-                    <array>
-                        <string>%MUNKI_CATALOG%</string>
-                    </array>
-                    <key>description</key>
-                    <string>%MUNKI_DESCRIPTION%</string>
-                    <key>display_name</key>
-                    <string>%MUNKI_DISPLAYNAME%</string>
-                    <key>name</key>
-                    <string>%NAME%</string>
-                    <key>unattended_install</key>
-                    <true/>
-                </dict>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>

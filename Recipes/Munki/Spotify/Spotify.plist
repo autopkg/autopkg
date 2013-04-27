@@ -8,16 +8,25 @@
         <string>com.googlecode.autopkg.munki.Spotify</string>
         <key>NAME</key>
         <string>Spotify</string>
-        <key>MUNKI_DISPLAYNAME</key>
-        <string>Spotify</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>Spotify is a music streaming service offering unlimited streaming of selected music from a range of major and independent record labels.</string>
-        <key>MUNKI_CATALOG</key>
-        <string>testing</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>apps</string>
         <key>DOWNLOAD_URL</key>
         <string>http://www.spotify.com/download/Spotify.dmg</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>Spotify is a music streaming service offering unlimited streaming of selected music from a range of major and independent record labels.</string>
+            <key>display_name</key>
+            <string>Spotify</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>unattended_install</key>
+            <true/>
+        </dict>
     </dict>
     <key>Process</key>
     <array>
@@ -45,21 +54,6 @@
                 <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>pkginfo</key>
-                <dict>
-                    <key>catalogs</key>
-                    <array>
-                        <string>%MUNKI_CATALOG%</string>
-                    </array>
-                    <key>description</key>
-                    <string>%MUNKI_DESCRIPTION%</string>
-                    <key>display_name</key>
-                    <string>%MUNKI_DISPLAYNAME%</string>
-                    <key>name</key>
-                    <string>%NAME%</string>
-                    <key>unattended_install</key>
-                    <true/>
-                </dict>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>

@@ -6,16 +6,31 @@
     <dict>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.puppet</string>
-        <key>MUNKI_CATALOG</key>
-        <string>testing</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>Puppet is a tool designed to manage the configuration of Unix-like and Microsoft Windows systems declaratively.</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>support/Puppet</string>
         <key>NAME</key>
         <string>Puppet</string>
         <key>VERSION</key>
         <string>latest</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>Puppet is a tool designed to manage the configuration of Unix-like and Microsoft Windows systems declaratively.</string>
+            <key>display_name</key>
+            <string>%NAME%</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>requires</key>
+            <array>
+                <string>Facter</string>
+            </array>
+            <key>unattended_install</key>
+            <true/>
+        </dict>
     </dict>
     <key>Process</key>
     <array>
@@ -54,25 +69,6 @@
                 <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>pkginfo</key>
-                <dict>
-                    <key>catalogs</key>
-                    <array>
-                        <string>%MUNKI_CATALOG%</string>
-                    </array>
-                    <key>description</key>
-                    <string>%MUNKI_DESCRIPTION%</string>
-                    <key>display_name</key>
-                    <string>%NAME%</string>
-                    <key>name</key>
-                    <string>%NAME%</string>
-                    <key>requires</key>
-                    <array>
-                        <string>Facter</string>
-                    </array>
-                    <key>unattended_install</key>
-                    <true/>
-                </dict>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>

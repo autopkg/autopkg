@@ -27,8 +27,36 @@ import subprocess
 BUNDLE_ID = "com.googlecode.autopkg"
 LOCAL_OVERRIDE_KEY = "RecipeInputOverrides"
 
-# Processor base class definition
+
 re_keyref = re.compile(r'%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%')
+
+def update_data(a_dict, key, value):
+    """Update a_dict keys with value. Existing data can be referenced
+    by wrapping the key in %percent% signs."""
+    
+    def getdata(m):
+        return a_dict[m.group("key")]
+        
+    def do_variable_substitution(item):
+        """Do variable substitution for item"""
+        if isinstance(item, str):
+            try:
+                item = re_keyref.sub(getdata, item)
+            except KeyError, err:
+                print >> sys.stderr, (
+                    "Use of undefined key in variable substitution: %s"
+                    % err)
+        elif isinstance(item, list):
+            for index in range(len(item)):
+                item[index] = do_variable_substitution(item[index])
+        elif isinstance(item, dict):
+            for key, value in item.iteritems():
+                item[key] = do_variable_substitution(value)
+        return item
+    
+    a_dict[key] = do_variable_substitution(value)
+
+# Processor and ProcessorError base class definitions
 
 class ProcessorError(Exception):
     pass
@@ -90,27 +118,6 @@ class Processor(object):
         except BaseException as e:
             raise ProcessorError(e)
     
-    def update_data(self, key, value):
-        """Update environment keys with value. Existing data can be referenced
-        by wrapping the key in %percent% signs."""
-        
-        def getdata(m):
-            return self.env[m.group("key")]
-            
-        def do_variable_substitution(item):
-            """Do variable substitution for item"""
-            if isinstance(item, str):
-                item = re_keyref.sub(getdata, item)
-            elif isinstance(item, list):
-                for index in range(len(item)):
-                    item[index] = do_variable_substitution(item[index])
-            elif isinstance(item, dict):
-                for key, value in item.iteritems():
-                    item[key] = do_variable_substitution(value)
-            return item
-        
-        self.env[key] = do_variable_substitution(value)
-    
     def parse_arguments(self):
         """Parse arguments as key='value'."""
         
@@ -123,7 +130,7 @@ class Processor(object):
     def inject(self, arguments):
         # Update data with arguments.
         for key, value in arguments.items():
-            self.update_data(key, value)
+            update_data(self.env, key, value)
         
     def process(self):
         """Main processing loop."""
@@ -233,6 +240,9 @@ class AutoPackager(object):
         # handle CLI
         inputs.update(cli_values)
         self.env.update(inputs)
+        # do any internal string substitutions
+        for key, value in self.env.items():
+            update_data(self.env, key, value)
 
     def verify(self, recipe):
         """Verify a recipe and check for errors."""
