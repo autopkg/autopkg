@@ -9,7 +9,7 @@
 		<key>NAME</key>
 		<string>VLC</string>
 		<key>MUNKI_REPO_SUBDIR</key>
-		<string>apps</string>
+		<string>apps/%NAME%</string>
 		<key>pkginfo</key>
 		<dict>
 		    <key>catalogs</key>
@@ -19,7 +19,7 @@
 		    <key>description</key>
 		    <string>VLC is a powerful media player, playing most of the media codecs and video formats out there.</string>
 		    <key>display_name</key>
-		    <string>VLC</string>
+		    <string>%NAME%</string>
 		    <key>name</key>
 			<string>%NAME%</string>
 			<key>unattended_install</key>
@@ -30,17 +30,20 @@
 	<array>
 		<dict>
 			<key>Processor</key>
-			<string>VLCURLProvider</string>
+			<string>SparkleUpdateInfoProvider</string>
 			<key>Arguments</key>
-			<dict/>
+			<dict>
+                <key>appcast_url</key>
+                <string>http://update.videolan.org/vlc/sparkle/vlc.xml</string>
+            </dict>
 		</dict>
 		<dict>
 			<key>Processor</key>
 			<string>URLDownloader</string>
 			<key>Arguments</key>
 			<dict>
-				<key>filename</key>
-				<string>%NAME%.dmg</string>
+				<key>url</key>
+				<string>%url%</string>
 			</dict>
 		</dict>
         <dict>
@@ -51,15 +54,21 @@
         </dict>
         <dict>
 			<key>Arguments</key>
-			<dict>
-				<key>pkg_path</key>
-				<string>%pathname%</string>
-				<key>repo_subdirectory</key>
-				<string>%MUNKI_REPO_SUBDIR%</string>
-			</dict>
+            <dict/>
 			<key>Processor</key>
-			<string>MunkiImporter</string>
+			<string>MunkiPkginfoMerger</string>
 		</dict>
+        <dict>
+            <key>Arguments</key>
+            <dict>
+                <key>pkg_path</key>
+                <string>%pathname%</string>
+                <key>repo_subdirectory</key>
+                <string>%MUNKI_REPO_SUBDIR%</string>
+            </dict>
+            <key>Processor</key>
+            <string>MunkiImporter</string>
+        </dict>
 	</array>
 </dict>
 </plist>
