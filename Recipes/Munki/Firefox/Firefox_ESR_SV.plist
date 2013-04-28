@@ -5,7 +5,7 @@
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
-        <string>com.googlecode.autopkg.munki.firefox-10esr-sv_SE</string>
+        <string>com.googlecode.autopkg.munki.firefox-esr-sv_SE</string>
         <key>FIREFOX_BUILD</key>
         <string>latest-esr</string>
         <key>LOCALE</key>
