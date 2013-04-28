@@ -143,8 +143,13 @@ def main(argv):
         if options.check:
             # remove steps from the end of the recipe Process until we find a 
             # EndOfCheckPhase step
-            while recipe["Process"][-1]["Processor"] != "EndOfCheckPhase":
+            while len(recipe["Process"]) >= 1 and \
+                    recipe["Process"][-1]["Processor"] != "EndOfCheckPhase":
                 del recipe["Process"][-1]
+            if len(recipe["Process"]) == 0:
+                print >> sys.stderr, ("Recipe at %s is missing EndOfCheckPhase Processor, "
+                                      "not possible to perform check." % recipe_path)
+                continue
     
         print "Processing %s..." % recipe_path
         # Create empty plist object to hold preferences.
