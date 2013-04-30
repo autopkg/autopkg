@@ -44,8 +44,8 @@ def makecatalogs(repo_path):
         print >> sys.stderr, (
             "makecatalogs failed: %s" % err_out)
     print "Munki catalogs rebuilt!"
-    
-    
+
+
 def print_new_imports(new_imports):
     print "    %-24s %-16s %-32s %s" % (
         "Name", "Version", "Catalogs", "Pkginfo Path")
