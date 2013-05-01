@@ -339,22 +339,22 @@ class MunkiImporter(Processor):
         pkginfo = plistlib.readPlistFromString(out)
         
         # check to see if this item is already in the repo
-        matchingitem = self.findMatchingItemInRepo(pkginfo)
-        if matchingitem:
-            self.env["pkginfo_repo_path"] = ""
-            # set env["pkg_repo_path"] to the path of the matching item
-            self.env["pkg_repo_path"] = os.path.join(
-                self.env["MUNKI_REPO"], "pkgs",
-                matchingitem['installer_item_location'])
-            self.env["munki_info"] = {}
-            if not "munki_repo_changed" in self.env:
-                self.env["munki_repo_changed"] = False
-            
-            self.output("Item %s already exists in the munki repo as %s."
-                % (os.path.basename(self.env["pkg_path"]),
-                   "pkgs/" + matchingitem['installer_item_location']))
+        similaritem = self.findMatchingItemInRepo(pkginfo)
+        if similaritem:
+            if pkginfo["version"] == similaritem["version"]:
+                self.env["pkginfo_repo_path"] = ""
+                # set env["pkg_repo_path"] to the path of the matching item
+                self.env["pkg_repo_path"] = os.path.join(
+                    self.env["MUNKI_REPO"], "pkgs",
+                    similaritem['installer_item_location'])
+                self.env["munki_info"] = {}
+                if not "munki_repo_changed" in self.env:
+                    self.env["munki_repo_changed"] = False
                 
-            return
+                self.output("Item %s already exists in the munki repo as %s."
+                    % (os.path.basename(self.env["pkg_path"]),
+                       "pkgs/" + similaritem['installer_item_location']))
+                return
         
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:
