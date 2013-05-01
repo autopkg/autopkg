@@ -78,12 +78,12 @@ class PkgCreator(Processor):
         
         # Send packaging request.
         try:
-            print "Connecting"
+            self.output("Connecting")
             self.connect()
-            print "Sending packaging request"
+            self.output("Sending packaging request")
             pkg_path = self.send_request(request)
         finally:
-            print "Disconnecting"
+            self.output("Disconnecting")
             self.disconnect()
         
         # Return path to pkg.
