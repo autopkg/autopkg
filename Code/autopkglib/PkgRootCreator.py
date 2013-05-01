@@ -69,7 +69,7 @@ class PkgRootCreator(Processor):
         # Create directories.
         absroot = os.path.abspath(self.env['pkgroot'])
         for directory, mode in sorted(self.env['pkgdirs'].items()):
-            print "Creating %s" % directory
+            self.output("Creating %s" % directory, verbose_level=2)
             # Make sure we don't get an absolute path.
             if directory.startswith("/"):
                 raise ProcessorError("%s in pkgroot is absolute." % directory)

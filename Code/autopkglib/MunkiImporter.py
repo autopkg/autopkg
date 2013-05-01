@@ -147,11 +147,18 @@ class MunkiImporter(Processor):
                 try:
                     if install.get('type') == 'application':
                         if 'path' in install:
+                            if 'version_comparison_key' in install:
+                                app_version = install[
+                                            install['version_comparison_key']]
+                            else:
+                                 app_version = install[
+                                                'CFBundleShortVersionString']
                             if not install['path'] in app_table:
                                 app_table[install['path']] = {}
                             if not vers in app_table[install['path']]:
-                                app_table[install['path']][vers] = []
-                            app_table[install['path']][vers].append(itemindex)
+                                app_table[install['path']][app_version] = []
+                            app_table[install['path']][app_version].append(
+                                                                    itemindex)
                 except TypeError:
                     # skip this item
                     continue
@@ -181,47 +188,76 @@ class MunkiImporter(Processor):
             # we need to import even if there's a match, so skip
             # the check
             return None
-        
+            
+        pkgdb = self.makeCatalogDB()
+
+        # match hashes for the pkg or dmg
         if 'installer_item_hash' in pkginfo:
             pkgdb = self.makeCatalogDB()
             matchingindexes = pkgdb['hashes'].get(
                                         pkginfo['installer_item_hash'])
             if matchingindexes:
                 return pkgdb['items'][matchingindexes[0]]
+
+        # try to match against installed applications
+        applist = [item for item in pkginfo.get('installs', [])
+                   if item['type'] == 'application' and 'path' in item]
+        if applist:
+            matching_indexes = []
+            for app in applist:
+                app_path = app['path']
+                if 'version_comparison_key' in app:
+                    app_version = app[app['version_comparison_key']]
+                else:
+                     app_version = app['CFBundleShortVersionString']
+                match = pkgdb['applications'].get(app_path, {}).get(app_version)
+                if not match:
+                    # no entry for app['path'] and app['version']
+                    # no point in continuing
+                    return None
+                else:
+                    if not matching_indexes:
+                        # store the array of matching item indexes
+                        matching_indexes = set(match)
+                    else:
+                        # we're only interested in items that match
+                        # all applications
+                        matching_indexes = matching_indexes.intersection(
+                                                                set(match))
+            
+            # if we get here, we may have found matches
+            if matching_indexes:
+                return pkgdb['items'][list(matching_indexes)[0]]
+            else:
+                return None
         
-        if 'receipts' in pkginfo:
-            pkgids = [item['packageid']
-                      for item in pkginfo['receipts']
-                      if 'packageid' in item]
-            if pkgids:
-                possiblematches = pkgdb['receipts'].get(pkgids[0])
-                if possiblematches:
-                    versionlist = possiblematches.keys()
-                    versionlist.sort(compare_version_keys)
-                    # go through possible matches, newest version first
-                    for versionkey in versionlist:
-                        testpkgindexes = possiblematches[versionkey]
-                        for pkgindex in testpkgindexes:
-                            testpkginfo = pkgdb['items'][pkgindex]
-                            testpkgids = [item['packageid'] for item in
-                                          testpkginfo.get('receipts',[])
-                                          if 'packageid' in item]
-                            if set(testpkgids) == set(pkgids):
-                                return testpkginfo
+        # fall back to matching against receipts
+        matching_indexes = []
+        for item in pkginfo.get('receipts', []):
+            pkgid = item.get('packageid')
+            vers = item.get('version')
+            if pkgid and vers:
+                match = pkgdb['receipts'].get(pkgid, {}).get(vers)
+                if not match:
+                    # no entry for pkgid and vers
+                    # no point in continuing
+                    return None
+                else:
+                    if not matching_indexes:
+                        # store the array of matching item indexes
+                        matching_indexes = set(match)
+                    else:
+                        # we're only interested in items that match
+                        # all receipts
+                        matching_indexes = matching_indexes.intersection(
+                                                                set(match))
         
-        if 'installs' in pkginfo:
-            applist = [item for item in pkginfo['installs']
-                       if item['type'] == 'application'
-                       and 'path' in item]
-            if applist:
-                app = applist[0]['path']
-                possiblematches = pkgdb['applications'].get(app)
-                if possiblematches:
-                    versionlist = possiblematches.keys()
-                    versionlist.sort(compare_version_keys)
-                    indexes = pkgdb['applications'][app][versionlist[0]]
-                    return pkgdb['items'][indexes[0]]
-                    
+            # if we get here, we may have found matches
+            if matching_indexes:
+                return pkgdb['items'][list(matching_indexes)[0]]
+            else:
+                return None
+        
         # if we get here, we found no matches
         return None
     
@@ -339,22 +375,21 @@ class MunkiImporter(Processor):
         pkginfo = plistlib.readPlistFromString(out)
         
         # check to see if this item is already in the repo
-        similaritem = self.findMatchingItemInRepo(pkginfo)
-        if similaritem:
-            if pkginfo["version"] == similaritem["version"]:
-                self.env["pkginfo_repo_path"] = ""
-                # set env["pkg_repo_path"] to the path of the matching item
-                self.env["pkg_repo_path"] = os.path.join(
-                    self.env["MUNKI_REPO"], "pkgs",
-                    similaritem['installer_item_location'])
-                self.env["munki_info"] = {}
-                if not "munki_repo_changed" in self.env:
-                    self.env["munki_repo_changed"] = False
-                
-                self.output("Item %s already exists in the munki repo as %s."
-                    % (os.path.basename(self.env["pkg_path"]),
-                       "pkgs/" + similaritem['installer_item_location']))
-                return
+        matchingitem = self.findMatchingItemInRepo(pkginfo)
+        if matchingitem:
+            self.env["pkginfo_repo_path"] = ""
+            # set env["pkg_repo_path"] to the path of the matching item
+            self.env["pkg_repo_path"] = os.path.join(
+                self.env["MUNKI_REPO"], "pkgs",
+                matchingitem['installer_item_location'])
+            self.env["munki_info"] = {}
+            if not "munki_repo_changed" in self.env:
+                self.env["munki_repo_changed"] = False
+            
+            self.output("Item %s already exists in the munki repo as %s."
+                % (os.path.basename(self.env["pkg_path"]),
+                   "pkgs/" + matchingitem['installer_item_location']))
+            return
         
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:
