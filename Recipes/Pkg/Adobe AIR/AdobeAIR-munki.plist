@@ -5,7 +5,7 @@
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
-        <string>com.googlecode.autopkg.pkg.AdobeAIR</string>
+        <string>com.googlecode.autopkg.munki.AdobeAIR</string>
         <key>NAME</key>
         <string>AdobeAIR</string>
         <key>URL</key>
