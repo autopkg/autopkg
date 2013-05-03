@@ -15,6 +15,7 @@
 # limitations under the License.
 
 
+import glob
 import sys
 import os
 import optparse
@@ -25,6 +26,148 @@ import time
 
 from autopkglib import BUNDLE_ID
 from autopkglib import AutoPackagerError, AutoPackager
+
+def is_munki_recipe(recipe_plist):
+    if "Process" in recipe_plist:
+        processors = [step.get("Processor") for step in recipe_plist["Process"]]
+        if "MunkiImporter" in processors:
+            return True
+    return False
+    
+    
+def has_check_phase(recipe_plist):
+    if "Process" in recipe_plist:
+        processors = [step.get("Processor") for step in recipe_plist["Process"]]
+        if "EndOfCheckPhase" in processors:
+            return True
+    return False
+
+
+def valid_recipe(filename):
+    try:
+        # make sure we can read it
+        recipe_plist = plistlib.readPlist(filename)
+    except:
+        return False
+    if "Input" in recipe_plist and "Process" in recipe_plist:
+        # needs to have at least Input and Process arrays
+        return True
+    return False
+    
+    
+def valid_override(filename):
+    try:
+        # make sure we can read it
+        recipe_plist = plistlib.readPlist(filename)
+    except:
+        return False
+    if "Input" in recipe_plist and "Recipe" in recipe_plist:
+        # needs to have at least Input and Recipe keys
+        return True
+    return False
+
+
+def find_recipe(name, search_dirs, kind="default"):
+    for directory in search_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        patterns  = [
+            os.path.join(normalized_dir, "%s.plist" % name),
+            os.path.join(normalized_dir, "%s/%s.plist" % (name, name)),
+            os.path.join(normalized_dir, "%s/_%s.plist" % (name, kind)),
+            os.path.join(normalized_dir, "%s/_default.plist" % name),
+            os.path.join(normalized_dir, "*/%s.plist" % name)
+        ]
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                if valid_recipe(match):
+                    return match
+    return None
+
+
+def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
+    override = None
+    # first look in override_dirs for name.plist
+    filename = name + ".plist"
+    for directory in override_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        if filename in os.listdir(normalized_dir):
+            pathname = os.path.join(normalized_dir, filename)
+            if valid_override(pathname):
+                override = plistlib.readPlist(pathname)
+                name = override['Recipe'].get("name")
+                kind = override['Recipe'].get("kind", "default")
+
+    # now get the actual recipe
+    if name:
+        recipe_path = find_recipe(name, recipe_dirs, kind)
+        if recipe_path:
+            recipe = plistlib.readPlist(recipe_path)
+            # apply overrides
+            if override:
+                for key in override["Input"].keys():
+                    recipe["Input"][key] = override["Input"][key]
+            return recipe, recipe_path
+    return None, None
+
+
+def get_recipe_info(recipe_path):
+    if recipe_path:
+        recipe_plist = plistlib.readPlist(recipe_path)
+        print "Description:         %s" % recipe_plist.get("Description")
+        print "Munki import recipe: %s" % is_munki_recipe(recipe_plist)
+        print "Has check phase:     %s" % has_check_phase(recipe_plist)
+        print "File path:           %s" % recipe_path
+        print "Default input values: "
+        #pprint.pprint(recipe_plist["Input"], indent=4)
+        output = pprint.pformat(recipe_plist.get("Input", {}), indent=4)
+        print " " + output[1:-1]
+
+
+def list_recipes(override_dirs, search_dirs):
+    recipes = set()
+    
+    # find all valid overrides first
+    for directory in override_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        for filename in os.listdir(normalized_dir):
+            if filename.endswith(".plist"):
+                pathname = os.path.join(normalized_dir, filename)
+                if valid_override(pathname):
+                    override = plistlib.readPlist(pathname)
+                    name = override['Recipe'].get("name")
+                    kind = override['Recipe'].get("kind", "default")
+                    # find and validate recipe that will be overridden
+                    recipe_path = find_recipe(name, search_dirs, kind)
+                    if valid_recipe(recipe_path):
+                        # override points to a valid recipe
+                        recipes.add(os.path.splitext(filename)[0])
+    
+    for directory in search_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        # find all top-level recipes
+        matches = glob.glob(os.path.join(normalized_dir, "*.plist"))
+        for match in matches:
+            if valid_recipe(match):
+                basename = os.path.basename(match)
+                recipes.add(os.path.splitext(basename)[0])
+
+        # look for recipes one level down
+        matches = glob.glob(os.path.join(normalized_dir, "*/*.plist"))
+        for match in matches:
+            if valid_recipe(match):
+                recipe_name = os.path.basename(match)
+                if recipe_name.startswith("_"):
+                    # recipe variation or "kind"
+                    # use the dirname
+                    dirname = os.path.dirname(match)
+                    recipe_name = os.path.basename(dirname)
+
+                # get rid of file extension
+                recipe_name = os.path.splitext(recipe_name)[0]
+                recipes.add(recipe_name)
+
+    return sorted(list(recipes))
 
 
 def makecatalogs(repo_path):
@@ -60,7 +203,7 @@ def print_new_imports(new_imports):
 def main(argv):
     # Parse arguments.
     p = optparse.OptionParser()
-    p.set_usage("Usage: %prog [options] recipe.plist [recipe.plist ...]")
+    p.set_usage("Usage: %prog [options] [recipe ...]")
     p.add_option("-c", "--check", action="store_true",
                  help="Only check for new/changed downloads.")
     p.add_option("-k", "--key", action="append", dest="variables", default=[],
@@ -70,9 +213,14 @@ def main(argv):
                        "to all recipes."))
     p.add_option("-l", "--list", metavar="TEXT_FILE",
                  help="Path to a text file with a list of recipes to run.")
+    p.add_option("--list-recipes", dest="list_recipes", action="store_true",
+                 help="List all the recipes this tool can find automatically.")
     p.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
                  help=("Path to a pkg or dmg to provide to a recipe. "
                        "Downloading will be skipped."))
+    p.add_option("--recipe-info", "--info", metavar="RECIPE_NAME", 
+                 dest="recipe_info", action="store_true",
+                 help="Print information about a recipe.")
     p.add_option("-v", "--verbose", action="count", default=0,
                  help="Verbose output.")
     p.add_option("-r", "--recipe-dir", metavar="RECIPE_ROOT_DIR",
@@ -84,6 +232,28 @@ def main(argv):
     new_downloads = []
     new_imports = []
     failures = []
+    
+    x_dir_list = [
+        ".",
+        "/Users/Shared/gregneagle-macautopkg/cookbook",
+        "/Users/Shared/gregneagle-macautopkg/Recipes/Munki",
+        "/Users/Shared/gregneagle-macautopkg/Recipes/Pkg"
+        ]
+    
+    dir_list = [
+        ".",
+        "~/Library/AutoPkg/Recipes",
+        "/Library/AutoPkg/Recipes"
+        ]
+    
+    override_dir_list = [
+        "~/Library/AutoPkg/RecipeOverrides"
+        ]
+    
+    if options.list_recipes:
+        recipe_list = list_recipes(override_dir_list, dir_list)
+        print "\n".join(recipe_list)
+        return 0
     
     # Add variables from commandline.
     cli_values = {}
@@ -114,14 +284,15 @@ def main(argv):
                 try:
                     recipe_plist = plistlib.readPlist(recipe_path)
                 except:
-                    print >> sys.stderr, "Error reading plist file %s" % recipe_path
+                    print >> sys.stderr, (
+                        "Error reading plist file %s" % recipe_path)
                     return 1
                 if all(k in recipe_plist.keys() for k in ["Input", "Process"]):
                     recipe_paths.append(recipe_path)
                 else:
                     print >> sys.stderr, ("Skipping plist %s as it's not a "
-                                          "(properly-formatted) autopkg recipe plist." %
-                                          recipe_path)
+                        "(properly-formatted) autopkg recipe plist." 
+                        % recipe_path)
         
     if not recipe_paths:
         print >> sys.stderr, p.get_usage()
@@ -131,14 +302,35 @@ def main(argv):
         print >> sys.stderr, (
             "-p/--pkg option can't be used with multiple recipes!")
         return 1
+        
+    if options.recipe_info:
+        if len(recipe_paths) > 1:
+            print >> sys.stderr, (
+                "--recipe_info option can't be used with multiple recipes!")
+            return 1
+        recipe_path = find_recipe(recipe_paths[0], dir_list, kind="munki")
+        if recipe_path:
+            get_recipe_info(recipe_path)
+            return 0
+        else:
+            print >> sys.stderr, (
+                "Can't find recipe %s" % recipe_paths[0])
+            return 1
     
     run_results = []
     for recipe_path in recipe_paths:
-        try:
-            recipe = plistlib.readPlist(recipe_path)
-        except BaseException as e:
-            print >> sys.stderr, "Can't read %s: %s" % (recipe_path, e)
-            continue
+        if not "/" in recipe_path:
+            (recipe, recipe_path) = load_recipe(
+                recipe_path, override_dir_list, dir_list, kind="munki")
+            if not recipe:
+                print >> sys.stderr, "Can't find recipe %s" % recipe_path
+                continue
+        else:
+            try:
+                recipe = plistlib.readPlist(recipe_path)
+            except BaseException as e:
+                print >> sys.stderr, "Can't read %s: %s" % (recipe_path, e)
+                continue
             
         if options.check:
             # remove steps from the end of the recipe Process until we find a 
@@ -147,8 +339,9 @@ def main(argv):
                     recipe["Process"][-1]["Processor"] != "EndOfCheckPhase":
                 del recipe["Process"][-1]
             if len(recipe["Process"]) == 0:
-                print >> sys.stderr, ("Recipe at %s is missing EndOfCheckPhase Processor, "
-                                      "not possible to perform check." % recipe_path)
+                print >> sys.stderr, (
+                    "Recipe at %s is missing EndOfCheckPhase Processor, "
+                    "not possible to perform check." % recipe_path)
                 continue
     
         print "Processing %s..." % recipe_path

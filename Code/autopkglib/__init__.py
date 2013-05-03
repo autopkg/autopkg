@@ -272,7 +272,7 @@ class AutoPackager(object):
                     pass
             try:
                 processor_class = get_processor(step["Processor"])
-            except AttributeError:
+            except (KeyError, AttributeError):
                 raise AutoPackagerError(
                         "Unknown processor '%s'" % step["Processor"])
             # Add arguments to set of variables.
