@@ -44,6 +44,8 @@ def has_check_phase(recipe_plist):
 
 
 def valid_recipe(filename):
+    '''Returns True if filename contains a valid
+    recipe, otherwise returns False'''
     try:
         # make sure we can read it
         recipe_plist = plistlib.readPlist(filename)
@@ -56,6 +58,8 @@ def valid_recipe(filename):
     
     
 def valid_override(filename):
+    '''Returns True if filename contains a valid
+    override, otherwise returns False'''
     try:
         # make sure we can read it
         recipe_plist = plistlib.readPlist(filename)
@@ -86,17 +90,41 @@ def find_recipe(name, search_dirs, kind="default"):
 
 
 def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
+    '''Loads a recipe. If the name contains a path seperator or a file
+    extension , we assume the name is a pathname and attempt to load the
+    override or recipe from the pathname. 
+    Otherwise, we treat name as a simple name and search first the override
+    directories, then the recipe directories for a matching recipe.
+    If we find one, we load it and return the plist object (which should be 
+    functionally equivelent to a dictionary).'''
+    
     override = None
-    # first look in override_dirs for name.plist
-    filename = name + ".plist"
-    for directory in override_dirs:
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        if filename in os.listdir(normalized_dir):
-            pathname = os.path.join(normalized_dir, filename)
-            if valid_override(pathname):
-                override = plistlib.readPlist(pathname)
-                name = override['Recipe'].get("name")
-                kind = override['Recipe'].get("kind", "default")
+    if "/" in name or len(os.path.splitext(name)) > 1:
+        # name is path to a specific recipe or override file
+        # ignore override and recipe directories and kind
+        if valid_override(name):
+            override = plistlib.readPlist(pathname)
+            name = override['Recipe'].get("name")
+            kind = override['Recipe'].get("kind", "default")
+            override["OVERRIDE_PATH"] = os.path.abspath(pathname)
+            # fall through to get the actual recipe
+        elif valid_recipe(name):
+            recipe = plistlib.readPlist(name)
+            recipe["RECIPE_PATH"] = os.path.abspath(name)
+            return recipe
+            
+    if not override:
+        # first look in override_dirs for name.plist
+        filename = name + ".plist"
+        for directory in override_dirs:
+            normalized_dir = os.path.abspath(os.path.expanduser(directory))
+            if filename in os.listdir(normalized_dir):
+                pathname = os.path.join(normalized_dir, filename)
+                if valid_override(pathname):
+                    override = plistlib.readPlist(pathname)
+                    name = override['Recipe'].get("name")
+                    kind = override['Recipe'].get("kind", "default")
+                    override["OVERRIDE_PATH"] = os.path.abspath(pathname)
 
     # now get the actual recipe
     if name:
@@ -105,23 +133,31 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
             recipe = plistlib.readPlist(recipe_path)
             # apply overrides
             if override:
+                recipe["OVERRIDE_PATH"] = override["OVERRIDE_PATH"]
                 for key in override["Input"].keys():
                     recipe["Input"][key] = override["Input"][key]
-            return recipe, recipe_path
-    return None, None
+            # store the recipe path for 
+            recipe["RECIPE_PATH"] = os.path.abspath(recipe_path)
+            return recipe
+    return None
 
 
-def get_recipe_info(recipe_path):
-    if recipe_path:
-        recipe_plist = plistlib.readPlist(recipe_path)
-        print "Description:         %s" % recipe_plist.get("Description")
-        print "Munki import recipe: %s" % is_munki_recipe(recipe_plist)
-        print "Has check phase:     %s" % has_check_phase(recipe_plist)
-        print "File path:           %s" % recipe_path
-        print "Default input values: "
+def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="default"):
+    recipe = load_recipe(recipe_name, override_dirs, recipe_dirs, kind=kind)
+    if recipe:
+        print "Description:         %s" % recipe.get("Description")
+        print "Munki import recipe: %s" % is_munki_recipe(recipe)
+        print "Has check phase:     %s" % has_check_phase(recipe)
+        print "Recipe file path:    %s" % recipe["RECIPE_PATH"]
+        if recipe.get("OVERRIDE_PATH"):
+            print "Override path:       %s" % recipe["OVERRIDE_PATH"]
+        print "Input values: "
         #pprint.pprint(recipe_plist["Input"], indent=4)
-        output = pprint.pformat(recipe_plist.get("Input", {}), indent=4)
+        output = pprint.pformat(recipe.get("Input", {}), indent=4)
         print " " + output[1:-1]
+        return True
+    else:
+        return False
 
 
 def list_recipes(override_dirs, search_dirs):
@@ -233,14 +269,7 @@ def main(argv):
     new_imports = []
     failures = []
     
-    x_dir_list = [
-        ".",
-        "/Users/Shared/gregneagle-macautopkg/cookbook",
-        "/Users/Shared/gregneagle-macautopkg/Recipes/Munki",
-        "/Users/Shared/gregneagle-macautopkg/Recipes/Pkg"
-        ]
-    
-    dir_list = [
+    recipe_dir_list = [
         ".",
         "~/Library/AutoPkg/Recipes",
         "/Library/AutoPkg/Recipes"
@@ -251,7 +280,7 @@ def main(argv):
         ]
     
     if options.list_recipes:
-        recipe_list = list_recipes(override_dir_list, dir_list)
+        recipe_list = list_recipes(override_dir_list, recipe_dir_list)
         print "\n".join(recipe_list)
         return 0
     
@@ -304,34 +333,22 @@ def main(argv):
         return 1
         
     if options.recipe_info:
-        if len(recipe_paths) > 1:
-            print >> sys.stderr, (
-                "--recipe_info option can't be used with multiple recipes!")
-            return 1
-        recipe_path = find_recipe(recipe_paths[0], dir_list, kind="munki")
-        if recipe_path:
-            get_recipe_info(recipe_path)
+        if get_recipe_info(
+            recipe_paths[0], override_dir_list, recipe_dir_list, kind="munki"):
             return 0
         else:
             print >> sys.stderr, (
                 "Can't find recipe %s" % recipe_paths[0])
-            return 1
+            return -1
     
     run_results = []
     for recipe_path in recipe_paths:
-        if not "/" in recipe_path:
-            (recipe, recipe_path) = load_recipe(
-                recipe_path, override_dir_list, dir_list, kind="munki")
-            if not recipe:
-                print >> sys.stderr, "Can't find recipe %s" % recipe_path
-                continue
-        else:
-            try:
-                recipe = plistlib.readPlist(recipe_path)
-            except BaseException as e:
-                print >> sys.stderr, "Can't read %s: %s" % (recipe_path, e)
-                continue
-            
+        recipe = load_recipe(
+            recipe_path, override_dir_list, recipe_dir_list, kind="munki")
+        if not recipe:
+            print >> sys.stderr, "No valid recipe found for %s" % recipe_path
+            continue
+        
         if options.check:
             # remove steps from the end of the recipe Process until we find a 
             # EndOfCheckPhase step
@@ -360,8 +377,8 @@ def main(argv):
                         % (prefpath, e))
     
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
-        prefs["RECIPE_PATH"] = os.path.abspath(recipe_path)
-        prefs["RECIPE_DIR"] = os.path.dirname(os.path.abspath(recipe_path))
+        prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
+        prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])
     
         # Add our verbosity level
         prefs["verbose"] = options.verbose
