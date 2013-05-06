@@ -242,6 +242,10 @@ def main(argv):
     p.set_usage("Usage: %prog [options] [recipe ...]")
     p.add_option("-c", "--check", action="store_true",
                  help="Only check for new/changed downloads.")
+    p.add_option("-d", "--search-dir", metavar="DIRECTORY", dest="search_dirs",
+                 action="append", default=[],
+                 help=("Directory to search for recipes. Can be specified "
+                                    "multiple times."))
     p.add_option("-k", "--key", action="append", dest="variables", default=[],
                  metavar="KEY=VALUE",
                  help=("Provide key/value pairs for recipe input. "
@@ -251,6 +255,10 @@ def main(argv):
                  help="Path to a text file with a list of recipes to run.")
     p.add_option("--list-recipes", dest="list_recipes", action="store_true",
                  help="List all the recipes this tool can find automatically.")
+    p.add_option("--override-dir", metavar="DIRECTORY", dest="override_dirs",
+                 action="append", default=[],
+                 help=("Directory to search for recipe overrides. Can be "
+                       "specified multiple times."))
     p.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
                  help=("Path to a pkg or dmg to provide to a recipe. "
                        "Downloading will be skipped."))
@@ -259,9 +267,6 @@ def main(argv):
                  help="Print information about a recipe.")
     p.add_option("-v", "--verbose", action="count", default=0,
                  help="Verbose output.")
-    p.add_option("-r", "--recipe-dir", metavar="RECIPE_ROOT_DIR",
-                 help=("Path to a directory that will be searched "
-                       "recursively for all autopkg recipe plists."))
     options, argv = p.parse_args(argv)
     
     munki_repo_path = None
@@ -269,18 +274,24 @@ def main(argv):
     new_imports = []
     failures = []
     
-    recipe_dir_list = [
+    default_search_dirs = [
         ".",
         "~/Library/AutoPkg/Recipes",
         "/Library/AutoPkg/Recipes"
         ]
     
-    override_dir_list = [
+    default_override_dirs = [
         "~/Library/AutoPkg/RecipeOverrides"
         ]
+        
+    if not options.search_dirs:
+        options.search_dirs = default_search_dirs
+        
+    if not options.override_dirs:
+        options.override_dirs = default_override_dirs
     
     if options.list_recipes:
-        recipe_list = list_recipes(override_dir_list, recipe_dir_list)
+        recipe_list = list_recipes(options.override_dirs, options.search_dirs)
         print "\n".join(recipe_list)
         return 0
     
@@ -305,24 +316,7 @@ def main(argv):
         recipes = [line for line in data.splitlines() 
                    if line and not line.startswith("#")]
         recipe_paths.extend(recipes)
-
-    if options.recipe_dir:
-        for root, dirs, files in os.walk(options.recipe_dir):
-            for f in [r for r in files if r.endswith(".plist")]:
-                recipe_path = os.path.join(root, f)
-                try:
-                    recipe_plist = plistlib.readPlist(recipe_path)
-                except:
-                    print >> sys.stderr, (
-                        "Error reading plist file %s" % recipe_path)
-                    return 1
-                if all(k in recipe_plist.keys() for k in ["Input", "Process"]):
-                    recipe_paths.append(recipe_path)
-                else:
-                    print >> sys.stderr, ("Skipping plist %s as it's not a "
-                        "(properly-formatted) autopkg recipe plist." 
-                        % recipe_path)
-        
+    
     if not recipe_paths:
         print >> sys.stderr, p.get_usage()
         return 1
@@ -333,8 +327,8 @@ def main(argv):
         return 1
         
     if options.recipe_info:
-        if get_recipe_info(
-            recipe_paths[0], override_dir_list, recipe_dir_list, kind="munki"):
+        if get_recipe_info(recipe_paths[0], 
+                options.override_dirs, options.search_dirs, kind="munki"):
             return 0
         else:
             print >> sys.stderr, (
@@ -343,8 +337,8 @@ def main(argv):
     
     run_results = []
     for recipe_path in recipe_paths:
-        recipe = load_recipe(
-            recipe_path, override_dir_list, recipe_dir_list, kind="munki")
+        recipe = load_recipe(recipe_path, 
+                    options.override_dirs, options.search_dirs, kind="munki")
         if not recipe:
             print >> sys.stderr, "No valid recipe found for %s" % recipe_path
             continue
