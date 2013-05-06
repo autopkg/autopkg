@@ -24,13 +24,18 @@ from autopkglib import Processor, ProcessorError
 
 __all__ = ["Unzipper"]
 
+EXTNS = {
+    'zip': ['zip'],
+    'tar_gzip': ['tar.gz', 'tgz'],
+    'tar_bzip2': ['tar.bz2', 'tbz']
+}
 
 class Unzipper(Processor):
     description = "Unzips an archive."
     input_variables = {
         "archive_path": {
             "required": True,
-            "description": "Path to a zip archive.",
+            "description": "Path to an archive.",
         },
         "destination_path": {
             "required": True,
@@ -40,12 +45,25 @@ class Unzipper(Processor):
             "required": False,
             "description": "Whether the contents of the destination directory will be removed before unpacking.",
         },
+        "archive_format": {
+            "required": False,
+            "description": ("The archive format. Currently supported: 'zip', 'tar_gzip', 'tar_bzip2'. "
+                           "If omitted, the format will try to be guessed by the file extension.")
+        }
     }
     output_variables = {
     }
     
     __doc__ = description
     
+    def get_archive_format(self, archive_path):
+        for format, extns in EXTNS.items():
+            for extn in extns:
+                if archive_path.endswith(extn):
+                    return format
+        # We found no known archive file extension if we got this far
+        return None
+
     def main(self):
         # Create the directory if needed.
         if not os.path.exists(self.env['destination_path']):
@@ -64,24 +82,48 @@ class Unzipper(Processor):
                 except OSError as e:
                     raise ProcessorError("Can't remove %s: %s" % (path, e.strerror))
         
-        # Call ditto.
+        fmt = self.env.get("archive_format")
+        if fmt is None:
+            fmt = self.get_archive_format(self.env.get("archive_path"))
+            self.output("Guessed archive format '%s' from filename %s" %
+                        (fmt, os.path.basename(self.env.get("archive_path"))))
+        elif fmt not in EXTNS.keys():
+            raise ProcessorError("'%s' is not valid for the 'archive_format' variable. Must be one of %s." %
+                                (fmt, ", ".join(EXTNS.keys())))
+
+        if fmt == "zip":
+            cmd = ["/usr/bin/ditto",
+                   "--noqtn",
+                   "-x",
+                   "-k",
+                   self.env['archive_path'],
+                   self.env['destination_path']]
+        elif fmt.startswith("tar_"):
+            cmd = ["/usr/bin/tar",
+                   "-x",
+                   "-f",
+                   self.env['archive_path'],
+                   "-C",
+                   self.env['destination_path']]
+            if fmt.endswith("gzip"):
+                cmd.append("-z")
+            elif fmt.endswith("bzip2"):
+                cmd.append("-j")
+
+        # Call command.
         try:
-            p = subprocess.Popen(["/usr/bin/ditto",
-                                  "--noqtn",
-                                  "-x",
-                                  "-k",
-                                  self.env['archive_path'],
-                                  self.env['destination_path']],
+            p = subprocess.Popen(cmd,
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE)
             (out, err) = p.communicate()
         except OSError as e:
-            raise ProcessorError("ditto execution failed with error code %d: %s" % (
-                                  e.errno, e.strerror))
+            raise ProcessorError("%s execution failed with error code %d: %s" % (
+                                  os.path.basename(cmd[0]), e.errno, e.strerror))
         if p.returncode != 0:
-            raise ProcessorError("unzipping %s with ditto failed: %s" % (self.env['archive_path'], err))
+            raise ProcessorError("Unarchiving %s with %s failed: %s" % (
+                                  self.env['archive_path'], os.path.basename(cmd[0]), err))
         
-        self.output("Unzipped %s to %s" 
+        self.output("Unarchived %s to %s" 
                     % (self.env['archive_path'], self.env['destination_path']))
 
 if __name__ == '__main__':
