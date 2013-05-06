@@ -67,7 +67,7 @@ class Versioner(Processor):
         plist = self.readPlist(self.env["input_plist_path"])
         version_key = self.env.get(
             "plist_version_key", "CFBundleShortVersionString")
-        self.env['version'] = plist.get(version_key, "UNKNOWN_VERSION").strip()
+        self.env['version'] = plist.get(version_key, "UNKNOWN_VERSION")
         self.output("Found version %s in file %s" 
                     % (self.env['version'], self.env["input_plist_path"]))
         

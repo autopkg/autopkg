@@ -32,7 +32,7 @@
         </dict>
         <dict>
             <key>Processor</key>
-            <string>Unzipper</string>
+            <string>Unarchiver</string>
             <key>Arguments</key>
             <dict>
                 <key>archive_path</key>
