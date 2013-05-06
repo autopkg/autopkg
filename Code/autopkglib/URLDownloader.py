@@ -78,6 +78,12 @@ class URLDownloader(Processor):
         "pathname": {
             "description": "Path to the downloaded file.",
         },
+        "last_modified": {
+            "description": "last-modified header for the downloaded item.",
+        },
+        "etag": {
+            "description": "etag header for the downloaded item.",
+        },
         "download_changed": {
             "description": 
                 ("Boolean indicating if the download has changed since the "
@@ -89,6 +95,9 @@ class URLDownloader(Processor):
     
     
     def main(self):
+        self.env["last_modified"] = ""
+        self.env["etag"] = ""
+        
         if "PKG" in self.env:
             self.env["pathname"] = os.path.expanduser(self.env["PKG"])
             self.env["download_changed"] = True
@@ -159,6 +168,8 @@ class URLDownloader(Processor):
                     
             # save last-modified header if it exists
             if url_handle.info().get("last-modified"):
+                self.env["last_modified"] = url_handle.info().get(
+                                                "last-modified")
                 xattr.setxattr(
                     pathname, XATTR_LAST_MODIFIED,
                     url_handle.info().get("last-modified"))
@@ -166,7 +177,9 @@ class URLDownloader(Processor):
                     url_handle.info().get("last-modified"))
                             
             # save etag if it exists
+            self.env["etag"] = ""
             if url_handle.info().get("etag"):
+                self.env["etag"] = url_handle.info().get("etag")
                 xattr.setxattr(
                     pathname, XATTR_ETAG, url_handle.info().get("etag"))
                 self.output("Storing new ETag header: %s" %
