@@ -22,12 +22,13 @@ import optparse
 import plistlib
 import pprint
 import subprocess
-import time
+#import time
 
 from autopkglib import BUNDLE_ID
 from autopkglib import AutoPackagerError, AutoPackager
 
 def is_munki_recipe(recipe_plist):
+    '''Does the recipe appear to be for use with Munki?'''
     if "Process" in recipe_plist:
         processors = [step.get("Processor") for step in recipe_plist["Process"]]
         if "MunkiImporter" in processors:
@@ -36,6 +37,7 @@ def is_munki_recipe(recipe_plist):
     
     
 def has_check_phase(recipe_plist):
+    '''Does the recipe have a "check" phase?'''
     if "Process" in recipe_plist:
         processors = [step.get("Processor") for step in recipe_plist["Process"]]
         if "EndOfCheckPhase" in processors:
@@ -44,8 +46,8 @@ def has_check_phase(recipe_plist):
 
 
 def valid_recipe(filename):
-    '''Returns True if filename contains a valid
-    recipe, otherwise returns False'''
+    '''Returns True if filename contains a valid recipe, 
+    otherwise returns False'''
     try:
         # make sure we can read it
         recipe_plist = plistlib.readPlist(filename)
@@ -58,8 +60,8 @@ def valid_recipe(filename):
     
     
 def valid_override(filename):
-    '''Returns True if filename contains a valid
-    override, otherwise returns False'''
+    '''Returns True if filename contains a valid override, 
+    otherwise returns False'''
     try:
         # make sure we can read it
         recipe_plist = plistlib.readPlist(filename)
@@ -72,6 +74,7 @@ def valid_override(filename):
 
 
 def find_recipe(name, search_dirs, kind="default"):
+    '''Search search_dirs for a recipe'''
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         patterns  = [
@@ -103,10 +106,10 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
         # name is path to a specific recipe or override file
         # ignore override and recipe directories and kind
         if valid_override(name):
-            override = plistlib.readPlist(pathname)
+            override = plistlib.readPlist(name)
+            override["OVERRIDE_PATH"] = os.path.abspath(name)
             name = override['Recipe'].get("name")
             kind = override['Recipe'].get("kind", "default")
-            override["OVERRIDE_PATH"] = os.path.abspath(pathname)
             # fall through to get the actual recipe
         elif valid_recipe(name):
             recipe = plistlib.readPlist(name)
@@ -143,6 +146,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
 
 
 def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="default"):
+    '''Loads a recipe, then prints some information about it. Override aware.'''
     recipe = load_recipe(recipe_name, override_dirs, recipe_dirs, kind=kind)
     if recipe:
         print "Description:         %s" % recipe.get("Description")
@@ -161,6 +165,7 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="default"):
 
 
 def list_recipes(override_dirs, search_dirs):
+    '''Finds and lists all recipes in the current search paths.'''
     recipes = set()
     
     # find all valid overrides first
@@ -207,6 +212,7 @@ def list_recipes(override_dirs, search_dirs):
 
 
 def makecatalogs(repo_path):
+    '''Rebuild Munki catalogs in repo_path'''
     # Generate arguments for makecatalogs.
     args = ["/usr/local/munki/makecatalogs", repo_path]
     
@@ -226,6 +232,7 @@ def makecatalogs(repo_path):
 
 
 def print_new_imports(new_imports):
+    '''Print new Munki imports in a table format'''
     print "    %-24s %-16s %-32s %s" % (
         "Name", "Version", "Catalogs", "Pkginfo Path")
     print "    %-24s %-16s %-32s %s" % (
@@ -251,7 +258,7 @@ def main(argv):
                  help=("Provide key/value pairs for recipe input. "
                        "Caution: values specified here will be applied "
                        "to all recipes."))
-    p.add_option("-l", "--list", metavar="TEXT_FILE",
+    p.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
                  help="Path to a text file with a list of recipes to run.")
     p.add_option("--list-recipes", dest="list_recipes", action="store_true",
                  help="List all the recipes this tool can find automatically.")
