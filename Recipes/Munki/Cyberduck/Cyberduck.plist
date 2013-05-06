@@ -30,18 +30,18 @@
     <array>
         <dict>
             <key>Processor</key>
-            <string>CyberduckURLProvider</string>
+            <string>SparkleUpdateInfoProvider</string>
             <key>Arguments</key>
-            <dict/>
+            <dict>
+                <key>appcast_url</key>
+                <string>http://version.cyberduck.ch/changelog.rss</string>
+            </dict>
         </dict>
         <dict>
             <key>Processor</key>
             <string>URLDownloader</string>
             <key>Arguments</key>
-            <dict>
-                <key>filename</key>
-                <string>%NAME%.zip</string>
-            </dict>
+            <dict/>
         </dict>
         <dict>
             <key>Processor</key>
@@ -51,7 +51,7 @@
         </dict>
         <dict>
             <key>Processor</key>
-            <string>Unzipper</string>
+            <string>Unarchiver</string>
             <key>Arguments</key>
             <dict>
                 <key>archive_path</key>

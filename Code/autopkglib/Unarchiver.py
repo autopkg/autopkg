@@ -22,7 +22,7 @@ import shutil
 from autopkglib import Processor, ProcessorError
 
 
-__all__ = ["Unzipper"]
+__all__ = ["Unarchiver"]
 
 EXTNS = {
     'zip': ['zip'],
@@ -30,8 +30,8 @@ EXTNS = {
     'tar_bzip2': ['tar.bz2', 'tbz']
 }
 
-class Unzipper(Processor):
-    description = "Unzips an archive."
+class Unarchiver(Processor):
+    description = "Archive decompressor for zip and common tar-compressed formats."
     input_variables = {
         "archive_path": {
             "required": True,
@@ -127,6 +127,6 @@ class Unzipper(Processor):
                     % (self.env['archive_path'], self.env['destination_path']))
 
 if __name__ == '__main__':
-    processor = Unzipper()
+    processor = Unarchiver()
     processor.execute_shell()
     
