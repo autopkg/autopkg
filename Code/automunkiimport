@@ -108,11 +108,10 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
     functionally equivelent to a dictionary).'''
     
     override = None
-    if "/" in name or os.path.splitext(name)[1] != '':
+    if os.path.isfile(name):
         # name is path to a specific recipe or override file
-        # or is a filename since it has an extension
         # ignore override and recipe directories and kind
-        # and attempt to open the name
+        # and attempt to open the file specified by name
         if valid_override(name):
             override = plistlib.readPlist(name)
             override["OVERRIDE_PATH"] = os.path.abspath(name)
