@@ -29,22 +29,30 @@ from xml.parsers.expat import ExpatError
 from autopkglib import BUNDLE_ID
 from autopkglib import AutoPackagerError, AutoPackager
 
-def is_munki_recipe(recipe_plist):
+
+def recipe_has_step_processor(recipe, processor):
+    '''Does the recipe object contain at least one step with the
+    named Processor?'''
+    if "Process" in recipe:
+        processors = [step.get("Processor") for step in recipe["Process"]]
+        if processor in processors:
+            return True
+    return False
+
+
+def is_munki_recipe(recipe):
     '''Does the recipe appear to be for use with Munki?'''
-    if "Process" in recipe_plist:
-        processors = [step.get("Processor") for step in recipe_plist["Process"]]
-        if "MunkiImporter" in processors:
-            return True
-    return False
+    return recipe_has_step_processor(recipe, "MunkiImporter")
     
     
-def has_check_phase(recipe_plist):
+def has_check_phase(recipe):
     '''Does the recipe have a "check" phase?'''
-    if "Process" in recipe_plist:
-        processors = [step.get("Processor") for step in recipe_plist["Process"]]
-        if "EndOfCheckPhase" in processors:
-            return True
-    return False
+    return recipe_has_step_processor(recipe, "EndOfCheckPhase")
+    
+    
+def builds_a_package(recipe):
+    '''Does this recipe build any packages?'''
+    return recipe_has_step_processor(recipe, "PkgCreator")
     
     
 def valid_plist_with_keys(filename, keys_to_verify):
@@ -159,11 +167,11 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="default"):
         print "Description:         %s" % recipe.get("Description")
         print "Munki import recipe: %s" % is_munki_recipe(recipe)
         print "Has check phase:     %s" % has_check_phase(recipe)
+        print "Builds package:      %s" % builds_a_package(recipe)
         print "Recipe file path:    %s" % recipe["RECIPE_PATH"]
         if recipe.get("OVERRIDE_PATH"):
             print "Override path:       %s" % recipe["OVERRIDE_PATH"]
         print "Input values: "
-        #pprint.pprint(recipe_plist["Input"], indent=4)
         output = pprint.pformat(recipe.get("Input", {}), indent=4)
         print " " + output[1:-1]
         return True
@@ -356,6 +364,11 @@ def main(argv):
         if not recipe:
             print >> sys.stderr, "No valid recipe found for %s" % recipe_path
             continue
+            
+        if not is_munki_recipe(recipe):
+            print >> sys.stderr, (
+                "WARNING: %s does not appear to be a Munki recipe." 
+                % recipe_path)
         
         if options.check:
             # remove steps from the end of the recipe Process until we find a 
@@ -460,7 +473,6 @@ def main(argv):
         print
         print "No changes found."
         
-    #pprint.pprint(run_results)
         
 
 if __name__ == "__main__":
