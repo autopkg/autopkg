@@ -317,8 +317,8 @@ def main(argv):
         
     recipe_paths = []
     recipe_paths.extend(argv[1:])
-    if options.list:
-        with open(options.list, "r") as fd:
+    if options.recipe_list:
+        with open(options.recipe_list, "r") as fd:
             data = fd.read()
         recipes = [line for line in data.splitlines() 
                    if line and not line.startswith("#")]
