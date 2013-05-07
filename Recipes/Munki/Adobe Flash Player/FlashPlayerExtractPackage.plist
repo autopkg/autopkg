@@ -56,6 +56,8 @@
                 <string>%pathname%/Install Adobe Flash Player.app/Contents/Resources/Adobe Flash Player.pkg</string>
                 <key>destination_path</key>
                 <string>%RECIPE_CACHE_DIR%/Flash Plugin/Adobe Flash Player.pkg</string>
+                <key>overwrite</key>
+                <true/>
             </dict>
             <key>Processor</key>
             <string>Copier</string>
