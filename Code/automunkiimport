@@ -24,6 +24,8 @@ import pprint
 import subprocess
 #import time
 
+from xml.parsers.expat import ExpatError
+
 from autopkglib import BUNDLE_ID
 from autopkglib import AutoPackagerError, AutoPackager
 
@@ -43,34 +45,38 @@ def has_check_phase(recipe_plist):
         if "EndOfCheckPhase" in processors:
             return True
     return False
-
-
-def valid_recipe(filename):
-    '''Returns True if filename contains a valid recipe, 
-    otherwise returns False'''
+    
+    
+def valid_plist_with_keys(filename, keys_to_verify):
+    '''Attempts to read a plist file and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise.'''
     try:
         # make sure we can read it
         recipe_plist = plistlib.readPlist(filename)
-    except:
+    except (IOError, OSError), err:
+        print >> sys.stderr, (
+            "WARNING: could not read plist at %s: %s" % (filename, err))
         return False
-    if "Input" in recipe_plist and "Process" in recipe_plist:
-        # needs to have at least Input and Process arrays
-        return True
-    return False
+    except ExpatError:
+        print >> sys.stderr, "WARNING: invalid plist at %s" % filename
+        return False
+    for key in keys_to_verify:
+        if not key in recipe_plist:
+            return False
+    # if we get here, we found all the keys
+    return True
+    
+    
+def valid_recipe(filename):
+    '''Returns True if filename contains a valid recipe, 
+    otherwise returns False'''
+    return valid_plist_with_keys(filename, ["Input", "Process"])
     
     
 def valid_override(filename):
     '''Returns True if filename contains a valid override, 
     otherwise returns False'''
-    try:
-        # make sure we can read it
-        recipe_plist = plistlib.readPlist(filename)
-    except:
-        return False
-    if "Input" in recipe_plist and "Recipe" in recipe_plist:
-        # needs to have at least Input and Recipe keys
-        return True
-    return False
+    return valid_plist_with_keys(filename, ["Input", "Recipe"])
 
 
 def find_recipe(name, search_dirs, kind="default"):
@@ -102,9 +108,11 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
     functionally equivelent to a dictionary).'''
     
     override = None
-    if "/" in name or len(os.path.splitext(name)) > 1:
+    if "/" in name or os.path.splitext(name)[1] != '':
         # name is path to a specific recipe or override file
+        # or is a filename since it has an extension
         # ignore override and recipe directories and kind
+        # and attempt to open the name
         if valid_override(name):
             override = plistlib.readPlist(name)
             override["OVERRIDE_PATH"] = os.path.abspath(name)
