@@ -23,13 +23,10 @@ from autopkglib import Processor, ProcessorError
 __all__ = ["Flip4MacURLProvider"]
 
 
-BASE_URL = "http://www.microsoft.com/mac/downloads"
+BASE_URL = "http://www.telestream.net/flip4mac/download.htm"
 
-re_download_link = re.compile(
-    r'Flip4Mac Windows Media View</h3>\s+<p><a href="(?P<url>http://[^"]+)"')
-    
-re_ver2_dmg_link = re.compile(r'href="(?P<url>http://.*? 2[.0-9]*.dmg)"')
-re_ver3_dmg_link = re.compile(r'href="(?P<url>http://.*? 3[.0-9]*.dmg)"')
+re_ver2_dmg_link = re.compile(r'href="(?P<url>http://download\.microsoft\.com/download/.*?/Flip4Mac.*?2[.0-9]*.dmg)"')
+re_ver3_dmg_link = re.compile(r'href="(?P<url>http://download\.microsoft\.com/download/.*?/Flip4Mac.*?3[.0-9]*.dmg)"')
 
 
 class Flip4MacURLProvider(Processor):
@@ -60,21 +57,6 @@ class Flip4MacURLProvider(Processor):
         except BaseException as err:
             raise ProcessorError("Can't download %s: %s" % (base_url, err))
         
-        # Search for download page link.
-        m = re_download_link.search(html)
-        if not m:
-            raise ProcessorError(
-                "Couldn't find Flip4Mac download URL in %s" % base_url)
-        
-        # Get URL for download page.
-        download_page_url = m.group("url")
-        try:
-            f = urllib2.urlopen(download_page_url)
-            html = f.read()
-            f.close()
-        except BaseException as err:
-            raise ProcessorError("Can't download %s: %s" % (base_url, err))
-            
         if major_version == 3:
             m = re_ver3_dmg_link.search(html)
         elif major_version == 2:
@@ -85,9 +67,9 @@ class Flip4MacURLProvider(Processor):
             
         if not m:
             raise ProcessorError(
-                "Couldn't find Flip4Mac download URL in %s" % download_page_url)
+                "Couldn't find Flip4Mac download URL in %s" % base_url)
         
-        return urllib2.quote(m.group("url"), safe=":/")
+        return urllib2.quote(m.group("url"), safe=":/%")
         
 
     def main(self):
