@@ -46,14 +46,15 @@ class SparkleUpdateInfoProvider(Processor):
             "description": ("Dictionary of additional query pairs to include in request. "
                             "Manual url-encoding isn't necessary."),
         },
-        # Not implemented, but something like this would be useful to be able to simply override via Input.
-        # "copy_descriptions_to_pkginfo": {
-        #     "required": False,
-        #     "description": ("If this variable is set (to anything), descriptions will "
-        #                     "be copied to the output additional_pkginfo. An admin "
-        #                     "may prefer to forego the changelog-like description and instead "
-        #                     "just give a general description for the app. Defaults to false.")
-        # }
+        "copy_sparkle_description_to_pkginfo": {
+            "required": False,
+            "description": ("If this variable is set (to anything), the description from "
+                            "the appcast will be copied to the output additional_pkginfo. An admin "
+                            "may prefer to forego a changelog-like description and instead "
+                            "just give a general and consistent description for the app. "
+                            "In some cases, the description is actually a URL for custom use. "
+                            "Defaults to unset, ie. a description is _not_ copied to the pkginfo.")
+        }
     }
     output_variables = {
         "url": {
@@ -156,15 +157,17 @@ class SparkleUpdateInfoProvider(Processor):
             self.output("User-facing version retrieved from appcast: %s" % latest["human_version"])
 
         pkginfo = {}
-
-        # Format description
-        if "description_url" in latest.keys():
-            description = urllib2.urlopen(latest["description_url"]).read()
-        elif "description_data" in latest.keys():
-            description = "<html><body>" + latest["description_data"] + "</html></body>"
-        else:
-            description = ""
-        pkginfo["description"] = description = description.decode("UTF-8")
+        # All we care is whether this is set to something
+        copy_description = self.env.get("copy_sparkle_description_to_pkginfo")
+        if copy_description:
+            # Format description
+            if "description_url" in latest.keys():
+                description = urllib2.urlopen(latest["description_url"]).read()
+            elif "description_data" in latest.keys():
+                description = "<html><body>" + latest["description_data"] + "</html></body>"
+            else:
+                description = ""
+            pkginfo["description"] = description = description.decode("UTF-8")
 
         if latest.get("minimum_os_version") is not None:
             pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
