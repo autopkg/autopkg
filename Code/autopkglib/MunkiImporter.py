@@ -197,6 +197,7 @@ class MunkiImporter(Processor):
             matchingindexes = pkgdb['hashes'].get(
                                         pkginfo['installer_item_hash'])
             if matchingindexes:
+                # we have an item with the exact same checksum hash in the repo
                 return pkgdb['items'][matchingindexes[0]]
 
         # try to match against installed applications
@@ -319,7 +320,8 @@ class MunkiImporter(Processor):
         return os.path.join(subdirectory, item_name)
 
     def copyPkginfoToRepo(self, pkginfo):
-        """Saves pkginfo to munki_repo_path/pkgsinfo/subdirectory"""
+        """Saves pkginfo to munki_repo_path/pkgsinfo/subdirectory.
+        Returns full path to the pkginfo in the repo."""
         # less error checking because we copy the installer_item
         # first and bail if it fails...
         repo_path = self.env["MUNKI_REPO"]
@@ -406,6 +408,12 @@ class MunkiImporter(Processor):
         self.env["pkginfo_repo_path"] = self.copyPkginfoToRepo(pkginfo)
         self.env["pkg_repo_path"] = os.path.join(
             self.env["MUNKI_REPO"], "pkgs", relative_path)
+        # update env["pkg_path"] to match env["pkg_repo_path"]
+        # this allows subsequent recipe steps to reuse the uploaded
+        # pkg/dmg instead of re-uploading
+        # This won't affect most recipes, since most have a single
+        # MunkiImporter step (and it's usually the last step)
+        self.env["pkg_path"] = self.env["pkg_repo_path"]
         self.env["munki_info"] = pkginfo
         self.env["munki_repo_changed"] = True
         

@@ -106,8 +106,6 @@
             <string>MunkiImporter</string>
             <key>Arguments</key>
             <dict>
-                <key>pkg_path</key>
-                <string>%pkg_repo_path%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
                 <key>munkiimport_pkgname</key>
@@ -138,8 +136,6 @@
             <string>MunkiImporter</string>
             <key>Arguments</key>
             <dict>
-                <key>pkg_path</key>
-                <string>%pkg_repo_path%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
                 <key>munkiimport_pkgname</key>
@@ -171,8 +167,6 @@
             <string>MunkiImporter</string>
             <key>Arguments</key>
             <dict>
-                <key>pkg_path</key>
-                <string>%pkg_repo_path%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
                 <key>munkiimport_pkgname</key>
