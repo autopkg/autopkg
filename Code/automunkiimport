@@ -281,6 +281,10 @@ def main(argv):
                  action="append", default=[],
                  help=("Directory to search for recipe overrides. Can be "
                        "specified multiple times."))
+    p.add_option("--make-override", metavar="RECIPE", action="store_true",
+                 help=("Create a skeleton override file for a recipe. It will "
+                       "be stored in the first default override directory "
+                       "or that given by '--override-dir'"))
     p.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
                  help=("Path to a pkg or dmg to provide to a recipe. "
                        "Downloading will be skipped."))
@@ -357,6 +361,33 @@ def main(argv):
                 "Can't find recipe %s" % recipe_paths[0])
             return -1
     
+    if options.make_override:
+        # prefer 'munki' kind, but this will fall back to _default, etc.
+        override_kind = "munki"
+        override_name = recipe_paths[0]
+        recipe = load_recipe(override_name,
+                                override_dirs=[],
+                                recipe_dirs=options.search_dirs,
+                                kind=override_kind)
+        override_plist = dict({"Recipe":
+                                {"kind": override_kind,
+                                 "name": override_name}
+                               }
+                              )
+        override_plist["Input"] = recipe["Input"]
+
+        override_out_file = os.path.expanduser(
+            os.path.join(options.override_dirs[0], "%s.plist" % override_name))
+        if os.path.exists(override_out_file):
+            print >> sys.stderr, (
+                "An override plist already exists at %s, will not overwrite it."
+                % override_out_file)
+            return 1
+        else:
+            plistlib.writePlist(override_plist, override_out_file)
+            print "Override file saved to %s." % override_out_file
+            return 0
+
     run_results = []
     for recipe_path in recipe_paths:
         recipe = load_recipe(recipe_path, 
