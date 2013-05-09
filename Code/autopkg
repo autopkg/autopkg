@@ -125,7 +125,7 @@ def main(argv):
         print >> sys.stderr, {
                 "Exit Status": exit_status,
                 "Exit String": exit_string,
-                "Receipt": autopackager.env
+                "Receipt": autopackager.results
                 }
     
     return exit_status
