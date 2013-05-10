@@ -362,13 +362,23 @@ def main(argv):
             return -1
     
     if options.make_override:
+        override_name = recipe_paths[0]
+        if os.path.isfile(override_name):
+            print >> sys.stderr, ("--make-override doesn't work with absolute recipe paths, "
+                                  "as it may not be able to correctly determine the value "
+                                  "for 'name' that would be searched in recipe directories.")
+            return 1
         # prefer 'munki' kind, but this will fall back to _default, etc.
         override_kind = "munki"
-        override_name = recipe_paths[0]
         recipe = load_recipe(override_name,
                                 override_dirs=[],
                                 recipe_dirs=options.search_dirs,
                                 kind=override_kind)
+        if not recipe:
+            print >> sys.stderr, "No valid recipe found for %s" % override_name
+            print >> sys.stderr, ("Dir(s) searched: "
+                                  "%s" % ":".join(options.search_dirs))
+            return 1
         override_plist = dict({"Recipe":
                                 {"kind": override_kind,
                                  "name": override_name}
