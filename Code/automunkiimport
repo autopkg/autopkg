@@ -29,6 +29,19 @@ from xml.parsers.expat import ExpatError
 from autopkglib import BUNDLE_ID
 from autopkglib import AutoPackagerError, AutoPackager
 
+_report_plist = False
+
+def log(msg, error=False):
+    '''Message logger, prints to stdout/stderr and suppress stdout
+    when --report-plist is used.'''
+    if error:
+        print >> sys.stderr, msg
+    elif not _report_plist and not error:
+        print >> sys.stdout, msg
+
+def log_err(msg):
+    '''Message logger for errors.'''
+    log(msg, error=True)
 
 def recipe_has_step_processor(recipe, processor):
     '''Does the recipe object contain at least one step with the
@@ -62,11 +75,10 @@ def valid_plist_with_keys(filename, keys_to_verify):
         # make sure we can read it
         recipe_plist = plistlib.readPlist(filename)
     except (IOError, OSError), err:
-        print >> sys.stderr, (
-            "WARNING: could not read plist at %s: %s" % (filename, err))
+        log_err("WARNING: could not read plist at %s: %s" % (filename, err))
         return False
     except ExpatError:
-        print >> sys.stderr, "WARNING: invalid plist at %s" % filename
+        log_err("WARNING: invalid plist at %s" % filename)
         return False
     for key in keys_to_verify:
         if not key in recipe_plist:
@@ -164,16 +176,16 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="default"):
     '''Loads a recipe, then prints some information about it. Override aware.'''
     recipe = load_recipe(recipe_name, override_dirs, recipe_dirs, kind=kind)
     if recipe:
-        print "Description:         %s" % recipe.get("Description")
-        print "Munki import recipe: %s" % is_munki_recipe(recipe)
-        print "Has check phase:     %s" % has_check_phase(recipe)
-        print "Builds package:      %s" % builds_a_package(recipe)
-        print "Recipe file path:    %s" % recipe["RECIPE_PATH"]
+        log("Description:         %s" % recipe.get("Description"))
+        log("Munki import recipe: %s" % is_munki_recipe(recipe))
+        log("Has check phase:     %s" % has_check_phase(recipe))
+        log("Builds package:      %s" % builds_a_package(recipe))
+        log("Recipe file path:    %s" % recipe["RECIPE_PATH"])
         if recipe.get("OVERRIDE_PATH"):
-            print "Override path:       %s" % recipe["OVERRIDE_PATH"]
-        print "Input values: "
+            log("Override path:       %s" % recipe["OVERRIDE_PATH"])
+        log("Input values: ")
         output = pprint.pformat(recipe.get("Input", {}), indent=4)
-        print " " + output[1:-1]
+        log(" " + output[1:-1])
         return True
     else:
         return False
@@ -237,25 +249,23 @@ def makecatalogs(repo_path):
             args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (out, err_out) = proc.communicate()
     except OSError as err:
-        print >> sys.stderr, (
-            "makecatalog execution failed with error code %d: %s" 
-            % (err.errno, err.strerror))
+        log_err("makecatalog execution failed with error code %d: %s" 
+                % (err.errno, err.strerror))
     if proc.returncode != 0:
-        print >> sys.stderr, (
-            "makecatalogs failed: %s" % err_out)
-    print "Munki catalogs rebuilt!"
+        log_err("makecatalogs failed: %s" % err_out)
+    log("Munki catalogs rebuilt!")
 
 
 def print_new_imports(new_imports):
     '''Print new Munki imports in a table format'''
-    print "    %-24s %-16s %-32s %s" % (
-        "Name", "Version", "Catalogs", "Pkginfo Path")
-    print "    %-24s %-16s %-32s %s" % (
-        "----", "-------", "--------", "------------")
+    log("    %-24s %-16s %-32s %s" % (
+        "Name", "Version", "Catalogs", "Pkginfo Path"))
+    log("    %-24s %-16s %-32s %s" % (
+        "----", "-------", "--------", "------------"))
     for item in new_imports:
-        print "    %-24s %-16s %-32s %s" % (
+        log("    %-24s %-16s %-32s %s" % (
             item["name"], item["version"], item["catalogs"],
-            item["pkginfo_path"].partition("pkgsinfo/")[2])
+            item["pkginfo_path"].partition("pkgsinfo/")[2]))
 
 
 def main(argv):
@@ -291,6 +301,9 @@ def main(argv):
     p.add_option("--recipe-info", "--info", metavar="RECIPE_NAME", 
                  dest="recipe_info", action="store_true",
                  help="Print information about a recipe.")
+    p.add_option("--report-plist", action="store_true", default=False,
+                 help="Output run report data in plist format to stdout. "
+                      "Additional messages may still be printed to stderr.")
     p.add_option("-v", "--verbose", action="count", default=0,
                  help="Verbose output.")
     options, argv = p.parse_args(argv)
@@ -326,14 +339,20 @@ def main(argv):
     for arg in options.variables:
         (key, sep, value) = arg.partition("=")
         if sep != "=":
-            print >> sys.stderr, "Invalid variable [key=value]: %s" % arg
-            print >> sys.stderr, p.get_usage()
+            log_err(sys.stderr, "Invalid variable [key=value]: %s" % arg)
+            log_err(p.get_usage())
             return 1
         cli_values[key] = value
         
     if options.pkg:
         cli_values["PKG"] = options.pkg
         
+    # so that log() can make use of it
+    global _report_plist 
+    _report_plist = options.report_plist
+    if _report_plist:
+        options.verbose = 0
+
     recipe_paths = []
     recipe_paths.extend(argv[1:])
     if options.recipe_list:
@@ -344,12 +363,11 @@ def main(argv):
         recipe_paths.extend(recipes)
     
     if not recipe_paths:
-        print >> sys.stderr, p.get_usage()
+        log_err(p.get_usage())
         return 1
         
     if len(recipe_paths) > 1 and options.pkg:
-        print >> sys.stderr, (
-            "-p/--pkg option can't be used with multiple recipes!")
+        log_err("-p/--pkg option can't be used with multiple recipes!")
         return 1
         
     if options.recipe_info:
@@ -357,16 +375,15 @@ def main(argv):
                 options.override_dirs, options.search_dirs, kind="munki"):
             return 0
         else:
-            print >> sys.stderr, (
-                "Can't find recipe %s" % recipe_paths[0])
+            log_err("Can't find recipe %s" % recipe_paths[0])
             return -1
     
     if options.make_override:
         override_name = recipe_paths[0]
         if os.path.isfile(override_name):
-            print >> sys.stderr, ("--make-override doesn't work with absolute recipe paths, "
-                                  "as it may not be able to correctly determine the value "
-                                  "for 'name' that would be searched in recipe directories.")
+            log_err("--make-override doesn't work with absolute recipe paths, "
+                    "as it may not be able to correctly determine the value "
+                    "for 'name' that would be searched in recipe directories.")
             return 1
         # prefer 'munki' kind, but this will fall back to _default, etc.
         override_kind = "munki"
@@ -375,9 +392,8 @@ def main(argv):
                                 recipe_dirs=options.search_dirs,
                                 kind=override_kind)
         if not recipe:
-            print >> sys.stderr, "No valid recipe found for %s" % override_name
-            print >> sys.stderr, ("Dir(s) searched: "
-                                  "%s" % ":".join(options.search_dirs))
+            log_err("No valid recipe found for %s" % override_name)
+            log_err("Dir(s) searched: %s" % ":".join(options.search_dirs))
             return 1
         override_plist = dict({"Recipe":
                                 {"kind": override_kind,
@@ -389,13 +405,12 @@ def main(argv):
         override_out_file = os.path.expanduser(
             os.path.join(options.override_dirs[0], "%s.plist" % override_name))
         if os.path.exists(override_out_file):
-            print >> sys.stderr, (
-                "An override plist already exists at %s, will not overwrite it."
-                % override_out_file)
+            log_err("An override plist already exists at %s, will not overwrite it."
+                    % override_out_file)
             return 1
         else:
             plistlib.writePlist(override_plist, override_out_file)
-            print "Override file saved to %s." % override_out_file
+            log("Override file saved to %s." % override_out_file)
             return 0
 
     run_results = []
@@ -403,13 +418,12 @@ def main(argv):
         recipe = load_recipe(recipe_path, 
                     options.override_dirs, options.search_dirs, kind="munki")
         if not recipe:
-            print >> sys.stderr, "No valid recipe found for %s" % recipe_path
+            log_err("No valid recipe found for %s" % recipe_path)
             continue
             
         if not is_munki_recipe(recipe):
-            print >> sys.stderr, (
-                "WARNING: %s does not appear to be a Munki recipe." 
-                % recipe_path)
+            log_err("WARNING: %s does not appear to be a Munki recipe."
+                    % recipe_path)
         
         if options.check:
             # remove steps from the end of the recipe Process until we find a 
@@ -418,12 +432,11 @@ def main(argv):
                     recipe["Process"][-1]["Processor"] != "EndOfCheckPhase":
                 del recipe["Process"][-1]
             if len(recipe["Process"]) == 0:
-                print >> sys.stderr, (
-                    "Recipe at %s is missing EndOfCheckPhase Processor, "
-                    "not possible to perform check." % recipe_path)
+                log_err("Recipe at %s is missing EndOfCheckPhase Processor, "
+                        "not possible to perform check." % recipe_path)
                 continue
     
-        print "Processing %s..." % recipe_path
+        log("Processing %s..." % recipe_path)
         # Create empty plist object to hold preferences.
         prefs = plistlib.readPlistFromString(plistlib.writePlistToString({}))
     
@@ -434,9 +447,8 @@ def main(argv):
                 try:
                     prefs = plistlib.readPlist(prefpath)
                 except BaseException as e:
-                    print >> sys.stderr, (
-                        "Can't read preferences from %s: %s" 
-                        % (prefpath, e))
+                    log_err("Can't read preferences from %s: %s"
+                            % (prefpath, e))
     
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
         prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
@@ -455,7 +467,7 @@ def main(argv):
             autopackager.verify(recipe)
             autopackager.process(recipe)
         except AutoPackagerError as e:
-            print "Failed."
+            log_err("Failed.")
             failure = {}
             failure["recipe"] = recipe_path
             failure["message"] = str(e)
@@ -490,30 +502,31 @@ def main(argv):
                          
     # done running recipes, print a summary
     if failures:
-        print
-        print "The following recipes failed:"
+        log("\nThe following recipes failed:")
         for item in failures:
-            print "    %s" % item["recipe"]
-            print "        %s" % item["message"]
-            
+            log("    %s" % item["recipe"])
+            log("        %s" % item["message"])
+        
     if new_downloads:
-        print
-        print "The following new items were downloaded:"
+        log("\nThe following new items were downloaded:")
         for item in new_downloads:
-            print "    %s" % item
+            ("    %s" % item)
     
     if new_imports:
-        print
-        print "The following new items were imported:"
+        log("\nThe following new items were imported:")
         print_new_imports(new_imports)
-        print
+        log("\n")
         # rebuild Munki catalogs since we imported new items
         makecatalogs(munki_repo_path)
             
     if not new_downloads and not new_imports:
-        print
-        print "No changes found."
+        log("\nNo changes found.")
         
+    if _report_plist:
+        results_report = {}
+        for event_type in ["failures", "new_downloads", "new_imports"]:
+            results_report[event_type] = locals()[event_type]
+        print plistlib.writePlistToString(results_report)
         
 
 if __name__ == "__main__":
