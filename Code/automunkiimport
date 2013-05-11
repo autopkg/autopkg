@@ -195,7 +195,7 @@ def list_recipes(override_dirs, search_dirs):
                     kind = override['Recipe'].get("kind", "default")
                     # find and validate recipe that will be overridden
                     recipe_path = find_recipe(name, search_dirs, kind)
-                    if valid_recipe(recipe_path):
+                    if recipe_path and valid_recipe(recipe_path):
                         # override points to a valid recipe
                         recipes.add(os.path.splitext(filename)[0])
     
