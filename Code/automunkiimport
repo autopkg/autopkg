@@ -176,7 +176,8 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="default"):
     '''Loads a recipe, then prints some information about it. Override aware.'''
     recipe = load_recipe(recipe_name, override_dirs, recipe_dirs, kind=kind)
     if recipe:
-        log("Description:         %s" % recipe.get("Description"))
+        log("Description:         %s" %
+            "\n                     ".join(recipe.get("Description", "").splitlines()))
         log("Munki import recipe: %s" % is_munki_recipe(recipe))
         log("Has check phase:     %s" % has_check_phase(recipe))
         log("Builds package:      %s" % builds_a_package(recipe))
