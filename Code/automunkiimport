@@ -510,7 +510,7 @@ def main(argv):
     if new_downloads:
         log("\nThe following new items were downloaded:")
         for item in new_downloads:
-            ("    %s" % item)
+            log("    %s" % item)
     
     if new_imports:
         log("\nThe following new items were imported:")
