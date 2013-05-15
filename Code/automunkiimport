@@ -340,7 +340,7 @@ def main(argv):
     for arg in options.variables:
         (key, sep, value) = arg.partition("=")
         if sep != "=":
-            log_err(sys.stderr, "Invalid variable [key=value]: %s" % arg)
+            log_err("Invalid variable [key=value]: %s" % arg)
             log_err(p.get_usage())
             return 1
         cli_values[key] = value
