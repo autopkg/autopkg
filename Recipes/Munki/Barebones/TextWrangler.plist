@@ -8,12 +8,24 @@
         <false/>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.textwrangler</string>
-        <key>MUNKI_CATALOG</key>
-        <string>testing</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>TextWrangler is the powerful general purpose text editor, and Unix and server administrator's tool. TextWrangler is the "little brother" to BBEdit, a leading professional HTML and text editor.</string>
-        <key>MUNKI_POSTINSTALL_SCRIPT</key>
-        <string>#!/bin/sh
+        <key>MUNKI_REPO_SUBDIR</key>
+        <string>apps/TextWrangler</string>
+        <key>NAME</key>
+        <string>TextWrangler</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>TextWrangler is the powerful general purpose text editor, and Unix and server administrator's tool. TextWrangler is the "little brother" to BBEdit, a leading professional HTML and text editor.</string>
+            <key>display_name</key>
+            <string>BBEdit</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>postinstall_script</key>
+            <string>#!/bin/sh
 # Copy command-line tool resources out of .app bundle
 CMD_TOOL_DIR=/usr/local/bin
 CMD_MAN_DIR=/usr/local/share/man/man1
@@ -30,11 +42,10 @@ for TOOL in edit twdiff twfind; do
     "$LN" -sf "$HELPER_BIN_SRC_DIR/$TOOL" "$CMD_TOOL_DIR/$TOOL"
     "$LN" -sf "$HELPER_MAN_SRC_DIR/$TOOL.1" "$CMD_MAN_DIR/$TOOL.1"
 done
-</string>
-        <key>MUNKI_REPO_SUBDIR</key>
-        <string>apps/TextWrangler</string>
-        <key>NAME</key>
-        <string>TextWrangler</string>
+            </string>
+            <key>unattended_install</key>
+            <true/>
+        </dict>
     </dict>
     <key>Process</key>
     <array>
@@ -63,31 +74,24 @@ done
             <dict/>
         </dict>
         <dict>
+            <key>Processor</key>
+            <string>MunkiPkginfoMerger</string>
+            <key>Arguments</key>
+            <dict>
+                <key>additional_pkginfo</key>
+                <dict>
+                    <key>minimum_os_version</key>
+                    <string>%minimum_os_version%</string>
+                </dict>
+            </dict>
+        </dict>
+        <dict>
             <key>Arguments</key>
             <dict>
                 <key>pkg_path</key>
                 <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>pkginfo</key>
-                <dict>
-                    <key>catalogs</key>
-                    <array>
-                        <string>%MUNKI_CATALOG%</string>
-                    </array>
-                    <key>description</key>
-                    <string>%MUNKI_DESCRIPTION%</string>
-                    <key>display_name</key>
-                    <string>%NAME%</string>
-                    <key>minimum_os_version</key>
-                    <string>%minimum_os_version%</string>
-                    <key>name</key>
-                    <string>%NAME%</string>
-                    <key>postinstall_script</key>
-                    <string>%MUNKI_POSTINSTALL_SCRIPT%</string>
-                    <key>unattended_install</key>
-                    <true/>
-                </dict>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>

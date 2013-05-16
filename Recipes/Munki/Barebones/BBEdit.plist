@@ -8,12 +8,24 @@
         <false/>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.bbedit</string>
-        <key>MUNKI_CATALOG</key>
-        <string>testing</string>
-        <key>MUNKI_DESCRIPTION</key>
-        <string>BBEdit is the leading professional HTML and text editor for the Mac. Specifically crafted in response to the needs of Web authors and software developers, this award-winning product provides a plethora of features for editing, searching, and manipulation of text. BBEdit transforms text with high performance.</string>
-        <key>MUNKI_POSTINSTALL_SCRIPT</key>
-        <string>#!/bin/sh
+        <key>MUNKI_REPO_SUBDIR</key>
+        <string>apps/BBEdit</string>
+        <key>NAME</key>
+        <string>BBEdit</string>
+        <key>pkginfo</key>
+        <dict>
+            <key>catalogs</key>
+            <array>
+                <string>testing</string>
+            </array>
+            <key>description</key>
+            <string>BBEdit is the leading professional HTML and text editor for the Mac. Specifically crafted in response to the needs of Web authors and software developers, this award-winning product provides a plethora of features for editing, searching, and manipulation of text. BBEdit transforms text with high performance.</string>
+            <key>display_name</key>
+            <string>BBEdit</string>
+            <key>name</key>
+            <string>%NAME%</string>
+            <key>postinstall_script</key>
+            <string>#!/bin/sh
 # Copy command-line tool resources out of .app bundle
 CMD_TOOL_DIR=/usr/local/bin
 CMD_MAN_DIR=/usr/local/share/man/man1
@@ -32,12 +44,10 @@ for TOOL in bbdiff bbfind; do
 done
 "$LN" -sf "$HELPER_BIN_SRC_DIR/bbedit_tool" "$CMD_TOOL_DIR/bbedit"
 "$LN" -sf "$HELPER_MAN_SRC_DIR/bbedit.1" "$CMD_MAN_DIR/bbedit.1"
-
-</string>
-        <key>MUNKI_REPO_SUBDIR</key>
-        <string>apps/BBEdit</string>
-        <key>NAME</key>
-        <string>BBEdit</string>
+            </string>
+            <key>unattended_install</key>
+            <true/>
+        </dict>
     </dict>
     <key>Process</key>
     <array>
@@ -66,31 +76,24 @@ done
             <dict/>
         </dict>
         <dict>
+            <key>Processor</key>
+            <string>MunkiPkginfoMerger</string>
+            <key>Arguments</key>
+            <dict>
+                <key>additional_pkginfo</key>
+                <dict>
+                    <key>minimum_os_version</key>
+                    <string>%minimum_os_version%</string>
+                </dict>
+            </dict>
+        </dict>
+        <dict>
             <key>Arguments</key>
             <dict>
                 <key>pkg_path</key>
                 <string>%pathname%</string>
                 <key>repo_subdirectory</key>
                 <string>%MUNKI_REPO_SUBDIR%</string>
-                <key>pkginfo</key>
-                <dict>
-                    <key>catalogs</key>
-                    <array>
-                        <string>%MUNKI_CATALOG%</string>
-                    </array>
-                    <key>description</key>
-                    <string>%MUNKI_DESCRIPTION%</string>
-                    <key>display_name</key>
-                    <string>%NAME%</string>
-                    <key>minimum_os_version</key>
-                    <string>%minimum_os_version%</string>
-                    <key>name</key>
-                    <string>%NAME%</string>
-                    <key>postinstall_script</key>
-                    <string>%MUNKI_POSTINSTALL_SCRIPT%</string>
-                    <key>unattended_install</key>
-                    <true/>
-                </dict>
             </dict>
             <key>Processor</key>
             <string>MunkiImporter</string>
