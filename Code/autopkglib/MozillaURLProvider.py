@@ -38,9 +38,9 @@ class MozillaURLProvider(Processor):
             "description": 
                 "Product to fetch URL for. One of 'firefox', 'thunderbird'.",
         },
-        "build": {
+        "release": {
             "required": False,
-            "description": ("Which build to download. Examples: 'latest', "
+            "description": ("Which release to download. Examples: 'latest', "
                 "'latest-10.0esr', 'latest-esr', 'latest-beta'."),
         },
         "locale": {

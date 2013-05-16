@@ -6,7 +6,7 @@
     <dict>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.firefox-10esr-sv_SE</string>
-        <key>FIREFOX_BUILD</key>
+        <key>RELEASE</key>
         <string>latest-10.0esr</string>
         <key>LOCALE</key>
         <string>sv_SE</string>
@@ -30,8 +30,8 @@
             <dict>
                 <key>product_name</key>
                 <string>firefox</string>
-                <key>build</key>
-                <string>%FIREFOX_BUILD%</string>
+                <key>release</key>
+                <string>%RELEASE%</string>
                 <key>locale</key>
                 <string>%LOCALE%</string>
             </dict>
