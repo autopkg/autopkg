@@ -33,15 +33,17 @@
     <key>Process</key>
     <array>
         <dict>
+            <key>Processor</key>
+            <string>MozillaURLProvider</string>
             <key>Arguments</key>
             <dict>
+                <key>product_name</key>
+                <string>firefox</string>
                 <key>build</key>
                 <string>%FIREFOX_BUILD%</string>
                 <key>locale</key>
                 <string>%LOCALE%</string>
             </dict>
-            <key>Processor</key>
-            <string>FirefoxURLProvider</string>
         </dict>
         <dict>
             <key>Arguments</key>
