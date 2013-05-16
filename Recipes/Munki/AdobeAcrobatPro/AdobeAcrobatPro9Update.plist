@@ -49,7 +49,7 @@
                 <string>%VERSION%</string>
             </dict>
             <key>Processor</key>
-            <string>AdobeAcrobatProUpdateURLProvider</string>
+            <string>AdobeAcrobatProUpdateInfoProvider</string>
         </dict>
         <dict>
             <key>Arguments</key>

@@ -21,7 +21,7 @@ import re
 from autopkglib import Processor, ProcessorError
 from plistlib import readPlistFromString
 
-__all__ = ["AdobeAcrobatProUpdateURLProvider"]
+__all__ = ["AdobeAcrobatProUpdateInfoProvider"]
 
 
 MUNKI_UPDATE_NAME_DEFAULT = "AdobeAcrobatPro{MAJREV}_Update"
@@ -37,7 +37,7 @@ _url_vars = {
 }
 supported_vers = ['9', '10', '11']
 
-class AdobeAcrobatProUpdateURLProvider(Processor):
+class AdobeAcrobatProUpdateInfoProvider(Processor):
     description = "Provides URL to the latest Adobe Acrobat Pro release."
     input_variables = {
         "major_version": {
@@ -150,5 +150,5 @@ class AdobeAcrobatProUpdateURLProvider(Processor):
         self.output("Found URL %s" % self.env["url"])
 
 if __name__ == "__main__":
-    processor = AdobeAcrobatProUpdateURLProvider()
+    processor = AdobeAcrobatProUpdateInfoProvider()
     processor.execute_shell()
