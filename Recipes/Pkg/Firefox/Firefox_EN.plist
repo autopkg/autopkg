@@ -15,9 +15,11 @@
     <array>
         <dict>
             <key>Processor</key>
-            <string>FirefoxURLProvider</string>
+            <string>MozillaURLProvider</string>
             <key>Arguments</key>
             <dict>
+                <key>product_name</key>
+                <string>firefox</string>
                 <key>build</key>
                 <string>latest</string>
                 <key>locale</key>
