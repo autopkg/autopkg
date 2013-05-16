@@ -25,7 +25,7 @@ __all__ = ["Flip4MacURLProvider"]
 
 BASE_URL = "http://www.telestream.net/flip4mac/download.htm"
 
-re_ver2_dmg_link = re.compile(r'href="(?P<url>http://download\.microsoft\.com/download/.*?/Flip4Mac.*?2[.0-9]*.dmg)"')
+re_ver2_dmg_link = re.compile(r'href="(?P<url>http://download\.microsoft\.com/download/.*?/Flip4Mac%20WMV.*?2[.0-9]*.dmg)"')
 re_ver3_dmg_link = re.compile(r'href="(?P<url>http://download\.microsoft\.com/download/.*?/Flip4Mac.*?3[.0-9]*.dmg)"')
 
 
