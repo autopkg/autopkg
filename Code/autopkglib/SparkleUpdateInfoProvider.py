@@ -83,6 +83,13 @@ class SparkleUpdateInfoProvider(Processor):
         If it's a URL, this must be handled by whoever calls this function.
         """
 
+        # query string
+        if "appcast_query_pairs" in self.env:
+            queries = self.env["appcast_query_pairs"]
+            new_query = urllib.urlencode([(k, v) for (k, v) in queries.items()])
+            scheme, netloc, path, old_query, frag = urlparse.urlsplit(url)
+            url = urlparse.urlunsplit((scheme, netloc, path, new_query, frag))
+
         request = urllib2.Request(url=url)
 
         # request header code borrowed from URLDownloader
@@ -90,15 +97,9 @@ class SparkleUpdateInfoProvider(Processor):
             headers = self.env["appcast_request_headers"]
             for header, value in headers.items():
                 request.add_header(header, value)
-        # query string
-        if "appcast_query_pairs" in self.env:
-            queries = self.env["appcast_query_pairs"]
-            query_string = urllib.urlencode([(k, v) for (k, v) in queries.items()])
-        else:
-            query_string = None
 
         try:
-            url_handle = urllib2.urlopen(request, data=query_string)
+            url_handle = urllib2.urlopen(request)
         except:
             raise ProcessorError("Can't open URL %s" % request.get_full_url())
 
