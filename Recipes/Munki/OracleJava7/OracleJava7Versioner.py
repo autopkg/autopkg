@@ -62,9 +62,10 @@ class OracleJava7Versioner(DmgMounter):
             rmtree(tmp)
 
             root = ET.fromstring(pkginfo)
-            version = root.find(
-                "./bundle[@id='com.oracle.java.JavaAppletPlugin']").get(
-                "CFBundleVersion")
+            bundles = root.findall("bundle")
+            for bundle in bundles:
+                if bundle.get("id") == "com.oracle.java.JavaAppletPlugin":
+                    version = bundle.get("CFBundleVersion")
 
             self.env["plugin_cfbundleversion"] = version
             self.env["plugin_displayname"] = os.path.basename(
