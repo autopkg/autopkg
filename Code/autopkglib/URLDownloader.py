@@ -97,6 +97,7 @@ class URLDownloader(Processor):
     def main(self):
         self.env["last_modified"] = ""
         self.env["etag"] = ""
+        existing_file_length = None
         
         if "PKG" in self.env:
             self.env["pathname"] = os.path.expanduser(self.env["PKG"])
@@ -143,6 +144,7 @@ class URLDownloader(Processor):
                     request.add_header("If-None-Match", etag)
                 if last_modified:
                     request.add_header("If-Modified-Since", last_modified)
+                existing_file_length = os.path.getsize(pathname)
                     
             # Open URL.
             try:
@@ -157,6 +159,19 @@ class URLDownloader(Processor):
                 else:
                     raise
             
+            # If Content-Length header is present and we had a cached
+            # file, see if it matches the size of the cached file.
+            # Useful for webservers that don't provide Last-Modified
+            # and ETag headers.
+            size_header = url_handle.info().get("Content-Length")
+            if url_handle.info().get("Content-Length"):
+                if int(size_header) == existing_file_length:
+                    self.env["download_changed"] = False
+                    self.output("File size returned by webserver matches that "
+                                "of the cached file: %s bytes" % size_header)
+                    self.output("Using existing %s" % pathname)
+                    return
+
             # Download file.
             self.env["download_changed"] = True
             with open(pathname, "wb") as file_handle:
