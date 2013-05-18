@@ -6,7 +6,7 @@
     <dict>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.firefox-3.6-sv_SE</string>
-        <key>FIREFOX_BUILD</key>
+        <key>RELEASE</key>
         <string>latest-3.6</string>
         <key>LOCALE</key>
         <string>sv_SE</string>
@@ -24,15 +24,17 @@
     <key>Process</key>
     <array>
         <dict>
+            <key>Processor</key>
+            <string>MozillaURLProvider</string>
             <key>Arguments</key>
             <dict>
+                <key>product_name</key>
+                <string>firefox</string>
                 <key>build</key>
-                <string>%FIREFOX_BUILD%</string>
+                <string>%RELEASE%</string>
                 <key>locale</key>
                 <string>%LOCALE%</string>
             </dict>
-            <key>Processor</key>
-            <string>FirefoxURLProvider</string>
         </dict>
         <dict>
             <key>Arguments</key>

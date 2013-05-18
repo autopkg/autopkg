@@ -10,16 +10,20 @@
         <string>Firefox_EN</string>
         <key>LOCALE</key>
         <string>en_US</string>
+        <key>RELEASE</key>
+        <string>latest</string>
     </dict>
     <key>Process</key>
     <array>
         <dict>
             <key>Processor</key>
-            <string>FirefoxURLProvider</string>
+            <string>MozillaURLProvider</string>
             <key>Arguments</key>
             <dict>
-                <key>build</key>
-                <string>latest</string>
+                <key>product_name</key>
+                <string>firefox</string>
+                <key>release</key>
+                <string>%RELEASE%</string>
                 <key>locale</key>
                 <string>%LOCALE%</string>
             </dict>

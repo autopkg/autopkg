@@ -14,7 +14,7 @@ combination is offered.</string>
     <dict>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.thunderbird</string>
-        <key>THUNDERBIRD_BUILD</key>
+        <key>RELEASE</key>
         <string>latest</string>
         <key>LOCALE</key>
         <string>en_US</string>
@@ -43,13 +43,15 @@ combination is offered.</string>
         <dict>
             <key>Arguments</key>
             <dict>
-                <key>build</key>
-                <string>%THUNDERBIRD_BUILD%</string>
+                <key>product_name</key>
+                <string>thunderbird</string>
+                <key>release</key>
+                <string>%RELEASE%</string>
                 <key>locale</key>
                 <string>%LOCALE%</string>
             </dict>
             <key>Processor</key>
-            <string>ThunderbirdURLProvider</string>
+            <string>MozillaURLProvider</string>
         </dict>
         <dict>
             <key>Arguments</key>

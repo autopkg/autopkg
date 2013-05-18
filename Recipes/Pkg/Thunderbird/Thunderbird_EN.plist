@@ -5,11 +5,11 @@
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
-        <string>com.googlecode.autopkg.pkg.Firefox_SV</string>
+        <string>com.googlecode.autopkg.pkg.Thunderbird_EN</string>
         <key>NAME</key>
-        <string>Firefox_SV</string>
+        <string>Thunderbird_EN</string>
         <key>LOCALE</key>
-        <string>sv_SE</string>
+        <string>en_US</string>
         <key>RELEASE</key>
         <string>latest</string>
     </dict>
@@ -21,7 +21,7 @@
             <key>Arguments</key>
             <dict>
                 <key>product_name</key>
-                <string>firefox</string>
+                <string>thunderbird</string>
                 <key>release</key>
                 <string>%RELEASE%</string>
                 <key>locale</key>
@@ -66,9 +66,9 @@
             <key>Arguments</key>
             <dict>
                 <key>source_path</key>
-                <string>%pathname%/Firefox.app</string>
+                <string>%pathname%/Thunderbird.app</string>
                 <key>destination_path</key>
-                <string>%pkgroot%/Applications/Firefox.app</string>
+                <string>%pkgroot%/Applications/Thunderbird.app</string>
             </dict>
         </dict>
         <dict>
@@ -96,7 +96,7 @@
                     <key>pkgdir</key>
                     <string>%RECIPE_CACHE_DIR%</string>
                     <key>id</key>
-                    <string>org.mozilla.firefox.pkg</string>
+                    <string>org.mozilla.thunderbird.pkg</string>
                     <key>resources</key>
                     <string>%RECIPE_DIR%/Resources</string>
                     <key>options</key>
