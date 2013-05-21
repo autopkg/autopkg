@@ -155,6 +155,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
                     name = override['Recipe'].get("name")
                     kind = override['Recipe'].get("kind", "default")
                     override["OVERRIDE_PATH"] = os.path.abspath(pathname)
+                    break
 
     # now get the actual recipe
     if name:
