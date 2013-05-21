@@ -31,6 +31,8 @@ LOCAL_OVERRIDE_KEY = "RecipeInputOverrides"
 SUPPORTED_PREFS = [
     "MUNKI_REPO",
     "CACHE_DIR",
+    "RECIPE_SEARCH_DIRS",
+    "RECIPE_OVERRIDE_DIRS"
 ]
 
 re_keyref = re.compile(r'%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%')

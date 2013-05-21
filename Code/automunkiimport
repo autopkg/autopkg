@@ -316,6 +316,12 @@ def main(argv):
     new_imports = []
     failures = []
     
+    # Set up search dirs for recipes and overrides. Defaults below are set
+    # if we don't have the RECIPE_SEARCH_DIRS or RECIPE_OVERRIDE_DIRS
+    # set via defaults, and --search-dir/--override-dirs always take
+    # precedence. These 'sources' for the preference aren't composited
+    # into a master list; it's one of the baked-in defaults, pref key or
+    # CLI options, no combination.
     default_search_dirs = [
         ".",
         "~/Library/AutoPkg/Recipes",
@@ -330,10 +336,20 @@ def main(argv):
     prefs = get_prefs()
 
     if not options.search_dirs:
-        options.search_dirs = default_search_dirs
+        if prefs.get("RECIPE_SEARCH_DIRS"):
+            options.search_dirs = prefs.get("RECIPE_SEARCH_DIRS")
+            if isinstance(options.search_dirs, basestring):
+                options.search_dirs = [options.search_dirs]
+        else:
+            options.search_dirs = default_search_dirs
         
     if not options.override_dirs:
-        options.override_dirs = default_override_dirs
+        if prefs.get("RECIPE_OVERRIDE_DIRS"):
+            options.override_dirs = prefs.get("RECIPE_OVERRIDE_DIRS")
+            if isinstance(options.override_dirs, basestring):
+                options.override_dirs = [options.override_dirs]
+        else:
+            options.override_dirs = default_override_dirs
     
     if options.list_recipes:
         recipe_list = list_recipes(options.override_dirs, options.search_dirs)
