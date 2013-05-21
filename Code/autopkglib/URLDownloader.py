@@ -169,6 +169,9 @@ class URLDownloader(Processor):
                     self.env["download_changed"] = False
                     self.output("File size returned by webserver matches that "
                                 "of the cached file: %s bytes" % size_header)
+                    self.output("WARNING: Matching a download by filesize is a "
+                                "fallback mechanism that does not guarantee "
+                                "that a build is unchanged.")
                     self.output("Using existing %s" % pathname)
                     return
 
