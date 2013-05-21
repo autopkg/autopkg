@@ -27,6 +27,7 @@ import subprocess
 from xml.parsers.expat import ExpatError
 
 from autopkglib import BUNDLE_ID
+from autopkglib import get_prefs
 from autopkglib import AutoPackagerError, AutoPackager
 
 _report_plist = False
@@ -325,6 +326,9 @@ def main(argv):
         "~/Library/AutoPkg/RecipeOverrides"
         ]
         
+    # Obtain prefs from the defaults domain
+    prefs = get_prefs()
+
     if not options.search_dirs:
         options.search_dirs = default_search_dirs
         
@@ -439,19 +443,6 @@ def main(argv):
                 continue
     
         log("Processing %s..." % recipe_path)
-        # Create empty plist object to hold preferences.
-        prefs = plistlib.readPlistFromString(plistlib.writePlistToString({}))
-    
-        # Read preferences from system and user's library path.
-        for libdir in ("/Library", os.path.expanduser("~/Library")):
-            prefpath = os.path.join(libdir, "Preferences", BUNDLE_ID + ".plist")
-            if os.path.exists(prefpath):
-                try:
-                    prefs = plistlib.readPlist(prefpath)
-                except BaseException as e:
-                    log_err("Can't read preferences from %s: %s"
-                            % (prefpath, e))
-    
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
         prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])

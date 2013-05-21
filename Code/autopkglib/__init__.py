@@ -23,12 +23,26 @@ import pprint
 import re
 import subprocess
 
+from Foundation import CFPreferencesCopyAppValue
 
 BUNDLE_ID = "com.googlecode.autopkg"
 LOCAL_OVERRIDE_KEY = "RecipeInputOverrides"
 
+SUPPORTED_PREFS = [
+    "MUNKI_REPO",
+    "CACHE_DIR",
+]
 
 re_keyref = re.compile(r'%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%')
+
+def get_prefs(domain=BUNDLE_ID):
+    """Return a dict with the contents of all supported preferences
+    available in the domain. Returns an empty dict if none found."""
+    prefs = {}
+    for key in SUPPORTED_PREFS:
+        if CFPreferencesCopyAppValue(key, domain):
+            prefs[key] = CFPreferencesCopyAppValue(key, domain)
+    return prefs
 
 def update_data(a_dict, key, value):
     """Update a_dict keys with value. Existing data can be referenced

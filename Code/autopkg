@@ -22,6 +22,7 @@ import plistlib
 import time
 
 from autopkglib import BUNDLE_ID
+from autopkglib import get_prefs
 from autopkglib import AutoPackagerError, AutoPackager
 
 
@@ -49,18 +50,8 @@ def main(argv):
         print >> sys.stderr, "Can't read %s: %s" % (recipe_path, e)
         return 1
     
-    # Create empty plist object to hold preferences.
-    prefs = plistlib.readPlistFromString(plistlib.writePlistToString({}))
-    
-    # Read preferences from system and user's library path.
-    for libdir in ("/Library", os.path.expanduser("~/Library")):
-        prefpath = os.path.join(libdir, "Preferences", BUNDLE_ID + ".plist")
-        if os.path.exists(prefpath):
-            try:
-                prefs = plistlib.readPlist(prefpath)
-            except BaseException as e:
-                print >> sys.stderr, "Can't read preferences from %s: %s" % (
-                                     prefpath, e)
+    # Obtain prefs from the defaults domain
+    prefs = get_prefs()
     
     # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
     prefs["RECIPE_PATH"] = os.path.abspath(recipe_path)
