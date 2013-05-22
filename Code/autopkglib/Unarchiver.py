@@ -85,6 +85,9 @@ class Unarchiver(Processor):
         fmt = self.env.get("archive_format")
         if fmt is None:
             fmt = self.get_archive_format(self.env.get("archive_path"))
+            if not fmt:
+                raise ProcessorError("Can't guess archive format for filename %s" %
+                        os.path.basename(self.env.get("archive_path")))
             self.output("Guessed archive format '%s' from filename %s" %
                         (fmt, os.path.basename(self.env.get("archive_path"))))
         elif fmt not in EXTNS.keys():
