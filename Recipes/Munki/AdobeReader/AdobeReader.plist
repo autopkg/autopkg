@@ -4,7 +4,8 @@
 <dict>
     <key>Description</key>
     <string>Reader ships as an installer pkg that deploys a .app, so we add it to
-blocking_applications. The Reader website states that 10.6.4 is a minimum
+blocking_applications. Adobe Acrobat Pro.app is also a blocking_application as it also
+prevents installation. The Reader website states that 10.6.4 is a minimum
 requirement for 11. The preinstall_script is there to get around an 
 oversight in the package's preflight script, looking to find a user's
 trash folder to copy the .app into.</string>
@@ -25,6 +26,7 @@ trash folder to copy the .app into.</string>
             <key>blocking_applications</key>
             <array>
                 <string>Adobe Reader.app</string>
+                <string>Adobe Acrobat Pro.app</string>
             </array>
             <key>catalogs</key>
             <array>
