@@ -2,12 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>Downloads and imports Munki tools. By default gets the latest dmg from http://code.google.com/p/munki/downloads/list.
+Change the DOWNLOAD_URL to "http://munkibuilds.org/munkitools-latest.dmg" to get latest build.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.munkitools</string>
         <key>NAME</key>
         <string>munkitools</string>
+        <key>DOWNLOAD_URL</key>
+        <string>http://code.google.com/p/munki/downloads/list</string>
         <key>MUNKI_CATALOG</key>
         <string>development</string>
         <key>MUNKI_REPO_SUBDIR</key>
@@ -45,13 +50,18 @@
     <array>
         <dict>
             <key>Processor</key>
+            <string>MunkitoolsURLProvider</string>
+            <key>Arguments</key>
+            <dict>
+                <key>base_url</key>
+                <string>DOWNLOAD_URL</string>
+            </dict>
+        </dict>
+        <dict>
+            <key>Processor</key>
             <string>URLDownloader</string>
             <key>Arguments</key>
             <dict>
-                <key>url</key>
-                <string>http://munkibuilds.org/munkitools-latest.dmg</string>
-                <key>filename</key>
-                <string>%NAME%.dmg</string>
             </dict>
         </dict>
         <dict>
