@@ -22,7 +22,7 @@ import plistlib
 import time
 
 from autopkglib import BUNDLE_ID
-from autopkglib import get_prefs
+from autopkglib import get_all_prefs
 from autopkglib import AutoPackagerError, AutoPackager
 
 
@@ -51,7 +51,7 @@ def main(argv):
         return 1
     
     # Obtain prefs from the defaults domain
-    prefs = get_prefs()
+    prefs = get_all_prefs()
     
     # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
     prefs["RECIPE_PATH"] = os.path.abspath(recipe_path)

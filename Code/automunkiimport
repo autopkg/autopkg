@@ -27,7 +27,7 @@ import subprocess
 from xml.parsers.expat import ExpatError
 
 from autopkglib import BUNDLE_ID
-from autopkglib import get_prefs
+from autopkglib import get_pref, get_all_prefs
 from autopkglib import AutoPackagerError, AutoPackager
 
 _report_plist = False
@@ -332,20 +332,18 @@ def main(argv):
         "~/Library/AutoPkg/RecipeOverrides"
         ]
         
-    # Obtain prefs from the defaults domain
-    prefs = get_prefs()
 
     if not options.search_dirs:
-        if prefs.get("RECIPE_SEARCH_DIRS"):
-            options.search_dirs = prefs.get("RECIPE_SEARCH_DIRS")
+        if get_pref("RECIPE_SEARCH_DIRS"):
+            options.search_dirs = get_pref("RECIPE_SEARCH_DIRS")
             if isinstance(options.search_dirs, basestring):
                 options.search_dirs = [options.search_dirs]
         else:
             options.search_dirs = default_search_dirs
         
     if not options.override_dirs:
-        if prefs.get("RECIPE_OVERRIDE_DIRS"):
-            options.override_dirs = prefs.get("RECIPE_OVERRIDE_DIRS")
+        if get_pref("RECIPE_OVERRIDE_DIRS"):
+            options.override_dirs = get_pref("RECIPE_OVERRIDE_DIRS")
             if isinstance(options.override_dirs, basestring):
                 options.override_dirs = [options.override_dirs]
         else:
@@ -459,6 +457,8 @@ def main(argv):
                 continue
     
         log("Processing %s..." % recipe_path)
+        # Obtain prefs from the defaults domain
+        prefs = get_all_prefs()
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
         prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])

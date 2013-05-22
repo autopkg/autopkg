@@ -37,13 +37,19 @@ SUPPORTED_PREFS = [
 
 re_keyref = re.compile(r'%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%')
 
-def get_prefs(domain=BUNDLE_ID):
-    """Return a dict with the contents of all supported preferences
-    available in the domain. Returns an empty dict if none found."""
+def get_pref(key, domain=BUNDLE_ID):
+    """Return a single pref value (or None) for a domain."""
+    if CFPreferencesCopyAppValue(key, domain):
+        return CFPreferencesCopyAppValue(key, domain)
+    return None
+
+def get_all_prefs(domain=BUNDLE_ID):
+    """Return a dict (or an empty dict) with the contents of all
+    supported preferences in the domain."""
     prefs = {}
     for key in SUPPORTED_PREFS:
-        if CFPreferencesCopyAppValue(key, domain):
-            prefs[key] = CFPreferencesCopyAppValue(key, domain)
+        if get_pref(key, domain=BUNDLE_ID):
+            prefs[key] = get_pref(key, domain=BUNDLE_ID)
     return prefs
 
 def update_data(a_dict, key, value):
