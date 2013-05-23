@@ -4,8 +4,6 @@
 <dict>
     <key>Input</key>
     <dict>
-        <key>ABORT_IF_CACHED</key>
-        <false/>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.bbedit</string>
         <key>MUNKI_REPO_SUBDIR</key>
