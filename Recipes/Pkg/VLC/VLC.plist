@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>Download latest VLC release and build a package for the application.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
@@ -13,9 +15,12 @@
     <array>
         <dict>
             <key>Processor</key>
-            <string>VLCURLProvider</string>
+            <string>SparkleUpdateInfoProvider</string>
             <key>Arguments</key>
-            <dict/>
+            <dict>
+                <key>appcast_url</key>
+                <string>http://update.videolan.org/vlc/sparkle/vlc.xml</string>
+            </dict>
         </dict>
         <dict>
             <key>Processor</key>
