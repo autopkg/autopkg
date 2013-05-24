@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>Downloads Thunderbird and builds a package for the application.
+Override LOCALE and RELEASE to customize the version and language downloaded.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
