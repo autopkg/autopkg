@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>This recipe is currently broken. It originally downloaded the
+current Flash Player release, then repackaged the installer.
+AdobeFlashDmgUnpacker must be fixed to get this recipe working again.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
