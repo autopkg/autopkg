@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>Downloads the current installation package for TextWrangler. Imports it
+    into Munki, adding a postinstall_script that installs the command-line tools.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>

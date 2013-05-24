@@ -2,6 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>Downloads Firefox disk image and imports into Munki.
+This variation downloads the en_US localization of the Release Channel ("latest") version. You can customize this
+in a RecipeOverride.
+
+FIREFOX_BUILD corresponds to directories here: 
+http://download-origin.cdn.mozilla.net/pub/mozilla.org/firefox/releases/
+Some useful values are: 'latest', 'latest-10.0esr', 'latest-esr', 'latest-3.6',
+'latest-beta'
+
+LOCALE corresponds to directories at 
+http://download-origin.cdn.mozilla.net/pub/mozilla.org/firefox/releases/$FIREFOX_BUILD/mac/
+Examples include 'en-US', 'de', 'ja-JP-mac', 'sv-SE', and 'zh-TW'
+
+No idea if all Firefox builds are available in all the same localizations, so
+you may need to verify that any particular combination of FIREFOX_BUILD and
+LOCALE is offered.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
@@ -13,7 +30,7 @@
         <key>MUNKI_REPO_SUBDIR</key>
         <string>apps/firefox</string>
         <key>NAME</key>
-        <string>Firefox_EN</string>
+        <string>Firefox</string>
         <key>pkginfo</key>
         <dict>
             <key>catalogs</key>
@@ -33,8 +50,6 @@
     <key>Process</key>
     <array>
         <dict>
-            <key>Processor</key>
-            <string>MozillaURLProvider</string>
             <key>Arguments</key>
             <dict>
                 <key>product_name</key>
@@ -44,6 +59,8 @@
                 <key>locale</key>
                 <string>%LOCALE%</string>
             </dict>
+            <key>Processor</key>
+            <string>MozillaURLProvider</string>
         </dict>
         <dict>
             <key>Arguments</key>

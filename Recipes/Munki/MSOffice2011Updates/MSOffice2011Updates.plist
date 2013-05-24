@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>Downloads the latest Microsoft Office 2011 update and imports into Munki.
+MSOffice2011UpdateInfoProvider makes use of MS AutoUpdater metadata to
+not only find the latest update, but also determine any prior update that
+must be applied and adds it to the requires array.
+VERSION can be modified in an override to download a specific version;
+the default value of "latest" retreives the latest.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>

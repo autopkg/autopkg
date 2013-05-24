@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>This recipe downloads the most recent Adobe Flash Player installer, 
+extracts the embedded package, wraps it in a disk image, then imports the disk
+image into Munki.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
