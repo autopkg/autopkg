@@ -3,13 +3,24 @@
 <plist version="1.0">
 <dict>
     <key>Description</key>
-    <string></string>
+    <string>Downloads updates for Adobe Acrobat Pro 9 and imports them into 
+Munki. It will also set the appropriate 'requires' item for the 
+previous update in the Munki pkginfo.
+
+Acrobat Pro 9 updates get their own installer type in Munki, 
+and makepkginfo will handle requiring a logout for these. Acrobat 
+Pro 9 uses a separate recipe from X/XI as its download is provided
+as a zip file, which must be re-packed to a .dmg.
+
+The value(s) for update_for in the pkginfo should be set to that 
+of your base Adobe Acrobat Pro 9 installer item.
+
+VERSION can be a specific update version, ie. '9.5.2', or the 
+default, 'latest'.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
         <string>com.googlecode.autopkg.munki.AdobeAcrobatPro9Update</string>
-        <key>MAJOR_VERSION</key>
-        <string>9</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>apps/AcrobatPro</string>
         <key>NAME</key>
@@ -42,7 +53,7 @@
             <key>Arguments</key>
             <dict>
                 <key>major_version</key>
-                <string>%MAJOR_VERSION%</string>
+                <string>9</string>
                 <key>munki_update_name</key>
                 <string>%NAME%</string>
                 <key>version</key>
