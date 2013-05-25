@@ -61,7 +61,7 @@ class MozillaURLProvider(Processor):
     
     __doc__ = description
     
-    def get_mozilla_dmg_url(self, base_url, product_name, build, locale):
+    def get_mozilla_dmg_url(self, base_url, product_name, release, locale):
         # Allow locale as both en-US and en_US.
         m = re_locale.search(locale)
         if m:
@@ -69,10 +69,10 @@ class MozillaURLProvider(Processor):
                                 m.group("region").upper())
         
         # Construct download directory URL.
-        build_dir = build.lower()
+        release_dir = release.lower()
         
         index_url = "/".join(
-            (base_url, product_name, "releases", build_dir, "mac", locale))
+            (base_url, product_name, "releases", release_dir, "mac", locale))
         #print >>sys.stderr, index_url
         
         # Read HTML index.
@@ -92,18 +92,18 @@ class MozillaURLProvider(Processor):
         
         # Return URL.
         return "/".join(
-            (base_url, product_name, "releases", build_dir, "mac", locale,
+            (base_url, product_name, "releases", release_dir, "mac", locale,
              m.group("filename")))
     
     def main(self):
-        # Determine product_name, build, locale, and base_url.
+        # Determine product_name, release, locale, and base_url.
         product_name = self.env["product_name"]
-        build = self.env.get("build", "latest")
+        release = self.env.get("release", "latest")
         locale = self.env.get("locale", "en_US")
         base_url = self.env.get("base_url", MOZ_BASE_URL)
         
         self.env["url"] = self.get_mozilla_dmg_url(
-                                        base_url, product_name, build, locale)
+                                        base_url, product_name, release, locale)
         self.output("Found URL %s" % self.env["url"])
     
 
