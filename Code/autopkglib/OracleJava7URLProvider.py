@@ -25,9 +25,9 @@ __all__ = ["OracleJava7URLProvider"]
 
 BASE_URL = "http://java.com/en/download/manual.jsp?locale=en"
 
-#<a title=" Download Java software for Mac OS X" href="http://javadl.sun.com/webapps/download/AutoDL?BundleId=75253">
+#<a title="Download Java software for Mac OS X" href="http://javadl.sun.com/webapps/download/AutoDL?BundleId=76905" onclick="var s=s_gi('sunjava'); s.tl(this,'d','Mac en JRE');">
 jre_download_link = re.compile(
-    r'<a title=" *Download Java software for Mac OS X" *href="(?P<url>http://javadl.sun.com/webapps/download/AutoDL\?BundleId=[0-9]+)">')
+    r'<a title=" *Download Java software for Mac OS X" *href="(?P<url>http://javadl.sun.com/webapps/download/AutoDL\?BundleId=[0-9]+)"')
 
 
 class OracleJava7URLProvider(Processor):
