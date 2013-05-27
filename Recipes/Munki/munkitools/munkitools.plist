@@ -54,7 +54,7 @@ Change the DOWNLOAD_URL to "http://munkibuilds.org/munkitools-latest.dmg" to get
             <key>Arguments</key>
             <dict>
                 <key>base_url</key>
-                <string>DOWNLOAD_URL</string>
+                <string>%DOWNLOAD_URL%</string>
             </dict>
         </dict>
         <dict>
