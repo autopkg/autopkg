@@ -28,6 +28,9 @@ from operator import itemgetter
 __all__ = ["SparkleUpdateInfoProvider"]
 
 XMLNS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+SUPPORTED_ADDITIONAL_PKGINFO_KEYS = ["description",
+                                     "minimum_os_version"
+                                     ]
 
 
 class SparkleUpdateInfoProvider(Processor):
@@ -46,14 +49,16 @@ class SparkleUpdateInfoProvider(Processor):
             "description": ("Dictionary of additional query pairs to include in request. "
                             "Manual url-encoding isn't necessary."),
         },
-        "copy_sparkle_description_to_pkginfo": {
+        "pkginfo_keys_to_copy_from_sparkle_feed": {
             "required": False,
-            "description": ("If this variable is set (to anything), the description from "
-                            "the appcast will be copied to the output additional_pkginfo. An admin "
-                            "may prefer to forego a changelog-like description and instead "
-                            "just give a general and consistent description for the app. "
-                            "In some cases, the description is actually a URL for custom use. "
-                            "Defaults to unset, ie. a description is _not_ copied to the pkginfo.")
+            "description": ("Array of pkginfo keys that will be derived from any available "
+                            "metadata from the Sparkle feed and copied to 'additional_pkginfo'. "
+                            "The usefulness of these keys will depend on the admin's environment "
+                            "and the nature of the metadata provided by the application vendor. "
+                            "Note that the 'description' is usually equivalent to 'release notes' "
+                            "for that specific version. Defaults to ['minimum_os_version']. "
+                            "Currently supported keys: %s." %
+                            ", ".join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS))
         }
     }
     output_variables = {
@@ -158,20 +163,29 @@ class SparkleUpdateInfoProvider(Processor):
             self.output("User-facing version retrieved from appcast: %s" % latest["human_version"])
 
         pkginfo = {}
-        # All we care is whether this is set to something
-        copy_description = self.env.get("copy_sparkle_description_to_pkginfo")
-        if copy_description:
+        # Handle any keys we may have defined
+        sparkle_pkginfo_keys = self.env.get("pkginfo_keys_to_copy_from_sparkle_feed")
+        if sparkle_pkginfo_keys:
+            for k in sparkle_pkginfo_keys:
+                if k not in SUPPORTED_ADDITIONAL_PKGINFO_KEYS:
+                    self.output("Key %s isn't a supported key to copy from the "
+                                "Sparkle feed, ignoring it." % k)
             # Format description
-            if "description_url" in latest.keys():
-                description = urllib2.urlopen(latest["description_url"]).read()
-            elif "description_data" in latest.keys():
-                description = "<html><body>" + latest["description_data"] + "</html></body>"
-            else:
-                description = ""
-            pkginfo["description"] = description = description.decode("UTF-8")
+            if "description" in sparkle_pkginfo_keys:
+                if "description_url" in latest.keys():
+                    description = urllib2.urlopen(latest["description_url"]).read()
+                elif "description_data" in latest.keys():
+                    description = "<html><body>" + latest["description_data"] + "</html></body>"
+                else:
+                    description = ""
+                pkginfo["description"] = description = description.decode("UTF-8")
 
-        if latest.get("minimum_os_version") is not None:
-            pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
+            if "minimum_os_version" in sparkle_pkginfo_keys:
+                if latest.get("minimum_os_version") is not None:
+                    pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
+            for copied_key in pkginfo.keys():
+                self.output("Copied key %s from Sparkle feed to additional pkginfo." %
+                            copied_key)
 
         self.env["url"] = latest["url"]
         self.output("Found URL %s" % self.env["url"])
