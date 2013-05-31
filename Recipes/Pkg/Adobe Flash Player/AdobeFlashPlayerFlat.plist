@@ -18,8 +18,6 @@ AdobeFlashDmgUnpacker must be fixed to get this recipe working again.</string>
         <dict>
             <key>Processor</key>
             <string>AdobeFlashURLProvider</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Processor</key>

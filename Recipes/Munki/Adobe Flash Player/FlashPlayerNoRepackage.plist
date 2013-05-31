@@ -36,8 +36,6 @@ it into Munki, pointing Munki at the embedded package at MAKEPKGINFO_PKGNAME.</s
         <dict>
             <key>Processor</key>
             <string>AdobeFlashURLProvider</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Processor</key>
@@ -51,8 +49,6 @@ it into Munki, pointing Munki at the embedded package at MAKEPKGINFO_PKGNAME.</s
         <dict>
             <key>Processor</key>
             <string>EndOfCheckPhase</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Arguments</key>

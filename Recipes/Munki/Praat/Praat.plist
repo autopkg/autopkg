@@ -31,8 +31,6 @@
         <dict>
             <key>Processor</key>
             <string>PraatURLProvider</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Processor</key>
@@ -46,8 +44,6 @@
         <dict>
             <key>Processor</key>
             <string>EndOfCheckPhase</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Processor</key>

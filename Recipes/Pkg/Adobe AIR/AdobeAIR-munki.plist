@@ -54,8 +54,6 @@ then imports it into Munki.</string>
         <dict>
             <key>Processor</key>
             <string>EndOfCheckPhase</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Comment</key>

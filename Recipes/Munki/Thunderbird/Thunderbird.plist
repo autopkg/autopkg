@@ -65,8 +65,6 @@ combination is offered.</string>
         <dict>
             <key>Processor</key>
             <string>EndOfCheckPhase</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Arguments</key>

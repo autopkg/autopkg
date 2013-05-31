@@ -57,12 +57,8 @@
         <dict>
             <key>Processor</key>
             <string>EndOfCheckPhase</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
-            <key>Arguments</key>
-            <dict/>
             <key>Processor</key>
             <string>MunkiPkginfoMerger</string>
         </dict>

@@ -298,7 +298,7 @@ class AutoPackager(object):
                 raise AutoPackagerError(
                         "Unknown processor '%s'" % step["Processor"])
             # Add arguments to set of variables.
-            variables.update(set(step["Arguments"].keys()))
+            variables.update(set(step.get("Arguments", dict()).keys()))
             # Make sure all required input variables exist.
             for key, flags in processor_class.input_variables.items():
                 if flags["required"] and (key not in variables):
@@ -340,7 +340,7 @@ class AutoPackager(object):
 
             processor_class = get_processor(step["Processor"])
             processor = processor_class(self.env)
-            processor.inject(step["Arguments"])
+            processor.inject(step.get("Arguments", dict()))
 
             input_dict = {}
             for key in processor.input_variables.keys():

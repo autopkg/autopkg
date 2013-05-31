@@ -63,16 +63,12 @@ default, 'latest'.</string>
             <string>AdobeAcrobatProUpdateInfoProvider</string>
         </dict>
         <dict>
-            <key>Arguments</key>
-            <dict/>
             <key>Processor</key>
             <string>URLDownloader</string>
         </dict>
         <dict>
             <key>Processor</key>
             <string>EndOfCheckPhase</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Processor</key>
@@ -99,8 +95,6 @@ default, 'latest'.</string>
             </dict>
         </dict>
         <dict>
-            <key>Arguments</key>
-            <dict/>
             <key>Processor</key>
             <string>MunkiPkginfoMerger</string>
         </dict>

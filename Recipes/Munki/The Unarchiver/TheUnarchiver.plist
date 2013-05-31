@@ -29,8 +29,6 @@
     <key>Process</key>
     <array>
         <dict>
-            <key>Arguments</key>
-            <dict/>
             <key>Processor</key>
             <string>TheUnarchiverURLProvider</string>
         </dict>
@@ -46,8 +44,6 @@
         <dict>
             <key>Processor</key>
             <string>EndOfCheckPhase</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Arguments</key>

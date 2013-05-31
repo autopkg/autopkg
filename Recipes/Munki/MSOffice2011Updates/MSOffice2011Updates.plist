@@ -75,14 +75,10 @@ the default value of "latest" retreives the latest.</string>
         <dict>
             <key>Processor</key>
             <string>URLDownloader</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Processor</key>
             <string>EndOfCheckPhase</string>
-            <key>Arguments</key>
-            <dict/>
         </dict>
         <dict>
             <key>Comment</key>
