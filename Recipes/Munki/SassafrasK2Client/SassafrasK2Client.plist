@@ -2,25 +2,28 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-<!-- Notes:
-- k2clientconfig options:
-  http://www.sassafras.com/hrl/7.0/k2clientconfigM.html
-  - you probably want at least "-s 2 -h <server_host> -l yes -g yes"
-  - "-c yes" means "include KeyCheckout"
-  - k2clientconfig sanity-checks only option letters, not proper syntax or acceptable values
-- using receipts only probably not sufficient, as the default is to _not_ install KeyCheckout
-  - we use an installs item generated from /Library/KeyAccess/KeyAccess.app, to handle either case of
-    a KeyCheckout install option
-- there are k2clientconfig options to kill keyaccess before installation, and to start it after,
-  implying we might not necessarily need a logout.
-  my testing shows that when these options are used, the installation is still not in a consistent state.
-  requiring a restart seems the only sane choice for now, but it should be further investigated.
-- it's annoying that Sassafras use two decimals in their mpkg versions (skipping the third) and use three
-  decimals everywhere else (webpage, actual bundle files, etc.). we let makepkginfo use the
-  package versions as-is.
+    <key>Description</key>
+    <string>Fetches the latest Sassafras KeyClient Mac installer and imports into
+Munki. We fetch the legacy bundle-style installer because it has support for
+a customized installation tool, 'k2clientconfig'.
 
--Tim
- -->
+K2CLIENTCONFIG_OPTIONS is a string that should be overridden with command-line
+options to the 'k2clientconfig' tool. No sanity checking is performed beyond
+what's done by k2clientconfig. The recipe includes one suggested default, more
+documentation here:
+http://www.sassafras.com/hrl/7.0/k2clientconfigM.html
+
+There are k2clientconfig options to kill KeyAccess before installation, and to
+start it after installation, implying we might not necessarily need a logout.
+Some testing shows that when these options are used, the installation is still
+not in a consistent state. Requiring a restart seems the only sane choice for now,
+but it should be further investigated.
+
+Sassafras uses two decimals in their mpkg versions (skipping the third) and
+use three decimals everywhere else (webpage, actual bundle files, etc.). We let
+makepkginfo use the package versions as-is. However, we use a separate installs
+item for KeyAccess.app, because the options passed to k2clientconfig may alter
+which packages are installed, and therefore the receipts array.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>

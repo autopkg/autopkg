@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>This recipe is currently broken. The TextMateURLProvider would need
+to be updated to specifically support the pre-2 version of TextMate,
+which is also unlikely to receive any more updates in the future.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
