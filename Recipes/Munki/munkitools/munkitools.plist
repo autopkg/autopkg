@@ -60,9 +60,6 @@ Change the DOWNLOAD_URL to "http://munkibuilds.org/munkitools-latest.dmg" to get
         <dict>
             <key>Processor</key>
             <string>URLDownloader</string>
-            <key>Arguments</key>
-            <dict>
-            </dict>
         </dict>
         <dict>
             <key>Processor</key>
