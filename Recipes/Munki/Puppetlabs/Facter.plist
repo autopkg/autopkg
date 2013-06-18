@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>Downloads the latest Facter using Puppet Labs' Mac download list at
+downloads.puppetlabs.com/mac, and imports into Munki.
+
+VERSION can be overridden with a specific version number, or left to
+the default, 'latest'.</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>

@@ -2,6 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>Description</key>
+    <string>Downloads the latest TextMate 2 and imports into Munki.
+
+The postinstall script symlinks the 'mate' command-line helper tool from
+the application bundle to /usr/local/bin/mate, the same path that TextMate2
+would install it to.
+
+BRANCH can be one of 'release' or 'beta', which correspond respectively
+to the 'Normal' and 'Nightly' options in TextMate 2's Software Update
+preferences panel.
+</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>

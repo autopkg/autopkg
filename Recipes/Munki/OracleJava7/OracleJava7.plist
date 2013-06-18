@@ -2,13 +2,22 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-<!-- A few notes on disabling update checks:
+    <key>Description</key>
+    <string>Downloads the latest Oracle Java 7 JRE and imports into Munki.
 
-http://www.itninja.com/question/java-7-update-11-insecure-version-prompt-with-upgrade-button
-https://forums.oracle.com/forums/thread.jspa?threadID=2488735&tstart=0
-http://macops.ca/everything-youll-wish-you-didnt-know-about-disabling-java-7-updates
+The package's receipt version is useless, so we make an installs item for
+the prefPane bundle, which has historically had consistent versioning.
+
+The included postinstall_script unloads and removes the Java-Updater
+LaunchAgent/Daemon combination's symlinks so that they aren't re-loaded.
+It also configures a system-wide default deployment.properties to disable
+the applet's own built-in update-checking mechanism.
+
+Additional resources for disabling updates:
 https://jamfnation.jamfsoftware.com/discussion.html?id=6489
--->
+http://macops.ca/everything-youll-wish-you-didnt-know-about-disabling-java-7-updates
+http://www.itninja.com/question/java-7-update-11-insecure-version-prompt-with-upgrade-button
+https://forums.oracle.com/forums/thread.jspa?threadID=2488735&amp;tstart=0</string>
     <key>Input</key>
     <dict>
         <key>IDENTIFIER</key>
