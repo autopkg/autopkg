@@ -22,7 +22,7 @@
             <key>description</key>
             <string>TextWrangler is the powerful general purpose text editor, and Unix and server administrator's tool. TextWrangler is the "little brother" to BBEdit, a leading professional HTML and text editor.</string>
             <key>display_name</key>
-            <string>BBEdit</string>
+            <string>TextWrangler</string>
             <key>name</key>
             <string>%NAME%</string>
             <key>postinstall_script</key>
