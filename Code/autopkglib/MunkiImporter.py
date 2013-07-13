@@ -60,6 +60,11 @@ class MunkiImporter(Processor):
                 "imported even if there is a matching pkg already in the "
                 "repo."),        
         },
+        "additional_makepkginfo_options": {
+            "required": False,
+            "description": ("Array of additional command-line options that will "
+                "be inserted when calling 'makepkginfo'.")
+        }
     }
     output_variables = {
         "pkginfo_repo_path": {
@@ -358,6 +363,8 @@ class MunkiImporter(Processor):
             args.extend(["--pkgname", self.env["munkiimport_pkgname"]])
         if self.env.get("munkiimport_appname"):
             args.extend(["--appname", self.env["munkiimport_appname"]])
+        if self.env.get("additional_makepkginfo_options"):
+            args.extend(self.env["additional_makepkginfo_options"])
         
         # Call makepkginfo.
         try:
