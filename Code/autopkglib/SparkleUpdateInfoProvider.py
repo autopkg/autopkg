@@ -124,9 +124,11 @@ class SparkleUpdateInfoProvider(Processor):
                 # URL-quote the path component to handle spaces, etc. (Panic apps do this)
                 url_bits = urlparse.urlsplit(enclosure.get("url"))
                 encoded_path = urllib.quote(url_bits.path)
-                item["url"] = url_bits.scheme + "://" + url_bits.netloc + encoded_path
+                built_url = url_bits.scheme + "://" + url_bits.netloc + encoded_path
+                if url_bits.query:
+                    built_url += "?" + url_bits.query
+                item["url"] = built_url
 
-                # item["url"] = urllib.quote(item["url"], safe=":")
                 item["version"] = enclosure.get("{%s}version" % XMLNS)
                 if item["version"] is None:
                     # Sparkle tries to guess a version from the download URL for rare cases
