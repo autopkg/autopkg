@@ -27,7 +27,7 @@ from operator import itemgetter
 
 __all__ = ["SparkleUpdateInfoProvider"]
 
-XMLNS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+DEFAULT_XMLNS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 SUPPORTED_ADDITIONAL_PKGINFO_KEYS = ["description",
                                      "minimum_os_version"
                                      ]
@@ -48,6 +48,12 @@ class SparkleUpdateInfoProvider(Processor):
             "required": False,
             "description": ("Dictionary of additional query pairs to include in request. "
                             "Manual url-encoding isn't necessary."),
+        },
+        "alternate_xmlns_url": {
+            "required": False,
+            "description": ("Alternate URL for the XML namespace, if the appcast is using "
+                            "an alternate one. Defaults to that used for 'vanilla' Sparkle "
+                            "appcasts."),
         },
         "pkginfo_keys_to_copy_from_sparkle_feed": {
             "required": False,
@@ -87,6 +93,12 @@ class SparkleUpdateInfoProvider(Processor):
         We store one or the other rather than doing many GETs for metadata we're never going to use.
         If it's a URL, this must be handled by whoever calls this function.
         """
+
+        # handle custom xmlns and version attributes
+        if "alternate_xmlns_url" in self.env:
+            xmlns = self.env["alternate_xmlns_url"]
+        else:
+            xmlns = DEFAULT_XMLNS
 
         # query string
         if "appcast_query_pairs" in self.env:
@@ -129,20 +141,31 @@ class SparkleUpdateInfoProvider(Processor):
                     built_url += "?" + url_bits.query
                 item["url"] = built_url
 
-                item["version"] = enclosure.get("{%s}version" % XMLNS)
+                item["version"] = enclosure.get("{%s}version" % xmlns)
                 if item["version"] is None:
                     # Sparkle tries to guess a version from the download URL for rare cases
                     # where there is no sparkle:version enclosure attribute, for the format:
                     # AppnameOrAnythingReally_1.2.3.zip
                     # https://github.com/andymatuschak/Sparkle/blob/master/SUAppcastItem.m#L153-L167
-                    item["version"] = os.path.basename(os.path.splitext(url)[0]).split("_")[1]
+                    #
+                    # We can even support OmniGroup's alternate appcast format by cheating
+                    # and using the '-' as a delimiter to derive version info
+                    filename = os.path.basename(os.path.splitext(item["url"])[0])
+                    for delimiter in ['_', '-']:
+                        if delimiter in filename:
+                            item["version"] = filename.split(delimiter)[-1]
+                            break
+                # if we still found nothing, fail
+                if item["version"] is None:
+                    raise ProcessorError("Can't extract version info from item in feed!")
+
                 human_version = item_elem.find("{%s}shortVersionString")
                 if human_version is not None:
                     item["human_version"] = human_version
-                min_version = item_elem.find("{%s}minimumSystemVersion" % XMLNS)
+                min_version = item_elem.find("{%s}minimumSystemVersion" % xmlns)
                 if min_version is not None:
                     item["minimum_os_version"] = min_version.text
-                description_elem = item_elem.find("{%s}releaseNotesLink" % XMLNS)
+                description_elem = item_elem.find("{%s}releaseNotesLink" % xmlns)
                 if description_elem is not None:
                     item["description_url"] = description_elem.text
                 if item_elem.find("description") is not None:
