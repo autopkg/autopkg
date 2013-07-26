@@ -19,7 +19,7 @@
                 <string>testing</string>
             </array>
             <key>description</key>
-            <string>he Unarchiver is a much more capable replacement for &quot;Archive Utility.app&quot;, the built-in archive unpacker program on Mac OS X.</string>
+            <string>The Unarchiver is a much more capable replacement for "Archive Utility.app", the built-in archive unpacker program on Mac OS X. The Unarchiver is designed to handle many more formats than Archive Utility, and to better fit in with the design of the Finder.</string>
             <key>display_name</key>
             <string>The Unarchiver</string>
             <key>name</key>
