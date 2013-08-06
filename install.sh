@@ -34,6 +34,7 @@ echo "Copying executable"
 cp Code/autopkg "$INSTALL_DIR/"
 rm -f /usr/local/bin/autopkg
 ln -s "$INSTALL_DIR/autopkg" /usr/local/bin/autopkg
+ln -s "$INSTALL_DIR/automunkiimport" /usr/local/bin/automunkiimport
 
 echo "Copying library"
 cp Code/autopkglib/*.py "$INSTALL_DIR/autopkglib/"
