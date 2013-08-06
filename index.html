@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Autopkg by autopkg</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
+    <script src="javascripts/scale.fix.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1 class="header">Autopkg</h1>
+        <p class="header">Automating tedious tasks since 2010!</p>
+
+        <ul>
+          <li class="download"><a class="buttons" href="https://github.com/autopkg/autopkg/zipball/master">Download ZIP</a></li>
+          <li class="download"><a class="buttons" href="https://github.com/autopkg/autopkg/tarball/master">Download TAR</a></li>
+          <li><a class="buttons github" href="https://github.com/autopkg/autopkg">View On GitHub</a></li>
+        </ul>
+
+        <p class="header">This project is maintained by <a class="header name" href="https://github.com/autopkg">autopkg</a></p>
+
+
+      </header>
+      <section>
+        <h1>
+<a name="autopkg" class="anchor" href="#autopkg"><span class="octicon octicon-link"></span></a>AutoPkg</h1>
+
+<p>AutoPkg is a system for automatically preparing software for distribution to
+managed clients. Recipes allow you to specify a series of simple actions which
+combined together can perform complex tasks, similar to Automator workflows or
+Unix pipes.</p>
+
+<p>See <a href="https://github.com/autopkg/autopkg/wiki#introduction">the wiki</a> for more information.</p>
+
+<h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
+
+<p>To install AutoPkg, unpack the distribution and run</p>
+
+<p><code>sudo ./install.sh</code></p>
+
+<p>This will set up a packaging server and a launchd job so regular users can create packages.</p>
+
+<h2>
+<a name="configuration" class="anchor" href="#configuration"><span class="octicon octicon-link"></span></a>Configuration</h2>
+
+<p>Set MUNKI_REPO in ~/Library/Preferences/com.googlecode.autopkg.plist if you want recipes to populate your munki repository. Has to be XML format for now as it's read with plistlib, and there's a sample file under Test/com.googlecode.autopkg.plist.</p>
+
+<h2>
+<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+<p><code>/Library/AutoPkg/autopkg recipe.plist</code></p>
+
+<h2>
+<a name="sample-recipes" class="anchor" href="#sample-recipes"><span class="octicon octicon-link"></span></a>Sample Recipes</h2>
+
+<p>A few recipes are included for your experimentation. The Munki directory contains recipes that import apps into a Munki repository. The Pkg directory contains recipes that create installer packages.</p>
+      </section>
+      <footer>
+        <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+      </footer>
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+		
+  </body>
+</html>
