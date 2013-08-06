@@ -6,6 +6,8 @@ managed clients. Recipes allow you to specify a series of simple actions which
 combined together can perform complex tasks, similar to Automator workflows or
 Unix pipes.
 
+See [the wiki](https://github.com/autopkg/autopkg/wiki#introduction) for more information.
+
 
 Installation
 ------------
