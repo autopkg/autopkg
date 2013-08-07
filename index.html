@@ -62,9 +62,17 @@ Unix pipes.</p>
 <p><code>/Library/AutoPkg/autopkg /path/to/recipe.plist</code></p>
 
 <h2>
-<a name="sample-recipes" class="anchor" href="#sample-recipes"><span class="octicon octicon-link"></span></a>Sample Recipes</h2>
+<a name="sample-recipes" class="anchor" href="#sample-recipes"><span class="octicon octicon-link"></span></a>Getting Recipes</h2>
 
-<p>A few recipes are included for your experimentation. The Munki directory contains recipes that import apps into a Munki repository. The Pkg directory contains recipes that create installer packages.</p>
+<p>No recipes are included with the base autopkg tools.</p>
+<p>There are many useful recipes at <a href="http://github.com/autopkg/recipes">http://github.com/autopkg/recipes</a>.</p>
+<p>Current recommendation (using Git):</p>
+<pre><code>
+	mkdir ~/Library/AutoPkg
+        cd ~/Library/AutoPkg
+        git clone http://github.com/autopkg/recipes Recipes
+</code></pre>
+<p>This clones the recipes repo into ~/Library/AutoPkg/Recipes, where automunkiimport will find them automatically.</p>
       </section>
       <footer>
         <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
