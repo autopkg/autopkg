@@ -52,12 +52,14 @@ Unix pipes.</p>
 <h2>
 <a name="configuration" class="anchor" href="#configuration"><span class="octicon octicon-link"></span></a>Configuration</h2>
 
-<p>Set MUNKI_REPO in ~/Library/Preferences/com.googlecode.autopkg.plist if you want recipes to populate your munki repository. Has to be XML format for now as it's read with plistlib, and there's a sample file under Test/com.googlecode.autopkg.plist.</p>
+<p>Set MUNKI_REPO in ~/Library/Preferences/com.googlecode.autopkg.plist if you want recipes to populate your munki repository.</p>
+
+<p><code>defaults write com.googlecode.autopkg MUNKI_REPO /path/to/your/munki/repo</code></p>
 
 <h2>
 <a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h2>
 
-<p><code>/Library/AutoPkg/autopkg recipe.plist</code></p>
+<p><code>/Library/AutoPkg/autopkg /path/to/recipe.plist</code></p>
 
 <h2>
 <a name="sample-recipes" class="anchor" href="#sample-recipes"><span class="octicon octicon-link"></span></a>Sample Recipes</h2>
