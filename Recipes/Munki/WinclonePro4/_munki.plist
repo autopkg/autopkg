@@ -10,7 +10,7 @@
         <key>IDENTIFIER</key>
         <string>com.github.keeleysam.autopkg.munki.WinclonePro4</string>
         <key>NAME</key>
-        <string>Winclone Pro 4</string>
+        <string>WinclonePro4</string>
         <key>MUNKI_REPO_SUBDIR</key>
         <string>apps</string>
         <key>USER_AGENT</key>
@@ -26,7 +26,7 @@
             <key>description</key>
             <string>Winclone Pro is a utility to image, clone, and restore Boot Camp partitions.</string>
             <key>display_name</key>
-            <string>Winclone Pro</string>
+            <string>Winclone Pro 4</string>
             <key>name</key>
             <string>%NAME%</string>
             <key>unattended_install</key>
