@@ -101,7 +101,9 @@ def valid_override(filename):
 
 
 def find_recipe(name, search_dirs, kind="default"):
-    '''Search search_dirs for a recipe'''
+    '''Search search_dirs for a recipe, first by file/directory
+    naming rules, then by the IDENTIFIER string'''
+    # search by "Name", using file/directory hierarchy rules
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         patterns  = [
@@ -116,6 +118,23 @@ def find_recipe(name, search_dirs, kind="default"):
             for match in matches:
                 if valid_recipe(match):
                     return match
+
+    # search by IDENTIFIER, trying to read every .plist file
+    # TODO: - refactor this so that we're trying only files matching
+    #         the file hierarchy rules (ie. not "resources"-type plists)
+    for directory in search_dirs:
+        for root, dirs, files in os.walk(os.path.abspath(os.path.expanduser(directory))):
+            for f in files:
+                if f.endswith(".plist"):
+                    fullpath = os.path.join(root, f)
+                    try:
+                        recipe_plist = plistlib.readPlist(fullpath)
+                    except BaseException as e:
+                        continue
+                    if "Input" in recipe_plist.keys():
+                        if recipe_plist["Input"].get("IDENTIFIER") == name:
+                            if valid_recipe(fullpath):
+                                return fullpath
     return None
 
 
