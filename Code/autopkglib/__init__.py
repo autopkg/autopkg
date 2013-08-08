@@ -25,7 +25,7 @@ import subprocess
 
 from Foundation import CFPreferencesCopyAppValue
 
-BUNDLE_ID = "com.googlecode.autopkg"
+BUNDLE_ID = "com.github.autopkg"
 LOCAL_OVERRIDE_KEY = "RecipeInputOverrides"
 
 SUPPORTED_PREFS = [
