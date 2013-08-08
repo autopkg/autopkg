@@ -164,7 +164,7 @@ class MunkiImporter(Processor):
                                 app_table[install['path']][app_version] = []
                             app_table[install['path']][app_version].append(
                                                                     itemindex)
-                except TypeError:
+                except (TypeError, KeyError):
                     # skip this item
                     continue
 
