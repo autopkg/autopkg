@@ -27,7 +27,8 @@ __all__ = ["Unarchiver"]
 EXTNS = {
     'zip': ['zip'],
     'tar_gzip': ['tar.gz', 'tgz'],
-    'tar_bzip2': ['tar.bz2', 'tbz']
+    'tar_bzip2': ['tar.bz2', 'tbz'],
+    'tar': ['tar']
 }
 
 class Unarchiver(Processor):
@@ -101,7 +102,7 @@ class Unarchiver(Processor):
                    "-k",
                    self.env['archive_path'],
                    self.env['destination_path']]
-        elif fmt.startswith("tar_"):
+        elif fmt.startswith("tar"):
             cmd = ["/usr/bin/tar",
                    "-x",
                    "-f",
