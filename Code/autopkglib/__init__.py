@@ -24,6 +24,7 @@ import re
 import subprocess
 
 from Foundation import CFPreferencesCopyAppValue
+from distutils.version import LooseVersion
 
 BUNDLE_ID = "com.github.autopkg"
 LOCAL_OVERRIDE_KEY = "RecipeInputOverrides"
@@ -210,6 +211,10 @@ class AutoPackager(object):
         self.env = env
         self.results = []
 
+        version_plist = plistlib.readPlist(
+            os.path.join(os.path.dirname(__file__), "version.plist"))
+        self.env["AUTOPKG_VERSION"] = version_plist["Version"]
+
     def output(msg, verbose_level=1):
         if self.verbose >= verbose_level:
             print msg
@@ -268,6 +273,13 @@ class AutoPackager(object):
 
     def verify(self, recipe):
         """Verify a recipe and check for errors."""
+
+        # Check for MinimumAutopkgVersion
+        if "MinimumVersion" in recipe.keys():
+            if LooseVersion(self.env["AUTOPKG_VERSION"]) < LooseVersion(recipe.get("MinimumVersion")):
+                raise AutoPackagerError(
+                        "Recipe requires at least version %s, but we are version %s."
+                        % (recipe.get("MinimumVersion"), self.env["AUTOPKG_VERSION"]))
 
         # Initialize variable set with input variables.
         variables = set(recipe["Input"].keys())

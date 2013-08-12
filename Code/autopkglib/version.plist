@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>MUNKI_REPO</key>
-	<string>/Users/Shared/munki/repo_root</string>
+	<key>Version</key>
+	<string>0.1.0</string>
 </dict>
 </plist>

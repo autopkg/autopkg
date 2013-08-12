@@ -23,7 +23,7 @@ from autopkglib import Processor, ProcessorError
 try:
     from autopkglib import BUNDLE_ID
 except ImportError:
-    BUNDLE_ID = "com.googlecode.autopkg"
+    BUNDLE_ID = "com.github.autopkg"
 
 
 __all__ = ["URLDownloader"]
