@@ -100,18 +100,17 @@ def valid_override(filename):
     return valid_plist_with_keys(filename, ["Input", "Recipe"])
 
 
-def find_recipe(name, search_dirs, kind="default"):
+def find_recipe(name, search_dirs, kind="pkg"):
     '''Search search_dirs for a recipe, first by file/directory
     naming rules, then by the IDENTIFIER string'''
     # search by "Name", using file/directory hierarchy rules
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         patterns  = [
-            os.path.join(normalized_dir, "%s.plist" % name),
-            os.path.join(normalized_dir, "%s/%s.plist" % (name, name)),
-            os.path.join(normalized_dir, "%s/_%s.plist" % (name, kind)),
-            os.path.join(normalized_dir, "%s/_default.plist" % name),
-            os.path.join(normalized_dir, "*/%s.plist" % name)
+            os.path.join(normalized_dir, "%s.%s.recipe" % (name, kind)),
+            os.path.join(normalized_dir, "%s.recipe" % name),
+            os.path.join(normalized_dir, "*/%s.%s.recipe" % (name, kind)),
+            os.path.join(normalized_dir, "*/%s.recipe" % name)
         ]
         for pattern in patterns:
             matches = glob.glob(pattern)
@@ -119,13 +118,12 @@ def find_recipe(name, search_dirs, kind="default"):
                 if valid_recipe(match):
                     return match
 
-    # search by IDENTIFIER, trying to read every .plist file
-    # TODO: - refactor this so that we're trying only files matching
-    #         the file hierarchy rules (ie. not "resources"-type plists)
+    # search by IDENTIFIER, trying to read every .recipe file
     for directory in search_dirs:
-        for root, dirs, files in os.walk(os.path.abspath(os.path.expanduser(directory))):
+        for root, dirs, files in os.walk(
+            os.path.abspath(os.path.expanduser(directory))):
             for f in files:
-                if f.endswith(".plist"):
+                if f.endswith(".recipe"):
                     fullpath = os.path.join(root, f)
                     try:
                         recipe_plist = plistlib.readPlist(fullpath)
@@ -138,7 +136,7 @@ def find_recipe(name, search_dirs, kind="default"):
     return None
 
 
-def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
+def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
     '''Loads a recipe. If the name contains a path seperator or a file
     extension , we assume the name is a pathname and attempt to load the
     override or recipe from the pathname.
@@ -146,7 +144,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
     directories, then the recipe directories for a matching recipe.
     If we find one, we load it and return the plist object (which should be
     functionally equivelent to a dictionary).'''
-
+    
     override = None
     if os.path.isfile(name):
         # name is path to a specific recipe or override file
@@ -165,12 +163,14 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="default"):
 
     if not override:
         # first look in override_dirs for name.plist
-        filename = name + ".plist"
         for directory in override_dirs:
             normalized_dir = os.path.abspath(os.path.expanduser(directory))
-            if filename in os.listdir(normalized_dir):
-                pathname = os.path.join(normalized_dir, filename)
-                if valid_override(pathname):
+            search_names  = [
+                os.path.join(normalized_dir, "%s.%s.recipe" % (name, kind)),
+                os.path.join(normalized_dir, "%s.recipe" % name),
+            ]
+            for pathname in search_names:
+                if os.path.exists(pathname) and valid_override(pathname):
                     override = plistlib.readPlist(pathname)
                     name = override['Recipe'].get("name")
                     kind = override['Recipe'].get("kind", "default")
@@ -438,7 +438,7 @@ def main(argv):
 
     if options.recipe_info:
         if get_recipe_info(recipe_paths[0],
-                options.override_dirs, options.search_dirs, kind="munki"):
+                options.override_dirs, options.search_dirs, kind=recipe_kind):
             return 0
         else:
             log_err("Can't find recipe %s" % recipe_paths[0])
