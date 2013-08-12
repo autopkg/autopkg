@@ -467,7 +467,8 @@ def main(argv):
         override_plist["Input"] = recipe["Input"]
 
         override_out_file = os.path.expanduser(
-            os.path.join(options.override_dirs[0], "%s.plist" % override_name))
+            os.path.join(options.override_dirs[0], 
+                        "%s.%s.recipe" % (override_name, recipe_kind)))
         if os.path.exists(override_out_file):
             log_err("An override plist already exists at %s, "
                     "will not overwrite it." % override_out_file)
