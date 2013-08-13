@@ -16,7 +16,7 @@
 
 
 from autopkglib import Processor, ProcessorError
-import plistlib
+import FoundationPlist
 
 
 __all__ = ["PlistEditor"]
@@ -53,14 +53,14 @@ class PlistEditor(Processor):
         if not pathname:
             return {}
         try:
-            return plistlib.readPlist(pathname)
+            return FoundationPlist.readPlist(pathname)
         except Exception, err:
             raise ProcessorError(
                 'Could not read %s: %s' % (pathname, err))
         
     def writePlist(self, data, pathname):
         try:
-            plistlib.writePlist(data, pathname)
+            FoundationPlist.writePlist(data, pathname)
         except Exception, err:
             raise ProcessorError(
                 'Could not write %s: %s' % (pathname, err))

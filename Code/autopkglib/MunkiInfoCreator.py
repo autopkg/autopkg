@@ -17,7 +17,7 @@
 
 import os.path
 import subprocess
-import plistlib
+import FoundationPlist
 import shutil
 import tempfile
 
@@ -102,7 +102,7 @@ class MunkiInfoCreator(Processor):
                 shutil.rmtree(temp_path)
         
         # Read output plist.
-        output = plistlib.readPlistFromString(out)
+        output = FoundationPlist.readPlistFromString(out)
         
         # Set version and name.
         if "version" in self.env:
@@ -113,7 +113,7 @@ class MunkiInfoCreator(Processor):
         # Save info.
         self.env["munki_info"] = output
         if "info_path" in self.env:
-            plistlib.writePlist(output, self.env["info_path"])
+            FoundationPlist.writePlist(output, self.env["info_path"])
     
 
 if __name__ == '__main__':

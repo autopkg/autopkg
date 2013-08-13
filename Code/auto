@@ -20,7 +20,7 @@ import glob
 import sys
 import os
 import optparse
-import plistlib
+import FoundationPlist
 import pprint
 import subprocess
 import time
@@ -74,7 +74,7 @@ def valid_plist_with_keys(filename, keys_to_verify):
     keys_to_verify exist. Returns False on any failure, True otherwise.'''
     try:
         # make sure we can read it
-        recipe_plist = plistlib.readPlist(filename)
+        recipe_plist = FoundationPlist.readPlist(filename)
     except (IOError, OSError), err:
         log_err("WARNING: could not read plist at %s: %s" % (filename, err))
         return False
@@ -126,7 +126,7 @@ def find_recipe(name, search_dirs, kind="pkg"):
                 if f.endswith(".recipe"):
                     fullpath = os.path.join(root, f)
                     try:
-                        recipe_plist = plistlib.readPlist(fullpath)
+                        recipe_plist = FoundationPlist.readPlist(fullpath)
                     except BaseException as e:
                         continue
                     if "Input" in recipe_plist.keys():
@@ -151,13 +151,13 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
         # ignore override and recipe directories and kind
         # and attempt to open the file specified by name
         if valid_override(name):
-            override = plistlib.readPlist(name)
+            override = FoundationPlist.readPlist(name)
             override["OVERRIDE_PATH"] = os.path.abspath(name)
             name = override['Recipe'].get("name")
             kind = override['Recipe'].get("kind", "default")
             # fall through to get the actual recipe
         elif valid_recipe(name):
-            recipe = plistlib.readPlist(name)
+            recipe = FoundationPlist.readPlist(name)
             recipe["RECIPE_PATH"] = os.path.abspath(name)
             return recipe
 
@@ -171,7 +171,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
             ]
             for pathname in search_names:
                 if os.path.exists(pathname) and valid_override(pathname):
-                    override = plistlib.readPlist(pathname)
+                    override = FoundationPlist.readPlist(pathname)
                     name = override['Recipe'].get("name")
                     kind = override['Recipe'].get("kind", "default")
                     override["OVERRIDE_PATH"] = os.path.abspath(pathname)
@@ -181,7 +181,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
     if name:
         recipe_path = find_recipe(name, recipe_dirs, kind)
         if recipe_path:
-            recipe = plistlib.readPlist(recipe_path)
+            recipe = FoundationPlist.readPlist(recipe_path)
             # apply overrides
             if override:
                 recipe["OVERRIDE_PATH"] = override["OVERRIDE_PATH"]
@@ -225,7 +225,7 @@ def list_recipes(override_dirs, search_dirs):
             if filename.endswith(".plist"):
                 pathname = os.path.join(normalized_dir, filename)
                 if valid_override(pathname):
-                    override = plistlib.readPlist(pathname)
+                    override = FoundationPlist.readPlist(pathname)
                     name = override['Recipe'].get("name")
                     kind = override['Recipe'].get("kind", "default")
                     # find and validate recipe that will be overridden
@@ -474,7 +474,7 @@ def main(argv):
                     "will not overwrite it." % override_out_file)
             return 1
         else:
-            plistlib.writePlist(override_plist, override_out_file)
+            FoundationPlist.writePlist(override_plist, override_out_file)
             log("Override file saved to %s." % override_out_file)
             return 0
             
@@ -484,7 +484,7 @@ def main(argv):
 
     run_results = []
     try:
-        plistlib.writePlist(run_results, current_run_results_plist)
+        FoundationPlist.writePlist(run_results, current_run_results_plist)
     except IOError as e:
         log_err(
             "Can't write results to %s: %s" 
@@ -539,7 +539,7 @@ def main(argv):
 
         run_results.append(autopackager.results)
         try:
-            plistlib.writePlist(run_results, current_run_results_plist)
+            FoundationPlist.writePlist(run_results, current_run_results_plist)
         except IOError as e:
             log_err(
                 "Can't write results to %s: %s" 
@@ -559,7 +559,7 @@ def main(argv):
 
         receipt_path = os.path.join(receipt_dir, receipt_name)
         try:
-            plistlib.writePlist(autopackager.results, receipt_path)
+            FoundationPlist.writePlist(autopackager.results, receipt_path)
             if options.verbose:
                 log("Receipt written to %s" % receipt_path)
         except IOError as e:
@@ -621,7 +621,7 @@ def main(argv):
         results_report = {}
         for event_type in ["failures", "new_downloads", "new_imports"]:
             results_report[event_type] = locals()[event_type]
-        print plistlib.writePlistToString(results_report)
+        print FoundationPlist.writePlistToString(results_report)
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))

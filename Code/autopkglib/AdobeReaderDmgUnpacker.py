@@ -16,7 +16,7 @@
 
 
 import os
-import plistlib
+import FoundationPlist
 import tempfile
 import shutil
 import zipfile
@@ -60,7 +60,7 @@ class AdobeReaderDmgUnpacker(DmgMounter):
         """Read version from Info.plist."""
         
         try:
-            info = plistlib.readPlist(path)
+            info = FoundationPlist.readPlist(path)
             return info["CFBundleShortVersionString"]
         except BaseException as e:
             raise ProcessorError(e)

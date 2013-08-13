@@ -17,7 +17,7 @@
 
 import os.path
 import socket
-import plistlib
+import FoundationPlist
 
 from autopkglib import Processor, ProcessorError
 
@@ -97,7 +97,7 @@ class PkgCreator(Processor):
             raise ProcessorError("Couldn't connect to autopkgserver: %s" % e.strerror)
     
     def send_request(self, request):
-        self.socket.send(plistlib.writePlistToString(request))
+        self.socket.send(FoundationPlist.writePlistToString(request))
         with os.fdopen(self.socket.fileno()) as f:
             reply = f.read()
         

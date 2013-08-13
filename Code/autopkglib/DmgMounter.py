@@ -16,7 +16,7 @@
 
 
 import subprocess
-import plistlib
+import FoundationPlist
 
 from autopkglib import Processor, ProcessorError
 
@@ -55,7 +55,7 @@ class DmgMounter(Processor):
             raise ProcessorError("mounting %s failed: %s" % (pathname, err))
         
         # Read output plist.
-        output = plistlib.readPlistFromString(out)
+        output = FoundationPlist.readPlistFromString(out)
         
         # Find mount point.
         for part in output["system-entities"]:

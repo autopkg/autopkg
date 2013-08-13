@@ -18,12 +18,14 @@ import os
 import sys
 
 import imp
-import plistlib
+import FoundationPlist
 import pprint
 import re
 import subprocess
 
-from Foundation import CFPreferencesCopyAppValue
+from Foundation import CFPreferencesCopyAppValue, \
+                       NSArray, \
+                       NSDictionary
 from distutils.version import LooseVersion
 
 BUNDLE_ID = "com.github.autopkg"
@@ -62,18 +64,20 @@ def update_data(a_dict, key, value):
         
     def do_variable_substitution(item):
         """Do variable substitution for item"""
-        if isinstance(item, str):
+        if isinstance(item, basestring):
             try:
                 item = re_keyref.sub(getdata, item)
             except KeyError, err:
                 print >> sys.stderr, (
                     "Use of undefined key in variable substitution: %s"
                     % err)
-        elif isinstance(item, list):
+        elif isinstance(item, (list, NSArray)):
             for index in range(len(item)):
                 item[index] = do_variable_substitution(item[index])
-        elif isinstance(item, dict):
-            for key, value in item.iteritems():
+        elif isinstance(item, (dict, NSDictionary)):
+            # ObjC-bridged objects don't like to be modified while being iterated over
+            dict_copy = item.copy()
+            for key, value in dict_copy.iteritems():
                 item[key] = do_variable_substitution(value)
         return item
     
@@ -124,7 +128,7 @@ class Processor(object):
         try:
             indata = self.infile.read()
             if indata:
-                self.env = plistlib.readPlistFromString(indata)
+                self.env = FoundationPlist.readPlistFromString(indata)
             else:
                 self.env = dict()
         except BaseException as e:
@@ -137,7 +141,7 @@ class Processor(object):
             return
         
         try:
-            plistlib.writePlist(self.env, self.outfile)
+            FoundationPlist.writePlist(self.env, self.outfile)
         except BaseException as e:
             raise ProcessorError(e)
     
@@ -211,7 +215,7 @@ class AutoPackager(object):
         self.env = env
         self.results = []
 
-        version_plist = plistlib.readPlist(
+        version_plist = FoundationPlist.readPlist(
             os.path.join(os.path.dirname(__file__), "version.plist"))
         self.env["AUTOPKG_VERSION"] = version_plist["Version"]
 

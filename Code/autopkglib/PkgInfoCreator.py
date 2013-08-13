@@ -17,7 +17,7 @@
 
 import os.path
 import subprocess
-import plistlib
+import FoundationPlist
 import math
 from xml.etree import ElementTree
 
@@ -143,7 +143,7 @@ class PkgInfoCreator(Processor):
         if template_path.endswith(".plist"):
             # Try to load Info.plist in bundle format.
             try:
-                info = plistlib.readPlist(self.env['template_path'])
+                info = FoundationPlist.readPlist(self.env['template_path'])
             except BaseException as e:
                 raise ProcessorError("Malformed Info.plist template %s" % self.env['template_path'])
             if template_type == "bundle":
@@ -209,7 +209,7 @@ class PkgInfoCreator(Processor):
         info["IFPkgFlagInstalledSize"] = size
         
         try:
-            plistlib.writePlist(info, self.env['infofile'])
+            FoundationPlist.writePlist(info, self.env['infofile'])
         except BaseException as e:
             raise ProcessorError("Couldn't write %s: %s" % (self.env['infofile'], e))
     
