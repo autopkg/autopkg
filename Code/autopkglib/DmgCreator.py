@@ -64,7 +64,7 @@ class DmgCreator(Processor):
             raise ProcessorError("creation of %s failed: %s" % (self.env['dmg_path'], err))
         
         # Read output plist.
-        #output = plistlib.readPlistFromString(out)
+        #output = FoundationPlist.readPlistFromString(out)
         self.output("Created dmg from %s at %s" 
             % (self.env['dmg_root'], self.env['dmg_path']))
 

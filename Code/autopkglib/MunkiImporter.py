@@ -17,7 +17,7 @@
 
 import os
 import subprocess
-import plistlib
+import FoundationPlist
 import shutil
 
 from distutils import version
@@ -96,7 +96,7 @@ class MunkiImporter(Processor):
             catalogitems = []
         else:
             try:
-                catalogitems = plistlib.readPlist(all_items_path)
+                catalogitems = FoundationPlist.readPlist(all_items_path)
             except OSError, err:
                 raise ProcessorError(
                     "Error reading 'all' catalog from Munki repo: %s" % err)
@@ -349,7 +349,7 @@ class MunkiImporter(Processor):
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
         try:
-            plistlib.writePlist(pkginfo, pkginfo_path)
+            FoundationPlist.writePlist(pkginfo, pkginfo_path)
         except OSError, err:
             raise ProcessorError("Could not write pkginfo %s: %s"
                                  % (pkginfo_path, err.strerror))
@@ -381,7 +381,7 @@ class MunkiImporter(Processor):
                 % (self.env["pkg_path"], err_out))
         
         # Get pkginfo from output plist.
-        pkginfo = plistlib.readPlistFromString(out)
+        pkginfo = FoundationPlist.readPlistFromString(out)
         
         # check to see if this item is already in the repo
         matchingitem = self.findMatchingItemInRepo(pkginfo)

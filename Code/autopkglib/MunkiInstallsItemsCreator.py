@@ -15,7 +15,7 @@
 # limitations under the License.
 
 
-import plistlib
+import FoundationPlist
 import subprocess
 
 from autopkglib import Processor, ProcessorError
@@ -69,7 +69,7 @@ class MunkiInstallsItemsCreator(Processor):
                 "creating pkginfo failed: %s" % err)
 
         # Get pkginfo from output plist.
-        pkginfo = plistlib.readPlistFromString(out)
+        pkginfo = FoundationPlist.readPlistFromString(out)
         installs_array = pkginfo.get("installs", [])
         
         if faux_root:

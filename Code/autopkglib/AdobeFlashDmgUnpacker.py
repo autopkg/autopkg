@@ -16,7 +16,7 @@
 
 
 import os
-import plistlib
+import FoundationPlist
 import tempfile
 import shutil
 import subprocess
@@ -55,7 +55,7 @@ class AdobeFlashDmgUnpacker(DmgMounter):
         """Read Contents/Info.plist inside a bundle."""
         
         try:
-            info = plistlib.readPlist(os.path.join(path, "Contents", "Info.plist"))
+            info = FoundationPlist.readPlist(os.path.join(path, "Contents", "Info.plist"))
         except BaseException as e:
             raise ProcessorError(e)
         
