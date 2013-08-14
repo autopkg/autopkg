@@ -176,7 +176,7 @@ class Packager(object):
         self.log.info("Package root copied to %s" % self.tmp_pkgroot)
     
     def apply_chown(self):
-        """Change owner and group."""
+        """Change owner and group, and permissions if the 'mode' key was set."""
         
         self.log.debug("Applying chown")
         
@@ -226,8 +226,17 @@ class Packager(object):
                      str(entry.group)))
             
             chownpath = os.path.join(self.tmp_pkgroot, entry.path)
+            if "mode" in entry.keys():
+                chmod_present = True
+            else:
+                chmod_present = False
             if os.path.isfile(chownpath):
                 os.lchown(chownpath, uid, gid)
+                if chmod_present:
+                    self.log.info("Setting mode of %s to %s" % (
+                        entry.path,
+                        str(entry.mode)))
+                    os.chmod(chownpath, int(entry.mode, 8))
             else:
                 for (dirpath,
                      dirnames,
@@ -240,6 +249,8 @@ class Packager(object):
                         path = os.path.join(dirpath, entry)
                         try:
                             os.lchown(path, uid, gid)
+                            if chmod_present:
+                                os.chmod(path, int(entry.mode, 8))
                         except OSError as e:
                             raise PackagerError("Can't lchown %s: %s" % (path, e))
         
