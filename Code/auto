@@ -129,7 +129,7 @@ def find_recipe(name, search_dirs, kind="pkg"):
                     fullpath = os.path.join(root, f)
                     try:
                         recipe_plist = FoundationPlist.readPlist(fullpath)
-                    except BaseException as e:
+                    except FoundationPlist.FoundationPlistException:
                         continue
                     if "Input" in recipe_plist.keys():
                         if recipe_plist["Input"].get("IDENTIFIER") == name:
@@ -183,7 +183,10 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
     if name:
         recipe_path = find_recipe(name, recipe_dirs, kind)
         if recipe_path:
-            recipe = FoundationPlist.readPlist(recipe_path)
+            try:
+                recipe = FoundationPlist.readPlist(recipe_path)
+            except FoundationPlist.FoundationPlistException:
+                return None
             # apply overrides
             if override:
                 recipe["OVERRIDE_PATH"] = override["OVERRIDE_PATH"]
