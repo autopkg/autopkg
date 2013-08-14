@@ -33,7 +33,8 @@ class PkgCreator(Processor):
     input_variables = {
         "pkg_request": {
             "required": True,
-            "description": "A package request dictionary."
+            "description": ("A package request dictionary. See "
+                            "Code/autopkgserver/autopkgserver for more details.")
         },
     }
     output_variables = {

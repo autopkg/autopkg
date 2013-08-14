@@ -38,7 +38,7 @@ class PkgRootCreator(Processor):
         "pkgdirs": {
             "required": True,
             "description": ("A dictionary of directories to be created "
-                "inside the pkgroot, with their modes."),
+                "inside the pkgroot, with their modes in octal form."),
         }
     }
     output_variables = {

@@ -89,6 +89,7 @@ Request format:
                             allowed in the path.
                     user    A string with a user name, or an int with a uid.
                     group   A string with a group name, or an int with a gid.
+                    mode    A string with the mode in octal notation, ie. '0755'
 
 """
 
