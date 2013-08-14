@@ -24,13 +24,16 @@ import FoundationPlist
 import pprint
 import subprocess
 import time
+from urlparse import urlparse
 
 from xml.parsers.expat import ExpatError
 
 from autopkglib import get_pref, get_all_prefs
+from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
 
 _REPORT_PLIST = False
+
 
 def log(msg, error=False):
     '''Message logger, prints to stdout/stderr and suppress stdout
@@ -40,9 +43,11 @@ def log(msg, error=False):
     elif not _REPORT_PLIST and not error:
         print >> sys.stdout, msg
 
+
 def log_err(msg):
     '''Message logger for errors.'''
     log(msg, error=True)
+
 
 def recipe_has_step_processor(recipe, processor):
     '''Does the recipe object contain at least one step with the
@@ -154,7 +159,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
             override = FoundationPlist.readPlist(name)
             override["OVERRIDE_PATH"] = os.path.abspath(name)
             name = override['Recipe'].get("name")
-            kind = override['Recipe'].get("kind", "default")
+            kind = override['Recipe'].get("kind", "pkg")
             # fall through to get the actual recipe
         elif valid_recipe(name):
             recipe = FoundationPlist.readPlist(name)
@@ -193,7 +198,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
     return None
 
 
-def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="default"):
+def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="pkg"):
     '''Loads a recipe, then prints some information about it. Override aware.'''
     recipe = load_recipe(recipe_name, override_dirs, recipe_dirs, kind=kind)
     if recipe:
@@ -222,12 +227,12 @@ def list_recipes(override_dirs, search_dirs):
     for directory in override_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         for filename in os.listdir(normalized_dir):
-            if filename.endswith(".plist"):
+            if filename.endswith(".recipe"):
                 pathname = os.path.join(normalized_dir, filename)
                 if valid_override(pathname):
                     override = FoundationPlist.readPlist(pathname)
                     name = override['Recipe'].get("name")
-                    kind = override['Recipe'].get("kind", "default")
+                    kind = override['Recipe'].get("kind", "pkg")
                     # find and validate recipe that will be overridden
                     recipe_path = find_recipe(name, search_dirs, kind)
                     if recipe_path and valid_recipe(recipe_path):
@@ -237,28 +242,75 @@ def list_recipes(override_dirs, search_dirs):
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         # find all top-level recipes
-        matches = glob.glob(os.path.join(normalized_dir, "*.plist"))
+        matches = glob.glob(os.path.join(normalized_dir, "*.recipe"))
         for match in matches:
             if valid_recipe(match):
                 basename = os.path.basename(match)
                 recipes.add(os.path.splitext(basename)[0])
 
         # look for recipes one level down
-        matches = glob.glob(os.path.join(normalized_dir, "*/*.plist"))
+        matches = glob.glob(os.path.join(normalized_dir, "*/*.recipe"))
         for match in matches:
             if valid_recipe(match):
                 recipe_name = os.path.basename(match)
-                if recipe_name.startswith("_"):
-                    # recipe variation or "kind"
-                    # use the dirname
-                    dirname = os.path.dirname(match)
-                    recipe_name = os.path.basename(dirname)
-
                 # get rid of file extension
                 recipe_name = os.path.splitext(recipe_name)[0]
                 recipes.add(recipe_name)
 
     return sorted(list(recipes))
+
+
+def get_recipe_repo(git_path):
+    """git clone git_path to local disk and return local path"""
+    
+    # figure out a local directory name to clone to
+    parts = urlparse(git_path)
+    domain_and_port = parts.netloc
+    # discard port if any
+    domain = domain_and_port.split(':')[0]
+    reverse_domain = '.'.join(reversed(domain.split('.')))
+    # discard file extension if any
+    url_path = os.path.splitext(parts.path)[0]
+    dest_name = reverse_domain + url_path.replace('/', '.')
+    recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or 
+                       os.path.expanduser("~/Library/AutoPkg/RecipeRepos"))
+    dest_dir = os.path.join(recipe_repo_dir, dest_name)
+    
+    if os.path.exists(dest_dir):
+        # probably should attempt a git pull
+        if os.path.exists(os.path.join(dest_name, '.git')):
+            cmd = ['/usr/bin/git', 'pull']
+            try:
+                proc = subprocess.Popen(
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    cwd=dest_name)
+                (cmd_out, cmd_err) = proc.communicate()
+            except OSError as err:
+                log_err("git execution failed with error code %d: %s"
+                        % (err.errno, err.strerror))
+                return None
+            if proc.returncode != 0:
+                log_err("git failed: %s" % cmd_err)
+                return None
+            else:
+                log(cmd_out)
+                return dest_dir
+    else:
+        cmd = ['/usr/bin/git', 'clone', git_path, dest_dir]
+        try:
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            (cmd_out, cmd_err) = proc.communicate()
+        except OSError as err:
+            log_err("git execution failed with error code %d: %s"
+                    % (err.errno, err.strerror))
+            return None
+        if proc.returncode != 0:
+            log_err("git failed: %s" % cmd_err)
+        else:
+            log(cmd_out)
+            return dest_dir
+    return None
 
 
 def makecatalogs(repo_path):
@@ -289,6 +341,11 @@ def print_new_imports(new_imports):
         log("    %-24s %-16s %-32s %s" % (
             item["name"], item["version"], ", ".join(item["catalogs"]),
             item["pkginfo_path"].partition("pkgsinfo/")[2]))
+            
+def print_info(options, arguments):
+    """Eventually will print some information about the tool
+    and environment. For now, just print the current prefs"""
+    pprint.pprint(get_all_prefs())
 
 
 def main(argv):
@@ -296,7 +353,7 @@ def main(argv):
     p = optparse.OptionParser()
     p.set_usage("Usage: %prog verb [options] [recipe ...]")
     
-    supported_verbs = ["help", "package", "munkiimport", "get-recipes"]
+    supported_verbs = ["help", "package", "munkiimport", "get-recipes", "info"]
     verb = argv[1]
     if verb.startswith("-"):
         # option instead
@@ -405,13 +462,37 @@ def main(argv):
         cli_values["PKG"] = options.pkg
 
     if verb == "munkiimport":
-         # prefer 'munki' kind, but this will fall back to _default, etc.
+         # prefer 'munki' kind, but this will fall back to plain .recipe
          recipe_kind = "munki"
-    elif verb == "package":
+    elif verb == "package" or verb == 'pkg':
          recipe_kind = "pkg"
     else:
         # default to pkg kind
         recipe_kind = "pkg"
+        
+    if verb == "info":
+        print_info(options, arguments)
+        exit(0)
+
+    if verb == "get-recipes":
+        new_recipe_repo_dir = get_recipe_repo(arguments[0])
+        if new_recipe_repo_dir:
+            # convert to Python-native list so it's not an immutable object
+            # otherwise our changes will be silently discarded and make
+            # us crazy
+            recipe_search_dirs = list(get_pref("RECIPE_SEARCH_DIRS") or 
+                                  default_search_dirs)
+            if not new_recipe_repo_dir in recipe_search_dirs:
+                log("Adding %s to RECIPE_SEARCH_DIRS..." % new_recipe_repo_dir)
+                recipe_search_dirs.append(new_recipe_repo_dir)
+                try:
+                    set_pref("RECIPE_SEARCH_DIRS", recipe_search_dirs)
+                except PreferenceError, err:
+                    log_err(err)
+                    exit(-1)
+                log("Recipe search path is: %s" 
+                                        % get_pref("RECIPE_SEARCH_DIRS"))
+        exit(0)
 
     # so that log() can make use of it
     global _REPORT_PLIST

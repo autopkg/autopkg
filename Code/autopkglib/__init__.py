@@ -23,9 +23,10 @@ import pprint
 import re
 import subprocess
 
-from Foundation import CFPreferencesCopyAppValue, \
-                       NSArray, \
-                       NSDictionary
+from Foundation import NSArray, NSDictionary
+from CoreFoundation import CFPreferencesCopyAppValue, CFPreferencesSetAppValue
+from CoreFoundation import CFPreferencesAppSynchronize
+
 from distutils.version import LooseVersion
 
 BUNDLE_ID = "com.github.autopkg"
@@ -35,16 +36,33 @@ SUPPORTED_PREFS = [
     "MUNKI_REPO",
     "CACHE_DIR",
     "RECIPE_SEARCH_DIRS",
-    "RECIPE_OVERRIDE_DIRS"
+    "RECIPE_OVERRIDE_DIRS",
+    "RECIPE_REPO_DIR"
 ]
 
 re_keyref = re.compile(r'%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%')
 
+class PreferenceError(Exception):
+    """Preference exception"""
+    pass
+
+
 def get_pref(key, domain=BUNDLE_ID):
     """Return a single pref value (or None) for a domain."""
-    if CFPreferencesCopyAppValue(key, domain):
-        return CFPreferencesCopyAppValue(key, domain)
-    return None
+    return CFPreferencesCopyAppValue(key, domain) or None
+
+
+def set_pref(key, value, domain=BUNDLE_ID):
+    """Sets a preference for domain"""
+    try:
+        CFPreferencesSetAppValue(key, value, domain)
+        if not CFPreferencesAppSynchronize(domain):
+            raise PreferenceError(
+                "Could not synchronize %s preference: %s" % key)
+    except Exception, err:
+        raise PreferenceError(
+            "Could not set %s preference: %s" % (key, err))
+
 
 def get_all_prefs(domain=BUNDLE_ID):
     """Return a dict (or an empty dict) with the contents of all
@@ -54,6 +72,7 @@ def get_all_prefs(domain=BUNDLE_ID):
         if get_pref(key, domain=BUNDLE_ID):
             prefs[key] = get_pref(key, domain=BUNDLE_ID)
     return prefs
+
 
 def update_data(a_dict, key, value):
     """Update a_dict keys with value. Existing data can be referenced
