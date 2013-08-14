@@ -2,7 +2,7 @@
 
 
 INSTALL_DIR="/Library/AutoPkg"
-LAUNCH_DAEMON="/Library/LaunchDaemons/com.googlecode.autopkgserver.plist"
+LAUNCH_DAEMON="/Library/LaunchDaemons/com.github.autopkg.autopkgserver.plist"
 
 
 if [ `id -u` -ne 0 ]; then
@@ -32,12 +32,13 @@ mkdir -m 0755 "$INSTALL_DIR/autopkgserver"
 
 echo "Copying executable"
 cp Code/autopkg "$INSTALL_DIR/"
-rm -f /usr/local/bin/autopkg
-ln -s "$INSTALL_DIR/autopkg" /usr/local/bin/autopkg
-ln -s "$INSTALL_DIR/automunkiimport" /usr/local/bin/automunkiimport
+cp Code/automunkiimport "$INSTALL_DIR/"
+ln -sf "$INSTALL_DIR/autopkg" /usr/local/bin/autopkg
+ln -sf "$INSTALL_DIR/automunkiimport" /usr/local/bin/automunkiimport
 
 echo "Copying library"
 cp Code/autopkglib/*.py "$INSTALL_DIR/autopkglib/"
+cp Code/autopkglib/version.plist "$INSTALL_DIR/autopkglib/"
 
 echo "Copying server"
 cp Code/autopkgserver/autopkgserver "$INSTALL_DIR/autopkgserver/"
