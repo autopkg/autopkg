@@ -80,11 +80,8 @@ def valid_plist_with_keys(filename, keys_to_verify):
     try:
         # make sure we can read it
         recipe_plist = FoundationPlist.readPlist(filename)
-    except (IOError, OSError), err:
-        log_err("WARNING: could not read plist at %s: %s" % (filename, err))
-        return False
-    except ExpatError:
-        log_err("WARNING: invalid plist at %s" % filename)
+    except FoundationPlist.FoundationPlistException, err:
+        log_err("WARNING: plist error for %s: %s" % (filename, err))
         return False
     for key in keys_to_verify:
         if not key in recipe_plist:
@@ -607,7 +604,7 @@ def main(argv):
         autopackager = AutoPackager(options, prefs)
 
         try:
-            autopackager.process_cli_overrides(recipe, cli_values)
+            autopackager.process_input_overrides(recipe, cli_values)
             autopackager.verify(recipe)
             autopackager.process(recipe)
         except AutoPackagerError as e:
