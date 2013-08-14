@@ -76,7 +76,7 @@ def main(argv):
     exit_string = ""
     
     try:
-        autopackager.process_input_overrides(recipe, cli_values)
+        autopackager.process_cli_overrides(recipe, cli_values)
         autopackager.verify(recipe)
         autopackager.process(recipe)
     except AutoPackagerError as e:

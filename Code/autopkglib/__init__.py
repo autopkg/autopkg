@@ -30,7 +30,6 @@ from CoreFoundation import CFPreferencesAppSynchronize
 from distutils.version import LooseVersion
 
 BUNDLE_ID = "com.github.autopkg"
-LOCAL_OVERRIDE_KEY = "RecipeInputOverrides"
 
 SUPPORTED_PREFS = [
     "MUNKI_REPO",
@@ -255,39 +254,18 @@ class AutoPackager(object):
             identifier = "-".join(path_parts)
         return identifier
 
-    def process_input_overrides(self, recipe, cli_values):
-        """Update env with 'composited' input values from overrides:
-        1. Start with items in recipe's 'Input' dict
-        2. Merge and overwrite any keys defined in app plist:
-        <key>RecipeInputOverrides</key>
-        <dict>
-            <key>com.googlecode.autopkg.some_app</key>
-            <dict>
-                <key>MUNKI_CATALOG</key>
-                <string>my_custom_catalog</string>
-        3. Merge and overwrite any key-value pairs appended to the
+    def process_cli_overrides(self, recipe, cli_values):
+        """Override env with input values from the CLI:
+        Start with items in recipe's 'Input' dict, merge and
+        overwrite any key-value pairs appended to the
         autopkg command invocation, of the form: NAME=value
-
-        (3) takes precedence over (2), which takes precedence over (1)
         """
 
         # Set up empty container for final output
         inputs = {}
         inputs.update(recipe["Input"])
         identifier = self.get_recipe_identifier(recipe)
-        if self.env.get(LOCAL_OVERRIDE_KEY):
-            recipe_overrides = self.env.get(LOCAL_OVERRIDE_KEY).get(identifier)
-            if recipe_overrides:
-                if not hasattr(recipe_overrides, "has_key"):
-                    raise AutoPackagerError(
-                        "Local recipe values for %s found in %s, "
-                        "but is of type %s, when it should "
-                        "be a dict of variables and values."
-                        % (identifier, LOCAL_OVERRIDE_KEY, 
-                           recipe_overrides.__class__.__name__))
-                inputs.update(recipe_overrides)
 
-        # handle CLI
         inputs.update(cli_values)
         self.env.update(inputs)
         # do any internal string substitutions
