@@ -145,8 +145,26 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
     Otherwise, we treat name as a simple name and search first the override
     directories, then the recipe directories for a matching recipe.
     If we find one, we load it and return the plist object (which should be
-    functionally equivelent to a dictionary).'''
+    functionally equivelent to a dictionary). If an override file is used,
+    it prefers finding the original recipe by identifier rather than name,
+    so that if recipe names shift with updated recipe repos, the override
+    still applies to the recipe from which it was derived.'''
     
+    def get_identifier_from_override(override):
+        '''Return the identifier from an override, falling back with a
+        warning to just the 'name' of the recipe.'''
+        identifier = override['Recipe'].get("identifier")
+        if identifier:
+            name = identifier
+        else:
+            name = override['Recipe'].get("name")
+            log_err("WARNING: Override contains no identifier. Will fall "
+                    "back to matching it by name using search rules. It's "
+                    "recommended to give the original recipe identifier "
+                    "in the override's 'Recipes' dict to ensure the same "
+                    "recipe is always used for this override.")
+        return name
+
     override = None
     if os.path.isfile(name):
         # name is path to a specific recipe or override file
@@ -155,7 +173,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
         if valid_override(name):
             override = FoundationPlist.readPlist(name)
             override["OVERRIDE_PATH"] = os.path.abspath(name)
-            name = override['Recipe'].get("name")
+            name = get_identifier_from_override(override)
             kind = override['Recipe'].get("kind", "pkg")
             # fall through to get the actual recipe
         elif valid_recipe(name):
@@ -164,7 +182,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
             return recipe
 
     if not override:
-        # first look in override_dirs for name.plist
+        # first look in override_dirs for name.recipe
         for directory in override_dirs:
             normalized_dir = os.path.abspath(os.path.expanduser(directory))
             search_names  = [
@@ -174,7 +192,7 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
             for pathname in search_names:
                 if os.path.exists(pathname) and valid_override(pathname):
                     override = FoundationPlist.readPlist(pathname)
-                    name = override['Recipe'].get("name")
+                    name = get_identifier_from_override(override)
                     kind = override['Recipe'].get("kind", "default")
                     override["OVERRIDE_PATH"] = os.path.abspath(pathname)
                     break
@@ -542,7 +560,8 @@ def main(argv):
             return 1
         override_plist = dict({"Recipe":
                                 {"kind": recipe_kind,
-                                 "name": override_name}
+                                 "name": override_name,
+                                 "identifier": recipe["Input"]["IDENTIFIER"]}
                                }
                               )
         override_plist["Input"] = recipe["Input"]
