@@ -415,7 +415,7 @@ def display_help(argv, subcommands):
         subcommand = key + (" " * (max_key_len - len(key)))
         print "    %s  (%s)" % (subcommand, subcommands[key]['help'])
     print
-    print "%s <verb> --help for more help for that verb"
+    print "%s <verb> --help for more help for that verb" % main_command_name
 
 
 def get_info(argv):
@@ -500,7 +500,7 @@ def list_recipes(argv):
 
 
 def make_override(argv):
-    '''Make a recipe override template.'''
+    '''Make a recipe override skeleton.'''
     verb = argv[1]
     p = optparse.OptionParser()
     
@@ -562,7 +562,8 @@ def run_recipes(argv):
     """Run one or more recipes"""
     verb = argv[1]
     p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s [options] [recipe ...]" % ("%prog", verb))
+    p.set_usage("Usage: %s %s [options] [recipe ...]\n"
+        "Run one or more recipes." % ("%prog", verb))
     
     # Parse arguments.
     p.add_option("-c", "--check", action="store_true",
@@ -781,7 +782,7 @@ def main(argv):
     subcommands = {
         "get-recipes": {
             "function": get_recipes,
-            "help": "Get a collection of recipes"},
+            "help": "Download and install a collection of recipes"},
         "help": {
             "function": display_help,
             "help": "Display this help"},
