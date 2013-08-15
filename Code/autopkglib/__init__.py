@@ -36,7 +36,8 @@ SUPPORTED_PREFS = [
     "CACHE_DIR",
     "RECIPE_SEARCH_DIRS",
     "RECIPE_OVERRIDE_DIRS",
-    "RECIPE_REPO_DIR"
+    "RECIPE_REPO_DIR",
+    "RECIPE_REPOS"
 ]
 
 re_keyref = re.compile(r'%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%')
