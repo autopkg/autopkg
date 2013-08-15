@@ -237,47 +237,6 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="pkg"):
         return False
 
 
-def list_recipes(override_dirs, search_dirs):
-    '''Finds and lists all recipes in the current search paths.'''
-    recipes = set()
-
-    # find all valid overrides first
-    for directory in override_dirs:
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        for filename in os.listdir(normalized_dir):
-            if filename.endswith(".recipe"):
-                pathname = os.path.join(normalized_dir, filename)
-                if valid_override(pathname):
-                    override = FoundationPlist.readPlist(pathname)
-                    name = override['Recipe'].get("name")
-                    kind = override['Recipe'].get("kind", "pkg")
-                    # find and validate recipe that will be overridden
-                    recipe_path = find_recipe(name, search_dirs, kind)
-                    if recipe_path and valid_recipe(recipe_path):
-                        # override points to a valid recipe
-                        recipes.add(os.path.splitext(filename)[0])
-
-    for directory in search_dirs:
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        # find all top-level recipes
-        matches = glob.glob(os.path.join(normalized_dir, "*.recipe"))
-        for match in matches:
-            if valid_recipe(match):
-                basename = os.path.basename(match)
-                recipes.add(os.path.splitext(basename)[0])
-
-        # look for recipes one level down
-        matches = glob.glob(os.path.join(normalized_dir, "*/*.recipe"))
-        for match in matches:
-            if valid_recipe(match):
-                recipe_name = os.path.basename(match)
-                # get rid of file extension
-                recipe_name = os.path.splitext(recipe_name)[0]
-                recipes.add(recipe_name)
-
-    return sorted(list(recipes))
-
-
 def get_recipe_repo(git_path):
     """git clone git_path to local disk and return local path"""
     
@@ -296,12 +255,13 @@ def get_recipe_repo(git_path):
     
     if os.path.exists(dest_dir):
         # probably should attempt a git pull
-        if os.path.exists(os.path.join(dest_name, '.git')):
+        if os.path.isdir(os.path.join(dest_dir, '.git')):
+            log("Attempting git pull...")
             cmd = ['/usr/bin/git', 'pull']
             try:
                 proc = subprocess.Popen(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                    cwd=dest_name)
+                    cwd=dest_dir)
                 (cmd_out, cmd_err) = proc.communicate()
             except OSError as err:
                 log_err("git execution failed with error code %d: %s"
@@ -314,6 +274,7 @@ def get_recipe_repo(git_path):
                 log(cmd_out)
                 return dest_dir
     else:
+        log("Attempting git clone...")
         cmd = ['/usr/bin/git', 'clone', git_path, dest_dir]
         try:
             proc = subprocess.Popen(
@@ -359,40 +320,253 @@ def print_new_imports(new_imports):
         log("    %-24s %-16s %-32s %s" % (
             item["name"], item["version"], ", ".join(item["catalogs"]),
             item["pkginfo_path"].partition("pkgsinfo/")[2]))
-            
-def print_info(options, arguments):
+
+
+def print_tool_info(options):
     """Eventually will print some information about the tool
     and environment. For now, just print the current prefs"""
-    pprint.pprint(get_all_prefs())
+    pprint.pprint({"Current preferences": get_all_prefs()})
 
 
-def main(argv):
-    """Main routine"""
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %prog verb [options] [recipe ...]")
-    
-    supported_verbs = ["help", "package", "munkiimport", "get-recipes", "info"]
-    verb = argv[1]
-    if verb.startswith("-"):
-        # option instead
-        verb = None
-        pass
-    elif not verb in supported_verbs:
-        log_err(p.get_usage())
-        print >> sys.stderr, (
-            "Supported verbs are: %s" % " ".join(supported_verbs))
-        return 1
-    else:
-        # good verb; remove it from the argv list
-        del argv[1]
+def get_search_dirs():
+    '''Return search dirs from preferences or default list'''
+    default = [
+        ".",
+        "~/Library/AutoPkg/Recipes",
+        "/Library/AutoPkg/Recipes"
+        ]
         
-    # Parse arguments.
-    p.add_option("-c", "--check", action="store_true",
-                 help="Only check for new/changed downloads.")
+    dirs = get_pref("RECIPE_SEARCH_DIRS")
+    if isinstance(dirs, basestring):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or default
+
+
+def get_override_dirs():
+    '''Return override dirs from preferences or default list'''
+    default = [
+        "~/Library/AutoPkg/RecipeOverrides"
+        ]
+
+    dirs = get_pref("RECIPE_OVERRIDE_DIRS")
+    if isinstance(dirs, basestring):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or default
+
+
+def add_search_and_override_dir_options(p):
+    '''Several subcommands use these same options'''
     p.add_option("-d", "--search-dir", metavar="DIRECTORY", dest="search_dirs",
                  action="append", default=[],
                  help=("Directory to search for recipes. Can be specified "
                                     "multiple times."))
+    p.add_option("--override-dir", metavar="DIRECTORY", dest="override_dirs",
+                 action="append", default=[],
+                 help=("Directory to search for recipe overrides. Can be "
+                       "specified multiple times."))
+
+
+########################
+# subcommand functions #
+########################
+
+def get_recipes(argv):
+    '''Get recipes from a repo'''
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [options] [recipe_repo_url]" % ("%prog", verb))
+    
+    # Parse arguments
+    options, arguments = p.parse_args(argv[2:])
+    if len(arguments) != 1:
+        log_err("Need exactly one recipe repo URL!")
+        return -1
+    
+    new_recipe_repo_dir = get_recipe_repo(arguments[0])
+    if new_recipe_repo_dir:
+        # convert to Python-native list so it's not an immutable object
+        # otherwise our changes will be silently discarded and make
+        # us crazy
+        recipe_search_dirs = list(get_search_dirs())
+        if not new_recipe_repo_dir in recipe_search_dirs:
+            log("Adding %s to RECIPE_SEARCH_DIRS..." % new_recipe_repo_dir)
+            recipe_search_dirs.append(new_recipe_repo_dir)
+            try:
+                set_pref("RECIPE_SEARCH_DIRS", recipe_search_dirs)
+            except PreferenceError, err:
+                log_err(err)
+                return -1
+            log("Recipe search path is: %s" 
+                                    % get_pref("RECIPE_SEARCH_DIRS"))
+
+
+def display_help(argv, subcommands):
+    '''Display top-level help'''
+    main_command_name = os.path.basename(argv[0])
+    print ("Usage: %s <verb> <options>, where <verb> is one of the following:" 
+           % main_command_name)
+    print
+    # find length of longest subcommand
+    max_key_len = max([len(key) for key in subcommands.keys()])
+    for key in subcommands.keys():
+        # pad name of subcommand to make pretty columns
+        subcommand = key + (" " * (max_key_len - len(key)))
+        print "    %s  (%s)" % (subcommand, subcommands[key]['help'])
+    print
+    print "%s <verb> --help for more help for that verb"
+
+
+def get_info(argv):
+    '''Display info about configuration or a recipe'''
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [options] [recipe]" % ("%prog", verb))
+    
+    # Parse arguments
+    add_search_and_override_dir_options(p)
+    options, arguments = p.parse_args(argv[2:])
+    
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+    
+    if len(arguments) == 0:
+        # return configuration info
+        print_tool_info(options)
+        return 0
+    elif len(arguments) == 1:
+        if get_recipe_info(arguments[0], override_dirs, search_dirs):
+            return 0
+        else:
+            log_err("Can't find recipe %s" % arguments[0])
+            return -1
+    else:
+        log_err("Too many recipes!")
+        return -1
+
+
+def list_recipes(argv):
+    '''List all available recipes'''
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [options]\n"
+        "List all the recipes this tool can find automatically."
+        % ("%prog", verb))
+    
+    # Parse arguments
+    add_search_and_override_dir_options(p)
+    options, arguments = p.parse_args(argv[1:])
+    
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+    recipes = set()
+
+    # find all valid overrides first
+    for directory in override_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        for filename in os.listdir(normalized_dir):
+            if filename.endswith(".recipe"):
+                pathname = os.path.join(normalized_dir, filename)
+                if valid_override(pathname):
+                    override = FoundationPlist.readPlist(pathname)
+                    name = override['Recipe'].get("name")
+                    kind = override['Recipe'].get("kind", "pkg")
+                    # find and validate recipe that will be overridden
+                    recipe_path = find_recipe(name, search_dirs, kind)
+                    if recipe_path and valid_recipe(recipe_path):
+                        # override points to a valid recipe
+                        recipes.add(os.path.splitext(filename)[0])
+
+    for directory in search_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        # find all top-level recipes
+        matches = glob.glob(os.path.join(normalized_dir, "*.recipe"))
+        for match in matches:
+            if valid_recipe(match):
+                basename = os.path.basename(match)
+                recipes.add(os.path.splitext(basename)[0])
+
+        # look for recipes one level down
+        matches = glob.glob(os.path.join(normalized_dir, "*/*.recipe"))
+        for match in matches:
+            if valid_recipe(match):
+                recipe_name = os.path.basename(match)
+                # get rid of file extension
+                recipe_name = os.path.splitext(recipe_name)[0]
+                recipes.add(recipe_name)
+
+    print "\n".join(sorted(list(recipes)))
+
+
+def make_override(argv):
+    '''Make a recipe override template.'''
+    verb = argv[1]
+    p = optparse.OptionParser()
+    
+    p.set_usage("Usage: %s %s [options] [recipe]\n"
+        "Create a skeleton override file for a recipe. It will "
+        "be stored in the first default override directory "
+        "or that given by '--override-dir'" % ("%prog", verb))
+    
+    # Parse arguments
+    add_search_and_override_dir_options(p)
+    options, arguments = p.parse_args(argv[2:])
+    
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+    
+    recipe_kind = ''
+    
+    if len(arguments) != 1:
+        log_err("Need exactly one recipe to override!")
+        return -1
+        
+    override_name = arguments[0]
+    if os.path.isfile(override_name):
+        log_err("%s doesn't work with absolute recipe paths, "
+                "as it may not be able to correctly determine the value "
+                "for 'name' that would be searched in recipe directories."
+                % verb)
+        return -1
+
+    recipe = load_recipe(override_name,
+                            override_dirs=[],
+                            recipe_dirs=search_dirs)
+    if not recipe:
+        log_err("No valid recipe found for %s" % override_name)
+        log_err("Dir(s) searched: %s" % ":".join(search_dirs))
+        return 1
+    override_plist = dict({"Recipe":
+                            {"kind": recipe_kind,
+                             "name": override_name,
+                             "identifier": recipe["Input"]["IDENTIFIER"]}
+                           }
+                          )
+    override_plist["Input"] = recipe["Input"]
+
+    override_out_file = os.path.expanduser(
+        os.path.join(override_dirs[0], 
+                    "%s.%s.recipe" % (override_name, recipe_kind)))
+    if os.path.exists(override_out_file):
+        log_err("An override plist already exists at %s, "
+                "will not overwrite it." % override_out_file)
+        return -1
+    else:
+        FoundationPlist.writePlist(override_plist, override_out_file)
+        log("Override file saved to %s." % override_out_file)
+        return 0
+
+
+def run_recipes(argv):
+    """Run one or more recipes"""
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [options] [recipe ...]" % ("%prog", verb))
+    
+    # Parse arguments.
+    p.add_option("-c", "--check", action="store_true",
+                 help="Only check for new/changed downloads.")
     p.add_option("-k", "--key", action="append", dest="variables", default=[],
                  metavar="KEY=VALUE",
                  help=("Provide key/value pairs for recipe input. "
@@ -400,71 +574,26 @@ def main(argv):
                        "to all recipes."))
     p.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
                  help="Path to a text file with a list of recipes to run.")
-    p.add_option("--list-recipes", dest="list_recipes", action="store_true",
-                 help="List all the recipes this tool can find automatically.")
-    p.add_option("--override-dir", metavar="DIRECTORY", dest="override_dirs",
-                 action="append", default=[],
-                 help=("Directory to search for recipe overrides. Can be "
-                       "specified multiple times."))
-    p.add_option("--make-override", metavar="RECIPE", action="store_true",
-                 help=("Create a skeleton override file for a recipe. It will "
-                       "be stored in the first default override directory "
-                       "or that given by '--override-dir'"))
     p.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
                  help=("Path to a pkg or dmg to provide to a recipe. "
                        "Downloading will be skipped."))
-    p.add_option("--recipe-info", "--info", metavar="RECIPE_NAME",
-                 dest="recipe_info", action="store_true",
-                 help="Print information about a recipe.")
     p.add_option("--report-plist", action="store_true", default=False,
                  help="Output run report data in plist format to stdout. "
                       "Additional messages may still be printed to stderr.")
     p.add_option("-v", "--verbose", action="count", default=0,
                  help="Verbose output.")
-    options, arguments = p.parse_args(argv[1:])
+    add_search_and_override_dir_options(p)
+    options, arguments = p.parse_args(argv[2:])
+    
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
 
+    # initialize some variables
     munki_repo_path = None
     new_downloads = []
     new_packages = []
     new_imports = []
     failures = []
-
-    # Set up search dirs for recipes and overrides. Defaults below are set
-    # if we don't have the RECIPE_SEARCH_DIRS or RECIPE_OVERRIDE_DIRS
-    # set via defaults, and --search-dir/--override-dirs always take
-    # precedence. These 'sources' for the preference aren't composited
-    # into a master list; it's one of the baked-in defaults, pref key or
-    # CLI options, no combination.
-    default_search_dirs = [
-        ".",
-        "~/Library/AutoPkg/Recipes",
-        "/Library/AutoPkg/Recipes"
-        ]
-
-    default_override_dirs = [
-        "~/Library/AutoPkg/RecipeOverrides"
-        ]
-
-    if not options.search_dirs:
-        if get_pref("RECIPE_SEARCH_DIRS"):
-            options.search_dirs = get_pref("RECIPE_SEARCH_DIRS")
-            if isinstance(options.search_dirs, basestring):
-                options.search_dirs = [options.search_dirs]
-        else:
-            options.search_dirs = default_search_dirs
-
-    if not options.override_dirs:
-        if get_pref("RECIPE_OVERRIDE_DIRS"):
-            options.override_dirs = get_pref("RECIPE_OVERRIDE_DIRS")
-            if isinstance(options.override_dirs, basestring):
-                options.override_dirs = [options.override_dirs]
-        else:
-            options.override_dirs = default_override_dirs
-
-    if options.list_recipes:
-        recipe_list = list_recipes(options.override_dirs, options.search_dirs)
-        print "\n".join(recipe_list)
-        return 0
 
     # Add variables from commandline.
     cli_values = {}
@@ -478,40 +607,7 @@ def main(argv):
 
     if options.pkg:
         cli_values["PKG"] = options.pkg
-
-    if verb == "munkiimport":
-         # prefer 'munki' kind, but this will fall back to plain .recipe
-         recipe_kind = "munki"
-    elif verb == "package" or verb == 'pkg':
-         recipe_kind = "pkg"
-    else:
-        # default to pkg kind
-        recipe_kind = "pkg"
-        
-    if verb == "info":
-        print_info(options, arguments)
-        exit(0)
-
-    if verb == "get-recipes":
-        new_recipe_repo_dir = get_recipe_repo(arguments[0])
-        if new_recipe_repo_dir:
-            # convert to Python-native list so it's not an immutable object
-            # otherwise our changes will be silently discarded and make
-            # us crazy
-            recipe_search_dirs = list(get_pref("RECIPE_SEARCH_DIRS") or 
-                                  default_search_dirs)
-            if not new_recipe_repo_dir in recipe_search_dirs:
-                log("Adding %s to RECIPE_SEARCH_DIRS..." % new_recipe_repo_dir)
-                recipe_search_dirs.append(new_recipe_repo_dir)
-                try:
-                    set_pref("RECIPE_SEARCH_DIRS", recipe_search_dirs)
-                except PreferenceError, err:
-                    log_err(err)
-                    exit(-1)
-                log("Recipe search path is: %s" 
-                                        % get_pref("RECIPE_SEARCH_DIRS"))
-        exit(0)
-
+    
     # so that log() can make use of it
     global _REPORT_PLIST
     _REPORT_PLIST = options.report_plist
@@ -535,49 +631,6 @@ def main(argv):
         log_err("-p/--pkg option can't be used with multiple recipes!")
         return 1
 
-    if options.recipe_info:
-        if get_recipe_info(recipe_paths[0],
-                options.override_dirs, options.search_dirs, kind=recipe_kind):
-            return 0
-        else:
-            log_err("Can't find recipe %s" % recipe_paths[0])
-            return -1
-
-    if options.make_override:
-        override_name = recipe_paths[0]
-        if os.path.isfile(override_name):
-            log_err("--make-override doesn't work with absolute recipe paths, "
-                    "as it may not be able to correctly determine the value "
-                    "for 'name' that would be searched in recipe directories.")
-            return 1
-        recipe = load_recipe(override_name,
-                                override_dirs=[],
-                                recipe_dirs=options.search_dirs,
-                                kind=recipe_kind)
-        if not recipe:
-            log_err("No valid recipe found for %s" % override_name)
-            log_err("Dir(s) searched: %s" % ":".join(options.search_dirs))
-            return 1
-        override_plist = dict({"Recipe":
-                                {"kind": recipe_kind,
-                                 "name": override_name,
-                                 "identifier": recipe["Input"]["IDENTIFIER"]}
-                               }
-                              )
-        override_plist["Input"] = recipe["Input"]
-
-        override_out_file = os.path.expanduser(
-            os.path.join(options.override_dirs[0], 
-                        "%s.%s.recipe" % (override_name, recipe_kind)))
-        if os.path.exists(override_out_file):
-            log_err("An override plist already exists at %s, "
-                    "will not overwrite it." % override_out_file)
-            return 1
-        else:
-            FoundationPlist.writePlist(override_plist, override_out_file)
-            log("Override file saved to %s." % override_out_file)
-            return 0
-            
     cache_dir = get_pref("CACHE_DIR") or os.path.expanduser(
                 "~/Library/AutoPkg/Cache")
     current_run_results_plist = os.path.join(cache_dir, "autopkg_results.plist")
@@ -589,11 +642,9 @@ def main(argv):
         log_err(
             "Can't write results to %s: %s" 
             % (current_run_results_plist, e.strerror))
-    
+
     for recipe_path in recipe_paths:
-        recipe = load_recipe(recipe_path,
-                             options.override_dirs, 
-                             options.search_dirs, kind=recipe_kind)
+        recipe = load_recipe(recipe_path, override_dirs, search_dirs)
         if not recipe:
             log_err("No valid recipe found for %s" % recipe_path)
             continue
@@ -703,7 +754,7 @@ def main(argv):
         log("\nThe following new items were downloaded:")
         for item in new_downloads:
             log("    %s" % item)
-            
+
     if new_packages:
         log("\nThe following packages were built:")
         for item in new_packages:
@@ -722,6 +773,49 @@ def main(argv):
         for event_type in ["failures", "new_downloads", "new_imports"]:
             results_report[event_type] = locals()[event_type]
         print FoundationPlist.writePlistToString(results_report)
+
+
+def main(argv):
+    """Main routine"""
+    # define our subcommands ('verbs')
+    subcommands = {
+        "get-recipes": {
+            "function": get_recipes,
+            "help": "Get a collection of recipes"},
+        "help": {
+            "function": display_help,
+            "help": "Display this help"},
+        "info": {        
+            "function": get_info,
+            "help": "Get info about configuration or a recipe"},
+        "list-recipes": {
+            "function": list_recipes,
+            "help": "List available recipes"},
+        "make-override": {
+            "function": make_override,
+            "help": "Make a recipe override"},
+        "run": {
+            "function": run_recipes,
+            "help": "Run one or more recipes"}
+    }
+
+    try:
+        verb = argv[1]
+    except IndexError:
+        verb = ''
+    if verb.startswith("-"):
+        # option instead
+        verb = ''
+    if verb == 'help' or not verb in subcommands.keys():
+        display_help(argv, subcommands)
+    else:
+        # call the function and pass it the argument list
+        # we leave the verb in the list in case one function can handle
+        # multiple verbs
+        exit(subcommands[verb]['function'](argv))
+
+    exit()
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
