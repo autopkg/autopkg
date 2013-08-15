@@ -182,6 +182,8 @@ def load_recipe(name, override_dirs, recipe_dirs, kind="pkg"):
             return recipe
 
     if not override:
+        if name.endswith(".recipe"):
+            name = os.path.splitext(name)[0]
         # first look in override_dirs for name.recipe
         for directory in override_dirs:
             normalized_dir = os.path.abspath(os.path.expanduser(directory))
