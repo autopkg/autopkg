@@ -394,47 +394,70 @@ def add_search_and_override_dir_options(p):
 # subcommand functions #
 ########################
 
-def recipe_repo(argv):
-    '''Get recipes from a repo'''
+def repo_add(argv):
+    '''Add/update a repo of recipes'''
     verb = argv[1]
     p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s [options] recipe_repo_url" % ("%prog", verb))
-    
+    p.set_usage("Usage: %s %s recipe_repo_url\n"
+        "Download a new recipe repo and add it to the search path."
+        % ("%prog", verb))
+
     # Parse arguments
-    p.add_option("--add", "--get", dest="add", action="store_true",
-        help="Download a new recipe repo and add it to the search path.")
-    p.add_option("--delete", action="store_true",
-        help="Remove a recipe repo and remove it from the search path.")
-    p.add_option("--list", action="store_true",
-        help="List installed recipe repos.")
     options, arguments = p.parse_args(argv[2:])
     if len(arguments) != 1:
         log_err("Need exactly one recipe repo URL!")
         return -1
-    
-    if options.add:
-        new_recipe_repo_dir = get_recipe_repo(arguments[0])
-        if new_recipe_repo_dir:
-            # convert to Python-native list so it's not an immutable object
-            # otherwise our changes will be silently discarded and make
-            # us crazy
-            recipe_search_dirs = list(get_search_dirs())
-            if not new_recipe_repo_dir in recipe_search_dirs:
-                log("Adding %s to RECIPE_SEARCH_DIRS..." % new_recipe_repo_dir)
-                recipe_search_dirs.append(new_recipe_repo_dir)
-                try:
-                    set_pref("RECIPE_SEARCH_DIRS", recipe_search_dirs)
-                except PreferenceError, err:
-                    log_err(err)
-                    return -1
-                log("Recipe search path is: %s" 
-                                        % get_pref("RECIPE_SEARCH_DIRS"))
 
-    if options.delete:
-        log("Not yet implemented.")
+    new_recipe_repo_dir = get_recipe_repo(arguments[0])
+    if new_recipe_repo_dir:
+        # convert to Python-native list so it's not an immutable object
+        # otherwise our changes will be silently discarded and make
+        # us crazy
+        recipe_search_dirs = list(get_search_dirs())
+        if not new_recipe_repo_dir in recipe_search_dirs:
+            log("Adding %s to RECIPE_SEARCH_DIRS..." % new_recipe_repo_dir)
+            recipe_search_dirs.append(new_recipe_repo_dir)
+            try:
+                set_pref("RECIPE_SEARCH_DIRS", recipe_search_dirs)
+            except PreferenceError, err:
+                log_err(err)
+                return -1
+            log("Recipe search path is: %s" 
+                                    % get_pref("RECIPE_SEARCH_DIRS"))
 
-    if options.list:
-        log("Not yet implemented.")
+
+def repo_delete(argv):
+    '''Delete a recipe repo'''
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s recipe_repo_path\n"
+        "Delete a recipe repo and remove it from the search path."
+        % ("%prog", verb))
+
+    # Parse arguments
+    options, arguments = p.parse_args(argv[2:])
+    if len(arguments) != 1:
+        log_err("Need exactly one recipe repo path!")
+        return -1
+
+    log("Not yet implemented.")
+
+
+def repo_list(argv):
+    '''List recipe repos'''
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s\n"
+        "List all installed recipe repos."
+        % ("%prog", verb))
+
+    # Parse arguments
+    options, arguments = p.parse_args(argv[2:])
+    if len(arguments) != 1:
+        log_err("Need exactly one recipe repo path!")
+        return -1
+
+    log("Not yet implemented.")
 
 
 def display_help(argv, subcommands):
@@ -827,9 +850,15 @@ def main(argv):
         "make-override": {
             "function": make_override,
             "help": "Make a recipe override"},
-        "recipe-repo": {
-            "function": recipe_repo,
-            "help": "Add, update, or delete additional recipe repos."},
+        "repo-add": {
+            "function": repo_add,
+            "help": "Add an additional recipe repo."},
+        "repo-delete": {
+            "function": repo_delete,
+            "help": "Delete a recipe repo."},
+        "repo-list": {
+            "function": repo_list,
+            "help": "List installed recipe repos."},
         "run": {
             "function": run_recipes,
             "help": "Run one or more recipes"}
