@@ -53,6 +53,10 @@ class DmgCreator(Processor):
             p = subprocess.Popen(("/usr/bin/hdiutil",
                                   "create",
                                   "-plist",
+                                  "-format",
+                                  "UDZO",
+                                  "-imagekey",
+                                  "zlib-level=9",
                                   "-srcfolder", self.env['dmg_root'],
                                   self.env['dmg_path']),
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
