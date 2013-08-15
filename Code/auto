@@ -239,6 +239,37 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs, kind="pkg"):
         return False
 
 
+def git_cmd():
+    """Returns a path to a git binary, priority in the order below.
+    Returns None if none found.
+    1. app pref 'GIT_PATH'
+    2. a 'git' binary that can be found in the PATH environment variable
+    3. '/usr/bin/git'
+    """
+    
+    def is_executable(exe_path):
+        return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
+
+    git_path_pref = get_pref("GIT_PATH")
+    if git_path_pref:
+        if is_executable(git_path_pref):
+            # take a GIT_PATH pref
+            return git_path_pref
+        else:
+            log_err("WARNING: Git path given in the 'GIT_PATH' preference:'%s' "
+                    "either doesn't exist or is not executable! Falling back to "
+                    "one set in PATH, or /usr/bin/git." % git_path_pref)
+    for path_env in os.environ["PATH"].split(":"):
+        gitbin = os.path.join(path_env, "git")
+        if is_executable(gitbin):
+            # take the first 'git' in PATH that we find
+            return gitbin
+    if is_executable("/usr/bin/git"):
+        # fall back to /usr/bin/git
+        return "/usr/bin/git"
+    return None
+
+
 def get_recipe_repo(git_path):
     """git clone git_path to local disk and return local path"""
     
@@ -254,12 +285,16 @@ def get_recipe_repo(git_path):
     recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or 
                        os.path.expanduser("~/Library/AutoPkg/RecipeRepos"))
     dest_dir = os.path.join(recipe_repo_dir, dest_name)
-    
+    gitcmd = git_cmd()
+    if not gitcmd:
+        log_err("No git binary could be found!")
+        return None
+
     if os.path.exists(dest_dir):
         # probably should attempt a git pull
         if os.path.isdir(os.path.join(dest_dir, '.git')):
             log("Attempting git pull...")
-            cmd = ['/usr/bin/git', 'pull']
+            cmd = [gitcmd, 'pull']
             try:
                 proc = subprocess.Popen(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -277,7 +312,7 @@ def get_recipe_repo(git_path):
                 return dest_dir
     else:
         log("Attempting git clone...")
-        cmd = ['/usr/bin/git', 'clone', git_path, dest_dir]
+        cmd = [gitcmd, 'clone', git_path, dest_dir]
         try:
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
