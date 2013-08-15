@@ -13,8 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""automunkiimport tool. Runs an autopkg recipe and also handles other
-munki repo maintenance tasks (makecatalogs, for example)"""
+"""autopkg tool. Runs autopkg recipes and also handles other
+related tasks"""
 
 import glob
 import sys
@@ -292,24 +292,27 @@ def get_recipe_repo(git_path):
 
     if os.path.exists(dest_dir):
         # probably should attempt a git pull
-        if os.path.isdir(os.path.join(dest_dir, '.git')):
-            log("Attempting git pull...")
-            cmd = [gitcmd, 'pull']
-            try:
-                proc = subprocess.Popen(
-                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                    cwd=dest_dir)
-                (cmd_out, cmd_err) = proc.communicate()
-            except OSError as err:
-                log_err("git execution failed with error code %d: %s"
-                        % (err.errno, err.strerror))
-                return None
-            if proc.returncode != 0:
-                log_err("git failed: %s" % cmd_err)
-                return None
-            else:
-                log(cmd_out)
-                return dest_dir
+        # check to see if this is really a git repo first
+        if not os.path.isdir(os.path.join(dest_dir, '.git')):
+            log_err("%s exists and is not a git repo!" % dest_dir)
+            return None
+        log("Attempting git pull...")
+        cmd = [gitcmd, 'pull']
+        try:
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                cwd=dest_dir)
+            (cmd_out, cmd_err) = proc.communicate()
+        except OSError as err:
+            log_err("git execution failed with error code %d: %s"
+                    % (err.errno, err.strerror))
+            return None
+        if proc.returncode != 0:
+            log_err("git failed: %s" % cmd_err)
+            return None
+        else:
+            log(cmd_out)
+            return dest_dir
     else:
         log("Attempting git clone...")
         cmd = [gitcmd, 'clone', git_path, dest_dir]
@@ -327,24 +330,6 @@ def get_recipe_repo(git_path):
             log(cmd_out)
             return dest_dir
     return None
-
-
-def makecatalogs(repo_path):
-    '''Rebuild Munki catalogs in repo_path'''
-    # Generate arguments for makecatalogs.
-    args = ["/usr/local/munki/makecatalogs", repo_path]
-
-    # Call makecatalogs.
-    try:
-        proc = subprocess.Popen(
-            args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (unused_out, err_out) = proc.communicate()
-    except OSError as err:
-        log_err("makecatalog execution failed with error code %d: %s"
-                % (err.errno, err.strerror))
-    if proc.returncode != 0:
-        log_err("makecatalogs failed: %s" % err_out)
-    log("Munki catalogs rebuilt!")
 
 
 def print_new_imports(new_imports):
