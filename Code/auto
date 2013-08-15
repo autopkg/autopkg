@@ -397,44 +397,42 @@ def add_search_and_override_dir_options(p):
 ########################
 
 def repo_add(argv):
-    '''Add/update a repo of recipes'''
+    '''Add/update one or more repos of recipes'''
     verb = argv[1]
     p = optparse.OptionParser()
     p.set_usage("Usage: %s %s recipe_repo_url\n"
-        "Download a new recipe repo and add it to the search path."
+        "Download one or more new recipe repos and add it to the search path."
         % ("%prog", verb))
 
     # Parse arguments
     options, arguments = p.parse_args(argv[2:])
-    if len(arguments) != 1:
-        log_err("Need exactly one recipe repo URL!")
+    if len(arguments) < 1:
+        log_err("Need at least one recipe repo URL!")
         return -1
 
-    repo_url = arguments[0]
-    new_recipe_repo_dir = get_recipe_repo(repo_url)
-    if new_recipe_repo_dir:
-        # convert to Python-native list so it's not an immutable object
-        # otherwise our changes will be silently discarded and make
-        # us crazy
-        recipe_search_dirs = list(get_search_dirs())
-        if not new_recipe_repo_dir in recipe_search_dirs:
-            log("Adding %s to RECIPE_SEARCH_DIRS..." % new_recipe_repo_dir)
-            recipe_search_dirs.append(new_recipe_repo_dir)
-            try:
-                set_pref("RECIPE_SEARCH_DIRS", recipe_search_dirs)
-            except PreferenceError, err:
-                log_err(err)
-                return -1
-            log("Recipe search path is: %s" 
-                                    % get_pref("RECIPE_SEARCH_DIRS"))
-        # add info about this repo to our prefs
-        recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
-        recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
-        try:
-            set_pref("RECIPE_REPOS", recipe_repos)
-        except PreferenceError, err:
-            log_err(err)
-            return -1
+    recipe_search_dirs = list(get_search_dirs())
+    recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
+    for repo_url in arguments:
+        new_recipe_repo_dir = get_recipe_repo(repo_url)
+        if new_recipe_repo_dir:
+            if not new_recipe_repo_dir in recipe_search_dirs:
+                log("Adding %s to RECIPE_SEARCH_DIRS..." % new_recipe_repo_dir)
+                recipe_search_dirs.append(new_recipe_repo_dir)
+            # add info about this repo to our prefs
+            recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
+            
+    # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
+    try:
+        set_pref("RECIPE_REPOS", recipe_repos)
+    except PreferenceError, err:
+        log_err("WARNING: %s" % err)
+    try:
+        set_pref("RECIPE_SEARCH_DIRS", recipe_search_dirs)
+    except PreferenceError, err:
+        log_err("WARNING: %s" % err)
+        
+    log("Recipe search path is: %s" 
+                            % get_pref("RECIPE_SEARCH_DIRS"))
 
 
 def repo_delete(argv):
@@ -496,16 +494,15 @@ def repo_delete(argv):
             shutil.rmtree(repo_path)
         except (OSError, IOError), err:
             log_err("ERROR: Could not remove %s: %s" % (repo_path, err))
-            return -1
-        
-        # last, remove from RECIPE_REPOS
-        del recipe_repos[repo_path]
-        try:
-            set_pref("RECIPE_REPOS", recipe_repos)
-        except PreferenceError, err:
-            log_err(
-                "WARNING: Couldn't remove %s from RECIPE_REPOS list: %s"
-                % (repo_path, err))
+        else:
+            # last, remove from RECIPE_REPOS
+            del recipe_repos[repo_path]
+            try:
+                set_pref("RECIPE_REPOS", recipe_repos)
+            except PreferenceError, err:
+                log_err(
+                    "WARNING: Couldn't remove %s from RECIPE_REPOS list: %s"
+                    % (repo_path, err))
 
 
 def repo_list(argv):
