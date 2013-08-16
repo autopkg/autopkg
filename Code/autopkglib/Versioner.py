@@ -14,25 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os.path
 
 from autopkglib import Processor, ProcessorError
-
-from Foundation import NSData, \
-                       NSPropertyListSerialization, \
-                       NSPropertyListMutableContainers, \
-                       NSPropertyListXMLFormat_v1_0
-
+from DmgMounter import DmgMounter
+import FoundationPlist
 
 __all__ = ["Versioner"]
 
 
-class Versioner(Processor):
+class Versioner(DmgMounter):
     """Returns version information from a plist"""
     input_variables = {
         "input_plist_path": {
             "required": True,
             "description": 
-                ("File path to a plist."),
+                ("File path to a plist. Can point to a path inside a .dmg "
+                 "which will be mounted."),
         },
         "plist_version_key": {
             "required": False,
@@ -47,31 +45,36 @@ class Versioner(Processor):
         },
     }
     description = __doc__
-    
-    def readPlist(self, filepath):
-        """
-        Read a .plist file from filepath.  Return the unpacked root object
-        (which is usually a dictionary).
-        """
-        plistData = NSData.dataWithContentsOfFile_(filepath)
-        dataObject, plistFormat, error = \
-            NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
-                         plistData, NSPropertyListMutableContainers, None, None)
-        if error:
-            errmsg = "%s in file %s" % (error, filepath)
-            raise ProcessorError(errmsg)
-        else:
-            return dataObject
-            
+
+
     def main(self):
-        plist = self.readPlist(self.env["input_plist_path"])
-        version_key = self.env.get(
-            "plist_version_key", "CFBundleShortVersionString")
-        self.env['version'] = plist.get(version_key, "UNKNOWN_VERSION")
-        self.output("Found version %s in file %s" 
-                    % (self.env['version'], self.env["input_plist_path"]))
-        
-        
+        # Check if we're trying to read something inside a dmg.
+        (dmg_path, dmg, dmg_source_path) = self.env[
+            'input_plist_path'].partition(".dmg/")
+        dmg_path += ".dmg"
+        try:
+            if dmg:
+                # Mount dmg and copy path inside.
+                mount_point = self.mount(dmg_path)
+                input_plist_path = os.path.join(mount_point, dmg_source_path)
+            else:
+                # just use the given path
+                input_plist_path = self.env['input_plist_path']
+            try:
+                plist = FoundationPlist.readPlist(input_plist_path)
+                version_key = self.env.get(
+                    "plist_version_key", "CFBundleShortVersionString")
+                self.env['version'] = plist.get(version_key, "UNKNOWN_VERSION")
+                self.output("Found version %s in file %s" 
+                            % (self.env['version'], input_plist_path))
+            except FoundationPlist.FoundationPlistException, err:
+                raise ProcessorError(err)
+
+        finally:
+            if dmg:
+                self.unmount(dmg_path)
+
+
 if __name__ == '__main__':
     processor = Versioner()
     processor.execute_shell()
