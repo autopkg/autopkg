@@ -973,7 +973,7 @@ def main(argv):
             "help": "List installed recipe repos."},
         "repo-update": {
             "function": repo_update,
-            "help": "Updates one or more recipe repos."},
+            "help": "Update one or more recipe repos."},
         "run": {
             "function": run_recipes,
             "help": "Run one or more recipes"}
