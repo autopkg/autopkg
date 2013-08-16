@@ -258,8 +258,8 @@ def git_cmd():
             return git_path_pref
         else:
             log_err("WARNING: Git path given in the 'GIT_PATH' preference:'%s' "
-                    "either doesn't exist or is not executable! Falling back to "
-                    "one set in PATH, or /usr/bin/git." % git_path_pref)
+                    "either doesn't exist or is not executable! Falling back "
+                    "to one set in PATH, or /usr/bin/git." % git_path_pref)
     for path_env in os.environ["PATH"].split(":"):
         gitbin = os.path.join(path_env, "git")
         if is_executable(gitbin):
@@ -269,6 +269,33 @@ def git_cmd():
         # fall back to /usr/bin/git
         return "/usr/bin/git"
     return None
+
+
+class GitError(Exception):
+    '''Exception to throw if git fails'''
+    pass
+
+
+def run_git(git_options_and_arguments, git_directory=None):
+    '''Run a git command and return its output if successful;
+       raise GitError if unsuccessful.'''
+    gitcmd = git_cmd()
+    if not gitcmd:
+        raise GitError("ERROR: git is not installed!")
+    cmd = [gitcmd]
+    cmd.extend(git_options_and_arguments)
+    try:
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            cwd=git_directory)
+        (cmd_out, cmd_err) = proc.communicate()
+    except OSError as err:
+        raise GitError("ERROR: git execution failed with error code %d: %s"
+                       % (err.errno, err.strerror))
+    if proc.returncode != 0:
+        raise GitError("ERROR: %s" % cmd_err)
+    else:
+        return cmd_out
 
 
 def get_recipe_repo(git_path):
@@ -286,6 +313,7 @@ def get_recipe_repo(git_path):
     recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or 
                        os.path.expanduser("~/Library/AutoPkg/RecipeRepos"))
     dest_dir = os.path.join(recipe_repo_dir, dest_name)
+    dest_dir = os.path.abspath(dest_dir)
     gitcmd = git_cmd()
     if not gitcmd:
         log_err("No git binary could be found!")
@@ -298,38 +326,20 @@ def get_recipe_repo(git_path):
             log_err("%s exists and is not a git repo!" % dest_dir)
             return None
         log("Attempting git pull...")
-        cmd = [gitcmd, 'pull']
         try:
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                cwd=dest_dir)
-            (cmd_out, cmd_err) = proc.communicate()
-        except OSError as err:
-            log_err("git execution failed with error code %d: %s"
-                    % (err.errno, err.strerror))
-            return None
-        if proc.returncode != 0:
-            log_err("git failed: %s" % cmd_err)
-            return None
-        else:
-            log(cmd_out)
+            log(run_git(['pull'], git_directory=dest_dir))
             return dest_dir
+        except GitError, err:
+            log_err(err)
+            return None
     else:
         log("Attempting git clone...")
-        cmd = [gitcmd, 'clone', git_path, dest_dir]
         try:
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            (cmd_out, cmd_err) = proc.communicate()
-        except OSError as err:
-            log_err("git execution failed with error code %d: %s"
-                    % (err.errno, err.strerror))
-            return None
-        if proc.returncode != 0:
-            log_err("git failed: %s" % cmd_err)
-        else:
-            log(cmd_out)
+            log(run_git(['clone', git_path, dest_dir]))
             return dest_dir
+        except GitError, err:
+            log_err(err)
+            return None
     return None
 
 
@@ -350,6 +360,40 @@ def print_tool_info(options):
     and environment. For now, just print the current prefs"""
     print "Current preferences:"
     pprint.pprint(get_all_prefs())
+
+
+def get_repo_info(path_or_url):
+    '''Given a path or URL, find a locally installed repo and return
+    infomation in a dictionary about it'''
+    repo_info = {}
+    recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
+    
+    parsed = urlparse(path_or_url)
+    if parsed.netloc:
+        # it's a URL, look it up and find the associated path
+        repo_url = path_or_url
+        for repo_path in recipe_repos.keys():
+            test_url = recipe_repos[repo_path].get("URL")
+            if repo_url == test_url:
+                # found it; copy the dict info
+                repo_info['path'] = repo_path
+                repo_info.update(recipe_repos[repo_path])
+                # get out now!
+                return repo_info
+    else:
+        repo_path = os.path.abspath(os.path.expanduser(path_or_url))
+        if repo_path in recipe_repos:
+            repo_info['path'] = repo_path
+            repo_info.update(recipe_repos[repo_path])
+    return repo_info
+    
+    
+def save_pref_or_warn(key, value):
+    '''Saves a key and value to preferences, warning if there is an issue'''
+    try:
+        set_pref(key, value)
+    except PreferenceError, err:
+        log_err("WARNING: %s" % err)
 
 
 def get_search_dirs():
@@ -420,17 +464,11 @@ def repo_add(argv):
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
-            
+
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
-    try:
-        set_pref("RECIPE_REPOS", recipe_repos)
-    except PreferenceError, err:
-        log_err("WARNING: %s" % err)
-    try:
-        set_pref("RECIPE_SEARCH_DIRS", recipe_search_dirs)
-    except PreferenceError, err:
-        log_err("WARNING: %s" % err)
-        
+    save_pref_or_warn("RECIPE_REPOS", recipe_repos)
+    save_pref_or_warn("RECIPE_SEARCH_DIRS", recipe_search_dirs)
+    
     log("Recipe search path is: %s" 
                             % get_pref("RECIPE_SEARCH_DIRS"))
 
@@ -449,47 +487,20 @@ def repo_delete(argv):
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
-        
-    repo_url = None
-    repo_path = None
+
     recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
-    for repo in arguments:
-        parsed = urlparse(repo)
-        if parsed.netloc:
-            # it's a URL, look it up and find the associated path
-            repo_url = repo
-            for key in recipe_repos.keys():
-                test_url = recipe_repos[key].get("URL")
-                if repo_url == test_url:
-                    # found it
-                    repo_path = key
-                    break
-            if not repo_path:
-                log_err("ERROR: Can't find an installed repo for %s" % repo_url)
-                return -1
-        else:
-            # it's a path, make sure we know about it --
-            # repo-delete should not remove arbitrary paths.
-            repo_path = os.path.abspath(os.path.expanduser(repo))
-            repo_url = recipe_repos.get(repo_path, {}).get("URL")
-            if not repo_url:
-                log_err("ERROR: %s does not appear to be a repo %s knows about."
-                        % (repo_path, main_command_name))
-                return -1
+    recipe_search_dirs = list(get_search_dirs())
+
+    for path_or_url in arguments:
+        repo_path = get_repo_info(path_or_url).get('path')
+        if not repo_path:
+            log_err("ERROR: Can't find an installed repo for %s" % path_or_url)
+            continue
         
-        # we have a path and it seems to be a repo we know about. we can delete
         # first, remove from RECIPE_SEARCH_DIRS
-        recipe_search_dirs = list(get_search_dirs())
         if repo_path in recipe_search_dirs:
             recipe_search_dirs.remove(repo_path)
-            try:
-                set_pref("RECIPE_SEARCH_DIRS", recipe_search_dirs)
-            except PreferenceError, err:
-                log_err(
-                    "WARNING: Couldn't remove %s from RECIPE_SEARCH_DIRS: %s"
-                    % (repo_path, err))
-        
-        # now remove the files
+        # now remove the repo files
         try:
             shutil.rmtree(repo_path)
         except (OSError, IOError), err:
@@ -497,12 +508,10 @@ def repo_delete(argv):
         else:
             # last, remove from RECIPE_REPOS
             del recipe_repos[repo_path]
-            try:
-                set_pref("RECIPE_REPOS", recipe_repos)
-            except PreferenceError, err:
-                log_err(
-                    "WARNING: Couldn't remove %s from RECIPE_REPOS list: %s"
-                    % (repo_path, err))
+
+    # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
+    save_pref_or_warn("RECIPE_REPOS", recipe_repos)
+    save_pref_or_warn("RECIPE_SEARCH_DIRS", recipe_search_dirs)
 
 
 def repo_list(argv):
@@ -523,6 +532,44 @@ def repo_list(argv):
         print
     else:
         print "No recipe repos."
+
+
+def repo_update(argv):
+    '''Update one or more recipe repos'''
+    main_command_name = os.path.basename(argv[0])
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s recipe_repo_path_or_url [...]\n"
+        "Delete one or more recipe repo and remove it from the search path.\n"
+        "You may also use 'all' to update all installed recipe repos.It"
+        % ("%prog", verb))
+
+    # Parse arguments
+    options, arguments = p.parse_args(argv[2:])
+    if len(arguments) < 1:
+        log_err("Need at least one recipe repo path or URL!")
+        return -1
+    
+    if 'all' in arguments:
+        # just get all repos
+        recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
+        repo_dirs = [key for key in recipe_repos.keys()]
+    else:
+        repo_dirs = []
+        for path_or_url in arguments:
+            repo_path = get_repo_info(path_or_url).get('path')
+            if not repo_path:
+                log_err("ERROR: Can't find an installed repo for %s" 
+                         % path_or_url)
+            else:
+                repo_dirs.append(repo_path)
+
+    for repo_dir in repo_dirs:
+        log("Attempting git pull for %s..." % repo_dir)
+        try:
+            log(run_git(['pull'], git_directory=repo_dir))
+        except GitError, err:
+            log_err(err)
 
 
 def display_help(argv, subcommands):
@@ -917,13 +964,16 @@ def main(argv):
             "help": "Make a recipe override"},
         "repo-add": {
             "function": repo_add,
-            "help": "Add an additional recipe repo."},
+            "help": "Add one or more recipe repo from a URL."},
         "repo-delete": {
             "function": repo_delete,
             "help": "Delete a recipe repo."},
         "repo-list": {
             "function": repo_list,
             "help": "List installed recipe repos."},
+        "repo-update": {
+            "function": repo_update,
+            "help": "Updates one or more recipe repos."},
         "run": {
             "function": run_recipes,
             "help": "Run one or more recipes"}
