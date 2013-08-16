@@ -697,7 +697,7 @@ def make_override(argv):
                          override_dirs=[],
                          recipe_dirs=search_dirs)
     if not recipe:
-        log_err("No valid recipe found for %s" % override_name)
+        log_err("No valid recipe found for %s" % recipe_name)
         log_err("Dir(s) searched: %s" % ":".join(search_dirs))
         return 1
     override_plist = dict({"Recipe":
