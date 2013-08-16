@@ -580,7 +580,7 @@ def display_help(argv, subcommands):
     print
     # find length of longest subcommand
     max_key_len = max([len(key) for key in subcommands.keys()])
-    for key in subcommands.keys():
+    for key in sorted(subcommands.keys()):
         # pad name of subcommand to make pretty columns
         subcommand = key + (" " * (max_key_len - len(key)))
         print "    %s  (%s)" % (subcommand, subcommands[key]['help'])
@@ -982,10 +982,10 @@ def main(argv):
     try:
         verb = argv[1]
     except IndexError:
-        verb = ''
+        verb = 'help'
     if verb.startswith("-"):
-        # option instead
-        verb = ''
+        # option instead of a verb
+        verb = 'help'
     if verb == 'help' or not verb in subcommands.keys():
         display_help(argv, subcommands)
     else:
