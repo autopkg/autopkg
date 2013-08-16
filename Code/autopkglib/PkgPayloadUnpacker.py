@@ -26,7 +26,7 @@ __all__ = ["PkgPayloadUnpacker"]
 
 
 class PkgPayloadUnpacker(Processor):
-    """Imports a pkg or dmg to the Munki repo."""
+    """Unpacks a package payload."""
     input_variables = {
         "pkg_payload_path": {
             "required": True,
