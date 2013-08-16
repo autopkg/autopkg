@@ -56,7 +56,7 @@ class DmgCreator(Processor):
                                   "-format",
                                   "UDZO",
                                   "-imagekey",
-                                  "zlib-level=9",
+                                  "zlib-level=5",
                                   "-srcfolder", self.env['dmg_root'],
                                   self.env['dmg_path']),
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
