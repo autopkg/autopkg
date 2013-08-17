@@ -238,7 +238,7 @@ class AutoPackager(object):
             os.path.join(os.path.dirname(__file__), "version.plist"))
         self.env["AUTOPKG_VERSION"] = version_plist["Version"]
 
-    def output(msg, verbose_level=1):
+    def output(self, msg, verbose_level=1):
         if self.verbose >= verbose_level:
             print msg
 
@@ -302,10 +302,10 @@ class AutoPackager(object):
                     _processor = getattr(_tmp, step["Processor"])
                     # add the processor to autopkglib's namespace
                     add_processor(step["Processor"], _processor)
-                except (ImportError, AttributeError):
-                    # if we aren't successful, that's OK, we're going
+                except (ImportError, AttributeError), err:
+                    # if we aren't successful, that might be OK, we're going
                     # see if the processor was already imported
-                    pass
+                    self.output("WARNING: %s: %s" % (processor_filename, err))
             try:
                 processor_class = get_processor(step["Processor"])
             except (KeyError, AttributeError):

@@ -857,24 +857,30 @@ def run_recipes(argv):
 
         # build a pathname for a receipt
         recipe_basename = os.path.splitext(os.path.basename(recipe_path))[0]
+        # TO-DO: if recipe processing fails too early, 
+        # autopackager.env["RECIPE_CACHE_DIR"] is not defined and we can't
+        # write a recipt. We should handle this better.
+        # for now, just write the receipt to /tmp/receipts
         receipt_dir = os.path.join(
-                          autopackager.env["RECIPE_CACHE_DIR"], "receipts")
+            autopackager.env.get("RECIPE_CACHE_DIR", "/tmp"), "receipts")
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         receipt_name = "%s-receipt-%s.plist" % (recipe_basename, timestamp)
+        
         if not os.path.exists(receipt_dir):
             try:
                 os.makedirs(receipt_dir)
             except OSError, err:
                 log_err("Can't create %s: %s" % (receipt_dir, err.strerror))
-
-        receipt_path = os.path.join(receipt_dir, receipt_name)
-        try:
-            FoundationPlist.writePlist(autopackager.results, receipt_path)
-            if options.verbose:
-                log("Receipt written to %s" % receipt_path)
-        except IOError as err:
-            log_err(
-                "Can't write receipt to %s: %s" % (receipt_path, err.strerror))
+        
+        if os.path.exists(receipt_dir):
+            receipt_path = os.path.join(receipt_dir, receipt_name)
+            try:
+                FoundationPlist.writePlist(autopackager.results, receipt_path)
+                if options.verbose:
+                    log("Receipt written to %s" % receipt_path)
+            except IOError as err:
+                log_err("Can't write receipt to %s: %s" 
+                        % (receipt_path, err.strerror))
 
         # look through results for interesting info
         # and record for later summary and use
