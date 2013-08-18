@@ -28,14 +28,16 @@ __all__ = ["PkgCopier"]
 class PkgCopier(Copier):
     description = "Copies source_pkg to pkg_path."
     input_variables = {
-        "source_path": {
+        "source_pkg": {
             "required": True,
             "description": "Path to a pkg to copy. " + \
                 "Can point to a path inside a .dmg which will be mounted.",
         },
         "pkg_path": {
-            "required": True,
-            "description": "Path to destination.",
+            "required": False,
+            "description": 
+                ("Path to destination. Defaults to "
+                "RECIPE_CACHE_DIR/os.path.basename(source_pkg)"),
         },
     }
     output_variables = {
@@ -49,21 +51,24 @@ class PkgCopier(Copier):
     def main(self):
         # Check if we're trying to copy something inside a dmg.
         (dmg_path, dmg,
-         dmg_source_path) = self.env['source_path'].partition(".dmg/")
+         dmg_source_path) = self.env['source_pkg'].partition(".dmg/")
         dmg_path += ".dmg"
         try:
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                source_path = os.path.join(mount_point, dmg_source_path)
+                source_pkg = os.path.join(mount_point, dmg_source_path)
             else:
                 # Straight copy from file system.
-                source_path = self.env['source_path']
+                source_pkg = self.env["source_pkg"]
 
             # do the copy
-            pkg_path = self.env["pkg_path"]
-            self.copy(source_path, pkg_path, overwrite=True)
-
+            pkg_path = (self.env.get("pkg_path") or 
+                os.path.join(self.env['RECIPE_CACHE_DIR'],
+                             os.path.basename(source_pkg)))
+            self.copy(source_pkg, pkg_path, overwrite=True)
+            self.env["pkg_path"] = pkg_path
+            
         finally:
             if dmg:
                 self.unmount(dmg_path)
