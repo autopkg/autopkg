@@ -885,15 +885,15 @@ def run_recipes(argv):
         # look through results for interesting info
         # and record for later summary and use
         for item in autopackager.results:
-            if item.get("Processor") == "URLDownloader":
-                # look for downloads
+            if item.get("Output"):
+                # look for changed downloads
                 if item["Output"].get("download_changed"):
                     new_downloads.append(item["Output"].get("pathname"))
-            if item.get("Processor") == "PkgCreator":
-                # look for built packages
+        
+                # look for packages
                 if item["Output"].get("pkg_path"):
                     new_packages.append(item["Output"].get("pkg_path"))
-            if item.get("Processor") == "MunkiImporter":
+        
                 # look for items imported into munki repo
                 if item["Output"].get("pkginfo_repo_path"):
                     imported_item = {}
