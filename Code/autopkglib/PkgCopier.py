@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2010 Per Olofsson
+# Copyright 2013 Greg Neagle
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,59 +19,32 @@ import os.path
 import shutil
 
 from autopkglib import Processor, ProcessorError
-from DmgMounter import DmgMounter
+from Copier import Copier
 
 
-__all__ = ["Copier"]
+__all__ = ["PkgCopier"]
 
 
-class Copier(DmgMounter):
-    description = "Copies source_path to destination_path."
+class PkgCopier(Copier):
+    description = "Copies source_pkg to pkg_path."
     input_variables = {
         "source_path": {
             "required": True,
-            "description": "Path to a file or directory to copy. " + \
+            "description": "Path to a pkg to copy. " + \
                 "Can point to a path inside a .dmg which will be mounted.",
         },
-        "destination_path": {
+        "pkg_path": {
             "required": True,
             "description": "Path to destination.",
         },
-        "overwrite": {
-            "required": False,
-            "description": "Whether the destination will be overwritten if necessary.",
-        },
     }
     output_variables = {
+        "pkg_path": {
+            "description": "Path to copied pkg.",
+        },
     }
-    
+
     __doc__ = description
-    
-    def copy(self, source_item, dest_item, overwrite=False):
-        '''Copies source_item to dest_item, overwriting if allowed'''
-        # Remove destination if needed.
-        if os.path.exists(dest_item) and overwrite:
-            try:
-                if os.path.isdir(dest_item) and not os.path.islink(dest_item):
-                    shutil.rmtree(dest_item)
-                else:
-                    os.unlink(dest_item)
-            except OSError, err:
-                raise ProcessorError(
-                    "Can't remove %s: %s" % (dest_item, err.strerror))
-                    
-        # Copy file or directory.
-        try:
-            if os.path.isdir(source_item):
-                shutil.copytree(source_item, dest_item, symlinks=True)
-            elif not os.path.isdir(dest_item):
-                shutil.copyfile(source_item, dest_item)
-            else:
-                shutil.copy(source_item, dest_item)
-            self.output("Copied %s to %s" % (source_item, dest_item))
-        except BaseException, err:
-            raise ProcessorError(
-                "Can't copy %s to %s: %s" % (source_item, dest_item, err))
     
     def main(self):
         # Check if we're trying to copy something inside a dmg.
@@ -88,8 +61,9 @@ class Copier(DmgMounter):
                 source_path = self.env['source_path']
 
             # do the copy
-            self.copy(source_path, self.env['destination_path'],
-                      overwrite=self.env.get("overwrite"))
+            pkg_path = self.env["pkg_path"]
+            self.copy(source_path, pkg_path, overwrite=True)
+
         finally:
             if dmg:
                 self.unmount(dmg_path)
@@ -98,4 +72,3 @@ class Copier(DmgMounter):
 if __name__ == '__main__':
     processor = Copier()
     processor.execute_shell()
-    
