@@ -35,6 +35,9 @@ class AppDmgVersioner(DmgMounter):
         },
     }
     output_variables = {
+        "app_name": {
+            "description": "Name of app found on the disk image."
+        },
         "bundleid": {
             "description": "Bundle identifier of the app.",
         },
@@ -77,6 +80,7 @@ class AppDmgVersioner(DmgMounter):
         try:
             app_path = self.find_app(mount_point)
             info = self.read_bundle_info(app_path)
+            self.env["app_name"] = os.path.basename(app_path)
             try:
                 self.env["bundleid"] = info["CFBundleIdentifier"]
                 self.env["version"] = info["CFBundleShortVersionString"]
