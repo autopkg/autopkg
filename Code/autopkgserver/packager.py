@@ -16,6 +16,7 @@
 
 
 import os
+import plistlib
 import stat
 import shutil
 import subprocess
@@ -67,6 +68,7 @@ class Packager(object):
             self.verify_request()
             self.copy_pkgroot()
             self.apply_chown()
+            self.make_component_property_list()
             return self.create_pkg()
         finally:
             self.cleanup()
@@ -260,6 +262,39 @@ class Packager(object):
         rand = os.urandom((len + 1) / 2)
         randstr = "".join(["%02x" % ord(c) for c in rand])
         return randstr[:len]
+        
+    def make_component_property_list(self):
+        """Use pkgutil --analyze to build a component property list; then
+        turn off package relocation"""
+        self.component_plist = os.path.join(self.tmproot, "component.plist")
+        try:
+            p = subprocess.Popen(("/usr/bin/pkgbuild",
+                                  "--analyze",
+                                  "--root", self.tmp_pkgroot,
+                                  self.component_plist),
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+            (out, err) = p.communicate()
+        except OSError as e:
+            raise PackagerError(
+                "pkgbuild execution failed with error code %d: %s" 
+                % (e.errno, e.strerror))
+        if p.returncode != 0:
+            raise PackagerError(
+                "pkgbuild failed with exit code %d: %s" 
+                % (p.returncode, " ".join(str(err).split())))
+        try:
+            plist = plistlib.readPlist(self.component_plist)
+        except BaseException as err:
+            raise PackagerError("Couldn't read %s" % self.component_plist)
+        # plist is an array of dicts, iterate through
+        for bundle in plist:
+            if bundle.get("BundleIsRelocatable"):
+                bundle["BundleIsRelocatable"] = False
+        try:
+            plistlib.writePlist(plist, self.component_plist)
+        except BaseException as err:
+            raise PackagerError("Couldn't write %s" % self.component_plist)
     
     def create_pkg(self):
         self.log.info("Creating package")
@@ -308,6 +343,7 @@ class Packager(object):
                                       # generate a template to control
                                       # relocation.
                                       #"--no-relocate",
+                                      "--component-plist", self.component_plist,
                                       temppkgpath),
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
