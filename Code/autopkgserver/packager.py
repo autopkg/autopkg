@@ -128,12 +128,13 @@ class Packager(object):
         self.log.debug("version ok")
         
         # Make sure infofile and resources exist and can be read.
-        try:
-            with open(self.request.infofile, "rb") as f:
-                pass
-        except (IOError, OSError) as e:
-            raise PackagerError("Can't open infofile: %s" % e)
-        self.log.debug("infofile ok")
+        if self.request.infofile:
+            try:
+                with open(self.request.infofile, "rb") as f:
+                    pass
+            except (IOError, OSError) as e:
+                raise PackagerError("Can't open infofile: %s" % e)
+            self.log.debug("infofile ok")
         
         # FIXME: resources temporarily unsupported.
         #if self.request.resources:
@@ -327,22 +328,20 @@ class Packager(object):
         # Wrap package building in try/finally to remove temporary package if
         # it fails.
         try:
+            # make a pkgbuild cmd
+            cmd = ["/usr/bin/pkgbuild",
+                    "--root", self.tmp_pkgroot,
+                    "--identifier", self.request.id,
+                    "--version", self.request.version,
+                    "--ownership", "preserve",
+                    "--component-plist", self.component_plist]
+            if self.request.infofile:
+                cmd.extend(["--info", self.request.infofile])
+            cmd.append(temppkgpath)
+            
             # Execute pkgbuild.
             try:
-                p = subprocess.Popen(("/usr/bin/pkgbuild",
-                                      "--root", self.tmp_pkgroot,
-                                      "--info", self.request.infofile,
-                                      # FIXME: We have to build a distribution
-                                      # package with productbuild to include
-                                      # resources.
-                                      #"--resources", self.request.resources,
-                                      "--identifier", self.request.id,
-                                      "--version", self.request.version,
-                                      "--ownership", "preserve",
-                                      # we're using the component plist to turn
-                                      # off bundle relocation
-                                      "--component-plist", self.component_plist,
-                                      temppkgpath),
+                p = subprocess.Popen(cmd,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
                 (out, err) = p.communicate()
