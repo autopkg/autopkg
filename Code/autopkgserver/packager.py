@@ -339,18 +339,17 @@ class Packager(object):
                                       "--identifier", self.request.id,
                                       "--version", self.request.version,
                                       "--ownership", "preserve",
-                                      # FIXME: have to analyze package and
-                                      # generate a template to control
-                                      # relocation.
-                                      #"--no-relocate",
+                                      # we're using the component plist to turn
+                                      # off bundle relocation
                                       "--component-plist", self.component_plist,
                                       temppkgpath),
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
                 (out, err) = p.communicate()
             except OSError as e:
-                raise PackagerError("pkgbuild execution failed with error code %d: %s" % (
-                                     e.errno, e.strerror))
+                raise PackagerError(
+                    "pkgbuild execution failed with error code %d: %s" 
+                    % (e.errno, e.strerror))
             if p.returncode != 0:
                 raise PackagerError("pkgbuild failed with exit code %d: %s" % (
                                      p.returncode,
