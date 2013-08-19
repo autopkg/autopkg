@@ -45,7 +45,7 @@ class PkgCreator(Processor):
     
     __doc__ = description
     
-    def main(self):
+    def package(self):
         request = self.env["pkg_request"]
         if not 'pkgdir' in request:
             request['pkgdir'] = self.env['RECIPE_CACHE_DIR']
@@ -72,7 +72,7 @@ class PkgCreator(Processor):
         # Convert relative paths to absolute.
         for key, value in request.items():
             if key in ("pkgroot", "pkgdir", "infofile", "resources"):
-                if not value.startswith("/"):
+                if value and not value.startswith("/"):
                     # Relative to work directory
                     request[key] = os.path.normpath(
                         os.path.join(self.env['RECIPE_CACHE_DIR'], value))
@@ -112,6 +112,9 @@ class PkgCreator(Processor):
     
     def disconnect(self):
         self.socket.close()
+        
+    def main(self):
+        self.package()
     
 
 if __name__ == '__main__':
