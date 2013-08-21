@@ -629,6 +629,8 @@ def list_recipes(argv):
     # find all valid overrides first
     for directory in override_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        if not os.path.isdir(normalized_dir):
+            continue
         for filename in os.listdir(normalized_dir):
             if filename.endswith(".recipe"):
                 pathname = os.path.join(normalized_dir, filename)
@@ -643,6 +645,8 @@ def list_recipes(argv):
 
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        if not os.path.isdir(normalized_dir):
+            continue
         # find all top-level recipes
         matches = glob.glob(os.path.join(normalized_dir, "*.recipe"))
         for match in matches:
@@ -757,6 +761,7 @@ def run_recipes(argv):
     new_packages = []
     new_imports = []
     failures = []
+    error_count = 0
 
     # Add variables from commandline.
     cli_values = {}
@@ -788,14 +793,16 @@ def run_recipes(argv):
 
     if not recipe_paths:
         log_err(p.get_usage())
-        return 1
+        return -1
 
     if len(recipe_paths) > 1 and options.pkg:
         log_err("-p/--pkg option can't be used with multiple recipes!")
-        return 1
+        return -1
 
     cache_dir = get_pref("CACHE_DIR") or os.path.expanduser(
                 "~/Library/AutoPkg/Cache")
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir, 0755)
     current_run_results_plist = os.path.join(cache_dir, "autopkg_results.plist")
 
     run_results = []
@@ -810,6 +817,7 @@ def run_recipes(argv):
         recipe = load_recipe(recipe_path, override_dirs, search_dirs)
         if not recipe:
             log_err("No valid recipe found for %s" % recipe_path)
+            error_count += 1
             continue
 
         if options.check:
@@ -821,6 +829,7 @@ def run_recipes(argv):
             if len(recipe["Process"]) == 0:
                 log_err("Recipe at %s is missing EndOfCheckPhase Processor, "
                         "not possible to perform check." % recipe_path)
+                error_count += 1
                 continue
 
         log("Processing %s..." % recipe_path)
@@ -840,6 +849,7 @@ def run_recipes(argv):
             autopackager.verify(recipe)
             autopackager.process(recipe)
         except AutoPackagerError as err:
+            error_count += 1
             failure = {}
             log_err("Failed.")
             failure["recipe"] = recipe_path
@@ -935,9 +945,12 @@ def run_recipes(argv):
 
     if _REPORT_PLIST:
         results_report = {}
-        for event_type in ["failures", "new_downloads", "new_imports"]:
+        for event_type in [
+            "failures", "new_downloads", "new_packages", "new_imports"]:
             results_report[event_type] = locals()[event_type]
         print FoundationPlist.writePlistToString(results_report)
+
+    return error_count
 
 
 def main(argv):
