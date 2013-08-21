@@ -1,8 +1,6 @@
 Todo:
 -----
 
-* Remove 'autopkg' and 'automunkiimport' tools; replace them with the tool currently named 'auto' (which will probably be renamed to 'autopkg')
-
 
 
 These were migrated over from a TODO list from around April/May 2013.
