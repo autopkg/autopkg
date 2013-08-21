@@ -33,9 +33,7 @@ mkdir -m 0755 "$INSTALL_DIR/FoundationPlist"
 
 echo "Copying executable"
 cp Code/autopkg "$INSTALL_DIR/"
-cp Code/automunkiimport "$INSTALL_DIR/"
 ln -sf "$INSTALL_DIR/autopkg" /usr/local/bin/autopkg
-ln -sf "$INSTALL_DIR/automunkiimport" /usr/local/bin/automunkiimport
 
 echo "Copying library"
 cp Code/autopkglib/*.py "$INSTALL_DIR/autopkglib/"
