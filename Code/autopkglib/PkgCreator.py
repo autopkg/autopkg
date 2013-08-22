@@ -57,11 +57,18 @@ class PkgCreator(Processor):
                     "id",
                     "version",
                     "infofile",
-                    #"resources",
-                    "options"):
+                    "resources",
+                    "options",
+                    "scripts"):
             if not key in request:
                 if key in self.env:
                     request[key] = self.env[key]
+                elif key in ["infofile", "resources", "options", "scripts"]:
+                    # these keys are optional, so empty string value is OK
+                    request[key] = ""
+                elif key == "pkgtype":
+                    # we only support flat packages now
+                    request[key] = "flat"
                 else:
                     raise ProcessorError("Request key %s missing" % key)
         
@@ -71,7 +78,7 @@ class PkgCreator(Processor):
         
         # Convert relative paths to absolute.
         for key, value in request.items():
-            if key in ("pkgroot", "pkgdir", "infofile", "resources"):
+            if key in ("pkgroot", "pkgdir", "infofile", "resources", "scripts"):
                 if value and not value.startswith("/"):
                     # Relative to work directory
                     request[key] = os.path.normpath(
