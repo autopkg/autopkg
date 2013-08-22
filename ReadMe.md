@@ -12,6 +12,4 @@ Installation
 ------------
 
 Soon an installer package will be available [here](https://github.com/autopkg/autopkg/releases).
-For now, install it using this script:
-
-    sudo Scripts/install.sh
+For now, please follow the [Getting Started guide.](https://github.com/autopkg/autopkg/wiki/Getting-Started)
