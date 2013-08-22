@@ -91,6 +91,10 @@ Request format:
                     group   A string with a group name, or an int with a gid.
                     mode    A string with the mode in octal notation, ie. '0755'
 
+    scripts         A string with the path to a scripts directory. This is
+                    supported only for flat package types, and passed directly
+                    to the '--scripts' option of pkgbuild.
+
 """
 
 import os
@@ -128,11 +132,13 @@ request_structure = {
     "infofile": str,
     "resources": str,
     "chown": list,
+    "scripts": str
 }
 chown_structure = {
     "path": str,
     "user": (str, int),
     "group": (str, int),
+    "mode": str
 }
 
 

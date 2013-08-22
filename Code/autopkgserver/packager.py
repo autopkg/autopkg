@@ -135,6 +135,26 @@ class Packager(object):
             except (IOError, OSError) as e:
                 raise PackagerError("Can't open infofile: %s" % e)
             self.log.debug("infofile ok")
+
+        # Make sure scripts is a directory and its contents
+        # are executable.
+        if self.request.scripts:
+            if self.request.pkgtype == "bundle":
+                raise PackagerError(
+                    "Installer scripts are not supported with "
+                    "bundle package types.")
+            if not os.path.isdir(self.request.scripts):
+                raise PackagerError(
+                    "Can't find scripts directory: %s"
+                    % self.request.scripts)
+            for script in ["preinstall", "postinstall"]:
+                script_path = os.path.join(self.request.scripts, script)
+                if os.path.exists(script_path) \
+                    and not os.access(script_path, os.X_OK):
+                    raise PackagerError(
+                        "%s script found in %s but it is not executable!"
+                        % (script, self.request.scripts))
+            self.log.debug("scripts ok")
         
         # FIXME: resources temporarily unsupported.
         #if self.request.resources:
@@ -337,6 +357,8 @@ class Packager(object):
                     "--component-plist", self.component_plist]
             if self.request.infofile:
                 cmd.extend(["--info", self.request.infofile])
+            if self.request.scripts:
+                cmd.extend(["--scripts", self.request.scripts])
             cmd.append(temppkgpath)
             
             # Execute pkgbuild.
