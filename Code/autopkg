@@ -762,9 +762,18 @@ def run_recipes(argv):
     new_imports = []
     failures = []
     error_count = 0
-
-    # Add variables from commandline.
+    
+    # Add variables from environment
     cli_values = {}
+    for key, value in os.environ.items():
+        if key.startswith("AUTOPKG_"):
+            if options.verbose > 1:
+                log("Using environment var %s=%s" % (key, value))
+            local_key = key[8:]
+            cli_values[local_key] = value
+
+    # Add variables from commandline. These might override those from
+    # environment variables
     for arg in options.variables:
         (key, sep, value) = arg.partition("=")
         if sep != "=":
