@@ -38,16 +38,14 @@ managed clients. Recipes allow you to specify a series of simple actions which
 combined together can perform complex tasks, similar to Automator workflows or
 Unix pipes.</p>
 
-<p>See <a href="https://github.com/autopkg/autopkg/wiki">the wiki</a> for more information.</p>
+<p>See <a href="https://github.com/autopkg/autopkg/wiki">the wiki</a> for more information and full documentation.</p>
 
 <h2>
 <a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a>Installation</h2>
 
-<p>To install AutoPkg, unpack the distribution and run</p>
+<p>Get the latest installer from the <a href="https://github.com/autopkg/autopkg/releases">Releases</a> GitHub page.</p>
 
-<p><code>sudo Scripts/install.sh</code></p>
-
-<p>This will set up a packaging server and a launchd job so regular users can create packages.</p>
+<p>This will also set up a packaging server and a launchd job so regular users can create packages.</p>
 
 <h2>
 <a name="configuration" class="anchor" href="#configuration"><span class="octicon octicon-link"></span></a>Configuration</h2>
@@ -59,15 +57,26 @@ Unix pipes.</p>
 <h2>
 <a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h2>
 
-<p><code>/Library/AutoPkg/autopkg run recipename</code></p>
+<p>These are just a few examples. See <a href="https://github.com/autopkg/autopkg/wiki">the wiki</a> for more usage info.</p>
+
+<p>Run a recipe:</p>
+<p><code>autopkg run recipename</code></p>
+
+<p>List all recipes:</p>
+<p><code>autopkg list-recipes</code></p>
+
+<p>See all commands:</p>
+<p><code>autopkg help</code></p>
 
 <h2>
 <a name="sample-recipes" class="anchor" href="#sample-recipes"><span class="octicon octicon-link"></span></a>Getting Recipes</h2>
 
 <p>No recipes are included with the base autopkg tools. You can use autopkg to get some:</p>
-<pre><code>   /Library/AutoPkg/autopkg repo-add http://github.com/autopkg/recipes.git
-</code></pre>
-<p>This clones the recipes repo into ~/Library/AutoPkg/RecipeRepos/, where autopkg will find them automatically.</p>
+<p><code>autopkg repo-add http://github.com/autopkg/recipes.git</code></p>
+
+<p>This clones the recipes repo into ~/Library/AutoPkg/RecipeRepos/, where autopkg will find them automatically. You can keep your recipes up to date using the <code>repo-update</code> command:</p>
+<p><code>autopkg repo-update all</code></p>
+
       </section>
       <footer>
         <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a></small></p>
