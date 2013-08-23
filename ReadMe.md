@@ -11,5 +11,4 @@ See [the wiki](https://github.com/autopkg/autopkg/wiki#introduction) for more in
 Installation
 ------------
 
-Soon an installer package will be available [here](https://github.com/autopkg/autopkg/releases).
-For now, please follow the [Getting Started guide.](https://github.com/autopkg/autopkg/wiki/Getting-Started)
+Installer packages are available [here](https://github.com/autopkg/autopkg/releases).
