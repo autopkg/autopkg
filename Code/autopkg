@@ -706,22 +706,30 @@ def make_override(argv):
         return 1
     override_plist = dict({"Recipe":
                             {"name": recipe_name,
-                             "identifier": recipe["Input"]["IDENTIFIER"]}
+                             "identifier": recipe["Input"].get(
+                                                        "IDENTIFIER", "")}
                            }
                           )
     override_plist["Input"] = recipe["Input"]
-    
+
+    override_dir = os.path.expanduser(override_dirs[0])
+    if not os.path.exists(os.path.join(override_dir)):
+        try:
+            os.makedirs(os.path.join(override_dir))
+        except (OSError, IOError), err:
+            log_err("Could not create %s: %s" % (override_dir, err))
+            return -1
+
     override_name = (options.name 
         or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0])
-    override_out_file = os.path.expanduser(
-        os.path.join(override_dirs[0], "%s.recipe" % override_name))
-    if os.path.exists(override_out_file):
+    override_file = os.path.join(override_dir, "%s.recipe" % override_name)
+    if os.path.exists(override_file):
         log_err("An override plist already exists at %s, "
                 "will not overwrite it." % override_out_file)
         return -1
     else:
-        FoundationPlist.writePlist(override_plist, override_out_file)
-        log("Override file saved to %s." % override_out_file)
+        FoundationPlist.writePlist(override_plist, override_file)
+        log("Override file saved to %s." % override_file)
         return 0
 
 
