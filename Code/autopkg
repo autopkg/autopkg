@@ -725,7 +725,7 @@ def make_override(argv):
     override_file = os.path.join(override_dir, "%s.recipe" % override_name)
     if os.path.exists(override_file):
         log_err("An override plist already exists at %s, "
-                "will not overwrite it." % override_out_file)
+                "will not overwrite it." % override_file)
         return -1
     else:
         FoundationPlist.writePlist(override_plist, override_file)
