@@ -291,39 +291,11 @@ class AutoPackager(object):
         variables = set(recipe["Input"].keys())
         # Add environment.
         variables.update(set(self.env.keys()))
-        recipe_dir = self.env.get('RECIPE_DIR')
-        search_dirs = [recipe_dir]
-        if recipe.get("PARENT_RECIPES"):
-            # also look in the directories containing the parent recipes
-            parent_recipe_dirs = list(set([
-                os.path.dirname(item) 
-                for item in recipe["PARENT_RECIPES"]]))
-            search_dirs.extend(parent_recipe_dirs)
         # Check each step of the process.
         for step in recipe["Process"]:
-            # Look for the processor in the same directory as the recipe or its
-            # parents
-            for directory in search_dirs:
-                processor_filename = os.path.join(
-                                        directory, step["Processor"] + '.py')
-                if os.path.exists(processor_filename):
-                    try:
-                        # attempt to import the module
-                        _tmp = imp.load_source(
-                            step["Processor"], processor_filename)
-                        # look for an attribute with the step Processor name
-                        _processor = getattr(_tmp, step["Processor"])
-                        # add the processor to autopkglib's namespace
-                        add_processor(step["Processor"], _processor)
-                        # we've added a Processor, so stop searching
-                        break
-                    except (ImportError, AttributeError), err:
-                        # if we aren't successful, that might be OK, we're going
-                        # see if the processor was already imported
-                        self.output(
-                            "WARNING: %s: %s" % (processor_filename, err))
             try:
-                processor_class = get_processor(step["Processor"])
+                processor_class = get_processor(
+                                      step["Processor"], recipe=recipe)
             except (KeyError, AttributeError):
                 raise AutoPackagerError(
                         "Unknown processor '%s'" % step["Processor"])
@@ -435,7 +407,39 @@ for name in processor_files:
 # since these can change dynamically
 def add_processor(processor_name, processor_object):
     globals()[processor_name] = processor_object
-    
-def get_processor(processor_name):
+
+
+def get_processor(processor_name, recipe=None):
+    if recipe:
+        # search recipe dirs for processor
+        recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
+        processor_search_dirs = [recipe_dir]
+        if recipe.get("PARENT_RECIPES"):
+            # also look in the directories containing the parent recipes
+            parent_recipe_dirs = list(set([
+                os.path.dirname(item) 
+                for item in recipe["PARENT_RECIPES"]]))
+            processor_search_dirs.extend(parent_recipe_dirs)
+
+        for directory in processor_search_dirs:
+            processor_filename = os.path.join(
+                                    directory, processor_name + '.py')
+            if os.path.exists(processor_filename):
+                try:
+                    # attempt to import the module
+                    _tmp = imp.load_source(
+                        processor_name, processor_filename)
+                    # look for an attribute with the step Processor name
+                    _processor = getattr(_tmp, processor_name)
+                    # add the processor to autopkglib's namespace
+                    add_processor(processor_name, _processor)
+                    # we've added a Processor, so stop searching
+                    break
+                except (ImportError, AttributeError), err:
+                    # if we aren't successful, that might be OK, we're going
+                    # see if the processor was already imported
+                    self.output(
+                        "WARNING: %s: %s" % (processor_filename, err))
+
     return globals()[processor_name]
     

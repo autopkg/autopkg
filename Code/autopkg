@@ -17,6 +17,7 @@
 related tasks"""
 
 import glob
+import imp
 import sys
 import os
 import optparse
@@ -30,6 +31,7 @@ from urlparse import urlparse
 from autopkglib import get_pref, get_all_prefs
 from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
+from autopkglib import get_processor, add_processor
 
 _REPORT_PLIST = False
 
@@ -650,6 +652,54 @@ def get_info(argv):
         return -1
 
 
+def processor_info(argv):
+    '''Display info about a processor'''
+    
+    def print_vars(var_dict, indent=0):
+        """Print a dict of dicts and strings"""
+        for key, value in var_dict.items():
+            if isinstance(value, dict):
+                print " " * indent, "%s:" % key
+                print_vars(value, indent=indent + 4)
+            else:
+                print " " * indent, "%s: %s" % (key, value)
+                
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [options] processorname" % ("%prog", verb))
+    p.add_option("-r", "--recipe", metavar="RECIPE",
+                 help="Name of recipe using the processor.")
+
+    # Parse arguments
+    add_search_and_override_dir_options(p)
+    options, arguments = p.parse_args(argv[2:])
+
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+
+    if len(arguments) != 1:
+        log_err("Need exactly one processor name")
+        return -1
+
+    processor_name = arguments[0]
+
+    recipe = None
+    if options.recipe:
+        recipe = load_recipe(options.recipe, override_dirs, search_dirs)
+    
+    try:
+        processor_class = get_processor(processor_name, recipe=recipe)
+    except (KeyError, AttributeError):
+        log_err("Unknown processor '%s'" % processor_name)
+        return -1
+
+    print "Description: %s" % processor_class.description
+    print "Input variables:"
+    print_vars(processor_class.input_variables, indent=4)
+    print "Output variables:"
+    print_vars(processor_class.output_variables, indent=4)
+
+
 def list_recipes(argv):
     '''List all available recipes'''
     verb = argv[1]
@@ -1040,6 +1090,9 @@ def main(argv):
         "make-override": {
             "function": make_override,
             "help": "Make a recipe override"},
+        "processor-info": {
+            "function": processor_info,
+            "help": "Get informatation about a specific processor"},
         "repo-add": {
             "function": repo_add,
             "help": "Add one or more recipe repo from a URL."},
