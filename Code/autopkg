@@ -31,7 +31,7 @@ from urlparse import urlparse
 from autopkglib import get_pref, get_all_prefs
 from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
-from autopkglib import get_processor, add_processor
+from autopkglib import get_processor
 
 _REPORT_PLIST = False
 
