@@ -17,7 +17,6 @@
 related tasks"""
 
 import glob
-import imp
 import sys
 import os
 import optparse
