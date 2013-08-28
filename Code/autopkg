@@ -49,6 +49,15 @@ def log_err(msg):
     log(msg, error=True)
 
 
+def print_version(argv):
+    plist_path = os.path.join(os.path.dirname(__file__), "autopkglib/version.plist")
+    plist = FoundationPlist.readPlist(plist_path)
+    if "Version" in plist.keys():
+        print plist["Version"]
+    else:
+        log_err("Missing version info from %s!" % plist_path)
+
+
 def recipe_has_step_processor(recipe, processor):
     '''Does the recipe object contain at least one step with the
     named Processor?'''
@@ -1135,7 +1144,10 @@ def main(argv):
             "help": "Update one or more recipe repos."},
         "run": {
             "function": run_recipes,
-            "help": "Run one or more recipes"}
+            "help": "Run one or more recipes"},
+        "version": {
+            "function": print_version,
+            "help": "Print the current version of autopkg"}
     }
 
     try:
