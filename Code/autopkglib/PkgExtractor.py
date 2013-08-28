@@ -44,7 +44,7 @@ class PkgExtractor(DmgMounter):
     }
     output_variables = {
     }
-    description = __doc__
+    __doc__ = description
 
     def extract_payload(self, pkg_path, extract_root):
         '''Extract package contents to extract_root, preserving intended
