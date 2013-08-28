@@ -660,7 +660,7 @@ def processor_info(argv):
         for key, value in var_dict.items():
             if isinstance(value, dict):
                 print " " * indent, "%s:" % key
-                print_vars(value, indent=indent + 4)
+                print_vars(value, indent=indent + 2)
             else:
                 print " " * indent, "%s: %s" % (key, value)
                 
@@ -695,9 +695,9 @@ def processor_info(argv):
 
     print "Description: %s" % processor_class.description
     print "Input variables:"
-    print_vars(processor_class.input_variables, indent=4)
+    print_vars(processor_class.input_variables, indent=2)
     print "Output variables:"
-    print_vars(processor_class.output_variables, indent=4)
+    print_vars(processor_class.output_variables, indent=2)
 
 
 def list_recipes(argv):
