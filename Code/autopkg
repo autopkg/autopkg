@@ -30,7 +30,7 @@ from urlparse import urlparse
 from autopkglib import get_pref, get_all_prefs
 from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
-from autopkglib import get_processor
+from autopkglib import get_processor, processor_names
 
 _REPORT_PLIST = False
 
@@ -691,12 +691,38 @@ def processor_info(argv):
     except (KeyError, AttributeError):
         log_err("Unknown processor '%s'" % processor_name)
         return -1
-
-    print "Description: %s" % processor_class.description
+    
+    try:
+        description = processor_class.description
+    except AttributeError:
+        try:
+            description = processor_class.__doc__
+        except AttributeError:
+            description = ""
+    try:
+        input_vars = processor_class.input_variables
+    except AttributeError:
+        input_vars = {}
+    try:
+        output_vars = processor_class.output_variables
+    except AttributeError:
+        output_vars = {}
+    
+    print "Description: %s" % description
     print "Input variables:"
-    print_vars(processor_class.input_variables, indent=2)
+    print_vars(input_vars, indent=2)
     print "Output variables:"
-    print_vars(processor_class.output_variables, indent=2)
+    print_vars(output_vars, indent=2)
+
+
+def list_processors(argv):
+    '''List the processors in autopkglib'''
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [options]\n"
+        "List the core Processors." % ("%prog", verb))
+
+    print "\n".join(sorted(processor_names()))
 
 
 def list_recipes(argv):
@@ -1086,6 +1112,9 @@ def main(argv):
         "list-recipes": {
             "function": list_recipes,
             "help": "List available recipes"},
+        "list-processors": {
+            "function": list_processors,
+            "help": "List available core Processors."},
         "make-override": {
             "function": make_override,
             "help": "Make a recipe override"},

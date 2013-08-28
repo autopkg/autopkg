@@ -380,36 +380,46 @@ class AutoPackager(object):
             pprint.pprint(self.env)
 
 
-# get the directory this __init__.py file is in
-mydir = os.path.dirname(os.path.abspath(__file__))
-mydirname = os.path.basename(mydir)
+_processor_names = []
+def import_processors():
+    '''Imports processors from the directory this init file is in'''
+    # get the directory this __init__.py file is in
+    mydir = os.path.dirname(os.path.abspath(__file__))
+    mydirname = os.path.basename(mydir)
 
-# find all the .py files (minus this one)
-processor_files = [
-        os.path.splitext(name)[0] 
-        for name in os.listdir(mydir) 
-        if name.endswith('.py') and not name == '__init__.py']
+    # find all the .py files (minus this one)
+    processor_files = [
+            os.path.splitext(name)[0] 
+            for name in os.listdir(mydir) 
+            if name.endswith('.py') and not name == '__init__.py']
 
-# Warning! Fancy dynamic importing ahead!
-#
-# import the filename as a submodule
-# then add the attribute with the same name to the globals()
-#
-# This is the equivalent of:
-#
-#    from Bar.Foo import Foo
-#
-for name in processor_files:
-    globals()[name] = getattr(__import__(
-        mydirname + '.' + name, fromlist=[name]), name)
+    # Warning! Fancy dynamic importing ahead!
+    #
+    # import the filename as a submodule
+    # then add the attribute with the same name to the globals()
+    #
+    # This is the equivalent of:
+    #
+    #    from Bar.Foo import Foo
+    #
+    for name in processor_files:
+        globals()[name] = getattr(__import__(
+            mydirname + '.' + name, fromlist=[name]), name)
+        _processor_names.append(name)
+
 
 # convenience functions for adding and accessing processors
 # since these can change dynamically
 def add_processor(processor_name, processor_object):
+    '''Adds a Processor to the autopkglib namespace'''
     globals()[processor_name] = processor_object
+    if not name in processor_names:
+        _processor_names.append(name)
 
 
 def get_processor(processor_name, recipe=None):
+    '''Returns a Processor object given a name and optionally a recipe, 
+    importing a processor from the recipe directory if available'''
     if recipe:
         # search recipe dirs for processor
         recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
@@ -442,4 +452,12 @@ def get_processor(processor_name, recipe=None):
                         "WARNING: %s: %s" % (processor_filename, err))
 
     return globals()[processor_name]
-    
+
+
+def processor_names():
+    return _processor_names
+
+
+# when importing autopkglib, need to also import all the processors 
+# in this same directory
+import_processors()
