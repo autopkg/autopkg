@@ -410,10 +410,10 @@ def import_processors():
 
 # convenience functions for adding and accessing processors
 # since these can change dynamically
-def add_processor(processor_name, processor_object):
+def add_processor(name, processor_object):
     '''Adds a Processor to the autopkglib namespace'''
-    globals()[processor_name] = processor_object
-    if not name in processor_names:
+    globals()[name] = processor_object
+    if not name in _processor_names:
         _processor_names.append(name)
 
 
