@@ -178,6 +178,33 @@ def find_recipe_by_name(name, search_dirs):
     return None
 
 
+def find_recipe(id_or_name, search_dirs):
+    '''find a recipe based on a string that might be an identifier
+    or a name'''
+    return (find_recipe_by_identifier(id_or_name, search_dirs) or
+            find_recipe_by_name(id_or_name, search_dirs))
+
+
+def get_identifier_from_override(override):
+    '''Return the identifier from an override, falling back with a
+    warning to just the 'name' of the recipe.'''
+    # prefer ParentRecipe
+    identifier = override.get('ParentRecipe')
+    if identifier:
+        return identifier
+    identifier = override['Recipe'].get("identifier")
+    if identifier:
+        return identifier
+    else:
+        name = override['Recipe'].get("name")
+        log_err("WARNING: Override contains no identifier. Will fall "
+                "back to matching it by name using search rules. It's "
+                "recommended to give the original recipe identifier "
+                "in the override's 'Recipes' dict to ensure the same "
+                "recipe is always used for this override.")
+    return name
+
+
 def load_recipe(name, override_dirs, recipe_dirs):
     '''Loads a recipe. If the name is the pathname to a file on disk, we
     attempt to load that file and use it as recipe.
@@ -188,25 +215,6 @@ def load_recipe(name, override_dirs, recipe_dirs):
     used, it prefers finding the original recipe by identifier rather than
     name, so that if recipe names shift with updated recipe repos, the
     override still applies to the recipe from which it was derived.'''
-
-    def get_identifier_from_override(override):
-        '''Return the identifier from an override, falling back with a
-        warning to just the 'name' of the recipe.'''
-        # prefer ParentRecipe
-        identifier = override.get('ParentRecipe')
-        if identifier:
-            return identifier
-        identifier = override['Recipe'].get("identifier")
-        if identifier:
-            return identifier
-        else:
-            name = override['Recipe'].get("name")
-            log_err("WARNING: Override contains no identifier. Will fall "
-                    "back to matching it by name using search rules. It's "
-                    "recommended to give the original recipe identifier "
-                    "in the override's 'Recipes' dict to ensure the same "
-                    "recipe is always used for this override.")
-        return name
 
     override = None
     recipe_file = None
@@ -760,9 +768,9 @@ def list_recipes(argv):
                 pathname = os.path.join(normalized_dir, filename)
                 if valid_override(pathname):
                     override = FoundationPlist.readPlist(pathname)
-                    name = override['Recipe'].get("name")
+                    id_or_name = get_identifier_from_override(override)
                     # find and validate recipe that will be overridden
-                    recipe_path = find_recipe(name, search_dirs)
+                    recipe_path = find_recipe(id_or_name, search_dirs)
                     if recipe_path and valid_recipe(recipe_path):
                         # override points to a valid recipe
                         recipes.add(os.path.splitext(filename)[0])
