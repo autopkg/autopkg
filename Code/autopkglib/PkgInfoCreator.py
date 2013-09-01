@@ -56,10 +56,32 @@ class PkgInfoCreator(Processor):
     
     __doc__ = description
     
+    
+    def find_template(self):
+        '''Searches for the template, looking in the recipe directory
+        and parent recipe directories if needed.'''
+        template_path = self.env['template_path']
+        if os.path.exists(template_path):
+            return template_path
+        elif not template_path.startswith("/"):
+            recipe_dir = self.env.get('RECIPE_DIR')
+            search_dirs = [recipe_dir]
+            if self.env.get("PARENT_RECIPES"):
+                # also look in the directories containing the parent recipes
+                parent_recipe_dirs = list(set([
+                    os.path.dirname(item) 
+                    for item in self.env["PARENT_RECIPES"]]))
+                search_dirs.extend(parent_recipe_dirs)
+            for directory in search_dirs:
+                test_item = os.path.join(directory, template_path)
+                if os.path.exists(test_item):
+                    return test_item
+        raise ProcessorError("Can't find %s" % template_path)
+    
     def main(self):
         if self.env['pkgtype'] not in ("bundle", "flat"):
             raise ProcessorError("Unknown pkgtype %s" % self.env['pkgtype'])
-        template = self.load_template(self.env['template_path'], self.env['pkgtype'])
+        template = self.load_template(self.find_template(), self.env['pkgtype'])
         if self.env['pkgtype'] == "bundle":
             self.create_bundle_info(template)
         else:

@@ -30,6 +30,7 @@ from urlparse import urlparse
 from autopkglib import get_pref, get_all_prefs
 from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
+from autopkglib import get_processor, processor_names
 
 _REPORT_PLIST = False
 
@@ -101,18 +102,66 @@ def valid_plist_with_keys(filename, keys_to_verify):
 def valid_recipe(filename):
     '''Returns True if filename contains a valid recipe,
     otherwise returns False'''
-    return valid_plist_with_keys(filename, ["Input", "Process"])
+    return (valid_plist_with_keys(filename, ["Input", "Process"])
+        or valid_plist_with_keys(filename, ["Input", "Recipe"])
+        or valid_plist_with_keys(filename, ["Input", "ParentRecipe"]))
 
 
 def valid_override(filename):
     '''Returns True if filename contains a valid override,
     otherwise returns False'''
-    return valid_plist_with_keys(filename, ["Input", "Recipe"])
+    return (valid_plist_with_keys(filename, ["Input", "ParentRecipe"])
+        or valid_plist_with_keys(filename, ["Input", "Recipe"]))
 
 
-def find_recipe(name, search_dirs):
-    '''Search search_dirs for a recipe, first by file/directory
-    naming rules, then by the IDENTIFIER string'''
+def get_identifier(recipe):
+    '''Return identifier from recipe dict'''
+    try:
+        return recipe["Identifier"] 
+    except (KeyError, AttributeError):
+        try:
+            return recipe["Input"]["IDENTIFIER"]
+        except (KeyError, AttributeError):
+            return None
+
+
+def get_identifer_from_recipe_file(filename):
+    '''Attempts to read plist file filename and get the
+    IDENTIFIER key from the INPUT dictionary. Otherwise, returns
+    None.'''
+    try:
+        # make sure we can read it
+        recipe_plist = FoundationPlist.readPlist(filename)
+    except FoundationPlist.FoundationPlistException, err:
+        log_err("WARNING: plist error for %s: %s" % (filename, err))
+        return None
+    return get_identifier(recipe_plist)
+
+
+def find_recipe_by_identifier(identifier, search_dirs):
+    '''Search search_dirs for a recipe with the given
+    identifier'''
+    for directory in search_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        patterns  = [
+            os.path.join(normalized_dir, "*.recipe"),
+            os.path.join(normalized_dir, "*/*.recipe")
+        ]
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                if get_identifer_from_recipe_file(match) == identifier:
+                    return match
+
+    return None
+
+
+def find_recipe_by_name(name, search_dirs):
+    '''Search search_dirs for a recipe by file/directory naming rules'''
+    if name.endswith(".recipe"):
+        # drop ".recipe" from the end of the name because we're
+        # going to add it back on...
+        name = os.path.splitext(name)[0]
     # search by "Name", using file/directory hierarchy rules
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
@@ -126,98 +175,96 @@ def find_recipe(name, search_dirs):
                 if valid_recipe(match):
                     return match
 
-    # search by IDENTIFIER, trying to read every .recipe file
-    for directory in search_dirs:
-        for root, unused_dirs, files in os.walk(
-            os.path.abspath(os.path.expanduser(directory))):
-            for f in files:
-                if f.endswith(".recipe"):
-                    fullpath = os.path.join(root, f)
-                    try:
-                        recipe_plist = FoundationPlist.readPlist(fullpath)
-                    except FoundationPlist.FoundationPlistException:
-                        continue
-                    if "Input" in recipe_plist.keys():
-                        if recipe_plist["Input"].get("IDENTIFIER") == name:
-                            if valid_recipe(fullpath):
-                                return fullpath
     return None
 
 
-def load_recipe(name, override_dirs, recipe_dirs):
-    '''Loads a recipe. If the name contains a path seperator or a file
-    extension , we assume the name is a pathname and attempt to load the
-    override or recipe from the pathname.
-    Otherwise, we treat name as a simple name and search first the override
-    directories, then the recipe directories for a matching recipe.
-    If we find one, we load it and return the plist object (which should be
-    functionally equivelent to a dictionary). If an override file is used,
-    it prefers finding the original recipe by identifier rather than name,
-    so that if recipe names shift with updated recipe repos, the override
-    still applies to the recipe from which it was derived.'''
+def find_recipe(id_or_name, search_dirs):
+    '''find a recipe based on a string that might be an identifier
+    or a name'''
+    return (find_recipe_by_identifier(id_or_name, search_dirs) or
+            find_recipe_by_name(id_or_name, search_dirs))
 
-    def get_identifier_from_override(override):
-        '''Return the identifier from an override, falling back with a
-        warning to just the 'name' of the recipe.'''
-        identifier = override['Recipe'].get("identifier")
-        if identifier:
-            name = identifier
-        else:
-            name = override['Recipe'].get("name")
-            log_err("WARNING: Override contains no identifier. Will fall "
-                    "back to matching it by name using search rules. It's "
-                    "recommended to give the original recipe identifier "
-                    "in the override's 'Recipes' dict to ensure the same "
-                    "recipe is always used for this override.")
-        return name
+
+def get_identifier_from_override(override):
+    '''Return the identifier from an override, falling back with a
+    warning to just the 'name' of the recipe.'''
+    # prefer ParentRecipe
+    identifier = override.get('ParentRecipe')
+    if identifier:
+        return identifier
+    identifier = override['Recipe'].get("identifier")
+    if identifier:
+        return identifier
+    else:
+        name = override['Recipe'].get("name")
+        log_err("WARNING: Override contains no identifier. Will fall "
+                "back to matching it by name using search rules. It's "
+                "recommended to give the original recipe identifier "
+                "in the override's 'Recipes' dict to ensure the same "
+                "recipe is always used for this override.")
+    return name
+
+
+def load_recipe(name, override_dirs, recipe_dirs):
+    '''Loads a recipe. If the name is the pathname to a file on disk, we
+    attempt to load that file and use it as recipe.
+    Otherwise, we treat name as a recipe name or identifier and search first
+    the override directories, then the recipe directories for a matching
+    recipe. If we find one, we load it and return the plist object (which
+    should be functionally equivelent to a dictionary). If an override file is
+    used, it prefers finding the original recipe by identifier rather than
+    name, so that if recipe names shift with updated recipe repos, the
+    override still applies to the recipe from which it was derived.'''
 
     override = None
+    recipe_file = None
     if os.path.isfile(name):
         # name is path to a specific recipe or override file
         # ignore override and recipe directories
         # and attempt to open the file specified by name
-        if valid_override(name):
-            override = FoundationPlist.readPlist(name)
-            override["OVERRIDE_PATH"] = os.path.abspath(name)
-            name = get_identifier_from_override(override)
-            # fall through to get the actual recipe
-        elif valid_recipe(name):
-            recipe = FoundationPlist.readPlist(name)
-            recipe["RECIPE_PATH"] = os.path.abspath(name)
-            return recipe
+        if valid_recipe(name):
+            recipe_file = name
 
-    if not override:
-        if name.endswith(".recipe"):
-            name = os.path.splitext(name)[0]
-        # first look in override_dirs for name.recipe
-        for directory in override_dirs:
-            normalized_dir = os.path.abspath(os.path.expanduser(directory))
-            search_names  = [
-                os.path.join(normalized_dir, "%s.recipe" % name),
-            ]
-            for pathname in search_names:
-                if os.path.exists(pathname) and valid_override(pathname):
-                    override = FoundationPlist.readPlist(pathname)
-                    name = get_identifier_from_override(override)
-                    override["OVERRIDE_PATH"] = os.path.abspath(pathname)
-                    break
+    if not recipe_file:
+        # name wasn't a filename. Try again, using name as identifier
+        recipe_file = find_recipe_by_identifier(
+                          name, override_dirs + recipe_dirs)
 
-    # now get the actual recipe
-    if name:
-        recipe_path = find_recipe(name, recipe_dirs)
-        if recipe_path:
-            try:
-                recipe = FoundationPlist.readPlist(recipe_path)
-            except FoundationPlist.FoundationPlistException:
+    if not recipe_file:
+        # Let's search by simple name
+        recipe_file = find_recipe_by_name(name, override_dirs + recipe_dirs)
+
+    if recipe_file:
+        # read it
+        recipe = FoundationPlist.readPlist(recipe_file)
+        # does it refer to another recipe?
+        if recipe.get("ParentRecipe") or recipe.get("Recipe"):
+            # save current recipe as a child
+            child_recipe = recipe
+            parent_id = get_identifier_from_override(recipe)
+            # load its parent, this time not looking in override directories
+            recipe = load_recipe(parent_id, [], recipe_dirs)
+            if recipe:
+                # merge child_recipe
+                recipe["Identifier"] = get_identifier(child_recipe)
+                for key in child_recipe["Input"].keys():
+                    recipe["Input"][key] = child_recipe["Input"][key]
+                recipe["Process"].extend(child_recipe.get("Process", []))
+                if recipe.get("RECIPE_PATH"):
+                    if not "PARENT_RECIPES" in recipe:
+                        recipe["PARENT_RECIPES"] = []
+                    recipe["PARENT_RECIPES"] = (
+                        [recipe["RECIPE_PATH"]] + recipe["PARENT_RECIPES"])
+                recipe["RECIPE_PATH"] = recipe_file
+                return recipe
+            else:
+                # no parent recipe, so the current recipe is invalid
                 return None
-            # apply overrides
-            if override:
-                recipe["OVERRIDE_PATH"] = override["OVERRIDE_PATH"]
-                for key in override["Input"].keys():
-                    recipe["Input"][key] = override["Input"][key]
-            # store the recipe path for use by overrides, etc
-            recipe["RECIPE_PATH"] = os.path.abspath(recipe_path)
+        else:
+            recipe["RECIPE_PATH"] = recipe_file
             return recipe
+
+    # no valid recipe found
     return None
 
 
@@ -228,12 +275,14 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs):
         log("Description:         %s" %
             "\n                     ".join(
                     recipe.get("Description", "").splitlines()))
+        log("Identifier:          %s" % get_identifier(recipe))
         log("Munki import recipe: %s" % has_munkiimporter_step(recipe))
         log("Has check phase:     %s" % has_check_phase(recipe))
         log("Builds package:      %s" % builds_a_package(recipe))
         log("Recipe file path:    %s" % recipe["RECIPE_PATH"])
-        if recipe.get("OVERRIDE_PATH"):
-            log("Override path:       %s" % recipe["OVERRIDE_PATH"])
+        if recipe.get("PARENT_RECIPES"):
+            log("Parent recipe(s):    %s" 
+              % "\n                     ".join(recipe["PARENT_RECIPES"]))
         log("Input values: ")
         output = pprint.pformat(recipe.get("Input", {}), indent=4)
         log(" " + output[1:-1])
@@ -619,6 +668,80 @@ def get_info(argv):
         return -1
 
 
+def processor_info(argv):
+    '''Display info about a processor'''
+    
+    def print_vars(var_dict, indent=0):
+        """Print a dict of dicts and strings"""
+        for key, value in var_dict.items():
+            if isinstance(value, dict):
+                print " " * indent, "%s:" % key
+                print_vars(value, indent=indent + 2)
+            else:
+                print " " * indent, "%s: %s" % (key, value)
+                
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [options] processorname" % ("%prog", verb))
+    p.add_option("-r", "--recipe", metavar="RECIPE",
+                 help="Name of recipe using the processor.")
+
+    # Parse arguments
+    add_search_and_override_dir_options(p)
+    options, arguments = p.parse_args(argv[2:])
+
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+
+    if len(arguments) != 1:
+        log_err("Need exactly one processor name")
+        return -1
+
+    processor_name = arguments[0]
+
+    recipe = None
+    if options.recipe:
+        recipe = load_recipe(options.recipe, override_dirs, search_dirs)
+    
+    try:
+        processor_class = get_processor(processor_name, recipe=recipe)
+    except (KeyError, AttributeError):
+        log_err("Unknown processor '%s'" % processor_name)
+        return -1
+    
+    try:
+        description = processor_class.description
+    except AttributeError:
+        try:
+            description = processor_class.__doc__
+        except AttributeError:
+            description = ""
+    try:
+        input_vars = processor_class.input_variables
+    except AttributeError:
+        input_vars = {}
+    try:
+        output_vars = processor_class.output_variables
+    except AttributeError:
+        output_vars = {}
+    
+    print "Description: %s" % description
+    print "Input variables:"
+    print_vars(input_vars, indent=2)
+    print "Output variables:"
+    print_vars(output_vars, indent=2)
+
+
+def list_processors(argv):
+    '''List the processors in autopkglib'''
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [options]\n"
+        "List the core Processors." % ("%prog", verb))
+
+    print "\n".join(sorted(processor_names()))
+
+
 def list_recipes(argv):
     '''List all available recipes'''
     verb = argv[1]
@@ -645,9 +768,9 @@ def list_recipes(argv):
                 pathname = os.path.join(normalized_dir, filename)
                 if valid_override(pathname):
                     override = FoundationPlist.readPlist(pathname)
-                    name = override['Recipe'].get("name")
+                    id_or_name = get_identifier_from_override(override)
                     # find and validate recipe that will be overridden
-                    recipe_path = find_recipe(name, search_dirs)
+                    recipe_path = find_recipe(id_or_name, search_dirs)
                     if recipe_path and valid_recipe(recipe_path):
                         # override points to a valid recipe
                         recipes.add(os.path.splitext(filename)[0])
@@ -713,13 +836,26 @@ def make_override(argv):
         log_err("No valid recipe found for %s" % recipe_name)
         log_err("Dir(s) searched: %s" % ":".join(search_dirs))
         return 1
-    override_plist = dict({"Recipe":
-                            {"name": recipe_name,
-                             "identifier": recipe["Input"].get(
-                                                        "IDENTIFIER", "")}
-                           }
-                          )
-    override_plist["Input"] = recipe["Input"]
+
+    # make sure parent has an identifier
+    parent_identifier = get_identifier(recipe)
+    if not parent_identifier:
+        log_err("%s is missing an Identifier. Cannot make an override."
+                % recipe.get("RECIPE_PATH", recipe_name))
+        return 1
+
+    override_name = (options.name 
+        or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0])
+    reversed_name = '.'.join(reversed(override_name.split('.')))
+    override_identifier = "local." + reversed_name
+
+    override_plist = {"Identifier": override_identifier,
+                      "Input": recipe["Input"],
+                      "ParentRecipe": parent_identifier
+                     }
+
+    if "IDENTIFIER" in override_plist["Input"]:
+        del override_plist["Input"]["IDENTIFIER"]
 
     override_dir = os.path.expanduser(override_dirs[0])
     if not os.path.exists(os.path.join(override_dir)):
@@ -864,6 +1000,7 @@ def run_recipes(argv):
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
         prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])
+        prefs["PARENT_RECIPES"] = recipe.get("PARENT_RECIPES", [])
 
         # Add our verbosity level
         prefs["verbose"] = options.verbose
@@ -992,9 +1129,15 @@ def main(argv):
         "list-recipes": {
             "function": list_recipes,
             "help": "List available recipes"},
+        "list-processors": {
+            "function": list_processors,
+            "help": "List available core Processors."},
         "make-override": {
             "function": make_override,
             "help": "Make a recipe override"},
+        "processor-info": {
+            "function": processor_info,
+            "help": "Get informatation about a specific processor"},
         "repo-add": {
             "function": repo_add,
             "help": "Add one or more recipe repo from a URL."},

@@ -45,6 +45,32 @@ class PkgCreator(Processor):
     
     __doc__ = description
     
+    def find_path_for_relpath(self, relpath):
+        '''Searches for the relative path.
+        Search order is:
+            RECIPE_CACHE_DIR
+            RECIPE_DIR
+            PARENT_RECIPE directories'''
+        if os.path.exists(relpath):
+            return os.path.normpath(relpath)
+        elif not relpath.startswith("/"):
+            cache_dir = self.env.get('RECIPE_CACHE_DIR')
+            recipe_dir = self.env.get('RECIPE_DIR')
+            search_dirs = [cache_dir, recipe_dir]
+            if self.env.get("PARENT_RECIPES"):
+                # also look in the directories containing the parent recipes
+                parent_recipe_dirs = list(set([
+                    os.path.dirname(item) 
+                    for item in self.env["PARENT_RECIPES"]]))
+                search_dirs.extend(parent_recipe_dirs)
+            for directory in search_dirs:
+                test_item = os.path.join(directory, relpath)
+                if os.path.exists(test_item):
+                    return os.path.normpath(test_item)
+
+        raise ProcessorError("Can't find %s" % relpath)
+    
+    
     def package(self):
         request = self.env["pkg_request"]
         if not 'pkgdir' in request:
@@ -80,9 +106,8 @@ class PkgCreator(Processor):
         for key, value in request.items():
             if key in ("pkgroot", "pkgdir", "infofile", "resources", "scripts"):
                 if value and not value.startswith("/"):
-                    # Relative to work directory
-                    request[key] = os.path.normpath(
-                        os.path.join(self.env['RECIPE_CACHE_DIR'], value))
+                    # search for it
+                    request[key] = self.find_path_for_relpath(value)
         
         # Send packaging request.
         try:
