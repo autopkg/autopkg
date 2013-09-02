@@ -2,6 +2,6 @@ Recipes are now separate from the core autopkg tools.
 
 You can get some at http://github.com/autopkg/recipes:
 
-    autopkg repo-add http://github.com/autopkg/recipes.get
+    autopkg repo-add http://github.com/autopkg/recipes.git
 
 More will be available via other URLs in the future.
