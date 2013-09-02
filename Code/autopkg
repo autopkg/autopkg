@@ -228,11 +228,11 @@ def load_recipe(name, override_dirs, recipe_dirs):
     if not recipe_file:
         # name wasn't a filename. Try again, using name as identifier
         recipe_file = find_recipe_by_identifier(
-                          name, override_dirs + recipe_dirs)
+                          name, override_dirs + list(recipe_dirs))
 
     if not recipe_file:
         # Let's search by simple name
-        recipe_file = find_recipe_by_name(name, override_dirs + recipe_dirs)
+        recipe_file = find_recipe_by_name(name, override_dirs + list(recipe_dirs))
 
     if recipe_file:
         # read it
