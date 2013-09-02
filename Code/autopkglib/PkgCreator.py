@@ -51,22 +51,19 @@ class PkgCreator(Processor):
             RECIPE_CACHE_DIR
             RECIPE_DIR
             PARENT_RECIPE directories'''
-        if os.path.exists(relpath):
-            return os.path.normpath(relpath)
-        elif not relpath.startswith("/"):
-            cache_dir = self.env.get('RECIPE_CACHE_DIR')
-            recipe_dir = self.env.get('RECIPE_DIR')
-            search_dirs = [cache_dir, recipe_dir]
-            if self.env.get("PARENT_RECIPES"):
-                # also look in the directories containing the parent recipes
-                parent_recipe_dirs = list(set([
-                    os.path.dirname(item) 
-                    for item in self.env["PARENT_RECIPES"]]))
-                search_dirs.extend(parent_recipe_dirs)
-            for directory in search_dirs:
-                test_item = os.path.join(directory, relpath)
-                if os.path.exists(test_item):
-                    return os.path.normpath(test_item)
+        cache_dir = self.env.get('RECIPE_CACHE_DIR')
+        recipe_dir = self.env.get('RECIPE_DIR')
+        search_dirs = [cache_dir, recipe_dir]
+        if self.env.get("PARENT_RECIPES"):
+            # also look in the directories containing the parent recipes
+            parent_recipe_dirs = list(set([
+                os.path.dirname(item)
+                for item in self.env["PARENT_RECIPES"]]))
+            search_dirs.extend(parent_recipe_dirs)
+        for directory in search_dirs:
+            test_item = os.path.join(directory, relpath)
+            if os.path.exists(test_item):
+                return os.path.normpath(test_item)
 
         raise ProcessorError("Can't find %s" % relpath)
     
