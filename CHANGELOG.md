@@ -1,3 +1,9 @@
+### 0.2.1 (September 2, 2013)
+
+CHANGES:
+
+- Relative paths given for "infofile", "resources", "options", "scripts" in a PkgCreator's pkg_request dictionary should now work if this path is found at the current working directory (GH-20)
+
 ### 0.2.0 (September 1, 2013)
 
 CHANGES:
