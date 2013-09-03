@@ -414,8 +414,13 @@ def print_new_packages(new_packages):
     log("    %-24s %-16s %-32s" % (
         "----------", "-------", "--------"))
     for item in new_packages:
+        identifier, version = "N/A", "N/A"
+        if "id" in item.keys():
+             identifier = item["id"]
+        if "version" in item.keys():
+             version = item["version"]
         log("    %-24s %-16s %-32s" % (
-            item["id"], item["version"], item["pkg_path"]))
+            identifier, version, item["pkg_path"]))
 
 
 def print_tool_info(options):
@@ -1078,10 +1083,15 @@ def run_recipes(argv):
                 if item["Output"].get("pkg_path"):
                     built_package = {}
                     built_package["pkg_path"] = item["Output"].get("pkg_path")
+                    # populate version, identifiers if we had a PkgCreator step
                     if item["Input"].get("pkg_request"):
                         for pkg_request_key in ["version", "id"]:
                             built_package[pkg_request_key] = item[
                                                 "Input"]["pkg_request"][pkg_request_key]
+                    # otherwise, the pkg recipe probably extracted or repacked a pkg
+                    # we don't yet have a single location where version info may live
+                    # within a processor's env, so at least for now, we skip this 
+                    # missing info in the report
                     new_packages.append(built_package)
         
                 # look for items imported into munki repo
