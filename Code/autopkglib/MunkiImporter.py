@@ -277,6 +277,7 @@ class MunkiImporter(Processor):
         itempath = self.env["pkg_path"]
         repo_path = self.env["MUNKI_REPO"]
         subdirectory = self.env.get("repo_subdirectory", "")
+        subdirectory = os.path.join(self.env.get('final_repo_subdirectory', ''), subdirectory)
         item_version = pkginfo.get("version")
         
         if not os.path.exists(repo_path):
