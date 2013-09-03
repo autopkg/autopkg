@@ -407,6 +407,17 @@ def print_new_imports(new_imports):
             item["pkginfo_path"].partition("pkgsinfo/")[2]))
 
 
+def print_new_packages(new_packages):
+    '''Print new pkg builds in a table format'''
+    log("    %-24s %-16s %-32s" % (
+        "Identifier", "Version", "Pkg path"))
+    log("    %-24s %-16s %-32s" % (
+        "----------", "-------", "--------"))
+    for item in new_packages:
+        log("    %-24s %-16s %-32s" % (
+            item["id"], item["version"], item["pkg_path"]))
+
+
 def print_tool_info(options):
     """Eventually will print some information about the tool
     and environment. For now, just print the current prefs"""
@@ -1065,7 +1076,13 @@ def run_recipes(argv):
         
                 # look for packages
                 if item["Output"].get("pkg_path"):
-                    new_packages.append(item["Output"].get("pkg_path"))
+                    built_package = {}
+                    built_package["pkg_path"] = item["Output"].get("pkg_path")
+                    if item["Input"].get("pkg_request"):
+                        for pkg_request_key in ["version", "id"]:
+                            built_package[pkg_request_key] = item[
+                                                "Input"]["pkg_request"][pkg_request_key]
+                    new_packages.append(built_package)
         
                 # look for items imported into munki repo
                 if item["Output"].get("pkginfo_repo_path"):
@@ -1095,8 +1112,8 @@ def run_recipes(argv):
 
     if new_packages:
         log("\nThe following packages were built:")
-        for item in new_packages:
-            log("    %s" % item)
+        print_new_packages(new_packages)
+        log("\n")
 
     if new_imports:
         log("\nThe following new items were imported:")
