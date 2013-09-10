@@ -1,5 +1,9 @@
 ### 0.2.3 (Unreleased)
 
+CHANGES:
+
+- Fix for `autopkg info` showing a Description of a ParentRecipe instead of the actual recipe.
+
 ### 0.2.2 (September 10, 2013)
 
 CHANGES:
