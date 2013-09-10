@@ -243,6 +243,8 @@ def load_recipe(name, override_dirs, recipe_dirs):
             if recipe:
                 # merge child_recipe
                 recipe["Identifier"] = get_identifier(child_recipe)
+                recipe["Description"] = child_recipe.get(
+                    "Description", recipe.get("Description", ""))
                 for key in child_recipe["Input"].keys():
                     recipe["Input"][key] = child_recipe["Input"][key]
                 recipe["Process"].extend(child_recipe.get("Process", []))
