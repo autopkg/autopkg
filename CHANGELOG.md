@@ -1,9 +1,8 @@
-### 0.2.2 (Unreleased)
+### 0.2.2 (September 10, 2013)
 
 CHANGES:
 
 - Pkg recipe runs now print a report output similar to Munki recipes, and have version, identifier information available in the report.
-
 - Fix for `autopkg version` when run from /usr/local/bin/autopkg
 
 ### 0.2.1 (September 2, 2013)
