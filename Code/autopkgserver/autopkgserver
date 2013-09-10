@@ -21,34 +21,9 @@ the daemon's listening socket.
 
 Protocol:
     
-    When a client connects to the server it should send an authentication
-    request, specifying its uid and gid:
-    
-        AUTH:AUTHENTICATE 501:20
-    
-    The server presents an authentication challenge in the form of a path to a
-    random filename:
-    
-        AUTH:CHALLENGE /tmp/aps_B9F4387E9805/5CF0929700A240C7
-    
-    The client must then create a file with that exact name, and send back the
-    path to the server:
-    
-        AUTH:REPLY /tmp/aps_B9F4387E9805/5CF0929700A240C7
-    
-    The UID and GID of the newly created file is accepted to be that of the
-    connecting client's. If there are any irregularities the server will reply
-    with an error message:
-    
-        AUTH:FAILED <reason>
-    
-    Otherwise it'll reply with:
-    
-        AUTH:OK
-    
-    The client can then send an XML property list with a packaging request.
-    The server will process the request, and if there are any problems it'll
-    reply with one or more lines of:
+    When a client connects to the server it should send an XML property list
+    with a packaging request. The server will process the request, and if
+    there are any problems it'll reply with one or more lines of:
     
         ERROR:<error message 1>
         ERROR:<error message 2>
