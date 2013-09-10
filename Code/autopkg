@@ -31,6 +31,7 @@ from autopkglib import get_pref, get_all_prefs
 from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
+from autopkglib import get_autopkg_version
 
 _REPORT_PLIST = False
 
@@ -50,12 +51,7 @@ def log_err(msg):
 
 
 def print_version(argv):
-    plist_path = os.path.join(os.path.dirname(__file__), "autopkglib/version.plist")
-    plist = FoundationPlist.readPlist(plist_path)
-    if "Version" in plist.keys():
-        print plist["Version"]
-    else:
-        log_err("Missing version info from %s!" % plist_path)
+    print get_autopkg_version()
 
 
 def recipe_has_step_processor(recipe, processor):

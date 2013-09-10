@@ -72,6 +72,18 @@ def get_all_prefs(domain=BUNDLE_ID):
         if get_pref(key, domain=BUNDLE_ID):
             prefs[key] = get_pref(key, domain=BUNDLE_ID)
     return prefs
+    
+    
+def get_autopkg_version():
+    try:
+        version_plist = FoundationPlist.readPlist(
+            os.path.join(os.path.dirname(__file__), "version.plist"))
+    except FoundationPlist.FoundationPlistException:
+        return "UNKNOWN"
+    try:
+        return version_plist["Version"]
+    except (AttributeError, TypeError):
+        return "UNKNOWN"
 
 
 def update_data(a_dict, key, value):
@@ -233,11 +245,8 @@ class AutoPackager(object):
         self.verbose = options.verbose
         self.env = env
         self.results = []
-
-        version_plist = FoundationPlist.readPlist(
-            os.path.join(os.path.dirname(__file__), "version.plist"))
-        self.env["AUTOPKG_VERSION"] = version_plist["Version"]
-
+        self.env["AUTOPKG_VERSION"] = get_autopkg_version()
+        
     def output(self, msg, verbose_level=1):
         if self.verbose >= verbose_level:
             print msg

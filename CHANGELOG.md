@@ -1,8 +1,10 @@
-### 0.2.2 (unreleased)
+### 0.2.2 (Unreleased)
 
 CHANGES:
 
 - Pkg recipe runs now print a report output similar to Munki recipes, and have version, identifier information available in the report.
+
+- Fix for `autopkg version` when run from /usr/local/bin/autopkg
 
 ### 0.2.1 (September 2, 2013)
 
@@ -22,8 +24,8 @@ CHANGES:
 - Searching for recipes has changed: the order of searching by name and by identifier have been swapped: identifier is preferred to simple name.
 - Certain Processors (specifically PkgInfoCreator and PkgCreator) are typically given paths to templates or resources or scripts pointing to the directory of the recipe. If a recipe can now have one or more parents, the meaning of "RECIPE_DIR" is a little unclear. So for this sort of thing, we now search the current child recipe directory for the requested resource, followed by any parent recipe's directory, then any parent recipe of the parent recipe's directory, etc. To support this behavior, give PkgInfoCreator and PkgCreator relative paths to PackageInfoTemplates and Resources and Scripts directories.
 - New verbs to help people learn about Processors:
-    - `autopkg list-processors` returns a list of "core" Processors -- those available to all recipes (in autopkglib)
-    - `autopkg processor-info PROCESSORNAME` prints basic documentation for PROCESSORNAME; use `autopkg processor-info <ProcessorName> --recipe RECIPE` to get basic docs on a recipe-specific Processor (like MozillaURLProvider).
+    - `autopkg list-processors` returns a list of "core" Processors -- those available to all recipes (in /Library/AutoPkg/autopkglib)
+    - `autopkg processor-info PROCESSORNAME` prints basic documentation for PROCESSORNAME; use `autopkg processor-info PROCESSORNAME --recipe RECIPE` to get basic docs on a recipe-specific Processor (like MozillaURLProvider).
 
 ### 0.1.1 (August 27, 2013)
 
