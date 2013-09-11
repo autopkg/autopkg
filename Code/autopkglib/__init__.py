@@ -49,7 +49,16 @@ class PreferenceError(Exception):
 
 def get_pref(key, domain=BUNDLE_ID):
     """Return a single pref value (or None) for a domain."""
-    return CFPreferencesCopyAppValue(key, domain) or None
+    value = CFPreferencesCopyAppValue(key, domain) or None
+    # Casting NSArrays and NSDictionaries to native Python types.
+    # This a workaround for 10.6, where PyObjC doesn't seem to
+    # support as many common operations such as list concatenation
+    # between Python and ObjC objects.
+    if isinstance(value, NSArray):
+        value = list(value)
+    elif isinstance(value, NSDictionary):
+        value = dict(value)
+    return value
 
 
 def set_pref(key, value, domain=BUNDLE_ID):
