@@ -432,7 +432,7 @@ def get_repo_info(path_or_url):
     '''Given a path or URL, find a locally installed repo and return
     infomation in a dictionary about it'''
     repo_info = {}
-    recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
+    recipe_repos = get_pref("RECIPE_REPOS") or {}
 
     parsed = urlparse(path_or_url)
     if parsed.netloc:
@@ -520,8 +520,8 @@ def repo_add(argv):
         log_err("Need at least one recipe repo URL!")
         return -1
 
-    recipe_search_dirs = list(get_search_dirs())
-    recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
+    recipe_search_dirs = get_search_dirs()
+    recipe_repos = get_pref("RECIPE_REPOS") or {}
     for repo_url in arguments:
         new_recipe_repo_dir = get_recipe_repo(repo_url)
         if new_recipe_repo_dir:
@@ -554,8 +554,8 @@ def repo_delete(argv):
         log_err("Need at least one recipe repo path or URL!")
         return -1
 
-    recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
-    recipe_search_dirs = list(get_search_dirs())
+    recipe_repos = get_pref("RECIPE_REPOS") or {}
+    recipe_search_dirs = get_search_dirs()
 
     for path_or_url in arguments:
         repo_path = get_repo_info(path_or_url).get('path')
@@ -591,7 +591,7 @@ def repo_list(argv):
     # Parse arguments
     options, arguments = p.parse_args(argv[2:])
 
-    recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
+    recipe_repos = get_pref("RECIPE_REPOS") or {}
     if recipe_repos:
         for key in sorted(recipe_repos.keys()):
             print "%s (%s)" % (key, recipe_repos[key]['URL'])
@@ -618,7 +618,7 @@ def repo_update(argv):
 
     if 'all' in arguments:
         # just get all repos
-        recipe_repos = dict(get_pref("RECIPE_REPOS") or {})
+        recipe_repos = get_pref("RECIPE_REPOS") or {}
         repo_dirs = [key for key in recipe_repos.keys()]
     else:
         repo_dirs = []
