@@ -535,8 +535,9 @@ def repo_add(argv):
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
     save_pref_or_warn("RECIPE_SEARCH_DIRS", recipe_search_dirs)
 
-    log("Recipe search path is: %s"
-                            % get_pref("RECIPE_SEARCH_DIRS"))
+    log("Updated search path:")
+    for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
+        log("  '%s'" % search_dir)
 
 
 def repo_delete(argv):
