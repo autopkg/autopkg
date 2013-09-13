@@ -1,8 +1,10 @@
 ### 0.2.3 (Unreleased)
 
-CHANGES:
+FIXES:
 
-- Fix for `autopkg info` showing a Description of a ParentRecipe instead of the actual recipe.
+- Fix `autopkg info` showing a Description of a ParentRecipe instead of the actual recipe.
+- Fix TypeError on Snow Leopard on list concatenation between Foundation and native Python list equivalents (GH-21)
+- Fix case where a child recipe could not locate its parent(s) if the child was not already on the search path (GH-25)
 
 ### 0.2.2 (September 10, 2013)
 
