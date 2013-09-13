@@ -203,7 +203,10 @@ def get_identifier_from_override(override):
 
 def load_recipe(name, override_dirs, recipe_dirs):
     '''Loads a recipe. If the name is the pathname to a file on disk, we
-    attempt to load that file and use it as recipe.
+    attempt to load that file and use it as recipe. If a parent recipe
+    is required we first add the child recipe's directory to the search path
+    so that the parent can be found, assuming it is in the same directory.
+
     Otherwise, we treat name as a recipe name or identifier and search first
     the override directories, then the recipe directories for a matching
     recipe. If we find one, we load it and return the plist object (which
@@ -238,6 +241,9 @@ def load_recipe(name, override_dirs, recipe_dirs):
             # save current recipe as a child
             child_recipe = recipe
             parent_id = get_identifier_from_override(recipe)
+            # add the recipe's directory to the search path
+            # so that we'll be able to locate the parent
+            recipe_dirs.append(os.path.dirname(recipe_file))
             # load its parent, this time not looking in override directories
             recipe = load_recipe(parent_id, [], recipe_dirs)
             if recipe:
