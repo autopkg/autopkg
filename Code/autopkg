@@ -111,7 +111,8 @@ def valid_override(filename):
 
 
 def get_identifier(recipe):
-    '''Return identifier from recipe dict'''
+    '''Return identifier from recipe dict. Tries the Identifier
+    top-level key and falls back to the legacy key location.'''
     try:
         return recipe["Identifier"] 
     except (KeyError, AttributeError):
@@ -123,8 +124,7 @@ def get_identifier(recipe):
 
 def get_identifer_from_recipe_file(filename):
     '''Attempts to read plist file filename and get the
-    IDENTIFIER key from the INPUT dictionary. Otherwise, returns
-    None.'''
+    identifier. Otherwise, returns None.'''
     try:
         # make sure we can read it
         recipe_plist = FoundationPlist.readPlist(filename)
