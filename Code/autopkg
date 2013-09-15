@@ -1163,7 +1163,7 @@ def main(argv):
             "help": "List available recipes"},
         "list-processors": {
             "function": list_processors,
-            "help": "List available core Processors."},
+            "help": "List available core Processors"},
         "make-override": {
             "function": make_override,
             "help": "Make a recipe override"},
@@ -1172,16 +1172,16 @@ def main(argv):
             "help": "Get informatation about a specific processor"},
         "repo-add": {
             "function": repo_add,
-            "help": "Add one or more recipe repo from a URL."},
+            "help": "Add one or more recipe repo from a URL"},
         "repo-delete": {
             "function": repo_delete,
-            "help": "Delete a recipe repo."},
+            "help": "Delete a recipe repo"},
         "repo-list": {
             "function": repo_list,
-            "help": "List installed recipe repos."},
+            "help": "List installed recipe repos"},
         "repo-update": {
             "function": repo_update,
-            "help": "Update one or more recipe repos."},
+            "help": "Update one or more recipe repos"},
         "run": {
             "function": run_recipes,
             "help": "Run one or more recipes"},
