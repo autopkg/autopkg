@@ -28,9 +28,13 @@ class FileFinder(Processor):
 	'''
 
 	input_variables = {
-		'glob_pattern': {
+		'pattern': {
 			'description': 'Shell glob pattern to match files by',
 			'required': True,
+		},
+		'find_method': {
+			'description': 'Type of pattern to match. Currently only supported type is "glob" (also the default)',
+			'required': False,
 		},
 	}
 	output_variables = {
@@ -54,9 +58,14 @@ class FileFinder(Processor):
 		return glob_matches[-1]
 
 	def main(self):
-		pattern = self.env.get('glob_pattern')
+		pattern = self.env.get('pattern')
 
-		self.env['found_filename'] = self.globfind(pattern)
+		method = self.env.get('find_method', 'glob')
+
+		if method == 'glob':
+			self.env['found_filename'] = self.globfind(pattern)
+		else:
+			raise ProcessorError('Unsupported find_method: %s' % method)
 
 		self.output('Found file match: %s' % self.env['found_filename'])
 
