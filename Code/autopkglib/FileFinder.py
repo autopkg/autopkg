@@ -22,53 +22,53 @@ from autopkglib import Processor, ProcessorError
 __all__ = ["FileFinder"]
 
 class FileFinder(Processor):
-	'''Finds a filename for use in other Processors.
+    '''Finds a filename for use in other Processors.
 
-	Currently only supports	glob filename patterns.
-	'''
+Currently only supports glob filename patterns.
+'''
 
-	input_variables = {
-		'pattern': {
-			'description': 'Shell glob pattern to match files by',
-			'required': True,
-		},
-		'find_method': {
-			'description': 'Type of pattern to match. Currently only supported type is "glob" (also the default)',
-			'required': False,
-		},
-	}
-	output_variables = {
-		'found_filename': {
-			'description': 'Found filename',
-		}
-	}
+    input_variables = {
+        'pattern': {
+            'description': 'Shell glob pattern to match files by',
+            'required': True,
+        },
+        'find_method': {
+            'description': 'Type of pattern to match. Currently only supported type is "glob" (also the default)',
+            'required': False,
+        },
+    }
+    output_variables = {
+        'found_filename': {
+            'description': 'Found filename',
+        }
+    }
 
-	description = __doc__
+    description = __doc__
 
-	def globfind(self, pattern):
-		'''If multiple files are found the last alphanumerically sorted found file is returned'''
+    def globfind(self, pattern):
+        '''If multiple files are found the last alphanumerically sorted found file is returned'''
 
-		glob_matches = glob(pattern)
+        glob_matches = glob(pattern)
 
-		if len(glob_matches) < 1:
-			raise ProcessorError('No matching filename found')
+        if len(glob_matches) < 1:
+            raise ProcessorError('No matching filename found')
 
-		glob_matches.sort()
+        glob_matches.sort()
 
-		return glob_matches[-1]
+        return glob_matches[-1]
 
-	def main(self):
-		pattern = self.env.get('pattern')
+    def main(self):
+        pattern = self.env.get('pattern')
 
-		method = self.env.get('find_method', 'glob')
+        method = self.env.get('find_method', 'glob')
 
-		if method == 'glob':
-			self.env['found_filename'] = self.globfind(pattern)
-		else:
-			raise ProcessorError('Unsupported find_method: %s' % method)
+        if method == 'glob':
+            self.env['found_filename'] = self.globfind(pattern)
+        else:
+            raise ProcessorError('Unsupported find_method: %s' % method)
 
-		self.output('Found file match: %s' % self.env['found_filename'])
+        self.output('Found file match: %s' % self.env['found_filename'])
 
 if __name__ == '__main__':
-	processor = FileFinder()
-	processor.execute_shell()
+    processor = FileFinder()
+    processor.execute_shell()
