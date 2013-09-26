@@ -1,5 +1,10 @@
 ### 0.2.3 (Unreleased)
 
+ADDITIONS:
+
+- New 'FileFinder' processor for searching files, currently supports glob.
+  Contributed by Jesse Peterson. (GH-33)
+
 FIXES:
 
 - Fix `autopkg info` showing a Description of a ParentRecipe instead of the actual recipe.
