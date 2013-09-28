@@ -41,7 +41,10 @@ class FlatPkgUnpacker(DmgMounter):
         "skip_payload": {
             "required": False,
             "description": ("If true, 'Payload' files will be skipped. "
-                "Defaults to False."),
+                "Defaults to False. Note if this option is used then the "
+                "files are extracted using xar(1) instead of pkgutil(1). "
+                "This means components of the package will not be "
+                "extracted such as scripts."),
         },
         "destination_path": {
             "required": True,
@@ -51,7 +54,9 @@ class FlatPkgUnpacker(DmgMounter):
         "purge_destination": {
             "required": False,
             "description": ("Whether the contents of the destination directory "
-                "will be removed before unpacking."),
+                "will be removed before unpacking. Note that unless "
+                "skip_payload argument is used the destination directory "
+                "will be removed as pkgutil requires an empty destination."),
         },
     }
     output_variables = {
@@ -80,6 +85,12 @@ class FlatPkgUnpacker(DmgMounter):
                     raise ProcessorError(
                         "Can't remove %s: %s" % (path, e.strerror))
 
+        if self.env.get('skip_payload'):
+            self.xarExpand()
+        else:
+            self.pkgutilExpand()
+
+    def xarExpand(self):
         try:
             xarcmd = ["/usr/bin/xar",
                       "-x",
@@ -96,6 +107,31 @@ class FlatPkgUnpacker(DmgMounter):
                 % (e.errno, e.strerror))
         if p.returncode != 0:
             raise ProcessorError("extraction of %s with xar failed: %s" 
+                % (self.env['flat_pkg_path'], err))
+
+    def pkgutilExpand(self):
+        # pkgutil requires the dest. folder to be non-existant
+        if os.path.exists(self.env['destination_path']):
+            try:
+                shutil.rmtree(self.env['destination_path'])
+            except OSError as e:
+                raise ProcessorError(
+                    "Can't remove %s: %s" % (self.env['destination_path'], e.strerror))
+
+        try:
+            pkgutilcmd = ["/usr/sbin/pkgutil",
+                      "--expand",
+                      self.source_path,
+                      self.env['destination_path']]
+            p = subprocess.Popen(pkgutilcmd,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+            (out, err) = p.communicate()
+        except OSError as e:
+            raise ProcessorError("pkgutil execution failed with error code %d: %s" 
+                % (e.errno, e.strerror))
+        if p.returncode != 0:
+            raise ProcessorError("extraction of %s with pkgutil failed: %s" 
                 % (self.env['flat_pkg_path'], err))
 
     def main(self):
