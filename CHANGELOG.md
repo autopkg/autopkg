@@ -1,4 +1,6 @@
-### 0.2.3 (Unreleased)
+### 0.2.4 (Unreleased)
+
+### 0.2.3 (September 27, 2013)
 
 ADDITIONS:
 
