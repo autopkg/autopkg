@@ -29,8 +29,8 @@ __all__ = ["FlatPkgUnpacker"]
 
 
 class FlatPkgUnpacker(DmgMounter):
-    description = ("Expands a flat package using xar, optionally skipping "
-        "the payload.")
+    description = ("Expands a flat package using pkgutil or xar. "
+        "For xar it also optionally skips extracting the payload.")
     input_variables = {
         "flat_pkg_path": {
             "required": True,
