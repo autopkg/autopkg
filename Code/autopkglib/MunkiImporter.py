@@ -383,6 +383,11 @@ class MunkiImporter(Processor):
         # Get pkginfo from output plist.
         pkginfo = FoundationPlist.readPlistFromString(out)
         
+        # copy any keys from pkginfo in self.env
+        if "pkginfo" in self.env:
+            for key in self.env["pkginfo"]:
+                pkginfo[key] = self.env["pkginfo"][key]
+        
         # check to see if this item is already in the repo
         matchingitem = self.findMatchingItemInRepo(pkginfo)
         if matchingitem:
@@ -399,12 +404,7 @@ class MunkiImporter(Processor):
                 % (os.path.basename(self.env["pkg_path"]),
                    "pkgs/" + matchingitem['installer_item_location']))
             return
-        
-        # copy any keys from pkginfo in self.env
-        if "pkginfo" in self.env:
-            for key in self.env["pkginfo"]:
-                pkginfo[key] = self.env["pkginfo"][key]
-                
+            
         # copy pkg/dmg to repo
         relative_path = self.copyItemToRepo(pkginfo)
         # adjust the installer_item_location to match the actual location
