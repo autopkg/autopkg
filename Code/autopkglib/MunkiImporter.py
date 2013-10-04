@@ -339,7 +339,7 @@ class MunkiImporter(Processor):
                 raise ProcessorError("Could not create %s: %s"
                                       % (destination_path, err.strerror))
 
-        pkginfo_name = "%s-%s.plist" % (pkginfo["name"], pkginfo["version"])
+        pkginfo_name = "%s-%s.plist" % (pkginfo["name"], pkginfo["version"].strip())
         pkginfo_path = os.path.join(destination_path, pkginfo_name)
         index = 0
         while os.path.exists(pkginfo_path):
