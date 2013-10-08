@@ -120,10 +120,15 @@ def update_data(a_dict, key, value):
             for index in range(len(item)):
                 item[index] = do_variable_substitution(item[index])
         elif isinstance(item, (dict, NSDictionary)):
-            # ObjC-bridged objects don't like to be modified while being iterated over
-            dict_copy = item.copy()
-            for key, value in dict_copy.iteritems():
-                item[key] = do_variable_substitution(value)
+            # Modify a copy of the orginal
+            if isinstance(item, dict):
+                item_copy = item.copy()
+            else:
+                # Need to specify the copy is mutable for NSDictionary
+                item_copy = item.mutableCopy()
+            for key, value in item.items():
+                item_copy[key] = do_variable_substitution(value)
+            return item_copy
         return item
     
     a_dict[key] = do_variable_substitution(value)
