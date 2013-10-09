@@ -1,5 +1,20 @@
 ### 0.2.4 (Unreleased)
 
+ADDITIONS:
+
+- New 'FlatPkgPacker' processor, contributed by Jesse Peterson. (GH-36)
+
+CHANGES:
+
+- 'FlatPkgUnpacker' processor now uses `pkgutil --expand` by default, meaning 'Scripts'
+  archives will now be decompressed automatically. The `skip_payload` input variable
+  will automatically switch the processor to use `xar` instead. (GH-36)
+
+FIXES:
+
+- Fix for MunkiImporter processor not finding an already-present pkg when using
+  a manual `installs` key and with a unique `installer_item_hash`. (GH-35)
+
 ### 0.2.3 (September 27, 2013)
 
 ADDITIONS:
