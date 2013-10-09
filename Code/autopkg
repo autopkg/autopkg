@@ -613,8 +613,8 @@ def repo_update(argv):
     verb = argv[1]
     p = optparse.OptionParser()
     p.set_usage("Usage: %s %s recipe_repo_path_or_url [...]\n"
-        "Delete one or more recipe repo and remove it from the search path.\n"
-        "You may also use 'all' to update all installed recipe repos.It"
+        "Update one or more recipe repos.\n"
+        "You may also use 'all' to update all installed recipe repos."
         % ("%prog", verb))
 
     # Parse arguments
