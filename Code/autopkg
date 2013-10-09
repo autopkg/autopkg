@@ -31,7 +31,7 @@ from autopkglib import get_pref, get_all_prefs
 from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
-from autopkglib import get_autopkg_version
+from autopkglib import get_autopkg_version, version_equal_or_greater
 
 _REPORT_PLIST = False
 
@@ -253,6 +253,15 @@ def load_recipe(name, override_dirs, recipe_dirs):
                     "Description", recipe.get("Description", ""))
                 for key in child_recipe["Input"].keys():
                     recipe["Input"][key] = child_recipe["Input"][key]
+
+                # take the highest of the two MinimumVersion keys, if they exist
+                for candidate_recipe in [recipe, child_recipe]:
+                    if 'MinimumVersion' not in candidate_recipe.keys():
+                        candidate_recipe['MinimumVersion'] = '0'
+                if version_equal_or_greater(child_recipe['MinimumVersion'],
+                    recipe['MinimumVersion']):
+                    recipe['MinimumVersion'] = child_recipe['MinimumVersion']
+
                 recipe["Process"].extend(child_recipe.get("Process", []))
                 if recipe.get("RECIPE_PATH"):
                     if not "PARENT_RECIPES" in recipe:
