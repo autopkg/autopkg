@@ -95,6 +95,11 @@ def get_autopkg_version():
         return "UNKNOWN"
 
 
+def version_equal_or_greater(a, b):
+    v_a, v_b = LooseVersion(a), LooseVersion(b)
+    return LooseVersion(a) >= LooseVersion(b)
+
+
 def update_data(a_dict, key, value):
     """Update a_dict keys with value. Existing data can be referenced
     by wrapping the key in %percent% signs."""
@@ -297,10 +302,10 @@ class AutoPackager(object):
 
         # Check for MinimumAutopkgVersion
         if "MinimumVersion" in recipe.keys():
-            if (LooseVersion(self.env["AUTOPKG_VERSION"]) <
-                LooseVersion(recipe.get("MinimumVersion"))):
+            if not version_equal_or_greater(self.env["AUTOPKG_VERSION"],
+                recipe.get("MinimumVersion")):
                 raise AutoPackagerError(
-                        "Recipe requires at least version %s, "
+                        "Recipe (or a parent recipe) requires at least version %s, "
                         "but we are version %s."
                         % (recipe.get("MinimumVersion"),
                            self.env["AUTOPKG_VERSION"]))
