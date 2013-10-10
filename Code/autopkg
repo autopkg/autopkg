@@ -114,7 +114,7 @@ def get_identifier(recipe):
     '''Return identifier from recipe dict. Tries the Identifier
     top-level key and falls back to the legacy key location.'''
     try:
-        return recipe["Identifier"] 
+        return recipe["Identifier"]
     except (KeyError, AttributeError):
         try:
             return recipe["Input"]["IDENTIFIER"]
@@ -285,7 +285,7 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs):
         log("Builds package:      %s" % builds_a_package(recipe))
         log("Recipe file path:    %s" % recipe["RECIPE_PATH"])
         if recipe.get("PARENT_RECIPES"):
-            log("Parent recipe(s):    %s" 
+            log("Parent recipe(s):    %s"
               % "\n                     ".join(recipe["PARENT_RECIPES"]))
         log("Input values: ")
         output = pprint.pformat(recipe.get("Input", {}), indent=4)
@@ -420,9 +420,9 @@ def print_new_packages(new_packages):
     for item in new_packages:
         identifier, version = "N/A", "N/A"
         if "id" in item.keys():
-             identifier = item["id"]
+            identifier = item["id"]
         if "version" in item.keys():
-             version = item["version"]
+            version = item["version"]
         log("    %-24s %-16s %-32s" % (
             identifier, version, item["pkg_path"]))
 
@@ -691,7 +691,7 @@ def get_info(argv):
 
 def processor_info(argv):
     '''Display info about a processor'''
-    
+
     def print_vars(var_dict, indent=0):
         """Print a dict of dicts and strings"""
         for key, value in var_dict.items():
@@ -700,7 +700,7 @@ def processor_info(argv):
                 print_vars(value, indent=indent + 2)
             else:
                 print " " * indent, "%s: %s" % (key, value)
-                
+
     verb = argv[1]
     p = optparse.OptionParser()
     p.set_usage("Usage: %s %s [options] processorname" % ("%prog", verb))
@@ -723,13 +723,13 @@ def processor_info(argv):
     recipe = None
     if options.recipe:
         recipe = load_recipe(options.recipe, override_dirs, search_dirs)
-    
+
     try:
         processor_class = get_processor(processor_name, recipe=recipe)
     except (KeyError, AttributeError):
         log_err("Unknown processor '%s'" % processor_name)
         return -1
-    
+
     try:
         description = processor_class.description
     except AttributeError:
@@ -745,7 +745,7 @@ def processor_info(argv):
         output_vars = processor_class.output_variables
     except AttributeError:
         output_vars = {}
-    
+
     print "Description: %s" % description
     print "Input variables:"
     print_vars(input_vars, indent=2)
@@ -865,7 +865,7 @@ def make_override(argv):
                 % recipe.get("RECIPE_PATH", recipe_name))
         return 1
 
-    override_name = (options.name 
+    override_name = (options.name
         or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0])
     reversed_name = '.'.join(reversed(override_name.split('.')))
     override_identifier = "local." + reversed_name
@@ -886,7 +886,7 @@ def make_override(argv):
             log_err("Could not create %s: %s" % (override_dir, err))
             return -1
 
-    override_name = (options.name 
+    override_name = (options.name
         or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0])
     override_file = os.path.join(override_dir, "%s.recipe" % override_name)
     if os.path.exists(override_file):
@@ -936,7 +936,7 @@ def run_recipes(argv):
     new_imports = []
     failures = []
     error_count = 0
-    
+
     # Add variables from environment
     cli_values = {}
     for key, value in os.environ.items():
@@ -1051,7 +1051,7 @@ def run_recipes(argv):
 
         # build a pathname for a receipt
         recipe_basename = os.path.splitext(os.path.basename(recipe_path))[0]
-        # TO-DO: if recipe processing fails too early, 
+        # TO-DO: if recipe processing fails too early,
         # autopackager.env["RECIPE_CACHE_DIR"] is not defined and we can't
         # write a recipt. We should handle this better.
         # for now, just write the receipt to /tmp/receipts
@@ -1059,13 +1059,13 @@ def run_recipes(argv):
             autopackager.env.get("RECIPE_CACHE_DIR", "/tmp"), "receipts")
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         receipt_name = "%s-receipt-%s.plist" % (recipe_basename, timestamp)
-        
+
         if not os.path.exists(receipt_dir):
             try:
                 os.makedirs(receipt_dir)
             except OSError, err:
                 log_err("Can't create %s: %s" % (receipt_dir, err.strerror))
-        
+
         if os.path.exists(receipt_dir):
             receipt_path = os.path.join(receipt_dir, receipt_name)
             try:
@@ -1073,7 +1073,7 @@ def run_recipes(argv):
                 if options.verbose:
                     log("Receipt written to %s" % receipt_path)
             except IOError as err:
-                log_err("Can't write receipt to %s: %s" 
+                log_err("Can't write receipt to %s: %s"
                         % (receipt_path, err.strerror))
 
         # look through results for interesting info
@@ -1083,7 +1083,7 @@ def run_recipes(argv):
                 # look for changed downloads
                 if item["Output"].get("download_changed"):
                     new_downloads.append(item["Output"].get("pathname"))
-        
+
                 # look for packages
                 if item["Output"].get("pkg_path"):
                     built_package = {}
@@ -1092,13 +1092,13 @@ def run_recipes(argv):
                     if item["Input"].get("pkg_request"):
                         for pkg_request_key in ["version", "id"]:
                             built_package[pkg_request_key] = item[
-                                                "Input"]["pkg_request"][pkg_request_key]
-                    # otherwise, the pkg recipe probably extracted or repacked a pkg
-                    # we don't yet have a single location where version info may live
-                    # within a processor's env, so at least for now, we skip this 
-                    # missing info in the report
+                                "Input"]["pkg_request"][pkg_request_key]
+                    # otherwise, the pkg recipe probably extracted or repacked a
+                    # pkg we don't yet have a single location where version info
+                    # may live within a processor's env, so at least for now, we
+                    # skip this missing info in the report
                     new_packages.append(built_package)
-        
+
                 # look for items imported into munki repo
                 if item["Output"].get("pkginfo_repo_path"):
                     imported_item = {}
