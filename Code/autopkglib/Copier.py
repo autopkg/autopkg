@@ -18,6 +18,7 @@
 import os.path
 import shutil
 
+from glob import glob
 from autopkglib import Processor, ProcessorError
 from DmgMounter import DmgMounter
 
@@ -31,7 +32,7 @@ class Copier(DmgMounter):
         "source_path": {
             "required": True,
             "description": "Path to a file or directory to copy. " + \
-                "Can point to a path inside a .dmg which will be mounted.",
+                "Can point to a glob path inside a .dmg which will be mounted.",
         },
         "destination_path": {
             "required": True,
@@ -82,7 +83,8 @@ class Copier(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                source_path = os.path.join(mount_point, dmg_source_path)
+                source_path = glob(
+                    os.path.join(mount_point, dmg_source_path))[0]
             else:
                 # Straight copy from file system.
                 source_path = self.env['source_path']
