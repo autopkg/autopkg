@@ -2,7 +2,7 @@
 
 ADDITIONS:
 
-- New 'FlatPkgPacker' processor, contributed by Jesse Peterson. (GH-36)
+- New 'FlatPkgPacker' and 'FileFinder' processors, contributed by Jesse Peterson. (GH-36, GH-33)
 
 CHANGES:
 
