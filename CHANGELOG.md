@@ -14,6 +14,8 @@ FIXES:
 
 - Fix for MunkiImporter processor not finding an already-present pkg when using
   a manual `installs` key and with a unique `installer_item_hash`. (GH-35)
+- Fix for 'mutating method sent to immutable object' errors, contributed by Joe
+  Wollard and Michael Lynn (GH-24)
 
 ### 0.2.3 (September 27, 2013)
 
