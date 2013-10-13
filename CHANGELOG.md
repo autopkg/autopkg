@@ -3,6 +3,8 @@
 ADDITIONS:
 
 - New 'FlatPkgPacker' and 'FileFinder' processors, contributed by Jesse Peterson. (GH-36, GH-33)
+- Copier processor supports glob wildcard characters for 'source_path', useful when
+  exact path names vary. (GH-40)
 
 CHANGES:
 
