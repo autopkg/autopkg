@@ -105,6 +105,7 @@ class MunkiImporter(Processor):
         app_table = {}
         installer_item_table = {}
         hash_table = {}
+        checksum_table = {}
 
         itemindex = -1
         for item in catalogitems:
@@ -164,6 +165,14 @@ class MunkiImporter(Processor):
                                 app_table[install['path']][app_version] = []
                             app_table[install['path']][app_version].append(
                                                                     itemindex)
+                    if install.get('type') == 'file':
+                        if 'path' in install and 'md5checksum' in install:
+                            cksum = install['md5checksum']
+
+                            if cksum not in checksum_table.keys():
+                                checksum_table[cksum] = []
+
+                            checksum_table[cksum].append({'path': install['path'], 'index': itemindex})
                 except (TypeError, KeyError):
                     # skip this item
                     continue
@@ -173,6 +182,7 @@ class MunkiImporter(Processor):
         pkgdb['receipts'] = pkgid_table
         pkgdb['applications'] = app_table
         pkgdb['installer_items'] = installer_item_table
+        pkgdb['checksums'] = checksum_table
         pkgdb['items'] = catalogitems
 
         return pkgdb
@@ -263,7 +273,26 @@ class MunkiImporter(Processor):
                 return pkgdb['items'][list(matching_indexes)[0]]
             else:
                 return None
-        
+ 
+        # try to match against install md5checksums
+        filelist = [item for item in pkginfo.get('installs', [])
+                   if item['type'] == 'file' and
+                      'path' in item and
+                      'md5checksum' in item]
+        if filelist:
+            for f in filelist:
+                cksum = f['md5checksum']
+                if cksum in pkgdb['checksums']:
+                    cksum_matches = pkgdb['checksums'][cksum]
+                    for cksum_match in cksum_matches:
+                        if cksum_match['path'] == f['path']:
+                            matching_pkg = pkgdb['items'][cksum_match['index']]
+
+                            # TODO: maybe match pkg name, too?
+                            # if matching_pkg.get('name') == pkginfo.get('name'):
+
+                            return matching_pkg
+
         # if we get here, we found no matches
         return None
     
