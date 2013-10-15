@@ -18,6 +18,8 @@ FIXES:
   a manual `installs` key and with a unique `installer_item_hash`. (GH-35)
 - Fix for 'mutating method sent to immutable object' errors, contributed by Joe
   Wollard and Michael Lynn (GH-24)
+- MunkiImporter now checks for matching md5checksums when attempting to locate a matching
+  pkginfo. (GH-41)
 
 ### 0.2.3 (September 27, 2013)
 
