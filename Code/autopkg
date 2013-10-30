@@ -786,7 +786,7 @@ def list_recipes(argv):
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
-    recipes = set()
+    recipes = []
 
     # find all valid overrides first
     for directory in override_dirs:
@@ -803,7 +803,7 @@ def list_recipes(argv):
                     recipe_path = find_recipe(id_or_name, search_dirs)
                     if recipe_path and valid_recipe(recipe_path):
                         # override points to a valid recipe
-                        recipes.add(os.path.splitext(filename)[0])
+                        recipes.append((os.path.splitext(filename)[0], '%s (Override)' % directory))
 
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
@@ -814,7 +814,9 @@ def list_recipes(argv):
         for match in matches:
             if valid_recipe(match):
                 basename = os.path.basename(match)
-                recipes.add(os.path.splitext(basename)[0])
+                # name of repo
+                location = match.split(os.sep)[-2]
+                recipes.append((os.path.splitext(basename)[0], location))
 
         # look for recipes one level down
         matches = glob.glob(os.path.join(normalized_dir, "*/*.recipe"))
@@ -823,9 +825,13 @@ def list_recipes(argv):
                 recipe_name = os.path.basename(match)
                 # get rid of file extension
                 recipe_name = os.path.splitext(recipe_name)[0]
-                recipes.add(recipe_name)
+                # name of repo & subdir
+                location = os.path.join(*match.split(os.sep)[-3:-1])
+                recipes.append((recipe_name, location))
 
-    print "\n".join(sorted(list(recipes)))
+    for i in recipes:
+        print '%s\t%s' % i
+    #print "\n".join(sorted(recipes))
 
 
 def make_override(argv):
