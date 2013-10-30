@@ -831,7 +831,6 @@ def list_recipes(argv):
 
     for i in recipes:
         print '%s\t%s' % i
-    #print "\n".join(sorted(recipes))
 
 
 def make_override(argv):
