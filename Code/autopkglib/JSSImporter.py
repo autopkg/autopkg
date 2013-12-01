@@ -23,7 +23,6 @@ import shutil
 from distutils import version
 
 from autopkglib import Processor, ProcessorError
-from autopkglib import Copier # not successfully leveraging yet
 
 __all__ = ["JSSImporter"]
 
@@ -73,12 +72,12 @@ class JSSImporter(Processor):
         },
     }
     output_variables = {
-        # "jss_category_added": {
-        #     "description": "True if category was created."
-        # },
-        # "jss_repo_changed": {
-        #     "description": "True if item was imported."
-        # },
+        "jss_category_added": {
+            "description": "True if category was created."
+        },
+        "jss_repo_changed": {
+            "description": "True if item was imported."
+        },
     }
     description = __doc__
 
@@ -130,7 +129,9 @@ class JSSImporter(Processor):
         base64string = base64.encodestring('%s:%s' % (authUser, authPass)).replace('\n', '')
         pkg_name = os.path.basename(self.env["pkg_path"])
         prod_name = self.env["prod_name"]
-        # create category if var set
+        self.env["jss_repo_changed"] = False
+        self.env["jss_category_added"] = False
+        # check for category if var set
         if self.env.get("category"):
             item_to_check = "<name>" + prod_name + "</name>"
             apiUrl = "categories"
@@ -142,10 +143,7 @@ class JSSImporter(Processor):
                 highest_id = str(highest_id)
                 replace_dict = {"%CAT_ID%" : highest_id, "%CAT_NAME%" : prod_name}                
                 self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, highest_id, replace_dict, template_string, base64string)
-                # self.env["jss_category_added"] = True
-        # else:
-        #     if not "jss_category_added" in self.env:
-        #         self.env["jss_category_added"] = False
+                self.env["jss_category_added"] = True
         # start metadata/pkg upload
         template_string = """<?xml version="1.0" encoding="UTF-8"?><package><id>%PKG_ID%</id><name>%PKG_NAME%</name><category>%PROD_NAME%</category><filename>%PKG_NAME%</filename><info/><notes/><priority>10</priority><reboot_required>false</reboot_required><fill_user_template>false</fill_user_template><fill_existing_users>false</fill_existing_users><boot_volume_required>false</boot_volume_required><allow_uninstalled>false</allow_uninstalled><os_requirements/><required_processor>None</required_processor><switch_with_package>Do Not Install</switch_with_package><install_if_reported_available>false</install_if_reported_available><reinstall_option>Do Not Reinstall</reinstall_option><triggering_files/><send_notification>false</send_notification></package>"""
         apiUrl = "packages"
@@ -164,14 +162,11 @@ class JSSImporter(Processor):
             try:
                 shutil.copyfile(source_item, dest_item)
                 self.output("Copied %s to %s" % (source_item, dest_item))
+                # set output variables
+                self.env["jss_repo_changed"] = True
             except BaseException, err:
                 raise ProcessorError(
                     "Can't copy %s to %s: %s" % (source_item, dest_item, err))
-            # set output variables
-        #     self.env["jss_repo_changed"] = True
-        # else:
-        #     if not "jss_repo_changed" in self.env:
-        #         self.env["jss_repo_changed"] = False
 
 if __name__ == "__main__":
     processor = JSSImporter()
