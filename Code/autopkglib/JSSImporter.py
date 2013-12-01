@@ -102,15 +102,25 @@ class JSSImporter(Processor):
         jss_results = submitResult.read()
         item_match = re.search(re.escape(item_to_check), jss_results)
         if item_match:
-            return "proceed"
-            self.output("Found %s, moving on" % item_to_check)
+            highest_id = ["proceed"]
+            snip_front = "(\d+)" + "(" + "</id>" + item_to_check + ")"
+            the_id = re.search(snip_front, jss_results)
+            highest_id.append(the_id.group(1))
+            something = str(highest_id[1])
+            self.output("Found %s at id %s, moving on" % (item_to_check, something))
+            return highest_id
         else:
             bracket = "<id>"
             nums = re.findall(re.escape(bracket) + r'\d+', jss_results)
             highest_num = max(nums)
+            print highest_num
             highest_id = int(highest_num[4:])
             highest_id += 1
-            return highest_id
+            next_index_list = [highest_id]
+            return next_index_list
+
+    def checkItemVersion(self, repoUrl, base64string, item_version, apiUrl):
+        pass
 
     def customizeAndPostXMLtoAPI(self, repoUrl, apiUrl, item_id, replace_dict, template_string, base64string):
         """After finding an unused id, this updates a template with the id and product name for a category"""
@@ -123,24 +133,25 @@ class JSSImporter(Processor):
         self.output("Added to %s section of JSS via API" % apiUrl)
 
     def main(self):
+        # pull jss recipe-specific args, prep api auth
         repoUrl = self.env["jss_url"]
         authUser = self.env["api_username"]
         authPass = self.env["api_password"]
         base64string = base64.encodestring('%s:%s' % (authUser, authPass)).replace('\n', '')
         pkg_name = os.path.basename(self.env["pkg_path"])
         prod_name = self.env["prod_name"]
+        # pre-set 'changed' output checks to False
         self.env["jss_repo_changed"] = False
         self.env["jss_category_added"] = False
         # check for category if var set
         if self.env.get("category"):
             item_to_check = "<name>" + prod_name + "</name>"
             apiUrl = "categories"
-            #run me some main, why dontcha, capturing the checkCategory stages output
             highest_id = self.checkItem(repoUrl, base64string, item_to_check, apiUrl)
             # if prod name already exists then we'd proceed to the next processor, otherwise
             template_string = """<?xml version="1.0" encoding="UTF-8"?><category><id>%CAT_ID%</id><name>%CAT_NAME%</name></category>"""
-            if highest_id != "proceed":
-                highest_id = str(highest_id)
+            if "proceed" not in highest_id:
+                highest_id = str(highest_id[0])
                 replace_dict = {"%CAT_ID%" : highest_id, "%CAT_NAME%" : prod_name}                
                 self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, highest_id, replace_dict, template_string, base64string)
                 self.env["jss_category_added"] = True
@@ -149,9 +160,9 @@ class JSSImporter(Processor):
         apiUrl = "packages"
         item_to_check = "<name>" + pkg_name + "</name>"
         highest_id = self.checkItem(repoUrl, base64string, item_to_check, apiUrl)
-        # if prod name already exists then we'd proceed to the next processor,
-        if highest_id != "proceed":
-            pkg_id = str(highest_id)
+        # if prod name already exists then we'd proceed to the next stage
+        if "proceed" not in highest_id:
+            pkg_id = str(highest_id[0])
             replace_dict = {"%PKG_ID%" : pkg_id, "%PKG_NAME%" : pkg_name, "%PROD_NAME%" : prod_name}
             self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, pkg_id, replace_dict, template_string, base64string)
         source_item = self.env["pkg_path"]
@@ -167,6 +178,19 @@ class JSSImporter(Processor):
             except BaseException, err:
                 raise ProcessorError(
                     "Can't copy %s to %s: %s" % (source_item, dest_item, err))
+        # if self.env.get("smart_group"):
+        #     smart_group_name = self.env.get("smart_group")
+        #     item_to_check = "<name>" + smart_group_name + "</name>"
+        #     apiUrl = "computergroups"
+        #     highest_id = self.checkItem(repoUrl, base64string, item_to_check, apiUrl)
+            # if smart group already exists then we'd proceed to the next stage
+            # template_string = """<?xml version="1.0" encoding="UTF-8"?><category><id>%CAT_ID%</id><name>%CAT_NAME%</name></category>"""
+            # if highest_id != "proceed":
+            #     highest_id = str(highest_id)
+            #     replace_dict = {"%CAT_ID%" : highest_id, "%CAT_NAME%" : prod_name}                
+            #     self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, highest_id, replace_dict, template_string, base64string)
+            #     self.env["jss_category_added"] = True
+
 
 if __name__ == "__main__":
     processor = JSSImporter()
