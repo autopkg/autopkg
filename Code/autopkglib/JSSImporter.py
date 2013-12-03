@@ -96,10 +96,10 @@ class JSSImporter(Processor):
         "jss_policy_updated": {
             "description": "True if policy was updated."
         },
-        
+    
     }
     description = __doc__
-
+    
     def checkItem(self, repoUrl, base64string, item_to_check, apiUrl):
         """This checks for the targeted item in the JSS and returns the id, otherwise it does a search for the highest unused id with which to create it"""
         # build our request for the entire list of categories
@@ -136,10 +136,10 @@ class JSSImporter(Processor):
             highest_id += 1
             next_index_list = [highest_id]
             return next_index_list
-
+    
     def checkItemVersion(self, repoUrl, base64string, item_version, apiUrl):
         pass
-
+    
     def customizeAndPostXMLtoAPI(self, repoUrl, apiUrl, item_id, replace_dict, template_string, base64string):
         """After finding an unused id, this updates a template with the id and product name for a category"""
         for key, value in replace_dict.iteritems():
@@ -149,17 +149,17 @@ class JSSImporter(Processor):
         submitResult = urllib2.urlopen(submitRequest)
         submittedResult = submitResult.read()
         self.output("Added to %s section of JSS via API" % apiUrl)
-
-    def customizeAndPostPolicy(self, repoUrl, apiUrl, prod_name, replace_dict, template_string, base64string):
+    
+    def customizeAndPostPolicy(self, repoUrl, apiUrl, replace_dict, template_string, base64string):
         """After finding an unused id, this updates a template with the id and product name for a category"""
         for key, value in replace_dict.iteritems():
             template_string = template_string.replace(key, value)
-        submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "/name/" + prod_name, template_string, {'Content-type': 'text/xml'})
+        submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "/id/0", template_string, {'Content-type': 'text/xml'})
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
         submitResult = urllib2.urlopen(submitRequest)
         submittedResult = submitResult.read()
         self.output("Added to %s section of JSS via API" % apiUrl)
-
+    
     def main(self):
         # pull jss recipe-specific args, prep api auth
         repoUrl = self.env["jss_url"]
@@ -188,7 +188,7 @@ class JSSImporter(Processor):
             template_string = """<?xml version="1.0" encoding="UTF-8"?><category><id>%CAT_ID%</id><name>%CAT_NAME%</name></category>"""
             if "proceed" not in highest_id:
                 highest_id = str(highest_id[0])
-                replace_dict = {"%CAT_ID%" : highest_id, "%CAT_NAME%" : prod_name}                
+                replace_dict = {"%CAT_ID%" : highest_id, "%CAT_NAME%" : prod_name}
                 self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, highest_id, replace_dict, template_string, base64string)
                 self.env["jss_category_added"] = True
         # start metadata/pkg upload
@@ -201,6 +201,8 @@ class JSSImporter(Processor):
             pkg_id = str(highest_id[0])
             replace_dict = {"%PKG_ID%" : pkg_id, "%PKG_NAME%" : pkg_name, "%PROD_NAME%" : prod_name}
             self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, pkg_id, replace_dict, template_string, base64string)
+        else:
+              pkg_id = str(highest_id[1])
         source_item = self.env["pkg_path"]
         dest_item = (self.env["repo_path"] + "/" + pkg_name)
         if os.path.exists(dest_item):
@@ -223,7 +225,7 @@ class JSSImporter(Processor):
             template_string = """<?xml version="1.0" encoding="UTF-8"?><computer_group><id>%GRP_ID%</id><name>LessThanMostRecent_%PROD_NAME%</name><is_smart>true</is_smart><site><id>-1</id><name>None</name></site><criteria><size>2</size><criterion><name>Application Title</name><priority>0</priority><and_or>and</and_or><search_type>is</search_type><value>%PROD_NAME%</value></criterion><criterion><name>Application Version</name><priority>1</priority><and_or>and</and_or><search_type>is not</search_type><value>%version%</value></criterion></criteria><computers><size>0</size></computers></computer_group>"""
             if "proceed" not in highest_id:
                 grp_id = str(highest_id[0])
-                replace_dict = {"%GRP_ID%" : grp_id, "%PROD_NAME%" : prod_name, "%version%" : version}                
+                replace_dict = {"%GRP_ID%" : grp_id, "%PROD_NAME%" : prod_name, "%version%" : version}
                 self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, grp_id, replace_dict, template_string, base64string)
                 self.env["jss_smartgroup_added"] = True
             else:
@@ -233,11 +235,11 @@ class JSSImporter(Processor):
             apiUrl = "policies"
             highest_id = self.checkItem(repoUrl, base64string, item_to_check, apiUrl)
             # if prod named category already exists then we'd proceed to the next stage, otherwise
-            template_string = """<?xml version="1.0" encoding="UTF-8"?><policy><general><id>%PCY_ID%</id><name>SelfServeLatest_%PROD_NAME%</name><enabled>true</enabled><trigger>USER_INITIATED</trigger><trigger_checkin>false</trigger_checkin><trigger_enrollment_complete>false</trigger_enrollment_complete><trigger_login>false</trigger_login><trigger_logout>false</trigger_logout><trigger_network_state_changed>false</trigger_network_state_changed><trigger_startup>false</trigger_startup><trigger_other/><frequency>Once per computer</frequency><target_drive>default</target_drive><offline>false</offline><category><id>-1</id><name>Unknown</name></category><date_time_limitations><activation_date/><activation_date_epoch>0</activation_date_epoch><activation_date_utc/><expiration_date/><expiration_date_epoch>0</expiration_date_epoch><expiration_date_utc/><no_execute_on/><no_execute_start/><no_execute_end/></date_time_limitations><network_limitations><minimum_network_connection>No Minimum</minimum_network_connection><any_ip_address>true</any_ip_address><network_segments/></network_limitations><override_default_settings><target_drive>default</target_drive><distribution_point/><force_afp_smb>false</force_afp_smb><sus>default</sus><netboot_server>current</netboot_server></override_default_settings><network_requirements>Any</network_requirements><site><id>-1</id><name>None</name></site></general><scope><all_computers>false</all_computers><computers/><computer_groups><computer_group><id>%grp_id%</id><name>lessThanMostRecent_%PROD_NAME%</name></computer_group><computer_group><id>4</id><name>Testing</name></computer_group></computer_groups><buildings/><departments/><limit_to_users><user_groups/></limit_to_users><limitations><users/><user_groups/><network_segments/></limitations><exclusions><computers/><computer_groups/><buildings/><departments/><users/><user_groups/><network_segments/></exclusions></scope><self_service><use_for_self_service>true</use_for_self_service><install_button_text>Install</install_button_text><self_service_description/><force_users_to_view_description>false</force_users_to_view_description><self_service_icon/></self_service><package_configuration><packages><size>1</size><package><id>1</id><name>Firefox.pkg</name><action>Install</action><fut>false</fut><feu>false</feu><update_autorun>false</update_autorun></package></packages></package_configuration><scripts><size>0</size></scripts><printers><size>0</size><leave_existing_default/></printers><dock_items><size>0</size></dock_items><account_maintenance><accounts><size>0</size></accounts><directory_bindings><size>0</size></directory_bindings><management_account><action>doNotChange</action></management_account><open_firmware_efi_password><of_mode>none</of_mode><of_password/></open_firmware_efi_password></account_maintenance><reboot><message>This computer will restart in 5 minutes. Please save anything you are working on and log out by choosing Log Out from the bottom of the Apple menu.</message><startup_disk>Current Startup Disk</startup_disk><specify_startup/><no_user_logged_in>Restart if a package or update requires it</no_user_logged_in><user_logged_in>Restart if a package or update requires it</user_logged_in><minutes_until_reboot>5</minutes_until_reboot></reboot><maintenance><recon>true</recon><reset_name>false</reset_name><install_all_cached_packages>false</install_all_cached_packages><heal>false</heal><prebindings>false</prebindings><permissions>false</permissions><byhost>false</byhost><system_cache>false</system_cache><user_cache>false</user_cache><verify>false</verify></maintenance><files_processes><search_by_path/><delete_file>false</delete_file><locate_file/><update_locate_database>false</update_locate_database><spotlight_search/><search_for_process/><kill_process>false</kill_process><run_command/></files_processes><user_interaction><message_start/><allow_users_to_defer>false</allow_users_to_defer><allow_deferral_until_utc/><message_finish/></user_interaction></policy>"""
+            template_string = """<?xml version="1.0" encoding="UTF-8"?><policy><general><name>SelfServeLatest_%PROD_NAME%</name><enabled>true</enabled><trigger>USER_INITIATED</trigger><frequency>Once per computer</frequency><override_default_settings><target_drive>default</target_drive><distribution_point/><force_afp_smb>false</force_afp_smb><sus>default</sus><netboot_server>current</netboot_server></override_default_settings></general><scope><computer_groups><computer_group><id>%grp_id%</id></computer_group></computer_groups></scope><self_service><use_for_self_service>true</use_for_self_service><install_button_text>Install</install_button_text><self_service_description/><force_users_to_view_description>false</force_users_to_view_description><self_service_icon/></self_service><package_configuration><packages><size>1</size><package><id>%pkg_id%</id><name>%PKG_NAME%</name><action>Install</action><fut>false</fut><feu>false</feu><update_autorun>false</update_autorun></package></packages></package_configuration><maintenance><recon>true</recon></maintenance></policy>"""
             if "proceed" not in highest_id:
-                policy_id = "SelfServeLatest_" + prod_name
-                replace_dict = {"%PCY_ID%" : policy_id, "%grp_id%" : grp_id, "%PROD_NAME%" : prod_name, "%PKG_NAME%" : pkg_name}
-                self.customizeAndPostPolicy(repoUrl, apiUrl, policy_id, replace_dict, template_string, base64string)
+                policy_name = "SelfServeLatest_" + prod_name
+                replace_dict = {"%grp_id%" : grp_id, "%PROD_NAME%" : prod_name, "%pkg_id%" : pkg_id, "%PKG_NAME%" : pkg_name}
+                self.customizeAndPostPolicy(repoUrl, apiUrl, replace_dict, template_string, base64string)
                 self.env["jss_policy_added"] = True
 
 if __name__ == "__main__":
