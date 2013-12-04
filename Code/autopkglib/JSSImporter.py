@@ -150,9 +150,9 @@ class JSSImporter(Processor):
         policy_match = re.search(r'policy', jss_results)
         if policy_match:
             found_list = []
-            find_group =  "(<computer_groups><computer_group><id>)" + "(\d+)"
+            find_group =  "(\d+)" + "(</id><name>SelfServeLatest_)"
             found_group = re.search(find_group, jss_results)
-            found_grp_id = found_group.group(2)
+            found_grp_id = found_group.group(1)
             found_list = [found_grp_id]
             find_pkg = "(<package><id>)" + "(\d+)"
             found_pkg = re.search(find_pkg, jss_results)
@@ -205,25 +205,31 @@ class JSSImporter(Processor):
         # check for category if var set
         #
         if self.env.get("category"):
-            item_to_check = "<name>" + prod_name + "</name>"
+            category_name = self.env.get("category")
+            item_to_check = "<name>" + category_name + "</name>"
             apiUrl = "categories"
             proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
             template_string = """<?xml version="1.0" encoding="UTF-8"?><category><name>%CAT_NAME%</name></category>"""
             if "proceed" not in proceed_list:
-                replace_dict = {"%CAT_NAME%" : prod_name}
+                replace_dict = {"%CAT_NAME%" : category_name}
                 self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
                 self.env["jss_category_added"] = True
         #
         # check for package by pkg_name for both API POST
         #   and if exists at repo_path
         #
+            template_string = """<?xml version="1.0" encoding="UTF-8"?><package><name>%PKG_NAME%</name><category>%CAT_NAME%</category><filename>%PKG_NAME%</filename><info/><notes/><priority>10</priority><reboot_required>false</reboot_required><fill_user_template>false</fill_user_template><fill_existing_users>false</fill_existing_users><boot_volume_required>false</boot_volume_required><allow_uninstalled>false</allow_uninstalled><os_requirements/><required_processor>None</required_processor><switch_with_package>Do Not Install</switch_with_package><install_if_reported_available>false</install_if_reported_available><reinstall_option>Do Not Reinstall</reinstall_option><triggering_files/><send_notification>false</send_notification></package>"""
+        else:
+            template_string = """<?xml version="1.0" encoding="UTF-8"?><package><name>%PKG_NAME%</name><filename>%PKG_NAME%</filename><info/><notes/><priority>10</priority><reboot_required>false</reboot_required><fill_user_template>false</fill_user_template><fill_existing_users>false</fill_existing_users><boot_volume_required>false</boot_volume_required><allow_uninstalled>false</allow_uninstalled><os_requirements/><required_processor>None</required_processor><switch_with_package>Do Not Install</switch_with_package><install_if_reported_available>false</install_if_reported_available><reinstall_option>Do Not Reinstall</reinstall_option><triggering_files/><send_notification>false</send_notification></package>"""
         apiUrl = "packages"
-        template_string = """<?xml version="1.0" encoding="UTF-8"?><package><name>%PKG_NAME%</name><category>%PROD_NAME%</category><filename>%PKG_NAME%</filename><info/><notes/><priority>10</priority><reboot_required>false</reboot_required><fill_user_template>false</fill_user_template><fill_existing_users>false</fill_existing_users><boot_volume_required>false</boot_volume_required><allow_uninstalled>false</allow_uninstalled><os_requirements/><required_processor>None</required_processor><switch_with_package>Do Not Install</switch_with_package><install_if_reported_available>false</install_if_reported_available><reinstall_option>Do Not Reinstall</reinstall_option><triggering_files/><send_notification>false</send_notification></package>"""
         item_to_check = "<name>" + pkg_name + "</name>"
         proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
         if "proceed" not in proceed_list:
-            replace_dict = {"%PKG_NAME%" : pkg_name, "%PROD_NAME%" : prod_name}
-            self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
+            replace_dict = {"%PKG_NAME%" : pkg_name, "%PROD_NAME%" : prod_name, "%CAT_NAME%" : category_name}
+            jss_pkgcreate_results = self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
+            snip_front = "(\d+)" + "(" + "</id></package>)"
+            the_id = re.search(snip_front, jss_pkgcreate_results)
+            pkg_id = str(the_id.group(1))
         else:
               pkg_id = str(proceed_list[1])
         source_item = self.env["pkg_path"]
@@ -251,8 +257,9 @@ class JSSImporter(Processor):
             replace_dict = {"%PROD_NAME%" : prod_name, "%version%" : version}
             if "proceed" not in proceed_list:
                 results = self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
-                snip_front = "(\d+)" + "(</id><name>LessThanMostRecent_)"
-                grp_id = re.search(snip_front, results)
+                snip_front = "(\d+)" + "(</id></computer_group>)"
+                the_id = re.search(snip_front, results)
+                grp_id = str(the_id.group(1))
                 self.env["jss_smartgroup_added"] = True
             else:
                 grp_id = str(proceed_list[1])
@@ -268,6 +275,7 @@ class JSSImporter(Processor):
             apiUrl = "policies"
             proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
             template_string = """<?xml version="1.0" encoding="UTF-8"?><policy><general><name>SelfServeLatest_%PROD_NAME%</name><enabled>true</enabled><trigger>USER_INITIATED</trigger><frequency>Once per computer</frequency></general><scope><computer_groups><computer_group><id>%grp_id%</id></computer_group></computer_groups></scope><self_service><use_for_self_service>true</use_for_self_service><install_button_text>Install</install_button_text><self_service_description/><force_users_to_view_description>false</force_users_to_view_description><self_service_icon/></self_service><package_configuration><packages><size>1</size><package><id>%pkg_id%</id><action>Install</action></package></packages></package_configuration><maintenance><recon>true</recon></maintenance></policy>"""
+            self.output("Current grp_id is %s, pkg_id is %s" % (grp_id, pkg_id))
             replace_dict = {"%grp_id%" : grp_id, "%PROD_NAME%" : prod_name, "%pkg_id%" : pkg_id}
             if "proceed" not in proceed_list:
                 policy_name = "SelfServeLatest_" + prod_name
