@@ -100,9 +100,9 @@ class JSSImporter(Processor):
     }
     description = __doc__
     
-    def checkItem(self, repoUrl, base64string, item_to_check, apiUrl):
-        """This checks for the targeted item in the JSS and returns the id, otherwise it does a search for the highest unused id with which to create it"""
-        # build our request for the entire list of categories
+    def checkItem(self, repoUrl, apiUrl, item_to_check, base64string):
+        """This checks for all items of a certain type, and if found, returns the id"""
+        # build our request for the entire list of items
         submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl)
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
         # try reaching the server and performing the GET
@@ -119,46 +119,69 @@ class JSSImporter(Processor):
             raise RuntimeError('Did not get a valid response from the server')
         # assign fetched JSS categories to a string and search if prod name already exists
         jss_results = submitResult.read()
+        self.output("Results:", jss_results)
         item_match = re.search(re.escape(item_to_check), jss_results)
+        proceed_list = []
         if item_match:
-            highest_id = ["proceed"]
+            proceed_list = ["proceed"]
             snip_front = "(\d+)" + "(" + "</id>" + item_to_check + ")"
             the_id = re.search(snip_front, jss_results)
-            highest_id.append(the_id.group(1))
-            something = str(highest_id[1])
-            self.output("Found %s at id %s, moving on" % (item_to_check, something))
-            return highest_id
-        else:
-            bracket = "<id>"
-            nums = re.findall(re.escape(bracket) + r'\d+', jss_results)
-            highest_num = max(nums)
-            highest_id = int(highest_num[4:])
-            highest_id += 1
-            next_index_list = [highest_id]
-            return next_index_list
+            proceed_list.append(the_id.group(1))
+            found_id = str(proceed_list[1])
+            self.output("Found %s at id %s, moving on" % (item_to_check, found_id))
+        return proceed_list
     
-    def checkItemVersion(self, repoUrl, base64string, item_version, apiUrl):
-        pass
+    def checkSpecificItem(self, repoUrl, apiUrl, item_id, base64string):
+        """This checks for the targeted item in the JSS and returns applicable info"""
+        # build our request for the entire list of items
+        submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "/id/" + item_id)
+        submitRequest.add_header("Authorization", "Basic %s" % base64string)
+        # try reaching the server and performing the GET
+        print('\nFetching %s' % (apiUrl))
+        submitResult = urllib2.urlopen(submitRequest)
+        jss_results = submitResult.read()
+        smrtgrp_match = re.search(r'criteria', jss_results)
+        if smrtgrp_match:
+            find_ver =  "(<value>)" + "(\S+)" + "(</value></criterion></criteria>)"
+            found_ver = re.search(find_ver, jss_results)
+            pkg_ver = found_ver.group(2)
+            self.output("Found version %s in smartGroup" % pkg_ver)
+            return pkg_ver
+        policy_match = re.search(r'policy', jss_results)
+        if policy_match:
+            found_list = []
+            find_group =  "(<computer_groups><computer_group><id>)" + "(\d+)"
+            found_group = re.search(find_group, jss_results)
+            found_grp_id = found_group.group(2)
+            found_list = [found_grp_id]
+            find_pkg = "(<package><id>)" + "(\d+)"
+            found_pkg = re.search(find_pkg, jss_results)
+            found_pkg_id = found_pkg.group(2)
+            found_list.append(found_pkg_id)
+            self.output("Found smartGroup id %s and pkg_id %s in policy" % (found_grp_id, found_pkg_id))
+            return found_list
     
-    def customizeAndPostXMLtoAPI(self, repoUrl, apiUrl, item_id, replace_dict, template_string, base64string):
-        """After finding an unused id, this updates a template with the id and product name for a category"""
+    def putUpdate(self, repoUrl, apiUrl, item_id, replace_dict, template_string, base64string):
+        """After finding a mismatch, this PUTS a template with updated info"""
         for key, value in replace_dict.iteritems():
             template_string = template_string.replace(key, value)
         submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "/id/" + item_id, template_string, {'Content-type': 'text/xml'})
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
+        submitRequest.get_method = lambda: 'PUT'
         submitResult = urllib2.urlopen(submitRequest)
-        submittedResult = submitResult.read()
+        jss_results = submitResult.read()
         self.output("Added to %s section of JSS via API" % apiUrl)
     
-    def customizeAndPostPolicy(self, repoUrl, apiUrl, replace_dict, template_string, base64string):
+    def createObject(self, repoUrl, apiUrl, replace_dict, template_string, base64string):
         """After finding an unused id, this updates a template with the id and product name for a category"""
         for key, value in replace_dict.iteritems():
             template_string = template_string.replace(key, value)
         submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "/id/0", template_string, {'Content-type': 'text/xml'})
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
         submitResult = urllib2.urlopen(submitRequest)
-        submittedResult = submitResult.read()
+        jss_results = submitResult.read()
         self.output("Added to %s section of JSS via API" % apiUrl)
+        return jss_results
     
     def main(self):
         # pull jss recipe-specific args, prep api auth
@@ -169,7 +192,7 @@ class JSSImporter(Processor):
         pkg_name = os.path.basename(self.env["pkg_path"])
         prod_name = self.env["prod_name"]
         version = self.env["version"]
-        # pre-set 'changed' output checks to False
+        # pre-set 'changed/added/updated' output checks to False
         self.env["jss_repo_changed"] = False
         self.env["jss_category_added"] = False
         self.env["jss_smartgroup_added"] = False
@@ -178,31 +201,31 @@ class JSSImporter(Processor):
         self.env["jss_staticgroup_updated"] = False
         self.env["jss_policy_added"] = False
         self.env["jss_policy_updated"] = False
+        #
         # check for category if var set
         #
         if self.env.get("category"):
             item_to_check = "<name>" + prod_name + "</name>"
             apiUrl = "categories"
-            highest_id = self.checkItem(repoUrl, base64string, item_to_check, apiUrl)
-            # if prod named category already exists then we'd proceed to the next stage, otherwise
-            template_string = """<?xml version="1.0" encoding="UTF-8"?><category><id>%CAT_ID%</id><name>%CAT_NAME%</name></category>"""
-            if "proceed" not in highest_id:
-                highest_id = str(highest_id[0])
-                replace_dict = {"%CAT_ID%" : highest_id, "%CAT_NAME%" : prod_name}
-                self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, highest_id, replace_dict, template_string, base64string)
+            proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
+            template_string = """<?xml version="1.0" encoding="UTF-8"?><category><name>%CAT_NAME%</name></category>"""
+            if "proceed" not in proceed_list:
+                replace_dict = {"%CAT_NAME%" : prod_name}
+                self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
                 self.env["jss_category_added"] = True
-        # start metadata/pkg upload
-        template_string = """<?xml version="1.0" encoding="UTF-8"?><package><id>%PKG_ID%</id><name>%PKG_NAME%</name><category>%PROD_NAME%</category><filename>%PKG_NAME%</filename><info/><notes/><priority>10</priority><reboot_required>false</reboot_required><fill_user_template>false</fill_user_template><fill_existing_users>false</fill_existing_users><boot_volume_required>false</boot_volume_required><allow_uninstalled>false</allow_uninstalled><os_requirements/><required_processor>None</required_processor><switch_with_package>Do Not Install</switch_with_package><install_if_reported_available>false</install_if_reported_available><reinstall_option>Do Not Reinstall</reinstall_option><triggering_files/><send_notification>false</send_notification></package>"""
+        #
+        # check for package by pkg_name for both API POST
+        #   and if exists at repo_path
+        #
         apiUrl = "packages"
+        template_string = """<?xml version="1.0" encoding="UTF-8"?><package><name>%PKG_NAME%</name><category>%PROD_NAME%</category><filename>%PKG_NAME%</filename><info/><notes/><priority>10</priority><reboot_required>false</reboot_required><fill_user_template>false</fill_user_template><fill_existing_users>false</fill_existing_users><boot_volume_required>false</boot_volume_required><allow_uninstalled>false</allow_uninstalled><os_requirements/><required_processor>None</required_processor><switch_with_package>Do Not Install</switch_with_package><install_if_reported_available>false</install_if_reported_available><reinstall_option>Do Not Reinstall</reinstall_option><triggering_files/><send_notification>false</send_notification></package>"""
         item_to_check = "<name>" + pkg_name + "</name>"
-        highest_id = self.checkItem(repoUrl, base64string, item_to_check, apiUrl)
-        # if prod name already exists then we'd proceed to the next stage
-        if "proceed" not in highest_id:
-            pkg_id = str(highest_id[0])
-            replace_dict = {"%PKG_ID%" : pkg_id, "%PKG_NAME%" : pkg_name, "%PROD_NAME%" : prod_name}
-            self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, pkg_id, replace_dict, template_string, base64string)
+        proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
+        if "proceed" not in proceed_list:
+            replace_dict = {"%PKG_NAME%" : pkg_name, "%PROD_NAME%" : prod_name}
+            self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
         else:
-              pkg_id = str(highest_id[1])
+              pkg_id = str(proceed_list[1])
         source_item = self.env["pkg_path"]
         dest_item = (self.env["repo_path"] + "/" + pkg_name)
         if os.path.exists(dest_item):
@@ -216,31 +239,47 @@ class JSSImporter(Processor):
             except BaseException, err:
                 raise ProcessorError(
                     "Can't copy %s to %s: %s" % (source_item, dest_item, err))
+        #
+        # check for smartGroup if var set
+        #
         if self.env.get("smart_group"):
             smart_group_name = self.env.get("smart_group")
             item_to_check = "<name>" + smart_group_name + "</name>"
             apiUrl = "computergroups"
-            highest_id = self.checkItem(repoUrl, base64string, item_to_check, apiUrl)
-            # if smart group already exists then we'd proceed to the next stage
-            template_string = """<?xml version="1.0" encoding="UTF-8"?><computer_group><id>%GRP_ID%</id><name>LessThanMostRecent_%PROD_NAME%</name><is_smart>true</is_smart><site><id>-1</id><name>None</name></site><criteria><size>2</size><criterion><name>Application Title</name><priority>0</priority><and_or>and</and_or><search_type>is</search_type><value>%PROD_NAME%</value></criterion><criterion><name>Application Version</name><priority>1</priority><and_or>and</and_or><search_type>is not</search_type><value>%version%</value></criterion></criteria><computers><size>0</size></computers></computer_group>"""
-            if "proceed" not in highest_id:
-                grp_id = str(highest_id[0])
-                replace_dict = {"%GRP_ID%" : grp_id, "%PROD_NAME%" : prod_name, "%version%" : version}
-                self.customizeAndPostXMLtoAPI(repoUrl, apiUrl, grp_id, replace_dict, template_string, base64string)
+            proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
+            template_string = """<?xml version="1.0" encoding="UTF-8"?><computer_group><name>LessThanMostRecent_%PROD_NAME%</name><is_smart>true</is_smart><site><id>-1</id><name>None</name></site><criteria><size>2</size><criterion><name>Application Title</name><priority>0</priority><and_or>and</and_or><search_type>is</search_type><value>%PROD_NAME%</value></criterion><criterion><name>Application Version</name><priority>1</priority><and_or>and</and_or><search_type>is not</search_type><value>%version%</value></criterion></criteria><computers><size>0</size></computers></computer_group>"""
+            replace_dict = {"%PROD_NAME%" : prod_name, "%version%" : version}
+            if "proceed" not in proceed_list:
+                results = self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
+                snip_front = "(\d+)" + "(</id><name>LessThanMostRecent_)"
+                grp_id = re.search(snip_front, results)
                 self.env["jss_smartgroup_added"] = True
             else:
-                grp_id = str(highest_id[1])
+                grp_id = str(proceed_list[1])
+                pkg_ver = self.checkSpecificItem(repoUrl, apiUrl, grp_id, base64string)
+                if pkg_ver != version:
+                    self.putUpdate(repoUrl, apiUrl, grp_id, replace_dict, template_string, base64string)
+                    self.env["jss_smartgroup_updated"] = True
+        #
+        # check for policy if var set
+        #
         if self.env.get("selfserve_policy"):
-            item_to_check = "<name>" + "SelfServeLatest_" + prod_name + "</name>"
+            item_to_check = "<name>SelfServeLatest_" + prod_name + "</name>"
             apiUrl = "policies"
-            highest_id = self.checkItem(repoUrl, base64string, item_to_check, apiUrl)
-            # if prod named category already exists then we'd proceed to the next stage, otherwise
-            template_string = """<?xml version="1.0" encoding="UTF-8"?><policy><general><name>SelfServeLatest_%PROD_NAME%</name><enabled>true</enabled><trigger>USER_INITIATED</trigger><frequency>Once per computer</frequency><override_default_settings><target_drive>default</target_drive><distribution_point/><force_afp_smb>false</force_afp_smb><sus>default</sus><netboot_server>current</netboot_server></override_default_settings></general><scope><computer_groups><computer_group><id>%grp_id%</id></computer_group></computer_groups></scope><self_service><use_for_self_service>true</use_for_self_service><install_button_text>Install</install_button_text><self_service_description/><force_users_to_view_description>false</force_users_to_view_description><self_service_icon/></self_service><package_configuration><packages><size>1</size><package><id>%pkg_id%</id><name>%PKG_NAME%</name><action>Install</action><fut>false</fut><feu>false</feu><update_autorun>false</update_autorun></package></packages></package_configuration><maintenance><recon>true</recon></maintenance></policy>"""
-            if "proceed" not in highest_id:
+            proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
+            template_string = """<?xml version="1.0" encoding="UTF-8"?><policy><general><name>SelfServeLatest_%PROD_NAME%</name><enabled>true</enabled><trigger>USER_INITIATED</trigger><frequency>Once per computer</frequency></general><scope><computer_groups><computer_group><id>%grp_id%</id></computer_group></computer_groups></scope><self_service><use_for_self_service>true</use_for_self_service><install_button_text>Install</install_button_text><self_service_description/><force_users_to_view_description>false</force_users_to_view_description><self_service_icon/></self_service><package_configuration><packages><size>1</size><package><id>%pkg_id%</id><action>Install</action></package></packages></package_configuration><maintenance><recon>true</recon></maintenance></policy>"""
+            replace_dict = {"%grp_id%" : grp_id, "%PROD_NAME%" : prod_name, "%pkg_id%" : pkg_id}
+            if "proceed" not in proceed_list:
                 policy_name = "SelfServeLatest_" + prod_name
-                replace_dict = {"%grp_id%" : grp_id, "%PROD_NAME%" : prod_name, "%pkg_id%" : pkg_id, "%PKG_NAME%" : pkg_name}
-                self.customizeAndPostPolicy(repoUrl, apiUrl, replace_dict, template_string, base64string)
+                self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
                 self.env["jss_policy_added"] = True
+            else:
+                policy_id = str(proceed_list[1])
+                found_list = self.checkSpecificItem(repoUrl, apiUrl, policy_id, base64string)
+                self.output("current pkg_id is %s, found is %s current smart_group is %s, found is %s" % (pkg_id, found_list[1], grp_id, found_list[0]))
+                if pkg_id != found_list[1] or grp_id != found_list[0]:
+                    self.putUpdate(repoUrl, apiUrl, policy_id, replace_dict, template_string, base64string)
+                    self.env["jss_policy_updated"] = True
 
 if __name__ == "__main__":
     processor = JSSImporter()
