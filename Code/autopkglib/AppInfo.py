@@ -25,10 +25,10 @@ from DmgMounter import DmgMounter
 from autopkglib import Processor, ProcessorError
 
 
-__all__ = ["AppVersioner"]
+__all__ = ["AppInfo"]
 
 
-class AppVersioner(DmgMounter):
+class AppInfo(DmgMounter):
     description = "Extracts bundle ID and version of app inside dmg."
     input_variables = {
         "app_path": {
@@ -106,5 +106,5 @@ class AppVersioner(DmgMounter):
     
 
 if __name__ == '__main__':
-    processor = AppVersioner()
+    processor = AppInfo()
     processor.execute_shell()
