@@ -19,7 +19,7 @@
 
 import os.path
 import glob
-from Foundation import NSData, NSPropertyListSerialization, NSPropertyListMutableContainers
+import FoundationPlist
 
 from DmgMounter import DmgMounter
 from autopkglib import Processor, ProcessorError
@@ -55,23 +55,8 @@ class AppInfo(DmgMounter):
     }
     
     __doc__ = description
-
-    def read_bundle_info(self, path):
-        """Read Contents/Info.plist inside a bundle."""
-        
-        plistpath = os.path.join(path, "Contents", "Info.plist")
-        info, format, error = \
-            NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
-                NSData.dataWithContentsOfFile_(plistpath),
-                NSPropertyListMutableContainers,
-                None,
-                None
-            )
-        if error:
-            raise ProcessorError("Can't read %s: %s" % (plistpath, error))
-        
-        return info
     
+
     def main(self):
         # Check if we're trying to read something inside a dmg.
         (dmg_path, dmg, dmg_source_path) = self.env[
@@ -85,21 +70,25 @@ class AppInfo(DmgMounter):
                 mount_point = self.mount(dmg_path)
                 app_path = os.path.join(mount_point, dmg_source_path)
             else:
-                # just use the given path
                 app_path = self.env['app_path']
 
-            info = self.read_bundle_info(app_path)
+            if app_path.endswith('.app') or app_path.endswith('.app/'):
+                app_path = os.path.join(app_path, 'Contents', 'Info.plist')
+
+            print app_path
+
 
             self.env["app_name"] = os.path.basename(app_path)
             try:
+                info = FoundationPlist.readPlist(app_path)
                 self.env["bundleid"] = info["CFBundleIdentifier"]
                 version_key = self.env.get("version_key",
                                            "CFBundleShortVersionString")
                 self.env["version"] = info[version_key]
                 self.output("BundleID: %s" % self.env["bundleid"])
                 self.output("Version: %s" % self.env["version"])
-            except BaseException as e:
-                raise ProcessorError(e)
+            except FoundationPlist.FoundationPlistException, err:
+                raise ProcessorError(err)
         finally:
             if dmg:
                 self.unmount(dmg_path)
