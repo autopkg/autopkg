@@ -36,22 +36,19 @@ class AppInfo(DmgMounter):
             "description": ("Path to dmg, an app, or any plist. If it is "
             "enclosed in a dmg, it will be mounted."),
         },
-        "plist_version_key": {
+        "plist_keys": {
             "required": False,
-            "description":
-                ("Which plist key to use; defaults to "
-                "CFBundleShortVersionString"),
+            "description": ("Dictionary of plist values to query. Key name "
+                            "should match the key you want to read. The value "
+                            "should be the desired output variable name. "
+                            "Defaults to: "
+                            "{'CFBundleShortVersionString': 'version'}")
         },
     }
     output_variables = {
-        "app_name": {
-            "description": "Name of app found on the disk image."
-        },
-        "bundleid": {
-            "description": "Bundle identifier of the app.",
-        },
-        "version": {
-            "description": "Version of the app.",
+        "output_variables": {
+            "description": ("Output variables per 'plist_keys' supplied as "
+             "input. Defaults to 'version'.")
         },
     }
 
@@ -95,20 +92,19 @@ class AppInfo(DmgMounter):
             if path.endswith('.app'):
                 path = os.path.join(path, 'Contents', 'Info.plist')
 
-            #DEBUG
-            print path
+            self.output("Reading: %s" % path)
 
+            keys = self.env.get('plist_keys', {"CFBundleShortVersionString": "version"})
+            output_variables = {}
             try:
                 info = FoundationPlist.readPlist(path)
-                #self.env["app_name"] = os.path.basename(path)
-                self.env["app_name"] = info["CFBundleName"]
-                self.env["bundleid"] = info["CFBundleIdentifier"]
-                version_key = self.env.get("version_key",
-                                           "CFBundleShortVersionString")
-                self.env["version"] = info[version_key]
-                self.output("AppName:: %s" % self.env["app_name"])
-                self.output("BundleID: %s" % self.env["bundleid"])
-                self.output("Version: %s" % self.env["version"])
+                for key, val in keys.items():
+                    self.env[val] = info[key]
+                    self.output("%s: %s" % (val, self.env[val]))
+                    output_variables[val] = self.env[val]
+                    
+                self.env["output_variables"] = output_variables
+
             except FoundationPlist.FoundationPlistException, err:
                 raise ProcessorError(err)
         finally:
