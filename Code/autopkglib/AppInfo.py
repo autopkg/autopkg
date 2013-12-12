@@ -33,11 +33,12 @@ class AppInfo(DmgMounter):
     input_variables = {
         "info_path": {
             "required": True,
-            "description": "Path to dmg, an app, or any plist. If it is enclosed in a dmg, it will be mounted.",
+            "description": ("Path to dmg, an app, or any plist. If it is "
+            "enclosed in a dmg, it will be mounted."),
         },
         "plist_version_key": {
             "required": False,
-            "description": 
+            "description":
                 ("Which plist key to use; defaults to "
                 "CFBundleShortVersionString"),
         },
@@ -53,17 +54,17 @@ class AppInfo(DmgMounter):
             "description": "Version of the app.",
         },
     }
-    
+
     __doc__ = description
 
     def find_app(self, path):
-        """Find app bundle at path."""
-        
+        """Find app bundle at path"""
+
         apps = glob.glob(os.path.join(path, "*.app"))
         if len(apps) == 0:
             raise ProcessorError("No app found in dmg")
         return apps[0]
-    
+
     def main(self):
         # Many types of paths are accepted. Figure out which kind we have.
         # Remove any trailing slashes.
@@ -113,7 +114,7 @@ class AppInfo(DmgMounter):
         finally:
             if dmg:
                 self.unmount(dmg_path)
-    
+
 
 if __name__ == '__main__':
     processor = AppInfo()
