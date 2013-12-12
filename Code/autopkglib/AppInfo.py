@@ -29,11 +29,11 @@ __all__ = ["AppInfo"]
 
 
 class AppInfo(DmgMounter):
-    description = "Extracts bundle ID and version of app inside dmg."
+    description = "Extracts information from a plist file."
     input_variables = {
-        "app_path": {
+        "info_path": {
             "required": True,
-            "description": "Path to a app. If it is enclosed in a dmg, it will be mounted.",
+            "description": "Path to dmg, an app, or any plist. If it is enclosed in a dmg, it will be mounted.",
         },
         "plist_version_key": {
             "required": False,
@@ -55,36 +55,57 @@ class AppInfo(DmgMounter):
     }
     
     __doc__ = description
+
+    def find_app(self, path):
+        """Find app bundle at path."""
+        
+        apps = glob.glob(os.path.join(path, "*.app"))
+        if len(apps) == 0:
+            raise ProcessorError("No app found in dmg")
+        return apps[0]
     
-
     def main(self):
-        # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.env[
-            'app_path'].partition(".dmg/")
-        dmg_path += ".dmg"
-        # Mount the image.
-        # Wrap all other actions in a try/finally so the image is always
-        # unmounted.
+        # Many types of paths are accepted. Figure out which kind we have.
+        # Remove any trailing slashes.
+        path = os.path.normpath(self.env['info_path'])
+
         try:
-            if dmg:
+            # Wrap all other actions in a try/finally so if we mount an image,
+            # it will always be unmounted.
+
+            # Check if we're trying to read something inside a dmg.
+            if '.dmg' in path:
+                (dmg_path, dmg, dmg_source_path) = path.partition(".dmg")
+                dmg_path += ".dmg"
+
                 mount_point = self.mount(dmg_path)
-                app_path = os.path.join(mount_point, dmg_source_path)
+                path = os.path.join(mount_point, dmg_source_path.lstrip('/'))
             else:
-                app_path = self.env['app_path']
+                dmg = False
 
-            if app_path.endswith('.app') or app_path.endswith('.app/'):
-                app_path = os.path.join(app_path, 'Contents', 'Info.plist')
+            if path.endswith('.plist'):
+                # Full path to a plist was supplied, move on.
+                pass
+            # Does the path specify an app?
+            elif not '.app' in path:
+                path = self.find_app(path)
 
-            print app_path
+            # If given path is to an app, assume we want to read the Info.plist.
+            if path.endswith('.app'):
+                path = os.path.join(path, 'Contents', 'Info.plist')
 
+            #DEBUG
+            print path
 
-            self.env["app_name"] = os.path.basename(app_path)
             try:
-                info = FoundationPlist.readPlist(app_path)
+                info = FoundationPlist.readPlist(path)
+                #self.env["app_name"] = os.path.basename(path)
+                self.env["app_name"] = info["CFBundleName"]
                 self.env["bundleid"] = info["CFBundleIdentifier"]
                 version_key = self.env.get("version_key",
                                            "CFBundleShortVersionString")
                 self.env["version"] = info[version_key]
+                self.output("AppName:: %s" % self.env["app_name"])
                 self.output("BundleID: %s" % self.env["bundleid"])
                 self.output("Version: %s" % self.env["version"])
             except FoundationPlist.FoundationPlistException, err:
