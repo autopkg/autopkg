@@ -25,10 +25,10 @@ from DmgMounter import DmgMounter
 from autopkglib import Processor, ProcessorError
 
 
-__all__ = ["AppInfo"]
+__all__ = ["PlistReader"]
 
 
-class AppInfo(DmgMounter):
+class PlistReader(DmgMounter):
     description = "Extracts information from a plist file."
     input_variables = {
         "info_path": {
@@ -113,5 +113,5 @@ class AppInfo(DmgMounter):
 
 
 if __name__ == '__main__':
-    processor = AppInfo()
+    processor = PlistReader()
     processor.execute_shell()
