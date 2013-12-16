@@ -19,7 +19,7 @@ import os, urllib2, sys, re, base64
 import subprocess
 import FoundationPlist
 import shutil
-
+from xml.etree import ElementTree
 from distutils import version
 
 from autopkglib import Processor, ProcessorError
@@ -103,7 +103,10 @@ class JSSImporter(Processor):
     def checkItem(self, repoUrl, apiUrl, item_to_check, base64string):
         """This checks for all items of a certain type, and if found, returns the id"""
         # build our request for the entire list of items
-        submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl)
+        if apiUrl[-1] == "y":
+            submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl[:-1] + "ies")
+        else:
+            submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "s")
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
         # try reaching the server and performing the GET
         print('\nTrying to reach JSS and fetch all %s at URL %s' % (apiUrl, repoUrl))
@@ -117,24 +120,37 @@ class JSSImporter(Processor):
                 if e.code == 401:
                     raise RuntimeError('Got a 401 error.. check the validity of the authorization file')
             raise RuntimeError('Did not get a valid response from the server')
-        # assign fetched JSS categories to a string and search if prod name already exists
+        # assign fetched JSS info to a string (or ET) and search if object to create already exists
         jss_results = submitResult.read()
         self.output("Results:", jss_results)
-        item_match = re.search(re.escape(item_to_check), jss_results)
+        try:
+            xmldata = ElementTree.fromstring(jss_results)
+        except:
+            raise ProcessorError("Error parsing XML from fetched results.")
+        if apiUrl == "computergroup":
+            item_ids = [e.text for e in xmldata.findall("computer_group" + '/id')]
+            item_names = [e.text for e in xmldata.findall("computer_group" + '/name')]
+        else:
+            item_ids = [e.text for e in xmldata.findall(apiUrl + '/id')]
+            item_names = [e.text for e in xmldata.findall(apiUrl + '/name')]
+        item_nameplusids = zip(item_ids, item_names)
+        self.output(item_nameplusids)
         proceed_list = []
-        if item_match:
-            proceed_list = ["proceed"]
-            snip_front = "(\d+)" + "(" + "</id>" + item_to_check + ")"
-            the_id = re.search(snip_front, jss_results)
-            proceed_list.append(the_id.group(1))
-            found_id = str(proceed_list[1])
-            self.output("Found %s at id %s, moving on" % (item_to_check, found_id))
+        for tup in item_nameplusids:
+            if item_to_check == tup[1]:
+                self.output("Foundit")
+                proceed_list = ["proceed"]
+                proceed_list.append(tup[0])
+        self.output(jss_results)
         return proceed_list
     
     def checkSpecificItem(self, repoUrl, apiUrl, item_id, base64string):
         """This checks for the targeted item in the JSS and returns applicable info"""
         # build our request for the entire list of items
-        submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "/id/" + item_id)
+        if apiUrl[-1] == "y":
+            submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl[:-1] + "ies/id/" + item_id)
+        else:
+            submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "s/id/" + item_id)
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
         # try reaching the server and performing the GET
         print('\nFetching %s' % (apiUrl))
@@ -165,7 +181,10 @@ class JSSImporter(Processor):
         """After finding a mismatch, this PUTS a template with updated info"""
         for key, value in replace_dict.iteritems():
             template_string = template_string.replace(key, value)
-        submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "/id/" + item_id, template_string, {'Content-type': 'text/xml'})
+            if apiUrl[-1] == "y":
+                submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl[:-1] + "ies/id/" + item_id, template_string, {'Content-type': 'text/xml'})
+            else:
+                submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "s/id/" + item_id, template_string, {'Content-type': 'text/xml'})
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
         submitRequest.get_method = lambda: 'PUT'
         submitResult = urllib2.urlopen(submitRequest)
@@ -176,7 +195,10 @@ class JSSImporter(Processor):
         """After finding an unused id, this updates a template with the id and product name for a category"""
         for key, value in replace_dict.iteritems():
             template_string = template_string.replace(key, value)
-        submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "/id/0", template_string, {'Content-type': 'text/xml'})
+            if apiUrl[-1] == "y":
+                submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl[:-1] + "ies/id/0", template_string, {'Content-type': 'text/xml'})
+            else:
+                submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "/id/0", template_string, {'Content-type': 'text/xml'})
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
         submitResult = urllib2.urlopen(submitRequest)
         jss_results = submitResult.read()
@@ -206,32 +228,36 @@ class JSSImporter(Processor):
         #
         if self.env.get("category"):
             category_name = self.env.get("category")
-            item_to_check = "<name>" + category_name + "</name>"
-            apiUrl = "categories"
+            item_to_check = category_name
+            apiUrl = "category"
             proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
             template_string = """<?xml version="1.0" encoding="UTF-8"?><category><name>%CAT_NAME%</name></category>"""
             if "proceed" not in proceed_list:
                 replace_dict = {"%CAT_NAME%" : category_name}
                 self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
                 self.env["jss_category_added"] = True
+            else:
+                self.output("Category already exists according to JSS, moving on")
         #
         # check for package by pkg_name for both API POST
         #   and if exists at repo_path
         #
             template_string = """<?xml version="1.0" encoding="UTF-8"?><package><name>%PKG_NAME%</name><category>%CAT_NAME%</category><filename>%PKG_NAME%</filename><info/><notes/><priority>10</priority><reboot_required>false</reboot_required><fill_user_template>false</fill_user_template><fill_existing_users>false</fill_existing_users><boot_volume_required>false</boot_volume_required><allow_uninstalled>false</allow_uninstalled><os_requirements/><required_processor>None</required_processor><switch_with_package>Do Not Install</switch_with_package><install_if_reported_available>false</install_if_reported_available><reinstall_option>Do Not Reinstall</reinstall_option><triggering_files/><send_notification>false</send_notification></package>"""
+            replace_dict = {"%PKG_NAME%" : pkg_name, "%PROD_NAME%" : prod_name, "%CAT_NAME%" : category_name}
         else:
             template_string = """<?xml version="1.0" encoding="UTF-8"?><package><name>%PKG_NAME%</name><filename>%PKG_NAME%</filename><info/><notes/><priority>10</priority><reboot_required>false</reboot_required><fill_user_template>false</fill_user_template><fill_existing_users>false</fill_existing_users><boot_volume_required>false</boot_volume_required><allow_uninstalled>false</allow_uninstalled><os_requirements/><required_processor>None</required_processor><switch_with_package>Do Not Install</switch_with_package><install_if_reported_available>false</install_if_reported_available><reinstall_option>Do Not Reinstall</reinstall_option><triggering_files/><send_notification>false</send_notification></package>"""
-        apiUrl = "packages"
-        item_to_check = "<name>" + pkg_name + "</name>"
+            replace_dict = {"%PKG_NAME%" : pkg_name, "%PROD_NAME%" : prod_name}
+        apiUrl = "package"
+        item_to_check = pkg_name
         proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
         if "proceed" not in proceed_list:
-            replace_dict = {"%PKG_NAME%" : pkg_name, "%PROD_NAME%" : prod_name, "%CAT_NAME%" : category_name}
             jss_pkgcreate_results = self.createObject(repoUrl, apiUrl, replace_dict, template_string, base64string)
             snip_front = "(\d+)" + "(" + "</id></package>)"
             the_id = re.search(snip_front, jss_pkgcreate_results)
             pkg_id = str(the_id.group(1))
         else:
               pkg_id = str(proceed_list[1])
+              self.output("Pkg already exists according to JSS, moving on")
         source_item = self.env["pkg_path"]
         dest_item = (self.env["repo_path"] + "/" + pkg_name)
         if os.path.exists(dest_item):
@@ -250,8 +276,8 @@ class JSSImporter(Processor):
         #
         if self.env.get("smart_group"):
             smart_group_name = self.env.get("smart_group")
-            item_to_check = "<name>" + smart_group_name + "</name>"
-            apiUrl = "computergroups"
+            item_to_check = smart_group_name
+            apiUrl = "computergroup"
             proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
             template_string = """<?xml version="1.0" encoding="UTF-8"?><computer_group><name>LessThanMostRecent_%PROD_NAME%</name><is_smart>true</is_smart><criteria><size>2</size><criterion><name>Application Title</name><priority>0</priority><and_or>and</and_or><search_type>is</search_type><value>%PROD_NAME%</value></criterion><criterion><name>Application Version</name><priority>1</priority><and_or>and</and_or><search_type>is not</search_type><value>%version%</value></criterion></criteria><computers><size>0</size></computers></computer_group>"""
             replace_dict = {"%PROD_NAME%" : prod_name, "%version%" : version}
@@ -271,8 +297,8 @@ class JSSImporter(Processor):
         # check for policy if var set
         #
         if self.env.get("selfserve_policy"):
-            item_to_check = "<name>SelfServeLatest_" + prod_name + "</name>"
-            apiUrl = "policies"
+            item_to_check = "SelfServeLatest_" + prod_name
+            apiUrl = "policy"
             proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
             template_string = """<?xml version="1.0" encoding="UTF-8"?><policy><general><name>SelfServeLatest_%PROD_NAME%</name><enabled>true</enabled><frequency>Once per computer</frequency></general><scope><computer_groups><computer_group><id>%grp_id%</id></computer_group></computer_groups></scope><self_service><use_for_self_service>true</use_for_self_service></self_service><package_configuration><packages><size>1</size><package><id>%pkg_id%</id><action>Install</action></package></packages></package_configuration><maintenance><recon>true</recon></maintenance></policy>"""
             self.output("Current grp_id is %s, pkg_id is %s" % (grp_id, pkg_id))
