@@ -29,42 +29,77 @@ __all__ = ["PlistReader"]
 
 
 class PlistReader(DmgMounter):
-    description = "Extracts information from a plist file."
+    description = ("Extracts values from top-level keys in a plist file, and ",
+                   "assigns to arbitrary output variables. This behavior is ",
+                   "different from other processors that pre-define all their ",
+                   "possible output variables. As it is often used for versioning, "
+                   "it defaults to extracting 'CFBundleShortVersionString' to ",
+                   "'version'. This can be used as a replacement for both the ",
+                   "AppDmgVersioner and Versioner processors.")
     input_variables = {
         "info_path": {
             "required": True,
-            "description": ("Path to dmg, an app, or any plist. If it is "
-            "enclosed in a dmg, it will be mounted."),
+            "description": ("Path to a plist to be read. If a path to a bundle ",
+                "(ie. a .app) is given, its Info.plist will be found and used. ",
+                "If the path is a folder, it will be searched and the first ",
+                "found bundle will be used. The path can also be a .dmg, ",
+                "or contain a .dmg file and the file will be mounted."),
         },
         "plist_keys": {
             "required": False,
-            "description": ("Dictionary of plist values to query. Key name "
-                            "should match the key you want to read. The value "
-                            "should be the desired output variable name. "
-                            "Defaults to: "
+            "description": ("Dictionary of plist values to query. Key names ",
+                            "should match a top-level key to read. Values ",
+                            "should be the desired output variable name. ",
+                            "Defaults to: ",
                             "{'CFBundleShortVersionString': 'version'}")
         },
     }
     output_variables = {
-        "output_variables": {
-            "description": ("Output variables per 'plist_keys' supplied as "
-             "input. Defaults to 'version'.")
+        "plist_reader_output_variables": {
+            "description": ("Output variables per 'plist_keys' supplied as ",
+             "input. Note that this output variable is used as both a ",
+             "placeholder for documentation and for auditing purposes. ",
+             "One should use the actual named output variables as given ",
+             "as values to 'plist_keys' to refer to the output of this ",
+             "processor.")
         },
     }
 
     __doc__ = description
 
-    def find_app(self, path):
-        """Find app bundle at path"""
+    def find_bundle(self, path):
+        """Returns the first bundle that is found within the top level
+        of 'path', or None."""
+        files = glob.glob(os.path.join(path, "*"))
+        if len(files) == 0:
+            raise ProcessorError("No bundle found in dmg")
+        for test_bundle in files:
+            return self.get_bundle_info_path(test_bundle)
+        return None
 
-        apps = glob.glob(os.path.join(path, "*.app"))
-        if len(apps) == 0:
-            raise ProcessorError("No app found in dmg")
-        return apps[0]
+
+    def get_bundle_info_path(self, path):
+        """Return full path to an Info.plist if 'path' is actually a bundle,
+        otherwise None."""
+        bundle_info_path = None
+        if os.path.isdir(path):
+            test_info_path = os.path.join(path, 'Contents/Info.plist')
+            if os.path.exists(test_info_path):
+                try:
+                    plist = FoundationPlist.readPlist(test_info_path)
+                except (FoundationPlist.NSPropertyListSerializationException,
+                        UnicodeEncodeError), err:
+                    raise ProcessorError(
+                        "File %s looks like a bundle, but its 'Contents/Info.plist' ",
+                        "file cannot be parsed." % path)
+                bundle_info_path = test_info_path
+        return bundle_info_path
+
 
     def main(self):
+        keys = self.env.get('plist_keys', {"CFBundleShortVersionString": "version"})
+
         # Many types of paths are accepted. Figure out which kind we have.
-        # Remove any trailing slashes.
         path = os.path.normpath(self.env['info_path'])
 
         try:
@@ -81,32 +116,44 @@ class PlistReader(DmgMounter):
             else:
                 dmg = False
 
-            if path.endswith('.plist'):
+            # Finally check whether this is at least a valid path
+            if not os.path.exists(path):
+                raise ProcessorError("Path '%s' doesn't exist!" % path)
+
+            # Is the path a bundle?
+            info_plist_path = self.get_bundle_info_path(path)
+            if info_plist_path:
+                path = info_plist_path
+
+            # Does it have a 'plist' extension (naively assuming 'plist' only names, for now)
+            elif path.endswith('.plist'):
                 # Full path to a plist was supplied, move on.
                 pass
-            # Does the path specify an app?
-            elif not '.app' in path:
-                path = self.find_app(path)
 
-            # If given path is to an app, assume we want to read the Info.plist.
-            if path.endswith('.app'):
-                path = os.path.join(path, 'Contents', 'Info.plist')
+            # Might the path contain a bundle at its root?
+            else:
+                path = self.find_bundle(path)
 
+            # Try to read the plist
             self.output("Reading: %s" % path)
-
-            keys = self.env.get('plist_keys', {"CFBundleShortVersionString": "version"})
-            output_variables = {}
             try:
                 info = FoundationPlist.readPlist(path)
-                for key, val in keys.items():
-                    self.env[val] = info[key]
-                    self.output("%s: %s" % (val, self.env[val]))
-                    output_variables[val] = self.env[val]
-                    
-                self.env["output_variables"] = output_variables
-
-            except FoundationPlist.FoundationPlistException, err:
+            except (FoundationPlist.NSPropertyListSerializationException,
+                    UnicodeEncodeError) as err:
                 raise ProcessorError(err)
+
+            # Copy each plist_keys' values and assign to new env variables
+            self.env["plist_reader_output_variables"] = {}
+            for key, val in keys.items():
+                try:
+                    self.env[val] = info[key]
+                    self.output("Assigning value of '%s' to output variable '%s'" % (self.env[val], val))
+                    # This one is for documentation/recordkeeping
+                    self.env["plist_reader_output_variables"][val] = self.env[val]
+                except KeyError:
+                    raise ProcessorError(
+                        "Key '%s' could not be found in the plist %s!" % (key, path))
+
         finally:
             if dmg:
                 self.unmount(dmg_path)
