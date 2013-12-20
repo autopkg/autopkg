@@ -384,10 +384,10 @@ class AutoPackager(object):
             try:
                 self.env = processor.process()
             except ProcessorError as e:
-                print >> sys.stderr, str(e)
+                print >> sys.stderr, unicode(e)
                 raise AutoPackagerError(
                     "Error in %s: Processor: %s: Error: %s"
-                    %(identifier, step["Processor"], str(e)))
+                    %(identifier, step["Processor"], unicode(e)))
 
             output_dict = {}
             for key in processor.output_variables.keys():

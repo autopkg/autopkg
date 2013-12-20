@@ -1046,9 +1046,9 @@ def run_recipes(argv):
             failure = {}
             log_err("Failed.")
             failure["recipe"] = recipe_path
-            failure["message"] = str(err)
+            failure["message"] = unicode(err)
             failures.append(failure)
-            autopackager.results.append({'RecipeError': str(err).rstrip()})
+            autopackager.results.append({'RecipeError': unicode(err).rstrip()})
 
         run_results.append(autopackager.results)
         try:
