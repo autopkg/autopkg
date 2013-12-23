@@ -1,5 +1,18 @@
 ### 0.2.5 (Unreleased)
 
+ADDITIONS:
+
+- New 'BrewCaskInfoProvider' processor: get URL and version info from crowd-sourced
+  Homebrew formulae for many Mac applications (https://github.com/phinze/homebrew-cask)
+- New 'PlistReader' processor contributed by Shea Craig. This can be used in place 
+  of both the 'AppDmgVersioner' and 'Versioner' processors (which can now be considered 
+  deprecated), and also supports reading arbitrary keys from plists and assigning them
+  to arbitrary output variables for later use in recipes. (GH-56)
+
+FIXES:
+
+- FoundationPlist updated to use new Property List API methods.
+
 ### 0.2.4 (October 16, 2013)
 
 ADDITIONS:
