@@ -103,13 +103,14 @@ class JSSImporter(Processor):
     def checkItem(self, repoUrl, apiUrl, item_to_check, base64string):
         """This checks for all items of a certain type, and if found, returns the id"""
         # build our request for the entire list of items
-        if apiUrl[-1] != "y":
-            submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "s")
-        else:
+        if apiUrl[-1] == "y":
             submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl[:-1] + "ies")
+            print('\nTrying to reach JSS and fetch all %s at URL %s' % (apiUrl[:-1] + "ies", repoUrl))
+        else:
+            submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "s")
+            print('\nTrying to reach JSS and fetch all %s at URL %s' % (apiUrl  + "s", repoUrl))
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
         # try reaching the server and performing the GET
-        print('\nTrying to reach JSS and fetch all %s at URL %s' % (apiUrl, repoUrl))
         try:
             submitResult = urllib2.urlopen(submitRequest)
         except urllib2.URLError, e:
@@ -187,7 +188,8 @@ class JSSImporter(Processor):
             for tup in item_nameplusids:
                 if ids_list[1] == tup[1]:
                     found_list.append(tup[0])
-            self.output("Found smartGroup id %s and pkg_id %s in policy" % (found_list[0], found_list[1]))
+            if len(found_list) == 2:
+                self.output("Found group id %s and pkg_id %s in policy" % (found_list[0], found_list[1]))
             return found_list
     
     def putUpdate(self, repoUrl, apiUrl, item_id, replace_dict, template_string, base64string):
@@ -222,19 +224,7 @@ class JSSImporter(Processor):
             xmldata = ElementTree.fromstring(jss_results)
         except:
             raise ProcessorError("Error parsing XML results after createObject.")
-        if apiUrl == "computergroup":
-            item_ids = [e.text for e in xmldata.findall("computer_group" + '/id')]
-            item_names = [e.text for e in xmldata.findall("computer_group" + '/name')]
-        else:
-            item_ids = [e.text for e in xmldata.findall(apiUrl + '/id')]
-            item_names = [e.text for e in xmldata.findall(apiUrl + '/name')]
-        item_nameplusids = zip(item_ids, item_names)
-        self.output(item_nameplusids)
-        created_id = ""
-        for tup in item_nameplusids:
-            if item_to_check == tup[1]:
-                self.output("Madeit")
-                created_id = tup[0]
+        created_id = xmldata.find("id").text
         self.output("Added to %s section of JSS via API" % apiUrl)
         return created_id
     
@@ -321,6 +311,18 @@ class JSSImporter(Processor):
                     self.putUpdate(repoUrl, apiUrl, grp_id, replace_dict, template_string, base64string)
                     self.env["jss_smartgroup_updated"] = True
         #
+        # check for arbitraryGroupID if var set
+        #
+        if self.env.get("arb_group_name"):
+            static_group_name = self.env.get("arb_group_name")
+            item_to_check = static_group_name
+            apiUrl = "computergroup"
+            proceed_list = self.checkItem(repoUrl, apiUrl, item_to_check, base64string)
+            if "proceed" not in proceed_list:
+                raise ProcessorError("Static group not present in JSS.")
+            else:
+                grp_id = str(proceed_list[1])
+        #
         # check for policy if var set
         #
         if self.env.get("selfserve_policy"):
@@ -335,9 +337,16 @@ class JSSImporter(Processor):
                 self.env["jss_policy_added"] = True
             else:
                 policy_id = str(proceed_list[1])
-                found_list = self.checkSpecificItem(repoUrl, apiUrl, policy_id, base64string, [smart_group_name, pkg_name])
-                self.output("current pkg_id is %s, found is %s current smart_group is %s, found is %s" % (pkg_id, found_list[1], grp_id, found_list[0]))
-                if grp_id != found_list[0] or pkg_id != found_list[1]:
+                if self.env.get("smart_group"):
+                    group_name = smart_group_name
+                else:
+                    group_name = static_group_name
+                found_list = self.checkSpecificItem(repoUrl, apiUrl, policy_id, base64string, [group_name, pkg_name])
+                if len(found_list) != 2:
+                    self.putUpdate(repoUrl, apiUrl, policy_id, replace_dict, template_string, base64string)
+                    self.env["jss_policy_updated"] = True
+                elif grp_id != found_list[0] or pkg_id != found_list[1]:
+                    self.output("current pkg_id is %s, found is %s current group_id is %s, found is %s" % (pkg_id, found_list[1], grp_id, found_list[0]))
                     self.putUpdate(repoUrl, apiUrl, policy_id, replace_dict, template_string, base64string)
                     self.env["jss_policy_updated"] = True
 
