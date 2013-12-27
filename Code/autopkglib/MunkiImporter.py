@@ -83,6 +83,12 @@ class MunkiImporter(Processor):
             "description": "True if item was imported."
         },
     }
+    global_variables = {
+        "MUNKI_REPO": {
+            "description": "Path to a mounted Munki repo.",
+            "required": True
+        },
+    }
     description = __doc__
     
     def makeCatalogDB(self):

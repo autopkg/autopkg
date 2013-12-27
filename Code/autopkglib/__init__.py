@@ -32,7 +32,6 @@ from distutils.version import LooseVersion
 BUNDLE_ID = "com.github.autopkg"
 
 SUPPORTED_PREFS = [
-    "MUNKI_REPO",
     "CACHE_DIR",
     "RECIPE_SEARCH_DIRS",
     "RECIPE_OVERRIDE_DIRS",
@@ -334,6 +333,21 @@ class AutoPackager(object):
                 if flags["required"] and (key not in variables):
                     raise AutoPackagerError("%s requires missing argument %s" 
                                             % (step["Processor"], key))
+
+            # Process any required global variables this processor supports
+            if hasattr(processor_class, 'global_variables'):
+                for key, flags in processor_class.global_variables.items():
+                    # Check the env first, fall back to defaults if none present
+                    if key not in self.env.keys():
+                        prefs_value = get_pref(key)
+                        if prefs_value:
+                            self.env[key] = prefs_value
+                    # Raise an error if key is never defined and Processor requires it
+                    if not self.env.get(key) and flags["required"]:
+                        raise AutoPackagerError(
+                            "Processor %s requires global variable %s to be set."
+                            % (step["Processor"], key))
+
             # Add output variables to set.
             variables.update(set(processor_class.output_variables.keys()))
 
