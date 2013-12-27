@@ -95,7 +95,6 @@ def get_autopkg_version():
 
 
 def version_equal_or_greater(a, b):
-    v_a, v_b = LooseVersion(a), LooseVersion(b)
     return LooseVersion(a) >= LooseVersion(b)
 
 
@@ -293,8 +292,6 @@ class AutoPackager(object):
         # Set up empty container for final output
         inputs = {}
         inputs.update(recipe["Input"])
-        identifier = self.get_recipe_identifier(recipe)
-
         inputs.update(cli_values)
         self.env.update(inputs)
         # do any internal string substitutions
