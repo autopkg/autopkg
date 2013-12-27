@@ -22,6 +22,7 @@ import os
 import optparse
 import FoundationPlist
 import pprint
+import re
 import shutil
 import subprocess
 import time
@@ -521,6 +522,25 @@ def add_search_and_override_dir_options(p):
 # subcommand functions #
 ########################
 
+def expand_repo_url(url):
+    '''Given a GitHub repo URL-ish name, returns a full GitHub URL. Falls
+    back to the 'autopkg' GitHub org, and full non-GitHub URLs return unmodified.
+    Examples:
+    'user/reciperepo'         -> 'https://github.com/user/reciperepo'
+    'reciperepo'              -> 'https://github.com/autopkg/reciperepo'
+    'http://some/repo/url     -> 'http://some/repo/url'
+    '''
+    # if URL looks like 'name/repo' then prepend the base GitHub URL
+    if re.match("\w+/\w+", url):
+        url = "https://github.com/%s" % url
+
+    # if URL is one word, assume it's a repo within the 'autopkg' org
+    elif re.match("\w", url):
+        url = "https://github.com/autopkg/%s" % url
+
+    return url
+
+
 def repo_add(argv):
     '''Add/update one or more repos of recipes'''
     verb = argv[1]
@@ -538,6 +558,7 @@ def repo_add(argv):
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     for repo_url in arguments:
+        repo_url = expand_repo_url(repo_url)
         new_recipe_repo_dir = get_recipe_repo(repo_url)
         if new_recipe_repo_dir:
             if not new_recipe_repo_dir in recipe_search_dirs:
@@ -574,6 +595,7 @@ def repo_delete(argv):
     recipe_search_dirs = get_search_dirs()
 
     for path_or_url in arguments:
+        path_or_url = expand_repo_url(path_or_url)
         repo_path = get_repo_info(path_or_url).get('path')
         if not repo_path:
             log_err("ERROR: Can't find an installed repo for %s" % path_or_url)
@@ -639,6 +661,7 @@ def repo_update(argv):
     else:
         repo_dirs = []
         for path_or_url in arguments:
+            path_or_url = expand_repo_url(path_or_url)
             repo_path = get_repo_info(path_or_url).get('path')
             if not repo_path:
                 log_err("ERROR: Can't find an installed repo for %s"
