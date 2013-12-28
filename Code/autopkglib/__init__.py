@@ -24,20 +24,18 @@ import re
 import subprocess
 
 from Foundation import NSArray, NSDictionary
-from CoreFoundation import CFPreferencesCopyAppValue, CFPreferencesSetAppValue
-from CoreFoundation import CFPreferencesAppSynchronize
+from CoreFoundation import CFPreferencesAppSynchronize, \
+                           CFPreferencesCopyAppValue, \
+                           CFPreferencesCopyKeyList, \
+                           CFPreferencesSetAppValue, \
+                           kCFPreferencesAnyHost, \
+                           kCFPreferencesAnyUser, \
+                           kCFPreferencesCurrentUser, \
+                           kCFPreferencesCurrentHost
 
 from distutils.version import LooseVersion
 
 BUNDLE_ID = "com.github.autopkg"
-
-SUPPORTED_PREFS = [
-    "CACHE_DIR",
-    "RECIPE_SEARCH_DIRS",
-    "RECIPE_OVERRIDE_DIRS",
-    "RECIPE_REPO_DIR",
-    "RECIPE_REPOS"
-]
 
 re_keyref = re.compile(r'%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%')
 
@@ -74,11 +72,23 @@ def set_pref(key, value, domain=BUNDLE_ID):
 
 def get_all_prefs(domain=BUNDLE_ID):
     """Return a dict (or an empty dict) with the contents of all
-    supported preferences in the domain."""
+    preferences in the domain."""
     prefs = {}
-    for key in SUPPORTED_PREFS:
-        if get_pref(key, domain=BUNDLE_ID):
-            prefs[key] = get_pref(key, domain=BUNDLE_ID)
+    
+    # get keys stored via 'defaults write [domain]'
+    user_keylist = CFPreferencesCopyKeyList(
+        BUNDLE_ID, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
+
+    # get keys stored via 'defaults write /Library/Preferences/[domain]'
+    system_keylist = CFPreferencesCopyKeyList(
+        BUNDLE_ID, kCFPreferencesAnyUser, kCFPreferencesCurrentHost)
+
+    # CFPreferencesCopyAppValue() in get_pref() will handle returning the appropriate
+    # value using the search order, so merging prefs in order here isn't be necessary
+    for keylist in [system_keylist, user_keylist]:
+        if keylist:
+            for key in keylist:
+                prefs[key] = get_pref(key, domain)
     return prefs
     
     
@@ -330,20 +340,6 @@ class AutoPackager(object):
                 if flags["required"] and (key not in variables):
                     raise AutoPackagerError("%s requires missing argument %s" 
                                             % (step["Processor"], key))
-
-            # Process any required global variables this processor supports
-            if hasattr(processor_class, 'global_variables'):
-                for key, flags in processor_class.global_variables.items():
-                    # Check the env first, fall back to defaults if none present
-                    if key not in self.env.keys():
-                        prefs_value = get_pref(key)
-                        if prefs_value:
-                            self.env[key] = prefs_value
-                    # Raise an error if key is never defined and Processor requires it
-                    if not self.env.get(key) and flags["required"]:
-                        raise AutoPackagerError(
-                            "Processor %s requires global variable %s to be set."
-                            % (step["Processor"], key))
 
             # Add output variables to set.
             variables.update(set(processor_class.output_variables.keys()))
