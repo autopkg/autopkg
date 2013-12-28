@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2013 Allister Banks, with code heavily influenced/copied from Greg Neagle, Tim Sutton, and Zack Smith. Moral support and general gudance by pudquick/mikeymikey/frogor
+# Copyright 2013 Allister Banks, with code heavily influenced/copied from Greg Neagle, Tim Sutton, and Zack Smith. Moral support and general guidance by pudquick/mikeymikey/frogor
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 
 
 import os, urllib2, sys, re, base64
-import subprocess
 import FoundationPlist
 import shutil
 from xml.etree import ElementTree
@@ -119,7 +118,7 @@ class JSSImporter(Processor):
             elif hasattr(e, 'code'):
                 print 'Error! code:', e.code
                 if e.code == 401:
-                    raise RuntimeError('Got a 401 error.. check the validity of the authorization file')
+                    raise RuntimeError('Got a 401 error.. check the api username and password')
             raise RuntimeError('Did not get a valid response from the server')
         # assign fetched JSS info to a string (or ET) and search if object to create already exists
         jss_results = submitResult.read()
@@ -217,7 +216,16 @@ class JSSImporter(Processor):
             else:
                 submitRequest = urllib2.Request(repoUrl + "/JSSResource/" + apiUrl + "s/id/0", template_string, {'Content-type': 'text/xml'})
         submitRequest.add_header("Authorization", "Basic %s" % base64string)
-        submitResult = urllib2.urlopen(submitRequest)
+        try:
+            submitResult = urllib2.urlopen(submitRequest)
+        except urllib2.URLError, e:
+            if hasattr(e, 'reason'):
+                print 'Error! reason:', e.reason
+            elif hasattr(e, 'code'):
+                print 'Error! code:', e.code
+                if e.code == 409:
+                    raise RuntimeError('Got a 409 error.. generic "instance busy" issue?')
+            raise RuntimeError('Did not get a valid response from the server')
         jss_results = submitResult.read()
         self.output(jss_results)
         try:
