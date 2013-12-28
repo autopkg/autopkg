@@ -8,6 +8,9 @@ ADDITIONS:
   of both the 'AppDmgVersioner' and 'Versioner' processors (which can now be considered 
   deprecated), and also supports reading arbitrary keys from plists and assigning them
   to arbitrary output variables for later use in recipes. (GH-56)
+- Recipe Repo URLs for 'repo-' commands can now also be given in short GitHub-ish forms:
+  1) 'ghuser/reponame' or 2) 'reponame', which will prefix the 'autopkg/' org name.
+  Full URLs at any address can be given as before.
 
 FIXES:
 
