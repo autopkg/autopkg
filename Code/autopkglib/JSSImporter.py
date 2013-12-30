@@ -33,41 +33,37 @@ class JSSImporter(Processor):
             "required": True,
             "description": "Path to a pkg or dmg to import - provided by previous pkg recipe/processor.",
         },
-        "repo_path": {
+        "JSS_REPO": {
             "required": True,
-            "description": "Path to a mounted or otherwise local JSS dist point share.",
+            "description": "Path to a mounted or otherwise locally accessible JSS dist point/share.",
         },
-        "jss_url": {
+        "JSS_URL": {
             "required": True,
-            "description": "URL to a JSS that api user can access.",
+            "description": "URL to a JSS that api the user has write access to.",
         },
-        "api_username": {
+        "API_USERNAME": {
             "required": True,
             "description": "Username of account with appropriate access to jss.",
         },
-        "api_password": {
+        "API_PASSWORD": {
             "required": True,
-            "description": "Password of api user, processed along with name, with base64 encoding.",
+            "description": "Password of api user, processed with base64 encoding along with name.",
         },
         "category": {
             "required": False,
-            "description": ("Category to create/associate imported app with - created if not present"),
-        },
-        "selfserve_policy": {
-            "required": False,
-            "description": "Name of automatically activated self-service policy for offering software to test and older-version users.",
-        },
-        "stub_policy": {
-            "required": False,
-            "description": "Name of policy with which to promote software to production once approved and activated.",
+            "description": ("Category to create/associate imported app with"),
         },
         "smart_group": {
             "required": False,
-            "description": "Name of scoping group to create with which to offer item to users with an older version.",
+            "description": "Name of scoping group to create with which to offer item to users that are not at the same version.",
         },
-        "static_group": {
+        "arb_group_name": {
             "required": False,
-            "description": "Name of static group to create with which to offer item to users with an older version.",
+            "description": "Name of static group to offer imported item to.",
+        },
+        "selfserve_policy": {
+            "required": False,
+            "description": "Name of automatically activated self-service policy for offering software to test and older-version users. Will create if not present and update if data is not current or invalid",
         },
     }
     output_variables = {
@@ -238,9 +234,9 @@ class JSSImporter(Processor):
     
     def main(self):
         # pull jss recipe-specific args, prep api auth
-        repoUrl = self.env["jss_url"]
-        authUser = self.env["api_username"]
-        authPass = self.env["api_password"]
+        repoUrl = self.env["JSS_URL"]
+        authUser = self.env["API_USERNAME"]
+        authPass = self.env["API_PASSWORD"]
         base64string = base64.encodestring('%s:%s' % (authUser, authPass)).replace('\n', '')
         pkg_name = os.path.basename(self.env["pkg_path"])
         prod_name = self.env["prod_name"]
@@ -287,7 +283,7 @@ class JSSImporter(Processor):
               pkg_id = str(proceed_list[1])
               self.output("Pkg already exists according to JSS, moving on")
         source_item = self.env["pkg_path"]
-        dest_item = (self.env["repo_path"] + "/" + pkg_name)
+        dest_item = (self.env["JSS_REPO"] + "/" + pkg_name)
         if os.path.exists(dest_item):
             self.output("Pkg already exists at %s, moving on" % dest_item)
         else:

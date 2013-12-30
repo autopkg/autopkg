@@ -147,7 +147,7 @@ def find_recipe_by_identifier(identifier, search_dirs):
         for pattern in patterns:
             matches = glob.glob(pattern)
             for match in matches:
-                if get_identifer_from_recipe_file(match).lower() == identifier.lower():
+                if get_identifer_from_recipe_file(match) == identifier:
                     return match
 
     return None
