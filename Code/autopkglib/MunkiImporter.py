@@ -31,6 +31,10 @@ __all__ = ["MunkiImporter"]
 class MunkiImporter(Processor):
     """Imports a pkg or dmg to the Munki repo."""
     input_variables = {
+        "MUNKI_REPO": {
+            "description": "Path to a mounted Munki repo.",
+            "required": True
+        },
         "pkg_path": {
             "required": True,
             "description": "Path to a pkg or dmg to import.",
