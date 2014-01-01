@@ -530,13 +530,16 @@ def expand_repo_url(url):
     'reciperepo'              -> 'https://github.com/autopkg/reciperepo'
     'http://some/repo/url     -> 'http://some/repo/url'
     '''
-    # if URL looks like 'name/repo' then prepend the base GitHub URL
-    if re.match("\w+/\w+", url):
-        url = "https://github.com/%s" % url
+    parsed_url = urlparse(url)
+    # if no URL scheme was given in the URL, try GitHub URLs
+    if not parsed_url.scheme:
+        # if URL looks like 'name/repo' then prepend the base GitHub URL
+        if re.match("\w+/\w+", url):
+            url = "https://github.com/%s" % url
 
-    # if URL is one word, assume it's a repo within the 'autopkg' org
-    elif re.match("\w", url):
-        url = "https://github.com/autopkg/%s" % url
+        # if URL is one word, assume it's a repo within the 'autopkg' org
+        elif re.match("\w", url):
+            url = "https://github.com/autopkg/%s" % url
 
     return url
 
