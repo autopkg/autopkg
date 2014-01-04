@@ -11,6 +11,10 @@ ADDITIONS:
 - Recipe Repo URLs for 'repo-' commands can now also be given in short GitHub-ish forms:
   1) 'ghuser/reponame' or 2) 'reponame', which will prefix the 'autopkg/' org name.
   Full URLs at any address can be given as before.
+- Any input variable can now be set globally for all recipe runs by writing these as
+  preference keys in the 'com.github.autopkg' domain. This is how the 'MUNKI_REPO' pref
+  has been used up to now, but this now works for arbitrary keys, and the hardcoded
+  support for MUNKI_REPO has been removed.
 
 FIXES:
 
