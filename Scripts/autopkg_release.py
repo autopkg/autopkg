@@ -100,9 +100,13 @@ be done as root, so it's best done as a separate process.
     api_call('/users/autopkg', token)
 
     # set up some paths and important variables
-    autopkg_root = os.path.join(os.path.dirname(__file__), '../')
+    autopkg_root = tempfile.mkdtemp()
     version_plist_path = os.path.join(autopkg_root, 'Code/autopkglib/version.plist')
     changelog_path = os.path.join(autopkg_root, 'CHANGELOG.md')
+
+    # clone Git master
+    subprocess.check_call(['git', 'clone', 'https://github.com/autopkg/autopkg', autopkg_root])
+    os.chdir(autopkg_root)
 
     # get the current autopkg version
     try:
