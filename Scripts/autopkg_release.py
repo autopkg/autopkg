@@ -133,11 +133,11 @@ be done as root, so it's best done as a separate process.
         fd.write(new_changelog)
 
     # commit and push the new release
-    subprocess.call(['git', 'add', changelog_path])
-    subprocess.call(['git', 'commit', '-m', 'Release version %s.' % current_version])
-    subprocess.call(['git', 'tag', tag_name])
-    subprocess.call(['git', 'push', 'origin', 'master'])
-    subprocess.call(['git', 'push', '--tags', 'origin', 'master'])
+    subprocess.check_call(['git', 'add', changelog_path])
+    subprocess.check_call(['git', 'commit', '-m', 'Release version %s.' % current_version])
+    subprocess.check_call(['git', 'tag', tag_name])
+    subprocess.check_call(['git', 'push', 'origin', 'master'])
+    subprocess.check_call(['git', 'push', '--tags', 'origin', 'master'])
     # extract release notes for this new version
     match = re.search("(?P<current_ver_notes>\#\#\# %s.+?)\#\#\#" % current_version, new_changelog, re.DOTALL)
     if not match:
@@ -146,7 +146,7 @@ be done as root, so it's best done as a separate process.
 
     # run the actual AutoPkg.pkg recipe
     recipes_dir = tempfile.mkdtemp()
-    subprocess.call(['git', 'clone', 'https://github.com/autopkg/recipes', recipes_dir])
+    subprocess.check_call(['git', 'clone', 'https://github.com/autopkg/recipes', recipes_dir])
     # running using the system AutoPkg directory so that we ensure we're at the minimum
     # required version to run the AutoPkg recipe
     p = subprocess.Popen(['/Library/AutoPkg/autopkg',
@@ -214,9 +214,9 @@ be done as root, so it's best done as a separate process.
         fd.write(new_changelog)
 
     # commit and push increment
-    subprocess.call(['git', 'add', version_plist_path, changelog_path])
-    subprocess.call(['git', 'commit', '-m', 'Bumping to v%s for development.' % next_version])
-    subprocess.call(['git', 'push', 'origin', 'master'])
+    subprocess.check_call(['git', 'add', version_plist_path, changelog_path])
+    subprocess.check_call(['git', 'commit', '-m', 'Bumping to v%s for development.' % next_version])
+    subprocess.check_call(['git', 'push', 'origin', 'master'])
 
     # clean up
     rmtree(recipes_dir)
