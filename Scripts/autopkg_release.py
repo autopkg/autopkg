@@ -42,7 +42,7 @@ def api_call(endpoint, token, baseurl='https://api.github.com', data=None, json_
     additional_headers: a dict of additional headers for the API call'''
     if data and json_data:
         data = json.dumps(data, ensure_ascii=False)
-    headers = {'Accept': 'application/vnd.github.manifold-preview',
+    headers = {'Accept': 'application/vnd.github.v3+json',
                'Authorization': 'token %s' % token}
     for header, value in additional_headers.items():
         headers[header] = value
