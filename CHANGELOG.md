@@ -2,6 +2,10 @@
 
 ### 0.2.6 (January 06, 2014)
 
+FIXES:
+
+- Fix for FoundationPlist functions under Snow Leopard. Changes to FoundationPlist in 0.2.5 broke autopkg under Snow Leopard; these changes remedy that.
+
 ### 0.2.5 (January 04, 2014)
 
 ADDITIONS:
