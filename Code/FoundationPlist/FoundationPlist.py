@@ -81,8 +81,7 @@ def _dataToPlist(data):
             NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
                          data, NSPropertyListMutableContainersAndLeaves, None, None))
     if error:
-        errmsg = u"%s in file %s" % (error, filepath)
-        raise NSPropertyListSerializationException(errmsg)
+        raise NSPropertyListSerializationException(error)
     else:
         return plistObject
 
@@ -108,7 +107,12 @@ def _plistToData(plistObject):
 def readPlist(filepath):
     '''Read a .plist file from filepath.  Return the unpacked root object
     (which is usually a dictionary).'''
-    data = NSData.dataWithContentsOfFile_(filepath)
+    try:
+        data = NSData.dataWithContentsOfFile_(filepath)
+    except NSPropertyListSerializationException, error:
+        # insert filepath info into error message
+        errmsg = (u'%s in %s' % (error, filepath))
+        raise NSPropertyListSerializationException(errmsg)
     return _dataToPlist(data)
 
 
