@@ -24,13 +24,13 @@ __all__ = ["BrewCaskInfoProvider"]
 
 
 class BrewCaskInfoProvider(Processor):
-    description = ("Provides crowd-sourced URL and version info from brew-cask: ",
-                    "https://github.com/phinze/homebrew-cask. See available apps: ",
+    description = ("Provides crowd-sourced URL and version info from brew-cask: "
+                    "https://github.com/phinze/homebrew-cask. See available apps: "
                     "https://github.com/phinze/homebrew-cask/tree/master/Casks")
     input_variables = {
         "cask_name": {
             "required": True,
-            "description": ("Name of cask to fetch, as would be given to the 'brew' command. ",
+            "description": ("Name of cask to fetch, as would be given to the 'brew' command. "
                             "Example: 'audacity'")
         }
     }
@@ -39,8 +39,8 @@ class BrewCaskInfoProvider(Processor):
             "description": "URL for the Cask's download.",
         },
         "version": {
-            "description": ("Version info from formula. Depending on the nature of the formula ",
-                            "and stability of the URL, this might be simply 'latest'. It's ",
+            "description": ("Version info from formula. Depending on the nature of the formula "
+                            "and stability of the URL, this might be simply 'latest'. It's "
                             "provided here for convenience in the recipe.")
         }
     }

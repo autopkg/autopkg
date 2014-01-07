@@ -31,9 +31,9 @@ class Copier(DmgMounter):
     input_variables = {
         "source_path": {
             "required": True,
-            "description": ("Path to a file or directory to copy. ",
-                "Can point to a path inside a .dmg which will be mounted. ",
-                "This path may also contain basic globbing characters such as ",
+            "description": ("Path to a file or directory to copy. "
+                "Can point to a path inside a .dmg which will be mounted. "
+                "This path may also contain basic globbing characters such as "
                 "the wildcard '*', but only the first result will be returned."),
         },
         "destination_path": {
