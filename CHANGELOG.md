@@ -1,5 +1,10 @@
 ### 0.2.7 (Unreleased)
 
+FIXES:
+
+- Fix unhandled exception when FoundationPlist encounters a malformed plist
+- Fix long string wrapping in several Processor's descriptions and input/output variable descriptions. This caused `autopkg processor-info foo` to fail for several Processors.
+
 ### 0.2.6 (January 06, 2014)
 
 FIXES:
