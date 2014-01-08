@@ -1,4 +1,4 @@
-### 0.2.8 (Unreleased)
+### 0.2.8 (January 08, 2014)
 
 FIXES:
 - New package release to fix issue with autopkgsever launch daemon plist in 0.2.6 and 0.2.7 package releases.
