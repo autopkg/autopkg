@@ -87,7 +87,7 @@ def valid_plist_with_keys(filename, keys_to_verify):
         # make sure we can read it
         recipe_plist = FoundationPlist.readPlist(filename)
     except FoundationPlist.FoundationPlistException, err:
-        log_err("WARNING: plist error for %s: %s" % (filename, err))
+        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
         return False
     for key in keys_to_verify:
         if not key in recipe_plist:
@@ -130,7 +130,7 @@ def get_identifer_from_recipe_file(filename):
         # make sure we can read it
         recipe_plist = FoundationPlist.readPlist(filename)
     except FoundationPlist.FoundationPlistException, err:
-        log_err("WARNING: plist error for %s: %s" % (filename, err))
+        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
         return None
     return get_identifier(recipe_plist)
 
