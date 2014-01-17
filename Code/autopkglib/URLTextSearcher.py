@@ -33,7 +33,7 @@ class URLTextSearcher(Processor):
 
     description = __doc__
 
-    def get_url(self, url, re_pattern):
+    def get_url_and_search(self, url, re_pattern):
         try:
             f = urllib2.urlopen(url)
             content = f.read()
@@ -43,21 +43,29 @@ class URLTextSearcher(Processor):
 
         m = re_pattern.search(content)
 
-        if m:
-            return m.group(1)
+        if not m:
+            raise ProcessorError('No match found on URL: %s' % url)
 
-        raise ProcessorError('No matched files')
+        return (m.group(0), m.groupdict(), )
 
     def main(self):
         re_pattern = re.compile(self.env['re_pattern'])
 
+        output_var_name = None
+
         if 'result_output_var_name' in self.env and self.env['result_output_var_name']:
             output_var_name = self.env['result_output_var_name']
         else:
-            output_var_name = 'url'
+            output_var_name = 'match'
 
-        self.env[output_var_name] = self.get_url(self.env['url'], re_pattern)
-        self.output('Found matching text (%s): %s' % (output_var_name, self.env[output_var_name], ))
+        group0, groupdict = self.get_url_and_search(self.env['url'], re_pattern)
+
+        if output_var_name not in groupdict.keys():
+            groupdict[output_var_name] = group0
+
+        for k in groupdict.keys():
+            self.env[k] = groupdict[k]
+            self.output('Found matching text (%s): %s' % (k, self.env[k], ))
 
 if __name__ == '__main__':
     processor = URLTextSearcher()
