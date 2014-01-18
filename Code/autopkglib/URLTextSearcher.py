@@ -21,7 +21,7 @@ class URLTextSearcher(Processor):
             'required': True,
         },
         'result_output_var_name': {
-            'description': 'The name of the output variable that is returned by the match. Optional.',
+            'description': 'The name of the output variable that is returned by the match. If not specified then a default of "match" will be used.',
             'required': False,
         },
         'request_headers': {
