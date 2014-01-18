@@ -21,7 +21,11 @@ class URLTextSearcher(Processor):
             'required': True,
         },
         'result_output_var_name': {
-            'description': 'The name of the output variable that is returned by the match',
+            'description': 'The name of the output variable that is returned by the match. Optional.',
+            'required': False,
+        },
+        'request_headers': {
+            'description': 'Optional dictionary of headers to include with the download request.',
             'required': False,
         },
     }
@@ -33,9 +37,10 @@ class URLTextSearcher(Processor):
 
     description = __doc__
 
-    def get_url_and_search(self, url, re_pattern):
+    def get_url_and_search(self, url, re_pattern, headers={}):
         try:
-            f = urllib2.urlopen(url)
+            r = urllib2.Request(url, headers=headers)
+            f = urllib2.urlopen(r)
             content = f.read()
             f.close()
         except BaseException as e:
@@ -58,7 +63,11 @@ class URLTextSearcher(Processor):
         else:
             output_var_name = 'match'
 
-        group0, groupdict = self.get_url_and_search(self.env['url'], re_pattern)
+        headers = {}
+        if "request_headers" in self.env:
+            headers = self.env["request_headers"]
+
+        group0, groupdict = self.get_url_and_search(self.env['url'], re_pattern, headers)
 
         if output_var_name not in groupdict.keys():
             groupdict[output_var_name] = group0
