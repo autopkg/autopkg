@@ -29,13 +29,13 @@ class URLTextSearcher(Processor):
             'required': False,
         },
         're_flags': {
-            'description': 'Optional dictionary of Python regular expression flags.',
+            'description': 'Optional array of strings of Python regular expression flags. E.g. IGNORECASE.',
             'required': False,
         },
     }
     output_variables = {
-        'url': {
-            'description': 'First matched sub-pattern from input found on the fetched page'
+        'result_output_var_name': {
+            'description': 'First matched sub-pattern from input found on the fetched URL. Note the actual name of variable depends on the input variable "result_output_var_name" or is assigned a default of "match."'
         }
     }
 
