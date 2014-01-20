@@ -81,9 +81,11 @@ class URLTextSearcher(Processor):
         if output_var_name not in groupdict.keys():
             groupdict[output_var_name] = group0
 
+        self.output_variables = {}
         for k in groupdict.keys():
             self.env[k] = groupdict[k]
             self.output('Found matching text (%s): %s' % (k, self.env[k], ))
+            self.output_variables[k] = {'description': 'Matched regular expression group'}
 
 if __name__ == '__main__':
     processor = URLTextSearcher()
