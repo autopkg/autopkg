@@ -62,7 +62,8 @@ class URLTextSearcher(Processor):
         if not m:
             raise ProcessorError('No match found on URL: %s' % url)
 
-        return (m.group(0), m.groupdict(), )
+        # return the last matched group with the dict of named groups
+        return (m.group(m.lastindex), m.groupdict(), )
 
     def main(self):
         output_var_name = None
@@ -76,10 +77,11 @@ class URLTextSearcher(Processor):
 
         flags = self.env.get('re_flags', {})
 
-        group0, groupdict = self.get_url_and_search(self.env['url'], self.env['re_pattern'], headers, flags)
+        groupmatch, groupdict = self.get_url_and_search(self.env['url'], self.env['re_pattern'], headers, flags)
 
+        # favor a named group over a normal group match
         if output_var_name not in groupdict.keys():
-            groupdict[output_var_name] = group0
+            groupdict[output_var_name] = groupmatch
 
         self.output_variables = {}
         for k in groupdict.keys():
