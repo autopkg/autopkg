@@ -64,17 +64,18 @@ class Copier(DmgMounter):
                     "Can't remove %s: %s" % (dest_item, err.strerror))
                     
         # Copy file or directory.
-        try:
-            if os.path.isdir(source_item):
-                shutil.copytree(source_item, dest_item, symlinks=True)
-            elif not os.path.isdir(dest_item):
-                shutil.copyfile(source_item, dest_item)
-            else:
-                shutil.copy(source_item, dest_item)
-            self.output("Copied %s to %s" % (source_item, dest_item))
-        except BaseException, err:
-            raise ProcessorError(
-                "Can't copy %s to %s: %s" % (source_item, dest_item, err))
+        if not os.path.exists(dest_item) or overwrite:
+            try:
+                if os.path.isdir(source_item):
+                    shutil.copytree(source_item, dest_item, symlinks=True)
+                elif not os.path.isdir(dest_item):
+                    shutil.copyfile(source_item, dest_item)
+                else:
+                    shutil.copy(source_item, dest_item)
+                self.output("Copied %s to %s" % (source_item, dest_item))
+            except BaseException, err:
+                raise ProcessorError(
+                    "Can't copy %s to %s: %s" % (source_item, dest_item, err))
     
     def main(self):
         source_path = self.env['source_path']
