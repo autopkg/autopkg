@@ -63,7 +63,7 @@ class URLTextSearcher(Processor):
             raise ProcessorError('No match found on URL: %s' % url)
 
         # return the last matched group with the dict of named groups
-        return (m.group(m.lastindex), m.groupdict(), )
+        return (m.group(m.lastindex or 0), m.groupdict(), )
 
     def main(self):
         output_var_name = None
