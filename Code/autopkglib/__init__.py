@@ -488,7 +488,7 @@ def get_processor(processor_name, recipe=None):
                 except (ImportError, AttributeError), err:
                     # if we aren't successful, that might be OK, we're going
                     # see if the processor was already imported
-                    self.output(
+                    print >> sys.stderr, (
                         "WARNING: %s: %s" % (processor_filename, err))
 
     return globals()[processor_name]
