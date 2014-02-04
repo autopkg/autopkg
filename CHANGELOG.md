@@ -1,5 +1,10 @@
 ### 0.2.9 (Unreleased)
 
+ADDITIONS:
+
+- New FileMover processor, contributed by Jesse Peterson. (GH-64)
+- New URLTextSearcher processor, contributed by Jesse Peterson. (GH-64)
+
 ### 0.2.8 (January 08, 2014)
 
 FIXES:

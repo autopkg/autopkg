@@ -398,7 +398,12 @@ class AutoPackager(object):
 
             output_dict = {}
             for key in processor.output_variables.keys():
-                output_dict[key] = self.env[key]
+                # Safety workaround for Processors that may output differently-named
+                # output variables than are given in their output_variables
+                # TODO: develop a generic solution for processors that can
+                #       dynamically set their output_variables
+                if processor.env.get(key):
+                    output_dict[key] = self.env[key]
             if self.verbose > 1:
                 # pretty print output variables
                 pprint.pprint({"Output": output_dict})
@@ -483,7 +488,7 @@ def get_processor(processor_name, recipe=None):
                 except (ImportError, AttributeError), err:
                     # if we aren't successful, that might be OK, we're going
                     # see if the processor was already imported
-                    self.output(
+                    print >> sys.stderr, (
                         "WARNING: %s: %s" % (processor_filename, err))
 
     return globals()[processor_name]
