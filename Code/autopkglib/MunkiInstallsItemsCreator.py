@@ -36,6 +36,10 @@ class MunkiInstallsItemsCreator(Processor):
             "required": False,
             "description": "The root of an expanded package or filesystem.",
         },
+        "version_comparison_key": {
+            "required": False,
+            "description": "Key to use for comparing versions.",
+        },
         
     }
     output_variables = {
@@ -72,6 +76,12 @@ class MunkiInstallsItemsCreator(Processor):
         pkginfo = FoundationPlist.readPlistFromString(out)
         installs_array = pkginfo.get("installs", [])
         
+        # TODO: should have a way to specify per individual installs item
+        if "version_comparison_key" in self.env:
+            for item in installs_array:
+                if self.env["version_comparison_key"] in item:
+                    item["version_comparison_key"] = self.env["version_comparison_key"]
+
         if faux_root:
             for item in installs_array:
                 if item["path"].startswith(faux_root):
