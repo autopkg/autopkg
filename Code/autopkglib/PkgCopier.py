@@ -73,7 +73,6 @@ class PkgCopier(Copier):
                 for match in matches:
                     self.output("  - %s" % match)
 
-            matched_source_path = glob.glob(source_pkg)[0]
             if [c for c in '*?[]!' if c in source_pkg]:
                 self.output("Using path '%s' matched from globbed '%s'."
                     % (matched_source_path, source_pkg))
