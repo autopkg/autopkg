@@ -76,17 +76,25 @@ class MunkiInstallsItemsCreator(Processor):
         pkginfo = FoundationPlist.readPlistFromString(out)
         installs_array = pkginfo.get("installs", [])
         
-        # TODO: should have a way to specify per individual installs item
-        if "version_comparison_key" in self.env:
-            for item in installs_array:
-                if self.env["version_comparison_key"] in item:
-                    item["version_comparison_key"] = self.env["version_comparison_key"]
-
         if faux_root:
             for item in installs_array:
                 if item["path"].startswith(faux_root):
                     item["path"] = item["path"][len(faux_root):]
                 self.output("Created installs item for %s" % item["path"])
+
+        # TODO: should have a way to specify per individual installs item
+        if "version_comparison_key" in self.env:
+            for item in installs_array:
+                # Check that we really have this key available for comparison
+                if self.env["version_comparison_key"] in item:
+                    item["version_comparison_key"] = self.env["version_comparison_key"]
+                else:
+                    raise ProcessorError(
+                    "version_comparison_key '%s' could not be found in the "
+                    "installs item for path '%s'" % (
+                        self.env["version_comparison_key"],
+                        item["path"]))
+
         if not "additional_pkginfo" in self.env:
             self.env["additional_pkginfo"] = {}
         self.env["additional_pkginfo"]["installs"] = installs_array
