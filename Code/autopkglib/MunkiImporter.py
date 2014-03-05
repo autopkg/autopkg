@@ -68,7 +68,12 @@ class MunkiImporter(Processor):
             "required": False,
             "description": ("Array of additional command-line options that will "
                 "be inserted when calling 'makepkginfo'.")
-        }
+        },
+        "version_comparison_key": {
+            "required": False,
+            "description": ("String to set 'version_comparison_key' for "
+                            "any generated installs items."),
+        },
     }
     output_variables = {
         "pkginfo_repo_path": {
@@ -420,6 +425,17 @@ class MunkiImporter(Processor):
         if "pkginfo" in self.env:
             for key in self.env["pkginfo"]:
                 pkginfo[key] = self.env["pkginfo"][key]
+
+        # set an alternate version_comparison_key if pkginfo has an installs item
+        if "installs" in pkginfo and self.env.get("version_comparison_key"):
+            for item in pkginfo["installs"]:
+                if not self.env["version_comparison_key"] in item:
+                    raise ProcessorError(
+                        ("version_comparison_key '%s' could not be found in the "
+                        "installs item for path '%s'" % (
+                            self.env["version_comparison_key"],
+                            item["path"])))
+                item["version_comparison_key"] = self.env["version_comparison_key"]
         
         # check to see if this item is already in the repo
         matchingitem = self.findMatchingItemInRepo(pkginfo)
