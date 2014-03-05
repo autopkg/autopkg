@@ -1,5 +1,9 @@
 ### 0.3.0 (Unreleased)
 
+ADDITIONS:
+
+- MunkiInstallsItemsCreator and MunkiImporter now support setting 'version_comparison_key' to define this key for installs items. (GH-76, GH-54)
+
 ### 0.2.9 (February 28, 2014)
 
 ADDITIONS:
