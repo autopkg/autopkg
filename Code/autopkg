@@ -19,6 +19,7 @@ related tasks"""
 import glob
 import sys
 import os
+import operator
 import optparse
 import FoundationPlist
 import pprint
@@ -26,6 +27,8 @@ import re
 import shutil
 import subprocess
 import time
+import autopkglib.github
+
 from urlparse import urlparse
 
 from autopkglib import get_pref, get_all_prefs
@@ -680,6 +683,53 @@ def repo_update(argv):
             log_err(err)
 
 
+def search_recipes(argv):
+    '''Search recipes on GitHub'''
+    default_user = "autopkg"
+    default_in = "path"
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [search term]" % ("%prog", verb))
+    p.add_option("-u", "--user", default=default_user,
+                 help=("Alternate GitHub user whose repo to search. "
+                       "Defaults to %s" % default_user))
+    p.add_option("--file-contents", action="store_true", default=False,
+                 help=("Search recipe file contents in addition to the file "
+                       "path."))
+
+    # Parse arguments
+    options, arguments = p.parse_args(argv[2:])
+    if options.file_contents:
+        search_in = "both"
+    else:
+        search_in = "path"
+
+    gh = autopkglib.github.GitHubSession()
+    gh.setup_token()
+    term = arguments[0]
+    (results, code) = gh.call_api("/search/code",
+        query="q=%s+in:%s+extension:recipe+user:%s&sort=indexed" % (
+                        term, search_in, options.user))
+    count = results["total_count"]
+    if count == 0:
+        print "No results."
+
+    max_path_length = max([len(r["path"]) for r in results["items"]])
+    path_spacer = max_path_length + 8
+    format = "%-{0}s %-40s".format(path_spacer)
+    print
+    print format % ("Path", "Repo (autopkg/)")
+    print format % ("----", "---------------")
+    results["items"].sort(key=operator.itemgetter("repository"))
+    # print sorted_results
+    for result in results["items"]:
+        repo = result["repository"]
+        name, path = result["name"], result["path"]
+        repo_namespaced = repo["full_name"]
+        repo_name = repo["name"]
+        print format % (path, repo_name)
+
+
 def display_help(argv, subcommands):
     '''Display top-level help'''
     main_command_name = os.path.basename(argv[0])
@@ -1195,7 +1245,7 @@ def main(argv):
             "help": "Get info about configuration or a recipe"},
         "list-recipes": {
             "function": list_recipes,
-            "help": "List available recipes"},
+            "help": "List recipes available locally"},
         "list-processors": {
             "function": list_processors,
             "help": "List available core Processors"},
@@ -1220,6 +1270,9 @@ def main(argv):
         "run": {
             "function": run_recipes,
             "help": "Run one or more recipes"},
+        "search": {
+            "function": search_recipes,
+            "help": "Search for recipes in the GitHub AutoPkg org"},
         "version": {
             "function": print_version,
             "help": "Print the current version of autopkg"}
