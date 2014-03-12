@@ -119,8 +119,9 @@ home folder at %s.""" % TOKEN_LOCATION
             print >> sys.stderr, "API error: %s" % e
             try:
                 error_json = json.loads(e.read())
-                print >> sys.stderr, "Server response:"
-                pprint(error_json, stream=sys.stderr)
+                resp_data = error_json
             except:
                 print >> sys.stderr, e.read()
+                resp_data = None
+
         return (resp_data, status)

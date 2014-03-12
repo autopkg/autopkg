@@ -717,6 +717,14 @@ def search_recipes(argv):
     (results, code) = gh.call_api("/search/code",
         query="q=%s+in:%s+extension:recipe+user:%s&sort=indexed" % (
                         term, search_in, options.user))
+    if code == 403:
+        print >> sys.stderr, (
+            "You've probably hit the GitHub's search rate limit, officially 5 "
+            "requests per minute. Server response follows:\n")
+        print >> sys.stderr, results["message"]
+        print >> sys.stderr, results["documentation_url"]
+        return
+
     count = results["total_count"]
     if count == 0:
         print "No results."
