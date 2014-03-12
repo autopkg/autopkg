@@ -713,6 +713,7 @@ def search_recipes(argv):
     count = results["total_count"]
     if count == 0:
         print "No results."
+        return
 
     max_path_length = max([len(r["path"]) for r in results["items"]])
     path_spacer = max_path_length + 8
@@ -721,7 +722,6 @@ def search_recipes(argv):
     print format % ("Path", "Repo (autopkg/)")
     print format % ("----", "---------------")
     results["items"].sort(key=operator.itemgetter("repository"))
-    # print sorted_results
     for result in results["items"]:
         repo = result["repository"]
         name, path = result["name"], result["path"]
