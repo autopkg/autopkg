@@ -24,7 +24,7 @@ class RequestWithMethod(urllib2.Request):
 
 class GitHubSession(object):
     def __init__(self):
-        pass
+        self.token = None
 
 
     def setup_token(self):
@@ -100,7 +100,8 @@ home folder at %s.""" % TOKEN_LOCATION
         req = RequestWithMethod(method, url)
         req.add_header("User-Agent", "AutoPkg")
         req.add_header("Accept", accept)
-        req.add_header("Authorization", "token %s" % self.token)
+        if self.token:
+            req.add_header("Authorization", "token %s" % self.token)
         if headers:
             for k, v in headers.items():
                 req.add_header(k, v)
