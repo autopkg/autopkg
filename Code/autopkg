@@ -696,6 +696,11 @@ def search_recipes(argv):
     p.add_option("--file-contents", action="store_true", default=False,
                  help=("Search recipe file contents in addition to the file "
                        "path."))
+    p.add_option("-t", "--use-token", action="store_true", default=False,
+                help=("Use a public-scope GitHub token for a higher "
+                      "rate limit. If a token doesn't exist, you'll "
+                      "be prompted for your account credentials to "
+                      "create one."))
 
     # Parse arguments
     options, arguments = p.parse_args(argv[2:])
@@ -705,8 +710,10 @@ def search_recipes(argv):
         search_in = "path"
 
     gh = autopkglib.github.GitHubSession()
-    gh.setup_token()
+    if options.use_token:
+        gh.setup_token()
     term = arguments[0]
+
     (results, code) = gh.call_api("/search/code",
         query="q=%s+in:%s+extension:recipe+user:%s&sort=indexed" % (
                         term, search_in, options.user))
