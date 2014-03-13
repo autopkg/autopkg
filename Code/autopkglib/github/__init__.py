@@ -32,7 +32,8 @@ class GitHubSession(object):
         The string will be stored in TOKEN_LOCATION and used again
         if it exists."""
 
-        #TODO: support defining alternate scopes
+        #TODO: - support defining alternate scopes
+        #      - deal with case of an existing token with the same note
         if not os.path.exists(TOKEN_LOCATION):
             print """You will now be asked to enter credentials to a GitHub
 account in order to create an API token. This token has only
@@ -52,7 +53,7 @@ home folder at %s.""" % TOKEN_LOCATION
             json_resp = urllib2.urlopen(req)
             data = json.load(json_resp)
 
-            req_post = {"note": "AutoPkg CLI usage"}
+            req_post = {"note": "AutoPkg CLI"}
             req_json = json.dumps(req_post)
             create_resp = urllib2.urlopen(req, req_json)
             data = json.load(create_resp)
