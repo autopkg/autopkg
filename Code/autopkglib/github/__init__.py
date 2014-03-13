@@ -61,6 +61,7 @@ home folder at %s.""" % TOKEN_LOCATION
             try:
                 with open(TOKEN_LOCATION, "w") as tokenf:
                     tokenf.write(token)
+                os.chmod(TOKEN_LOCATION, 0600)
             except IOError as e:
                 print >> sys.stderr, "Couldn't write token file at %s! Error: %s" % (
                     TOKEN_LOCATION, e)
