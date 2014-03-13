@@ -704,6 +704,9 @@ def search_recipes(argv):
 
     # Parse arguments
     options, arguments = p.parse_args(argv[2:])
+    if len(arguments) < 1:
+        log_err("No search query specified!")
+        return -1
     if options.file_contents:
         search_in = "both"
     else:
@@ -718,12 +721,15 @@ def search_recipes(argv):
         query="q=%s+in:%s+extension:recipe+user:%s&sort=indexed" % (
                         term, search_in, options.user))
     if code == 403:
-        print >> sys.stderr, (
+        log_err(
             "You've probably hit the GitHub's search rate limit, officially 5 "
             "requests per minute. Server response follows:\n")
-        print >> sys.stderr, results["message"]
-        print >> sys.stderr, results["documentation_url"]
-        return
+        log_err(results["message"])
+        log_err(results["documentation_url"])
+        return -1
+    if results == None or code == None:
+        log_err("A GitHub API error occurred!")
+        return -1
 
     count = results["total_count"]
     if count == 0:
@@ -1313,4 +1319,3 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-

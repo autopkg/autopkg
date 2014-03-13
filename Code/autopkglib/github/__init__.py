@@ -123,5 +123,9 @@ home folder at %s.""" % TOKEN_LOCATION
             except:
                 print >> sys.stderr, e.read()
                 resp_data = None
+        except urllib2.URLError as e:
+            print >> sys.stderr, "Error opening URL: %s" % url
+            print >> sys.stderr, e.reason
+            (resp_data, status) = (None, None)
 
         return (resp_data, status)
