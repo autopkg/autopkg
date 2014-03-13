@@ -693,7 +693,7 @@ def search_recipes(argv):
     p.add_option("-u", "--user", default=default_user,
                  help=("Alternate GitHub user whose repo to search. "
                        "Defaults to %s" % default_user))
-    p.add_option("--file-contents", action="store_true", default=False,
+    p.add_option("-c", "--file-contents", action="store_true", default=False,
                  help=("Search recipe file contents in addition to the file "
                        "path."))
     p.add_option("-t", "--use-token", action="store_true", default=False,
@@ -707,19 +707,21 @@ def search_recipes(argv):
     if len(arguments) < 1:
         log_err("No search query specified!")
         return -1
-    if options.file_contents:
-        search_in = "both"
-    else:
-        search_in = "path"
 
     gh = autopkglib.github.GitHubSession()
     if options.use_token:
         gh.setup_token()
-    term = arguments[0]
 
+    term = arguments[0]
+    q = "q=%s+extension:recipe+user:%s" % (term, options.user)
+    # file contents are searched by default
+    if not options.file_contents:
+        q += "+in:path"
+
+    # Do the search, including text match metadata
     (results, code) = gh.call_api("/search/code",
-        query="q=%s+in:%s+extension:recipe+user:%s&sort=indexed" % (
-                        term, search_in, options.user))
+                        query=q,
+                        accept="application/vnd.github.v3.text-match+json")
     if code == 403:
         log_err(
             "You've probably hit the GitHub's search rate limit, officially 5 "
@@ -737,17 +739,30 @@ def search_recipes(argv):
         return
 
     max_path_length = max([len(r["path"]) for r in results["items"]])
+
     path_spacer = max_path_length + 8
-    format = "%-{0}s %-40s".format(path_spacer)
+    # match_padding = 12
+
     print
+    # format = "%-{0}s %-40s %-20s".format(path_spacer)
+    # print format % ("Path", "Repo (autopkg/)", "Search fragment")
+    # print format % ("----", "---------------", "---------------")
+    format = "%-{0}s %-40s".format(path_spacer)
     print format % ("Path", "Repo (autopkg/)")
     print format % ("----", "---------------")
     results["items"].sort(key=operator.itemgetter("repository"))
     for result in results["items"]:
+        # pprint.pprint(result["text_matches"])
         repo = result["repository"]
         name, path = result["name"], result["path"]
         repo_namespaced = repo["full_name"]
         repo_name = repo["name"]
+        # fragments = ""
+        # for match in result["text_matches"]:
+        #     index_lower = match["matches"][0]["indices"][0] - match_padding
+        #     index_upper = match["matches"][-1]["indices"][-1] + match_padding
+        #     fragments += match["fragment"].strip()[index_lower:index_upper]
+        # print format % (path, repo_name, fragments)
         print format % (path, repo_name)
 
 
