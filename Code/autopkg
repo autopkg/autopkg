@@ -748,7 +748,7 @@ def search_recipes(argv):
     # print format % ("Path", "Repo (autopkg/)", "Search fragment")
     # print format % ("----", "---------------", "---------------")
     format = "%-{0}s %-40s".format(path_spacer)
-    print format % ("Path", "Repo (autopkg/)")
+    print format % ("Path", "Repo (%s/)" % options.user)
     print format % ("----", "---------------")
     results["items"].sort(key=operator.itemgetter("repository"))
     for result in results["items"]:
