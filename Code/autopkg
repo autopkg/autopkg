@@ -714,9 +714,10 @@ def search_recipes(argv):
 
     term = arguments[0]
     q = "q=%s+extension:recipe+user:%s" % (term, options.user)
-    # file contents are searched by default
-    if not options.file_contents:
-        q += "+in:path"
+    qualifier_in = "in:path"
+    if options.file_contents:
+        qualifier_in += ",file"
+    q = q + "+" + qualifier_in
 
     # Do the search, including text match metadata
     (results, code) = gh.call_api("/search/code",
