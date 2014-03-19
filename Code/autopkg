@@ -688,10 +688,16 @@ def search_recipes(argv):
     default_user = "autopkg"
     verb = argv[1]
     p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s [search term]" % ("%prog", verb))
+    p.set_usage("Usage: %s %s [options] search_term\n"
+                "Search for recipes on GitHub. The AutoPkg organization at "
+                "github.com/autopkg\n"
+                "is the canonical 'repository' of recipe "
+                "repos, which is what is searched by\n"
+                "default."
+                % ("%prog", verb))
     p.add_option("-u", "--user", default=default_user,
-                 help=("Alternate GitHub user whose repo to search. "
-                       "Defaults to %s" % default_user))
+                 help=("Alternate GitHub user whose repos to search. "
+                       "Defaults to '%s'." % default_user))
     p.add_option("-p", "--path-only", action="store_true", default=False,
                  help=("Restrict search results to the recipe's path only. "
                        "Note that the search API currently does not support "
@@ -1309,7 +1315,7 @@ def main(argv):
             "help": "Run one or more recipes"},
         "search": {
             "function": search_recipes,
-            "help": "Search for recipes in the GitHub AutoPkg org"},
+            "help": "Search for recipes on GitHub."},
         "version": {
             "function": print_version,
             "help": "Print the current version of autopkg"}
