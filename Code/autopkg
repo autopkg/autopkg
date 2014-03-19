@@ -686,16 +686,17 @@ def repo_update(argv):
 def search_recipes(argv):
     '''Search recipes on GitHub'''
     default_user = "autopkg"
-    default_in = "path"
     verb = argv[1]
     p = optparse.OptionParser()
     p.set_usage("Usage: %s %s [search term]" % ("%prog", verb))
     p.add_option("-u", "--user", default=default_user,
                  help=("Alternate GitHub user whose repo to search. "
                        "Defaults to %s" % default_user))
-    p.add_option("-c", "--file-contents", action="store_true", default=False,
-                 help=("Search recipe file contents in addition to the file "
-                       "path."))
+    p.add_option("-p", "--path-only", action="store_true", default=False,
+                 help=("Restrict search results to the recipe's path only. "
+                       "Note that the search API currently does not support "
+                       "fuzzy matches, so only exact directory or "
+                       "filenames (minus the extensions) will be returned."))
     p.add_option("-t", "--use-token", action="store_true", default=False,
                 help=("Use a public-scope GitHub token for a higher "
                       "rate limit. If a token doesn't exist, you'll "
@@ -714,9 +715,9 @@ def search_recipes(argv):
 
     term = arguments[0]
     q = "q=%s+extension:recipe+user:%s" % (term, options.user)
-    qualifier_in = "in:path"
-    if options.file_contents:
-        qualifier_in += ",file"
+    qualifier_in = "in:path,file"
+    if options.path_only:
+        qualifier_in += "path"
     q = q + "+" + qualifier_in
 
     # Do the search, including text match metadata
