@@ -739,18 +739,17 @@ def search_recipes(argv):
         print "No results."
         return
 
-    max_path_length = max([len(r["path"]) for r in results["items"]])
-
-    path_spacer = max_path_length + 8
+    max_name_length = max([len(r["name"]) for r in results["items"]])
+    name_spacer = max_name_length + 6
     # match_padding = 12
 
     print
     # format = "%-{0}s %-40s %-20s".format(path_spacer)
     # print format % ("Path", "Repo (autopkg/)", "Search fragment")
     # print format % ("----", "---------------", "---------------")
-    format = "%-{0}s %-40s".format(path_spacer)
-    print format % ("Path", "Repo (%s/)" % options.user)
-    print format % ("----", "---------------")
+    format = "%-{0}s %-40s".format(name_spacer)
+    print format % ("Name", "Repo/path")
+    print format % ("----", "---------")
     results["items"].sort(key=operator.itemgetter("repository"))
     for result in results["items"]:
         # pprint.pprint(result["text_matches"])
@@ -764,7 +763,7 @@ def search_recipes(argv):
         #     index_upper = match["matches"][-1]["indices"][-1] + match_padding
         #     fragments += match["fragment"].strip()[index_lower:index_upper]
         # print format % (path, repo_name, fragments)
-        print format % (path, repo_name)
+        print format % (name, os.path.join(repo_namespaced, path))
 
 
 def display_help(argv, subcommands):
