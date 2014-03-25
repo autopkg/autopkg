@@ -28,6 +28,7 @@ echo "Installing AutoPkg to $INSTALL_DIR"
 echo "Creating directories"
 mkdir -m 0755 "$INSTALL_DIR"
 mkdir -m 0755 "$INSTALL_DIR/autopkglib"
+mkdir -m 0755 "$INSTALL_DIR/autopkglib/github"
 mkdir -m 0755 "$INSTALL_DIR/autopkgserver"
 mkdir -m 0755 "$INSTALL_DIR/FoundationPlist"
 
@@ -37,6 +38,7 @@ ln -sf "$INSTALL_DIR/autopkg" /usr/local/bin/autopkg
 
 echo "Copying library"
 cp Code/autopkglib/*.py "$INSTALL_DIR/autopkglib/"
+cp Code/autopkglib/github/*.py "$INSTALL_DIR/autopkglib/github"
 cp Code/autopkglib/version.plist "$INSTALL_DIR/autopkglib/"
 
 echo "Copying server"

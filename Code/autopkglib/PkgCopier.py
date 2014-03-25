@@ -31,8 +31,10 @@ class PkgCopier(Copier):
     input_variables = {
         "source_pkg": {
             "required": True,
-            "description": "Path to a pkg to copy. " + \
-                "Can point to a path inside a .dmg which will be mounted.",
+            "description": ("Path to a pkg to copy. Can point to a path inside "
+            "a .dmg which will be mounted. This path may also contain basic "
+            "globbing characters such as the wildcard '*', but only the first "
+            "result will be returned."),
         },
         "pkg_path": {
             "required": False,

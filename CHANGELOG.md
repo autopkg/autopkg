@@ -1,4 +1,12 @@
-### 0.2.9 (Unreleased)
+### 0.3.0 (Unreleased)
+
+ADDITIONS:
+
+- New "search" autopkg CLI verb, used to search recipes using the GitHub API.
+- MunkiInstallsItemsCreator and MunkiImporter now support setting 'version_comparison_key' to define this key for installs items. (GH-76, GH-54)
+- MunkiImporter supports a new input variable, 'MUNKI_PKGINFO_FILE_EXTENSION', which when set, will save pkginfos with an alternate file extension. It is an all caps variable because you would typically define this globally using 'defaults write'.
+
+### 0.2.9 (February 28, 2014)
 
 ADDITIONS:
 
