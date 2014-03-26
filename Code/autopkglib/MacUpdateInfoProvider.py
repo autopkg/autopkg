@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2013 Timothy Sutton
+# Copyright 2014 ps Enable, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,18 +19,21 @@ import urllib
 import urllib2
 import urlparse
 import os
-from xml.etree import ElementTree
 import re
 
 from autopkglib import Processor, ProcessorError
-from distutils.version import LooseVersion
-# from operator import itemgetter
 
 __all__ = ["MacUpdateInfoProvider"]
 
 
 class MacUpdateInfoProvider(Processor):
-    description = "Provides URL to the latest update."
+    description = ( "Provides URL to the latest update from Macupdate.com. "
+    				"The Macupdate download URL is of the form: "
+    				"https://macupdate.com/downloads/12345/SomeApp.dmg, which then"
+    				"302 redirects to the actual download URL. Macupdate will"
+    				"return a 200 response code to known URL downloading tools"
+    				"such as curl, wget, and urllib2. To avoid this, we add a "
+    				"User-Agent header that matches Safari. " )
     input_variables = {
         "macupdate_url": {
             "required": True,
