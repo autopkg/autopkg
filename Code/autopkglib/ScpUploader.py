@@ -19,12 +19,12 @@ from subprocess import call
 
 from autopkglib import Processor, ProcessorError
 
-__all__ = ["ScpUploaderProvider"]
+__all__ = ["ScpUploader"]
 
 
-class ScpUploaderProvider(Processor):
+class ScpUploader(Processor):
     description = ( "Uploads a package file to a server via SSH. "
-    				"NOTE: authentication MUST be via key pair." )
+                    "NOTE: authentication MUST be via key pair." )
     
     input_variables = {
         "dest_server": {
@@ -32,20 +32,20 @@ class ScpUploaderProvider(Processor):
             "description": "Hostname for destination server",
         },
         "dest_path": {
-        	"required": True,
-        	"description": "Path to target directory on destination server"
+            "required": True,
+            "description": "Path to target directory on destination server"
         },
         "pkg_path": {
-        	"required": True,
-        	"description": "Path to the newly created package"
+            "required": True,
+            "description": "Path to the newly created package"
         },
         "dest_username": {
-        	"required": False,
-        	"description": "(Optional) username to use for upload"
+            "required": False,
+            "description": "(Optional) username to use for upload"
         },
         "dest_port": {
-        	"required": False,
-        	"description": "(Optional) alternative TCP port to use on destination server"
+            "required": False,
+            "description": "(Optional) alternative TCP port to use on destination server"
         }
     }
     output_variables = {
@@ -56,24 +56,24 @@ class ScpUploaderProvider(Processor):
                 
 
     def main(self):
-    	command_line_list = [ "/usr/bin/scp" ]
-    	
-    	if dest_port:
-	    	command_line_list.append( "-P" )
-	    	command_line_list.append( dest_port )
-	    
-	    if dest_username:
-	    	command_line_list.append( "-l" )
-	    	command_line_list.append( dest_username )
-	    
-	    command_line_list.append( pkg_path )
-	    command_line_list.append( dest_server + ":" + dest_path )
-	    
-	    print command_line_list
-#    	subprocess.call( command_line_list )
+        command_line_list = [ "/usr/bin/scp" ]
+        
+        if dest_port:
+            command_line_list.append( "-P" )
+            command_line_list.append( dest_port )
+        
+        if dest_username:
+            command_line_list.append( "-l" )
+            command_line_list.append( dest_username )
+        
+        command_line_list.append( pkg_path )
+        command_line_list.append( dest_server + ":" + dest_path )
+        
+        print command_line_list
+#       subprocess.call( command_line_list )
 
             
         
 if __name__ == "__main__":
-    processor = ScpUploaderProvider()
+    processor = ScpUploader()
     processor.execute_shell()
