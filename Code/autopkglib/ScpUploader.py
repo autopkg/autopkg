@@ -15,7 +15,7 @@
 # limitations under the License.
 
 
-from subprocess import call
+import subprocess
 
 from autopkglib import Processor, ProcessorError
 
@@ -58,19 +58,18 @@ class ScpUploader(Processor):
     def main(self):
         command_line_list = [ "/usr/bin/scp" ]
         
-        if dest_port:
+        if "dest_port" in self.env:
             command_line_list.append( "-P" )
-            command_line_list.append( dest_port )
+            command_line_list.append( self.env[ "dest_port" ] )
         
-        if dest_username:
-            command_line_list.append( "-l" )
-            command_line_list.append( dest_username )
+        if "dest_username" in self.env:
+            username_arg = self.env[ "dest_username" ] + "@"
         
-        command_line_list.append( pkg_path )
-        command_line_list.append( dest_server + ":" + dest_path )
+        command_line_list.append( self.env[ "pkg_path" ] )
+        command_line_list.append( username_arg + self.env[ "dest_server" ] + ":" + self.env[ "dest_path" ] )
         
-        print command_line_list
-#       subprocess.call( command_line_list )
+        # print command_line_list
+        subprocess.call( command_line_list )
 
             
         
