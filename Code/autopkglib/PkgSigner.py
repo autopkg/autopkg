@@ -18,7 +18,9 @@
 import FoundationPlist
 import subprocess
 import os
+import datetime
 
+from datetime import date
 from autopkglib import Processor, ProcessorError
 
 
@@ -39,6 +41,10 @@ class PkgSigner(Processor):
         "signing_cert": {
             "required": True,
             "description": "Name of the certificate used to sign the package. Must be an EXACT match. "
+        },
+        "suffix_with_date": {
+        	"required": False,
+        	"description": "(Optional) append a date string yyyymmdd to the file name. Defaults to False"
         }
     }
     output_variables = {
@@ -51,26 +57,27 @@ class PkgSigner(Processor):
     
     def main(self):
     
-    	# rename unsigned package so that we can slot the signed package into place
+    	# split package_path to manipulate name
         pkg_dir = os.path.dirname( self.env[ "pkg_path" ] )
         pkg_base_name = os.path.basename( self.env[ "pkg_path" ] )
         ( pkg_name_no_extension, pkg_extension ) = os.path.splitext( pkg_base_name )
         
-        unsigned_pkg_path = os.path.join( pkg_dir, pkg_name_no_extension + "-unsigned" + pkg_extension )
-        os.rename( self.env[ "pkg_path" ], unsigned_pkg_path )
+        unsigned_pkg_path = self.env[ "pkg_path" ]
+
+		#         
+        if "suffix_with_date" in self.env:
+        	if self.env[ "suffix_with_date" ]:
+        		self.env[ "pkg_path" ]  = os.path.join( pkg_dir, pkg_name_no_extension + \
+        							date.today().strftime( "-%Y%m%d" ) + pkg_extension )
+
                 
         command_line_list = [ "/usr/bin/productsign", \
                               "--sign", \
                               self.env[ "signing_cert" ], \
                               unsigned_pkg_path, \
-                              self.env[ "pkg_path" ] ]
+                              self.env[ "pkg_path" ]  ]
                               
-        print command_line_list
-
-        # print command_line_list
         subprocess.call( command_line_list )
-
-        
             
 
 if __name__ == '__main__':
