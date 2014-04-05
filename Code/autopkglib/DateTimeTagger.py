@@ -62,7 +62,7 @@ class DateTimeTagger(Processor):
         extended_path = os.path.join( file_dir, file_name_no_extension + \
         	datetime.today().strftime( date_format ) + file_extension )
 
-        rename( file_path, extended_path )
+        os.rename( file_path, extended_path )
         
         return extended_path
     	
