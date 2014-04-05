@@ -59,8 +59,8 @@ class DateTimeTagger(Processor):
         else:
         	date_format = "-%Y%m%d"
         
-        extended_path = os.path.join( pkg_dir, pkg_name_no_extension + \
-        	datetime.now().strftime( date_format ) + pkg_extension )
+        extended_path = os.path.join( file_dir, file_name_no_extension + \
+        	datetime.now().strftime( date_format ) + file_extension )
 
         rename( file_path, extended_path )
         
