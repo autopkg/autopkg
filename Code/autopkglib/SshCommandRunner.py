@@ -64,6 +64,8 @@ class SshCommandRunner(Processor):
         
         command_line_list.append( self.env[ "remote_command" ] )
         
+        command_line_list.append( self.env[ "argv" ] )
+        
         # print command_line_list
         subprocess.call( command_line_list )
 

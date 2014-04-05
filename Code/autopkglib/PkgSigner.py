@@ -29,10 +29,10 @@ __all__ = ["PkgSigner"]
 
 class PkgSigner(Processor):
     description = ( "Signs a package.", 
-    				"WARNING: The keychain that contains the signing certificate and key",
-    				"MUST be unlocked. Run the productsign command once manually so that",
-    				"you can give it access to the correct key so that autopkg can run",
-    				"without manual intervention." )
+                    "WARNING: The keychain that contains the signing certificate and key",
+                    "MUST be unlocked. Run the productsign command once manually so that",
+                    "you can give it access to the correct key so that autopkg can run",
+                    "without manual intervention." )
     input_variables = {
         "pkg_path": {
             "required": True,
@@ -43,13 +43,16 @@ class PkgSigner(Processor):
             "description": "Name of the certificate used to sign the package. Must be an EXACT match. "
         },
         "suffix_with_date": {
-        	"required": False,
-        	"description": "(Optional) append a date string yyyymmdd to the file name. Defaults to False"
+            "required": False,
+            "description": "(Optional) append a date string yyyymmdd to the file name. Defaults to False"
         }
     }
     output_variables = {
         "pkg_path": {
-             "description": "Path to the package signed pacakge."
+            "description": "Path to the package signed pacakge."
+        },
+        "pkg_basename": {
+        	"description": "Base name of the signed package (without the path)."
         }
    }
     
@@ -57,18 +60,20 @@ class PkgSigner(Processor):
     
     def main(self):
     
-    	# split package_path to manipulate name
+        # split package_path to manipulate name
         pkg_dir = os.path.dirname( self.env[ "pkg_path" ] )
         pkg_base_name = os.path.basename( self.env[ "pkg_path" ] )
         ( pkg_name_no_extension, pkg_extension ) = os.path.splitext( pkg_base_name )
         
         unsigned_pkg_path = self.env[ "pkg_path" ]
+        self.env[ "pkg_path" ] = os.path.join( pkg_dir, pkg_name_no_extension + \
+                                    "-signed" + pkg_extension )
 
-		#         
+        #  if suffix_with_date then tag on the date instead of "-signed"
         if "suffix_with_date" in self.env:
-        	if self.env[ "suffix_with_date" ]:
-        		self.env[ "pkg_path" ]  = os.path.join( pkg_dir, pkg_name_no_extension + \
-        							date.today().strftime( "-%Y%m%d" ) + pkg_extension )
+            if self.env[ "suffix_with_date" ]:
+                self.env[ "pkg_path" ]  = os.path.join( pkg_dir, pkg_name_no_extension + \
+                                    date.today().strftime( "-%Y%m%d" ) + pkg_extension )
 
                 
         command_line_list = [ "/usr/bin/productsign", \
@@ -78,6 +83,8 @@ class PkgSigner(Processor):
                               self.env[ "pkg_path" ]  ]
                               
         subprocess.call( command_line_list )
+#        self.env[ "pkg_basename" ] = pkg_name_no_extension + \
+#                                    date.today().strftime( "-%Y%m%d" ) + pkg_extension
             
 
 if __name__ == '__main__':
