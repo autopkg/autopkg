@@ -60,7 +60,7 @@ class DateTimeTagger(Processor):
         	date_format = "-%Y%m%d"
         
         extended_path = os.path.join( file_dir, file_name_no_extension + \
-        	datetime.now().strftime( date_format ) + file_extension )
+        	datetime.today().strftime( date_format ) + file_extension )
 
         rename( file_path, extended_path )
         
