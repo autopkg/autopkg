@@ -20,7 +20,7 @@ import subprocess
 import os
 import datetime
 
-from datetime import date
+from datetime import datetime
 from autopkglib import Processor, ProcessorError
 
 
