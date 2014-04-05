@@ -71,9 +71,9 @@ class DateTimeTagger(Processor):
     
     	# determine file path from self.env or pkg_path
     	if "file_path" in self.env:
-    		rename_file( self.env[ "file_path" ] )
+    		self.rename_file( self.env[ "file_path" ] )
     	else:
-    		updated_pkg_path = rename_file( self.env[ "pkg_path" ] )
+    		updated_pkg_path = self.rename_file( self.env[ "pkg_path" ] )
     		self.env[ "pkg_path" ] = updated_pkg_path
     	
 
