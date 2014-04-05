@@ -40,7 +40,9 @@ class DateTimeTagger(Processor):
             "description": "(Optional) Custom format string for date."
         }
     }
-    
+    output_variables = {
+	}
+	    
     __doc__ = description
     
     
