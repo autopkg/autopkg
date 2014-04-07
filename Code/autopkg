@@ -1213,7 +1213,7 @@ def run_recipes(argv):
                     new_downloads.append(item["Output"].get("pathname"))
 
                 # look for packages
-                if item["Output"].get("pkg_path"):
+                if item["Output"].get("new_package_request"):
                     built_package = {}
                     built_package["pkg_path"] = item["Output"].get("pkg_path")
                     # populate version, identifiers if we had a PkgCreator step

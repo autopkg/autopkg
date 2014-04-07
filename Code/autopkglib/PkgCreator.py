@@ -18,6 +18,8 @@
 import os.path
 import socket
 import FoundationPlist
+import subprocess
+import xml.etree.ElementTree as ET
 
 from autopkglib import Processor, ProcessorError
 
@@ -36,10 +38,23 @@ class PkgCreator(Processor):
             "description": ("A package request dictionary. See "
                             "Code/autopkgserver/autopkgserver for more details.")
         },
+        "force_pkg_build": {
+            "required": False,
+            "description": ("When set, this forces building a new package even if "
+                            "a package already exists in the output directory with "
+                            "the same identifier and version number. Defaults to "
+                            "False."),
+        },
     }
     output_variables = {
         "pkg_path": {
             "description": "The created package.",
+        },
+        "new_package_request": {
+            "description": ("True if a new package was actually requested to be built. "
+                            "False if a package with the same filename, identifier and "
+                            "version already exists and thus no package was built (see "
+                            "'force_pkg_build' input variable.")
         },
     }
     
@@ -67,6 +82,24 @@ class PkgCreator(Processor):
 
         raise ProcessorError("Can't find %s" % relpath)
     
+    def xarExpand(self, source_path):
+        try:
+            xarcmd = ["/usr/bin/xar",
+                      "-x",
+                      "-C", self.env.get('RECIPE_CACHE_DIR'),
+                      "-f", source_path,
+                      "PackageInfo"]
+            p = subprocess.Popen(xarcmd,
+                                 stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+            (out, err) = p.communicate()
+        except OSError as e:
+            raise ProcessorError("xar execution failed with error code %d: %s" 
+                % (e.errno, e.strerror))
+        if p.returncode != 0:
+            raise ProcessorError("extraction of %s with xar failed: %s" 
+                % (source_path, err))
+
     
     def package(self):
         request = self.env["pkg_request"]
@@ -106,11 +139,35 @@ class PkgCreator(Processor):
                     # search for it
                     request[key] = self.find_path_for_relpath(value)
         
+        # Check for an existing flat package in the output dir and compare its
+        # identifier and version to the one we're going to build.
+        pkg_path = os.path.join(request['pkgdir'], request['pkgname'] + '.pkg')
+        if os.path.exists(pkg_path) and not self.env.get("force_pkg_build"):
+            self.output("Package already exists at path %s." % pkg_path)
+            self.xarExpand(pkg_path)
+            packageinfo_file = os.path.join(self.env['RECIPE_CACHE_DIR'], 'PackageInfo')
+            if not os.path.exists(packageinfo_file):
+                raise ProcessorError(
+                    "Failed to parse existing package, as no PackageInfo "
+                    "file count be found in the extracted archive.")
+                
+            tree = ET.parse(packageinfo_file)
+            root = tree.getroot()
+            local_version = root.attrib['version']
+            local_id = root.attrib['identifier']
+
+            if (local_version == request['version']) and (local_id == request['id']):
+                    self.output("Existing package matches version and identifier, not building.")
+                    self.env["pkg_path"] = pkg_path
+                    self.env["new_package_request"] = False
+                    return
+        
         # Send packaging request.
         try:
             self.output("Connecting")
             self.connect()
             self.output("Sending packaging request")
+            self.env["new_package_request"] = True
             pkg_path = self.send_request(request)
         finally:
             self.output("Disconnecting")
