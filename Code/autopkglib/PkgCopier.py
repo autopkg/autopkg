@@ -17,6 +17,7 @@
 
 import os.path
 import shutil
+import glob
 
 from autopkglib import Processor, ProcessorError
 from Copier import Copier
@@ -30,8 +31,10 @@ class PkgCopier(Copier):
     input_variables = {
         "source_pkg": {
             "required": True,
-            "description": "Path to a pkg to copy. " + \
-                "Can point to a path inside a .dmg which will be mounted.",
+            "description": ("Path to a pkg to copy. Can point to a path inside "
+            "a .dmg which will be mounted. This path may also contain basic "
+            "globbing characters such as the wildcard '*', but only the first "
+            "result will be returned."),
         },
         "pkg_path": {
             "required": False,
@@ -62,11 +65,25 @@ class PkgCopier(Copier):
                 # Straight copy from file system.
                 source_pkg = self.env["source_pkg"]
 
+
+            # Prcess the path for globs
+            matches = glob.glob(source_pkg)
+            matched_source_path = matches[0]
+            if len(matches) > 1:
+                self.output("WARNING: Multiple paths match 'source_pkg' glob '%s':"
+                    % source_pkg)
+                for match in matches:
+                    self.output("  - %s" % match)
+
+            if [c for c in '*?[]!' if c in source_pkg]:
+                self.output("Using path '%s' matched from globbed '%s'."
+                    % (matched_source_path, source_pkg))
+
             # do the copy
             pkg_path = (self.env.get("pkg_path") or 
                 os.path.join(self.env['RECIPE_CACHE_DIR'],
                              os.path.basename(source_pkg)))
-            self.copy(source_pkg, pkg_path, overwrite=True)
+            self.copy(matched_source_path, pkg_path, overwrite=True)
             self.env["pkg_path"] = pkg_path
             
         finally:

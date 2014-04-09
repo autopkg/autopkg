@@ -89,6 +89,8 @@ class Copier(DmgMounter):
                 source_path = os.path.join(mount_point, dmg_source_path)
             # process path with glob.glob
             matches = glob(source_path)
+            if len(matches) == 0:
+                raise ProcessorError("Error processing path '%s' with glob. " % source_path)
             matched_source_path = matches[0]
             if len(matches) > 1:
                 self.output("WARNING: Multiple paths match 'source_path' glob '%s':"
@@ -96,7 +98,6 @@ class Copier(DmgMounter):
                 for match in matches:
                     self.output("  - %s" % match)
 
-            matched_source_path = glob(source_path)[0]
             if [c for c in '*?[]!' if c in source_path]:
                 self.output("Using path '%s' matched from globbed '%s'."
                     % (matched_source_path, source_path))

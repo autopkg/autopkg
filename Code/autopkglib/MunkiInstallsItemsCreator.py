@@ -19,7 +19,7 @@ import FoundationPlist
 import subprocess
 
 from autopkglib import Processor, ProcessorError
-
+from Foundation import NSDictionary
 
 __all__ = ["MunkiInstallsItemsCreator"]
 
@@ -35,6 +35,18 @@ class MunkiInstallsItemsCreator(Processor):
         "faux_root": {
             "required": False,
             "description": "The root of an expanded package or filesystem.",
+        },
+        "version_comparison_key": {
+            "required": False,
+            "description": ("Set 'version_comparison_key' for installs items. "
+                            "If this is a string, it is set to this value for "
+                            "all items given to 'installs_item_paths'. If this "
+                            "is a dictionary, takes a mapping of a path as "
+                            "given to 'installs_item_paths' to the desired "
+                            "version_comparison_key.\n"
+                            "Example:\n"
+                            "{'/Applications/Foo.app': 'CFBundleVersion',\n"
+                            "'/Library/Bar.plugin': 'CFBundleShortVersionString'}"),
         },
         
     }
@@ -77,6 +89,30 @@ class MunkiInstallsItemsCreator(Processor):
                 if item["path"].startswith(faux_root):
                     item["path"] = item["path"][len(faux_root):]
                 self.output("Created installs item for %s" % item["path"])
+
+        if "version_comparison_key" in self.env:
+            for item in installs_array:
+                cmp_key = None
+                # If it's a string, set it for all installs items
+                if isinstance(self.env["version_comparison_key"], basestring):
+                    cmp_key = self.env["version_comparison_key"]
+                # It it's a dict, find if there's a key that matches a path
+                elif isinstance(self.env["version_comparison_key"], NSDictionary):
+                    for path, key in self.env["version_comparison_key"].items():
+                        if path == item["path"]:
+                            cmp_key = key
+
+                if cmp_key:
+                    # Check that we really have this key available for comparison
+                    if cmp_key in item:
+                        item["version_comparison_key"] = cmp_key
+                    else:
+                        raise ProcessorError(
+                        "version_comparison_key '%s' could not be found in the "
+                        "installs item for path '%s'" % (
+                            cmp_key,
+                            item["path"]))
+
         if not "additional_pkginfo" in self.env:
             self.env["additional_pkginfo"] = {}
         self.env["additional_pkginfo"]["installs"] = installs_array

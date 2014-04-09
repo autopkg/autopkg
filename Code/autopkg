@@ -19,6 +19,7 @@ related tasks"""
 import glob
 import sys
 import os
+import operator
 import optparse
 import FoundationPlist
 import pprint
@@ -26,6 +27,8 @@ import re
 import shutil
 import subprocess
 import time
+import autopkglib.github
+
 from urlparse import urlparse
 
 from autopkglib import get_pref, get_all_prefs
@@ -680,6 +683,96 @@ def repo_update(argv):
             log_err(err)
 
 
+def search_recipes(argv):
+    '''Search recipes on GitHub'''
+    default_user = "autopkg"
+    verb = argv[1]
+    p = optparse.OptionParser()
+    p.set_usage("Usage: %s %s [options] search_term\n"
+                "Search for recipes on GitHub. The AutoPkg organization at "
+                "github.com/autopkg\n"
+                "is the canonical 'repository' of recipe "
+                "repos, which is what is searched by\n"
+                "default."
+                % ("%prog", verb))
+    p.add_option("-u", "--user", default=default_user,
+                 help=("Alternate GitHub user whose repos to search. "
+                       "Defaults to '%s'." % default_user))
+    p.add_option("-p", "--path-only", action="store_true", default=False,
+                 help=("Restrict search results to the recipe's path only. "
+                       "Note that the search API currently does not support "
+                       "fuzzy matches, so only exact directory or "
+                       "filenames (minus the extensions) will be returned."))
+    p.add_option("-t", "--use-token", action="store_true", default=False,
+                help=("Use a public-scope GitHub token for a higher "
+                      "rate limit. If a token doesn't exist, you'll "
+                      "be prompted for your account credentials to "
+                      "create one."))
+
+    # Parse arguments
+    options, arguments = p.parse_args(argv[2:])
+    if len(arguments) < 1:
+        log_err("No search query specified!")
+        return -1
+
+    gh = autopkglib.github.GitHubSession()
+    if options.use_token:
+        gh.setup_token()
+
+    term = arguments[0]
+    q = "q=%s+extension:recipe+user:%s" % (term, options.user)
+    qualifier_in = "in:path,file"
+    if options.path_only:
+        qualifier_in += "path"
+    q = q + "+" + qualifier_in
+
+    # Do the search, including text match metadata
+    (results, code) = gh.call_api("/search/code",
+                        query=q,
+                        accept="application/vnd.github.v3.text-match+json")
+    if code == 403:
+        log_err(
+            "You've probably hit the GitHub's search rate limit, officially 5 "
+            "requests per minute. Server response follows:\n")
+        log_err(results["message"])
+        log_err(results["documentation_url"])
+        return -1
+    if results == None or code == None:
+        log_err("A GitHub API error occurred!")
+        return -1
+
+    count = results["total_count"]
+    if count == 0:
+        print "No results."
+        return
+
+    max_name_length = max([len(r["name"]) for r in results["items"]])
+    name_spacer = max_name_length + 6
+    # match_padding = 12
+
+    print
+    # format = "%-{0}s %-40s %-20s".format(path_spacer)
+    # print format % ("Path", "Repo (autopkg/)", "Search fragment")
+    # print format % ("----", "---------------", "---------------")
+    format = "%-{0}s %-40s".format(name_spacer)
+    print format % ("Name", "Repo/path")
+    print format % ("----", "---------")
+    results["items"].sort(key=operator.itemgetter("repository"))
+    for result in results["items"]:
+        # pprint.pprint(result["text_matches"])
+        repo = result["repository"]
+        name, path = result["name"], result["path"]
+        repo_namespaced = repo["full_name"]
+        repo_name = repo["name"]
+        # fragments = ""
+        # for match in result["text_matches"]:
+        #     index_lower = match["matches"][0]["indices"][0] - match_padding
+        #     index_upper = match["matches"][-1]["indices"][-1] + match_padding
+        #     fragments += match["fragment"].strip()[index_lower:index_upper]
+        # print format % (path, repo_name, fragments)
+        print format % (name, os.path.join(repo_namespaced, path))
+
+
 def display_help(argv, subcommands):
     '''Display top-level help'''
     main_command_name = os.path.basename(argv[0])
@@ -1120,7 +1213,7 @@ def run_recipes(argv):
                     new_downloads.append(item["Output"].get("pathname"))
 
                 # look for packages
-                if item["Output"].get("pkg_path"):
+                if item["Output"].get("new_package_request"):
                     built_package = {}
                     built_package["pkg_path"] = item["Output"].get("pkg_path")
                     # populate version, identifiers if we had a PkgCreator step
@@ -1195,7 +1288,7 @@ def main(argv):
             "help": "Get info about configuration or a recipe"},
         "list-recipes": {
             "function": list_recipes,
-            "help": "List available recipes"},
+            "help": "List recipes available locally"},
         "list-processors": {
             "function": list_processors,
             "help": "List available core Processors"},
@@ -1220,6 +1313,9 @@ def main(argv):
         "run": {
             "function": run_recipes,
             "help": "Run one or more recipes"},
+        "search": {
+            "function": search_recipes,
+            "help": "Search for recipes on GitHub."},
         "version": {
             "function": print_version,
             "help": "Print the current version of autopkg"}
@@ -1245,4 +1341,3 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
-
