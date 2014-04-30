@@ -10,6 +10,10 @@ CHANGES:
 
 - PkgCreator processor does not rebuild a package on every run if one exists in the output directory with the same filename, identifier and version. This behavior can be overridden with the 'force_pkg_build' input variable.
 
+FIXES:
+
+- PlistReader, when searching a path for a bundle, no longer follows symlinks that don't contain extensions. It's common for a dmg to contain a symlink to '/Applications' and we don't want to go searching this path for bundles.
+
 ### 0.2.9 (February 28, 2014)
 
 ADDITIONS:
