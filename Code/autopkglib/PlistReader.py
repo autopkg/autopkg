@@ -73,6 +73,14 @@ class PlistReader(DmgMounter):
         files = glob.glob(os.path.join(path, "*"))
         if len(files) == 0:
             raise ProcessorError("No bundle found in dmg")
+
+        # filter out any symlinks that don't have extensions
+        # - common case is a symlink to 'Applications', which
+        #   we don't want to exhaustively search
+        filtered = [f for f in files if \
+                    not os.path.islink(f) and \
+                    not os.path.splitext(os.path.basename(f))[1]]
+
         for test_bundle in files:
             return self.get_bundle_info_path(test_bundle)
         return None
