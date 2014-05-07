@@ -5,6 +5,9 @@ ADDITIONS:
 - New "search" autopkg CLI verb, used to search recipes using the GitHub API.
 - MunkiInstallsItemsCreator and MunkiImporter now support setting 'version_comparison_key' to define this key for installs items. (GH-76, GH-54)
 - MunkiImporter supports a new input variable, 'MUNKI_PKGINFO_FILE_EXTENSION', which when set, will save pkginfos with an alternate file extension. It is an all caps variable because you would typically define this globally using 'defaults write'.
+- DmgCreator supports new input variables:
+  - 'dmg_megabytes' to work around hdiutil sizing issues (GH-87)
+  - 'dmg_format' and 'dmg_zlib_level' to set alternate disk image formats and gzip compression level (GH-14, GH-70)
 
 CHANGES:
 
