@@ -16,6 +16,7 @@ CHANGES:
 FIXES:
 
 - PlistReader, when searching a path for a bundle, no longer follows symlinks that don't contain extensions. It's common for a dmg to contain a symlink to '/Applications' and we don't want to go searching this path for bundles.
+- autopkgserver's `pkg_request` argument no longer rejects an `id` that contains dashes between words (GH-91)
 
 ### 0.2.9 (February 28, 2014)
 
