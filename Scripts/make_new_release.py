@@ -155,6 +155,7 @@ be done as root, so it's best done as a separate process.
     # required version to run the AutoPkg recipe
     p = subprocess.Popen(['/Library/AutoPkg/autopkg',
         'run',
+        '-k', 'force_pkg_build=true',
         '--search-dir', recipes_dir,
         '--report-plist',
         'AutoPkg.pkg'],
@@ -167,6 +168,9 @@ be done as root, so it's best done as a separate process.
     except BaseException as e:
         print >> sys.stderr, "Couldn't parse a valid report plist from the autopkg run!"
         sys.exit(e)
+
+    if report['failures']:
+        sys.exit("Recipe run error: %s" % report['failures'][0]['message'])
 
     # collect pkg file data
     built_pkg_path = report['new_packages'][0]['pkg_path']

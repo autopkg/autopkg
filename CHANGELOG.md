@@ -1,14 +1,24 @@
-### 0.3.0 (Unreleased)
+### 0.3.1 (Unreleased)
+
+### 0.3.0 (May 20, 2014)
 
 ADDITIONS:
 
 - New "search" autopkg CLI verb, used to search recipes using the GitHub API.
 - MunkiInstallsItemsCreator and MunkiImporter now support setting 'version_comparison_key' to define this key for installs items. (GH-76, GH-54)
 - MunkiImporter supports a new input variable, 'MUNKI_PKGINFO_FILE_EXTENSION', which when set, will save pkginfos with an alternate file extension. It is an all caps variable because you would typically define this globally using 'defaults write'.
+- DmgCreator supports new input variables:
+  - 'dmg_megabytes' to work around hdiutil sizing issues (GH-87)
+  - 'dmg_format' and 'dmg_zlib_level' to set alternate disk image formats and gzip compression level (GH-14, GH-70)
 
 CHANGES:
 
 - PkgCreator processor does not rebuild a package on every run if one exists in the output directory with the same filename, identifier and version. This behavior can be overridden with the 'force_pkg_build' input variable.
+
+FIXES:
+
+- PlistReader, when searching a path for a bundle, no longer follows symlinks that don't contain extensions. It's common for a dmg to contain a symlink to '/Applications' and we don't want to go searching this path for bundles.
+- autopkgserver's `pkg_request` argument no longer rejects an `id` that contains dashes between words (GH-91)
 
 ### 0.2.9 (February 28, 2014)
 
