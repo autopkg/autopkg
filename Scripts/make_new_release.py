@@ -169,6 +169,9 @@ be done as root, so it's best done as a separate process.
         print >> sys.stderr, "Couldn't parse a valid report plist from the autopkg run!"
         sys.exit(e)
 
+    if report['failures']:
+        sys.exit("Recipe run error: %s" % report['failures'][0]['message'])
+
     # collect pkg file data
     built_pkg_path = report['new_packages'][0]['pkg_path']
     pkg_filename = os.path.basename(built_pkg_path)
