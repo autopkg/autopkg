@@ -220,7 +220,7 @@ def main(argv):
     if push_commit == "push":
         run_git([
             "push",
-            "origin"
+            "origin",
             "master"])
 
 if __name__ == "__main__":
