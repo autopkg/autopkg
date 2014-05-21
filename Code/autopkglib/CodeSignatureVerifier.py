@@ -137,7 +137,7 @@ class CodeSignatureVerifier(DmgMounter):
         else:
             raise ProcessorError("Code signature verification failed")
         
-        if self.env['expected_authority_names']:
+        if self.env.get('expected_authority_names', None):
             authority_names = self.codesign_get_authority_names(path)
             expected_authority_names = self.env['expected_authority_names']
             if authority_names != expected_authority_names:
@@ -158,7 +158,7 @@ class CodeSignatureVerifier(DmgMounter):
         else:
             raise ProcessorError("Code signature verification failed")
         
-        if self.env['expected_authority_names']:
+        if self.env.get('expected_authority_names', None):
             expected_authority_names = self.env['expected_authority_names']
             if authority_names != expected_authority_names:
                 self.output("Mismatch in authority names")
