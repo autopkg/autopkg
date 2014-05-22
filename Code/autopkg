@@ -276,6 +276,7 @@ def load_recipe(name, override_dirs, recipe_dirs):
                 return recipe
             else:
                 # no parent recipe, so the current recipe is invalid
+                log_err('Could not find parent recipe for %s' % name)
                 return None
         else:
             recipe["RECIPE_PATH"] = recipe_file
@@ -810,7 +811,7 @@ def get_info(argv):
         if get_recipe_info(arguments[0], override_dirs, search_dirs):
             return 0
         else:
-            log_err("Can't find recipe %s" % arguments[0])
+            log_err("Can't find recipe %s, or it is invalid." % arguments[0])
             return -1
     else:
         log_err("Too many recipes!")
