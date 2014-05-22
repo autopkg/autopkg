@@ -1,5 +1,9 @@
 ### 0.3.1 (Unreleased)
 
+FIXES:
+
+- Print a warning message when a recipe's ParentRecipe can't be found. (GH-30)
+
 ### 0.3.0 (May 20, 2014)
 
 ADDITIONS:
