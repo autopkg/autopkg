@@ -39,7 +39,9 @@ class CodeSignatureVerifier(DmgMounter):
         "expected_authority_names": {
             "required": False,
             "description":
-                ("List of expected certificate authority names. These can be found by running: "
+                ("List of expected certificate authority names. Complete list of the certificate "
+                "name chain is required and it needs to be in the correct order. "
+                "These can be found by running: "
                 "\n\t$ codesign -d -vvvv <path_to_app>"
                 "\n\tor"
                 "\n\t$ pkgutil --check-signature <path_to_pkg>"),
