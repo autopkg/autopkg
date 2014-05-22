@@ -18,6 +18,7 @@ import os.path
 import subprocess
 import re
 
+from glob import glob
 from autopkglib import Processor, ProcessorError
 from DmgMounter import DmgMounter
 
@@ -34,7 +35,7 @@ class CodeSignatureVerifier(DmgMounter):
             "required": True,
             "description":
                 ("File path to an application bundle (.app) or installer package (.pkg or .mpkg). "
-                "Can point to a path inside a .dmg which will be mounted."),
+                "Can point to a globbed path inside a .dmg which will be mounted."),
         },
         "expected_authority_names": {
             "required": False,
@@ -179,7 +180,12 @@ class CodeSignatureVerifier(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                input_path = os.path.join(mount_point, dmg_source_path)
+                globbed_paths = glob(os.path.join(mount_point, dmg_source_path))
+                if len(globbed_paths) > 0:
+                    input_path = globbed_paths[0]
+                else:
+                    self.output("Invalid input path: %s" % self.env['input_path'])
+                    raise ProcessorError("Invalid input path")
             else:
                 # just use the given path
                 input_path = self.env['input_path']
