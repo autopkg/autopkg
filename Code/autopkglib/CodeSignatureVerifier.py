@@ -194,10 +194,10 @@ class CodeSignatureVerifier(DmgMounter):
             darwin_version = os.uname()[2]
             
             # Currently we support only .app, .pkg or .mpkg types
-            fileName, fileExtension = os.path.splitext(input_path)
-            if fileExtension == ".app":
+            file_name, file_extension = os.path.splitext(input_path)
+            if file_extension == ".app":
                 self.process_app_bundle(input_path)
-            elif fileExtension in [".pkg", ".mpkg"]:
+            elif file_extension in [".pkg", ".mpkg"]:
                 # Check the kernel version to make sure we're running on Snow Leopard
                 # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
                 if darwin_version.startswith("10."):
