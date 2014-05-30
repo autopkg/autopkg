@@ -35,17 +35,17 @@ class CodeSignatureVerifier(DmgMounter):
             "required": True,
             "description":
                 ("File path to an application bundle (.app) or installer package (.pkg or .mpkg). "
-                "Can point to a globbed path inside a .dmg which will be mounted."),
+                 "Can point to a globbed path inside a .dmg which will be mounted."),
         },
         "expected_authority_names": {
             "required": False,
             "description":
-                ("List of expected certificate authority names. Complete list of the certificate "
-                "name chain is required and it needs to be in the correct order. "
-                "These can be found by running: "
-                "\n\t$ codesign -d -vvvv <path_to_app>"
-                "\n\tor"
-                "\n\t$ pkgutil --check-signature <path_to_pkg>"),
+                ("An array of strings defining a list of expected certificate authority names. "
+                 "Complete list of the certificate name chain is required and it needs to be "
+                 "in the correct order. These can be determined by running: "
+                 "\n\t$ codesign -d -vvvv <path_to_app>"
+                 "\n\tor"
+                 "\n\t$ pkgutil --check-signature <path_to_pkg>"),
         },
     }
     output_variables = {
