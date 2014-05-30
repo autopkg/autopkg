@@ -55,7 +55,7 @@ class CodeSignatureVerifier(DmgMounter):
     
     def codesign_get_authority_names(self, path):
         """
-        Runs 'codesign --display <path>' and returns a list of
+        Runs 'codesign --display -vvvv <path>' and returns a list of
         found certificate authority names.
         """
         process = ["/usr/bin/codesign",
