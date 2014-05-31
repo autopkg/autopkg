@@ -1,5 +1,14 @@
 ### 0.3.1 (Unreleased)
 
+ADDITIONS:
+
+- New CodeSignatureVerifier processor, contributed by Hannes Juutilainen. (GH-92)
+  - This can be used to verify code signatures for application bundles and
+    installer packages against the expected certificate names, given as arguments
+    to the processor. This would typically be used in download recipes to verify
+    the authenticity of the downloaded item.
+
+
 FIXES:
 
 - Print a warning message when a recipe's ParentRecipe can't be found. (GH-30)
