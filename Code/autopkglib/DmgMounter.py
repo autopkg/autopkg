@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+import sys
 import subprocess
 import FoundationPlist
 
@@ -27,9 +27,23 @@ __all__ = ["DmgMounter"]
 class DmgMounter(Processor):
     """Base class for Processors that need to mount disk images."""
     
+    DMG_EXTENSIONS = ['.dmg', '.iso', '.DMG', '.ISO']
+    
     def __init__(self, data=None, infile=None, outfile=None):
         super(DmgMounter, self).__init__(data, infile, outfile)
         self.mounts = dict()
+        
+    def parsePathForDMG(pathname):
+        # Helper method for working with paths that reference something
+        # inside a disk image
+        for extension in self.DMG_EXTENSIONS:
+            (dmg_path, dmg, dmg_source_path) = pathname.partition(
+                                                    extension + "/")
+            if dmg:
+                dmg_path += extension
+                return dmg_path, dmg, dmg_source_path
+        # no disk image in path
+        return pathname, '', ''
         
     def getFirstPlist(self, textString):
         """Gets the first plist from a text string that may contain one or
@@ -51,7 +65,7 @@ class DmgMounter(Processor):
         plist_end_index = plist_end_index + len(plist_footer)
         return (textString[plist_start_index:plist_end_index],
                 textString[plist_end_index:])
-    
+
     def DMGhasSLA(self, dmgpath):
         '''Returns true if dmg has a Software License Agreement.
         These dmgs normally cannot be attached without user intervention'''
@@ -61,8 +75,12 @@ class DmgMounter(Processor):
                     bufsize=-1, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (out, err) = proc.communicate()
         if err:
-            print >> sys.stderr, (
-                'hdiutil error %s with image %s.' % (err, dmgpath))
+            # some error with hdiutil.
+            # Output but return False so we can attempt to continue
+            self.output('hdiutil imageinfo error %s with image %s.' 
+                        % (err, dmgpath))
+            return False
+
         (pliststr, out) = self.getFirstPlist(out)
         if pliststr:
             try:
@@ -138,7 +156,7 @@ class DmgMounter(Processor):
             (out, err) = p.communicate()
         except OSError as e:
             raise ProcessorError(
-                "ditto execution failed with error code %d: %s" 
+                "hdiutil execution failed with error code %d: %s" 
                 % (e.errno, e.strerror))
         if p.returncode != 0:
             raise ProcessorError("unmounting %s failed: %s" % (pathname, err))
@@ -149,13 +167,12 @@ class DmgMounter(Processor):
 
 if __name__ == '__main__':
     try:
-        import sys
         dmgmounter = DmgMounter()
         mountpoint = dmgmounter.mount("Download/Firefox-sv-SE.dmg")
         print "Mounted at %s" % mountpoint
         dmgmounter.unmount("Download/Firefox-sv-SE.dmg")
     except ProcessorError as e:
-        print >>sys.stderr, "ProcessorError: %s" % e
+        print >> sys.stderr, "ProcessorError: %s" % e
         sys.exit(10)
     else:
         sys.exit(0)
