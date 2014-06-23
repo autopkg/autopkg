@@ -33,7 +33,7 @@ class DmgMounter(Processor):
         super(DmgMounter, self).__init__(data, infile, outfile)
         self.mounts = dict()
         
-    def parsePathForDMG(pathname):
+    def parsePathForDMG(self, pathname):
         # Helper method for working with paths that reference something
         # inside a disk image
         for extension in self.DMG_EXTENSIONS:
