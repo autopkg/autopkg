@@ -25,6 +25,7 @@ import tempfile
 import pwd
 import grp
 
+from xml.parsers.expat import ExpatError
 
 __all__ = [
     'Packager',
@@ -75,9 +76,7 @@ class Packager(object):
     
     def verify_request(self):
         """Verify that the request is valid."""
-        
-        self.log.debug("Verifying packaging request")
-        
+
         def verify_dir_and_owner(path, uid):
             try:
                 info = os.lstat(path)
@@ -89,6 +88,113 @@ class Packager(object):
                 raise PackagerError("%s is a soft link" % path)
             if not stat.S_ISDIR(info.st_mode):
                 raise PackagerError("%s is not a directory" % path)
+
+
+        def cmd_output(cmd):
+            '''Outputs a stdout, stderr tuple from command output using a Popen'''
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            out, err = p.communicate()
+            if err:
+                self.log.debug("WARNING: errors from command '%s':" % ", ".join(cmd))
+                self.log.debug(err)
+            return (out, err)
+
+
+        def get_mounts():
+            '''Returns a list of mounted volume paths as reported by diskutil.'''
+            out, err = cmd_output([
+                "/usr/sbin/diskutil",
+                "list",
+                "-plist"])
+            try:
+                du_list = plistlib.readPlistFromString(out)
+            except ExpatError:
+                self.log.debug("WARNING: Error parsing diskutil output.")
+                self.log.debug(err)
+                return []
+
+            vols = set()
+            for disk in du_list["AllDisksAndPartitions"]:
+                if "MountPoint" in disk:
+                    vols.add(disk["MountPoint"])
+                if "Partitions" in disk:
+                    for part in disk["Partitions"]:
+                        if "MountPoint" in part:
+                            vols.add(part["MountPoint"])
+            return list(vols)
+
+
+        def check_ownerships_enabled(path):
+            '''Return True if 'ignore ownerships' is not set on the volume on which
+            'path' resides, False if otherwise. We warn and return True on
+            unexpected behavior.'''
+
+            # resolve the absolute path if a symlink
+            path = os.path.realpath(path)
+
+            # get mount points
+            mounts = get_mounts()
+            # move '/' to the end so we're sure to evaluate it before other
+            # mount points (/ would match any mountpoint)
+            if "/" in mounts:
+                mounts.remove("/")
+                mounts.append("/")
+            if mounts:
+                self.log.debug("Found mounted volumes: %s" % ", ".join(mounts))
+            else:
+                self.log.debug(("WARNING: No mountpoints could be determined for "
+                             "checking ownerships."))
+                return True
+
+            # find the mountpoint that has our path
+            mount_for_path = None
+            for mount in mounts:
+                if path.startswith(mount):
+                    mount_for_path = mount
+                    break
+            if not mount_for_path:
+                self.log.debug(("WARNING: Checking disk ownerships for path '%s' "
+                             "failed. Attempting to continue.."
+                             % path))
+                return True
+
+            # look for 'ignore ownerships' setting on the disk
+            # if 'GlobalPermissionsEnabled' is true, ownerships are _not_ ignored
+            self.log.debug("Checking disk ownerships for mount '%s'.." % mount_for_path)
+            out, err = cmd_output([
+                "/usr/sbin/diskutil",
+                "info",
+                "-plist",
+                mount_for_path])
+            try:
+                du_info = plistlib.readPlistFromString(out)
+            except ExpatError:
+                self.log.debug("WARNING: Error parsing diskutil output.")
+                self.log.debug(err)
+                return True
+
+            if not "GlobalPermissionsEnabled" in du_info:
+                self.log.debug("WARNING: Couldn't read 'ignore ownerships' "
+                    "setting for mount point '%s'. Attempting to "
+                    "continue." % mount_for_path)
+                return True
+
+            if not du_info["GlobalPermissionsEnabled"]:
+                return False
+            else:
+                return True
+
+
+        self.log.debug("Verifying packaging request")
+        # Check that a disk-based pkgroot isn't somewhere where 'ignore ownerships'
+        # is set.
+        if not check_ownerships_enabled(self.request.pkgroot):
+            raise PackagerError(
+                ("'Ignore ownerships' is set on the disk where pkgroot '%s' "
+                "was set, and packaging cannot continue. Ownerships must "
+                "be enabled on the volume where a package is to be built.")
+                % self.request.pkgroot)
+
         
         # Check owner and type of directories.
         verify_dir_and_owner(self.request.pkgroot, self.uid)
