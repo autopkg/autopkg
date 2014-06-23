@@ -59,7 +59,104 @@ class PkgCreator(Processor):
     }
     
     __doc__ = description
-    
+
+
+    def cmd_output(self, cmd, fail_on_err=False):
+        '''Outputs a stdout, stderr tuple from command output using a Popen'''
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = p.communicate()
+        if err:
+            self.output("WARNING: errors from command '%s':" % ", ".join(cmd))
+            self.output(err)
+        return (out, err)
+
+
+    def get_mounts(self):
+        '''Returns a list of mounted volume paths as reported by diskutil.'''
+        out, err = self.cmd_output([
+            "/usr/sbin/diskutil",
+            "list",
+            "-plist"])
+        try:
+            du_list = FoundationPlist.readPlistFromString(out)
+        except FoundationPlist.FoundationPlistException:
+            self.output("WARNING: Error parsing diskutil output.")
+            self.output(err)
+            return []
+
+        vols = set()
+        for disk in du_list["AllDisksAndPartitions"]:
+            if "MountPoint" in disk:
+                vols.add(disk["MountPoint"])
+            if "Partitions" in disk:
+                for part in disk["Partitions"]:
+                    if "MountPoint" in part:
+                        vols.add(part["MountPoint"])
+        return list(vols)
+
+
+    def check_ownerships_enabled(self, path):
+        '''Return True if 'ignore ownerships' is not set on the volume on which
+        'path' resides, False if otherwise. We warn and return True on
+        unexpected behavior, since the processor would eventually fail anyway
+        if permissions are problematic.'''
+
+        # resolve the absolute path if a symlink
+        path = os.path.realpath(path)
+
+        # get mount points
+        mounts = self.get_mounts()
+        # move '/' to the end so we're sure to evaluate it before other
+        # mount points (/ would match any mountpoint)
+        if "/" in mounts:
+            mounts.remove("/")
+            mounts.append("/")
+        if mounts:
+            self.output("Found mounted volumes: %s" % ", ".join(mounts))
+        else:
+            self.output(("WARNING: No mountpoints could be determined for "
+                         "checking ownerships."))
+            return True
+
+        # find the mountpoint that has our path
+        mount_for_path = None
+        for mount in mounts:
+            if path.startswith(mount):
+                mount_for_path = mount
+                break
+        if not mount_for_path:
+            self.output(("WARNING: Checking disk ownerships for path '%s' "
+                         "failed. Attempting to continue.."
+                         % path))
+            return True
+
+        # look for 'ignore ownerships' setting on the disk
+        # if 'GlobalPermissionsEnabled' is true, ownerships are _not_ ignored
+        self.output("Checking disk ownerships for mount '%s'.." % mount_for_path)
+        out, err = self.cmd_output([
+            "/usr/sbin/diskutil",
+            "info",
+            "-plist",
+            mount_for_path])
+        try:
+            du_info = FoundationPlist.readPlistFromString(out)
+        except FoundationPlist.FoundationPlistException:
+            self.output("WARNING: Error parsing diskutil output.")
+            self.output(err)
+            return True
+
+        if not "GlobalPermissionsEnabled" in du_info:
+            self.output("WARNING: Couldn't read 'ignore ownerships' "
+                "setting for mount point '%s'. Attempting to "
+                "continue." % mount_for_path)
+            return True
+
+        if not du_info["GlobalPermissionsEnabled"]:
+            return False
+        else:
+            return True
+
+
     def find_path_for_relpath(self, relpath):
         '''Searches for the relative path.
         Search order is:
@@ -138,6 +235,15 @@ class PkgCreator(Processor):
                 if value and not value.startswith("/"):
                     # search for it
                     request[key] = self.find_path_for_relpath(value)
+
+        # Knowing our final pkgroot, check that ownerships are enabled.
+        if not self.check_ownerships_enabled(request["pkgroot"]):
+            raise ProcessorError(
+                ("'Ignore ownerships' is set on the disk where pkgroot '%s' "
+                "was set, and PkgCreator cannot continue. Please set "
+                "CACHE_DIR to a location where ownerships are enabled."
+                % request["pkgroot"]))
+
         
         # Check for an existing flat package in the output dir and compare its
         # identifier and version to the one we're going to build.
