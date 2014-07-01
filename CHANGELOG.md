@@ -1,4 +1,4 @@
-### 0.3.1 (Unreleased)
+### 0.3.1 (July 01, 2014)
 
 ADDITIONS:
 
