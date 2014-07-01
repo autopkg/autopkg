@@ -83,50 +83,40 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def valid_plist_with_keys(plist, keys_to_verify):
-    '''Ensures the keys in keys_to_verify exist. 
-       Returns False on any failure, True otherwise.'''
+def valid_plist_with_keys(filename, keys_to_verify):
+    '''Attempts to read a plist file and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise.'''
+    try:
+        # make sure we can read it
+        recipe_plist = FoundationPlist.readPlist(filename)
+    except FoundationPlist.FoundationPlistException, err:
+        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
+        return False
     for key in keys_to_verify:
-        try:
-            if not key in plist.keys():
-                return False
-        except AttributeError:
-            # not a dict-like object, therefore not valid
+        if not key in recipe_plist:
             return False
     # if we get here, we found all the keys
     return True
 
 
-def read_recipe_plist(filename):
-    '''Attempt to read a recipe plist. If there's an error, log it and return
-       an empty dictionary.'''
-    try:
-        return FoundationPlist.readPlist(filename)
-    except FoundationPlist.FoundationPlistException, err:
-        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
-        return {}
-
-
 def valid_recipe(filename):
     '''Returns True if filename contains a valid recipe,
-       otherwise returns False'''
-    recipe_plist = read_recipe_plist(filename)
-    return (valid_plist_with_keys(recipe_plist, ["Input", "Process"])
-        or valid_plist_with_keys(recipe_plist, ["Input", "Recipe"])
-        or valid_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"]))
+    otherwise returns False'''
+    return (valid_plist_with_keys(filename, ["Input", "Process"])
+        or valid_plist_with_keys(filename, ["Input", "Recipe"])
+        or valid_plist_with_keys(filename, ["Input", "ParentRecipe"]))
 
 
 def valid_override(filename):
     '''Returns True if filename contains a valid override,
-       otherwise returns False'''
-    recipe_plist = read_recipe_plist(filename)
-    return (valid_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
-            or valid_plist_with_keys(recipe_plist, ["Input", "Recipe"]))
+    otherwise returns False'''
+    return (valid_plist_with_keys(filename, ["Input", "ParentRecipe"])
+        or valid_plist_with_keys(filename, ["Input", "Recipe"]))
 
 
 def get_identifier(recipe):
     '''Return identifier from recipe dict. Tries the Identifier
-       top-level key and falls back to the legacy key location.'''
+    top-level key and falls back to the legacy key location.'''
     try:
         return recipe["Identifier"]
     except (KeyError, AttributeError, TypeError):
@@ -139,7 +129,12 @@ def get_identifier(recipe):
 def get_identifer_from_recipe_file(filename):
     '''Attempts to read plist file filename and get the
     identifier. Otherwise, returns None.'''
-    recipe_plist = read_recipe_plist(filename)
+    try:
+        # make sure we can read it
+        recipe_plist = FoundationPlist.readPlist(filename)
+    except FoundationPlist.FoundationPlistException, err:
+        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
+        return None
     return get_identifier(recipe_plist)
 
 
@@ -244,7 +239,7 @@ def load_recipe(name, override_dirs, recipe_dirs):
 
     if recipe_file:
         # read it
-        recipe = read_recipe_plist(recipe_file)
+        recipe = FoundationPlist.readPlist(recipe_file)
         # does it refer to another recipe?
         if recipe.get("ParentRecipe") or recipe.get("Recipe"):
             # save current recipe as a child
@@ -922,7 +917,7 @@ def list_recipes(argv):
             if filename.endswith(".recipe"):
                 pathname = os.path.join(normalized_dir, filename)
                 if valid_override(pathname):
-                    override = read_recipe_plist(pathname)
+                    override = FoundationPlist.readPlist(pathname)
                     id_or_name = get_identifier_from_override(override)
                     # find and validate recipe that will be overridden
                     recipe_path = find_recipe(id_or_name, search_dirs)
