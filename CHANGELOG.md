@@ -17,6 +17,7 @@ FIXES:
   root. (GH-34)
 - Fix a crash due to a missing import in a specific case where DmgMounter tries
   to handle an hdiutil-related error.
+- Fix a crash as a result of parsing an incomplete recipe plist
 
 ### 0.3.0 (May 20, 2014)
 
