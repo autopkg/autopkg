@@ -1043,10 +1043,6 @@ def run_recipes(argv):
     # Parse arguments.
     p.add_option("-c", "--check", action="store_true",
                  help="Only check for new/changed downloads.")
-    p.add_option("-i", "--interactive", action="store_true", default=False,
-                 help=("Pause and prompt before every recipe process step, "
-                       "useful for diagnosing issues with recipes or for "
-                       "demonstration."))
     p.add_option("-k", "--key", action="append", dest="variables", default=[],
                  metavar="KEY=VALUE",
                  help=("Provide key/value pairs for recipe input. "
@@ -1161,9 +1157,8 @@ def run_recipes(argv):
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])
         prefs["PARENT_RECIPES"] = recipe.get("PARENT_RECIPES", [])
 
-        # Add our verbosity level, interactive flag
+        # Add our verbosity level
         prefs["verbose"] = options.verbose
-        prefs["interactive"] = options.interactive
 
         autopackager = AutoPackager(options, prefs)
 
