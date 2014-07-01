@@ -12,6 +12,11 @@ ADDITIONS:
 FIXES:
 
 - Print a warning message when a recipe's ParentRecipe can't be found. (GH-30)
+- Provide a more useful error message when a package cannot be built due to
+  "ignore ownership on this volume" being set on the disk containing the pkg
+  root. (GH-34)
+- Fix a crash due to a missing import in a specific case where DmgMounter tries
+  to handle an hdiutil-related error.
 
 ### 0.3.0 (May 20, 2014)
 
