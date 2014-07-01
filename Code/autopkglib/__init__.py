@@ -270,6 +270,7 @@ class AutoPackager(object):
 
     def __init__(self, options, env):
         self.verbose = options.verbose
+        self.interactive = options.interactive
         self.env = env
         self.results = []
         self.env["AUTOPKG_VERSION"] = get_autopkg_version()
@@ -371,10 +372,12 @@ class AutoPackager(object):
             pprint.pprint(self.env)
 
         for step in recipe["Process"]:
-
-            if self.verbose:
-                print step["Processor"]
-
+            if self.verbose or self.interactive:
+                print "Begin step: %s" % step["Processor"]
+            if self.interactive:
+                continue_prompt = raw_input("Continue [y]? ")
+                if continue_prompt.lower() not in ["y", ""]:
+                    break
             processor_class = get_processor(step["Processor"])
             processor = processor_class(self.env)
             processor.inject(step.get("Arguments", dict()))

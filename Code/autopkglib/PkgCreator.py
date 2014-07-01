@@ -59,7 +59,10 @@ class PkgCreator(Processor):
     }
     
     __doc__ = description
-    
+
+
+
+
     def find_path_for_relpath(self, relpath):
         '''Searches for the relative path.
         Search order is:
@@ -138,6 +141,7 @@ class PkgCreator(Processor):
                 if value and not value.startswith("/"):
                     # search for it
                     request[key] = self.find_path_for_relpath(value)
+
         
         # Check for an existing flat package in the output dir and compare its
         # identifier and version to the one we're going to build.
