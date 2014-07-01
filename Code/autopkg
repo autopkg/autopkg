@@ -119,10 +119,10 @@ def get_identifier(recipe):
     top-level key and falls back to the legacy key location.'''
     try:
         return recipe["Identifier"]
-    except (KeyError, AttributeError):
+    except (KeyError, AttributeError, TypeError):
         try:
             return recipe["Input"]["IDENTIFIER"]
-        except (KeyError, AttributeError):
+        except (KeyError, AttributeError, TypeError):
             return None
 
 
