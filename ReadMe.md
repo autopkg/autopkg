@@ -1,6 +1,8 @@
 AutoPkg
 =======
 
+Latest release is [here](https://github.com/autopkg/autopkg/releases/latest).
+
 AutoPkg is an automation framework for OS X software packaging and distribution, oriented towards the tasks one would normally perform manually to prepare third-party software for mass deployment to managed clients.
 
 These tasks typically involve at least several of the following steps:
