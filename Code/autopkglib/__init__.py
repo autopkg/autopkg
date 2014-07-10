@@ -461,9 +461,15 @@ def get_processor(processor_name, recipe=None):
     '''Returns a Processor object given a name and optionally a recipe, 
     importing a processor from the recipe directory if available'''
     if recipe:
-        # search recipe dirs for processor
         recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
-        processor_search_dirs = [recipe_dir]
+        processor_search_dirs = []
+        for r in get_pref("RECIPE_SEARCH_DIRS"):
+            repo_shared_proc_dir = os.path.join(r, "SharedProcessors")
+            if os.path.isdir(repo_shared_proc_dir):
+                processor_search_dirs.append(repo_shared_proc_dir)
+
+        # search recipe dirs for processor
+        processor_search_dirs.append(recipe_dir)
         if recipe.get("PARENT_RECIPES"):
             # also look in the directories containing the parent recipes
             parent_recipe_dirs = list(set([
