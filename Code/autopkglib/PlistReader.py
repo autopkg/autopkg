@@ -42,8 +42,8 @@ class PlistReader(DmgMounter):
             "description": ("Path to a plist to be read. If a path to a bundle "
                 "(ie. a .app) is given, its Info.plist will be found and used. "
                 "If the path is a folder, it will be searched and the first "
-                "found bundle will be used. The path can also be a .dmg, "
-                "or contain a .dmg file and the file will be mounted."),
+                "found bundle will be used. The path can also "
+                "contain a dmg/iso file and it will be mounted."),
         },
         "plist_keys": {
             "required": False,
@@ -115,14 +115,10 @@ class PlistReader(DmgMounter):
             # it will always be unmounted.
 
             # Check if we're trying to read something inside a dmg.
-            if '.dmg' in path:
-                (dmg_path, dmg, dmg_source_path) = path.partition(".dmg")
-                dmg_path += ".dmg"
-
+            (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(path)
+            if dmg:
                 mount_point = self.mount(dmg_path)
                 path = os.path.join(mount_point, dmg_source_path.lstrip('/'))
-            else:
-                dmg = False
 
             # Finally check whether this is at least a valid path
             if not os.path.exists(path):

@@ -79,9 +79,7 @@ class Copier(DmgMounter):
     def main(self):
         source_path = self.env['source_path']
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg,
-         dmg_source_path) = source_path.partition(".dmg/")
-        dmg_path += ".dmg"
+        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(source_path)
         try:
             if dmg:
                 # Mount dmg and copy path inside.

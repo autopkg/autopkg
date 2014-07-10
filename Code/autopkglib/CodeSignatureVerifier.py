@@ -173,9 +173,8 @@ class CodeSignatureVerifier(DmgMounter):
     
     def main(self):
         # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.env[
-            'input_path'].partition(".dmg/")
-        dmg_path += ".dmg"
+        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
+                                            self.env['input_path'])
         try:
             if dmg:
                 # Mount dmg and copy path inside.

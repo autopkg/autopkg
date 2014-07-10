@@ -136,9 +136,8 @@ class FlatPkgUnpacker(DmgMounter):
 
     def main(self):
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.env[
-            'flat_pkg_path'].partition(".dmg/")
-        dmg_path += ".dmg"
+        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
+                                            self.env['flat_pkg_path'])
         try:
             if dmg:
                 # Mount dmg and copy path inside.
