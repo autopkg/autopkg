@@ -1,5 +1,13 @@
 ### 0.3.2 (Unreleased)
 
+CHANGES:
+
+- PlistReader 'info_path' input variable, if given a path to a .dmg, previously mounted
+  the dmg and searched the root for a bundle and its Info.plist. A path that _contains_
+  a disk image can still be given and the image will be mounted, ie.
+  "%RECIPE_CACHE_DIR/my.dmg/Some.app", but the behaviour of mounting a path containing
+  _only_ the disk image was unused and an unusual pattern compared with other processors.
+
 ### 0.3.1 (July 01, 2014)
 
 ADDITIONS:
