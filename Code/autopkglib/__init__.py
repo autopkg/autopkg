@@ -333,8 +333,11 @@ class AutoPackager(object):
                                       recipe=recipe,
                                       env=self.env)
             except (KeyError, AttributeError):
-                raise AutoPackagerError(
-                        "Unknown processor '%s'" % step["Processor"])
+                msg = "Unknown processor '%s'." % step["Processor"]
+                if "SharedProcessorRepoURL" in step:
+                    msg += (" This shared processor can be added via the "
+                            "repo: %s." % step["SharedProcessorRepoURL"])
+                raise AutoPackagerError(msg)
             # Add arguments to set of variables.
             variables.update(set(step.get("Arguments", dict()).keys()))
             # Make sure all required input variables exist.
