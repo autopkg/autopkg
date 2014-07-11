@@ -1172,6 +1172,10 @@ def run_recipes(argv):
         prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])
         prefs["PARENT_RECIPES"] = recipe.get("PARENT_RECIPES", [])
+        # Update search locations that may have been overridden with CLI or
+        # environment variables
+        prefs["RECIPE_SEARCH_DIRS"] = search_dirs
+        prefs["RECIPE_OVERRIDE_DIRS"] = override_dirs
 
         # Add our verbosity level
         prefs["verbose"] = options.verbose
