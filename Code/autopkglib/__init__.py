@@ -329,7 +329,9 @@ class AutoPackager(object):
         for step in recipe["Process"]:
             try:
                 processor_class = get_processor(
-                                      step["Processor"], recipe=recipe)
+                                      step["Processor"],
+                                      recipe=recipe,
+                                      env=self.env)
             except (KeyError, AttributeError):
                 raise AutoPackagerError(
                         "Unknown processor '%s'" % step["Processor"])
@@ -457,13 +459,16 @@ def add_processor(name, processor_object):
         _processor_names.append(name)
 
 
-def get_processor(processor_name, recipe=None):
+def get_processor(processor_name, recipe=None, env={}):
     '''Returns a Processor object given a name and optionally a recipe, 
     importing a processor from the recipe directory if available'''
     if recipe:
         recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
         processor_search_dirs = []
-        for r in get_pref("RECIPE_SEARCH_DIRS"):
+
+        # look for any shared processors in the search dirs, by checking
+        # for a "SharedProcessors" dir at the roots
+        for r in env["RECIPE_SEARCH_DIRS"]:
             repo_shared_proc_dir = os.path.join(r, "SharedProcessors")
             if os.path.isdir(repo_shared_proc_dir):
                 processor_search_dirs.append(repo_shared_proc_dir)
