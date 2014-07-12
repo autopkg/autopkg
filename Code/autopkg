@@ -58,6 +58,18 @@ def print_version(argv):
     print get_autopkg_version()
 
 
+def supported_on_this_os():
+    '''Returns a tuple of a boolean and a requirements message, the latter
+    stating what versions of OS X are required to use this tool. The first
+    element is True if this OS version is supported, otherwise False.'''
+    supported = False
+    requirement_msg = "AutoPkg is supported only on OS X 10.6 or later."
+    kernel_version = int(os.uname()[2].split(".")[0])
+    if kernel_version >= 10:
+        supported = True
+    return (supported, requirement_msg)
+
+
 def recipe_has_step_processor(recipe, processor):
     '''Does the recipe object contain at least one step with the
     named Processor?'''
@@ -1326,6 +1338,10 @@ def main(argv):
             "function": print_version,
             "help": "Print the current version of autopkg"}
     }
+
+    supported, req_msg = supported_on_this_os()
+    if not supported:
+        exit(req_msg)
 
     try:
         verb = argv[1]
