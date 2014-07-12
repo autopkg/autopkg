@@ -24,7 +24,7 @@ With AutoPkg, we define these steps in a "Recipe" plist-based format, run automa
 Installation
 ------------
 
-Install the [latest release](https://github.com/autopkg/autopkg/releases/latest).
+Install the [latest release](https://github.com/autopkg/autopkg/releases/latest). AutoPkg requires 10.6 or later, and Git is highly recommended to have installed so that it can manage adding new recipe repositories. Knowledge of Git itself is not required.
 
 
 Usage
