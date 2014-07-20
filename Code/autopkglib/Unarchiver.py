@@ -80,7 +80,7 @@ class Unarchiver(Processor):
             try:
                 os.mkdir(destination_path)
             except OSError as e:
-                raise ProcessorError("Can't create %s: %s" % (path, e.strerror))
+                raise ProcessorError("Can't create %s: %s" % (destination_path, e.strerror))
         elif self.env.get('purge_destination'):
             for entry in os.listdir(destination_path):
                 path = os.path.join(destination_path, entry)
