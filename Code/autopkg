@@ -222,7 +222,7 @@ def get_identifier_from_override(override):
     return name
 
 
-def load_recipe(name, override_dirs, recipe_dirs):
+def load_recipe(name, override_dirs, recipe_dirs, preprocessors=None, postprocessors=None):
     '''Loads a recipe. If the name is the pathname to a file on disk, we
     attempt to load that file and use it as recipe. If a parent recipe
     is required we first add the child recipe's directory to the search path
@@ -238,6 +238,7 @@ def load_recipe(name, override_dirs, recipe_dirs):
 
     override = None
     recipe_file = None
+    recipe = None
     if os.path.isfile(name):
         # name is path to a specific recipe or override file
         # ignore override and recipe directories
@@ -290,17 +291,26 @@ def load_recipe(name, override_dirs, recipe_dirs):
                     recipe["PARENT_RECIPES"] = (
                         [recipe["RECIPE_PATH"]] + recipe["PARENT_RECIPES"])
                 recipe["RECIPE_PATH"] = recipe_file
-                return recipe
             else:
                 # no parent recipe, so the current recipe is invalid
                 log_err('Could not find parent recipe for %s' % name)
-                return None
         else:
             recipe["RECIPE_PATH"] = recipe_file
-            return recipe
-
-    # no valid recipe found
-    return None
+    
+    if recipe and preprocessors:
+        steps = []
+        for preprocessor_name in preprocessors:
+            steps.append({"Processor": preprocessor_name})
+        steps.extend(recipe["Process"])
+        recipe["Process"] = steps
+    
+    if recipe and postprocessors:
+        steps = recipe["Process"]
+        for postprocessor_name in postprocessors:
+            steps.append({"Processor": postprocessor_name})
+        recipe["Process"] = steps
+    
+    return recipe
 
 
 def get_recipe_info(recipe_name, override_dirs, recipe_dirs):
@@ -1053,6 +1063,14 @@ def run_recipes(argv):
         "Run one or more recipes." % ("%prog", verb))
 
     # Parse arguments.
+    p.add_option('-b', '--before', action='append', dest='preprocessors', default=[],
+                 metavar="PREPROCESSOR",
+                 help=("A pre processor to run before each recipe. "
+                       "Can be repeated to run multiple pre processor."))
+    p.add_option('-a', '--after', action='append', dest='postprocessors', default=[],
+                 metavar="POSTPROCESSOR",
+                 help=("A post processor to run after each recipe. "
+                       "Can be repeated to run multiple pre processor."))
     p.add_option("-c", "--check", action="store_true",
                  help="Only check for new/changed downloads.")
     p.add_option("-k", "--key", action="append", dest="variables", default=[],
@@ -1143,7 +1161,7 @@ def run_recipes(argv):
             % (current_run_results_plist, err.strerror))
 
     for recipe_path in recipe_paths:
-        recipe = load_recipe(recipe_path, override_dirs, search_dirs)
+        recipe = load_recipe(recipe_path, override_dirs, search_dirs, options.preprocessors, options.postprocessors)
         if not recipe:
             log_err("No valid recipe found for %s" % recipe_path)
             error_count += 1
