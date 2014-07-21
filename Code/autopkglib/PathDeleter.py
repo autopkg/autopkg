@@ -31,26 +31,36 @@ class PathDeleter(Processor):
             "description": 
                 "List of pathnames to be deleted",
         },
+        "delete_path_silent_error_for_unexisting_path": {
+            "required": False,
+            "description": 
+                "If true, the process cotninue without error if the target path don't exist. False by default.",
+        },
     }
     output_variables = {
     }
     description = __doc__
     
     def main(self):
+        delete_path_silent_error_for_unexisting_path = self.env.get('delete_path_silent_error_for_unexisting_path', False)
         for path in self.env["path_list"]:
             try:
                 if os.path.isfile(path) or os.path.islink(path):
                     os.remove(path)
+                    self.output("Deleted file %s" % path)
                 elif os.path.isdir(path):
                     shutil.rmtree(path)
+                    self.output("Deleted folder %s" % path)
                 elif not os.path.exists(path):
-                    raise ProcessorError(
-                        "Could not remove %s - it does not exist!" % path)
+                    if not delete_path_silent_error_for_unexisting_path:
+                        raise ProcessorError(
+                            "Could not remove %s - it does not exist!" % path)
+                    else:
+                        self.output("Path don't exist, skiping %s" % path)
                 else:
                     raise ProcessorError(
                         "Could not remove %s - it is not a file, link, "
                         "or directory" % path)
-                self.output("Deleted %s" % path)
             except OSError, err:
                 raise ProcessorError(
                     "Could not remove %s: %s" % (path, err))
