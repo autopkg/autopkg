@@ -22,6 +22,7 @@ import FoundationPlist
 import pprint
 import re
 import subprocess
+import glob
 
 from Foundation import NSArray, NSDictionary
 from CoreFoundation import CFPreferencesAppSynchronize, \
@@ -90,6 +91,48 @@ def get_all_prefs(domain=BUNDLE_ID):
             for key in keylist:
                 prefs[key] = get_pref(key, domain)
     return prefs
+
+
+def get_identifier(recipe):
+    '''Return identifier from recipe dict. Tries the Identifier
+    top-level key and falls back to the legacy key location.'''
+    try:
+        return recipe["Identifier"]
+    except (KeyError, AttributeError):
+        try:
+            return recipe["Input"]["IDENTIFIER"]
+        except (KeyError, AttributeError):
+            return None
+
+
+def get_identifer_from_recipe_file(filename):
+    '''Attempts to read plist file filename and get the
+    identifier. Otherwise, returns None.'''
+    try:
+        # make sure we can read it
+        recipe_plist = FoundationPlist.readPlist(filename)
+    except FoundationPlist.FoundationPlistException, err:
+        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
+        return None
+    return get_identifier(recipe_plist)
+
+
+def find_recipe_by_identifier(identifier, search_dirs):
+    '''Search search_dirs for a recipe with the given
+    identifier'''
+    for directory in search_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        patterns  = [
+            os.path.join(normalized_dir, "*.recipe"),
+            os.path.join(normalized_dir, "*/*.recipe")
+        ]
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                if get_identifer_from_recipe_file(match) == identifier:
+                    return match
+
+    return None
     
     
 def get_autopkg_version():
