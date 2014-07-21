@@ -423,7 +423,9 @@ class AutoPackager(object):
             if self.verbose:
                 print step["Processor"]
 
-            processor_class = get_processor(step["Processor"])
+            processor_name, processor_recipe_id = \
+                extract_processor_name_with_recipe_identifier(step["Processor"])
+            processor_class = get_processor(processor_name)
             processor = processor_class(self.env)
             processor.inject(step.get("Arguments", dict()))
 
@@ -505,22 +507,43 @@ def add_processor(name, processor_object):
         _processor_names.append(name)
 
 
+def extract_processor_name_with_recipe_identifier(processor_name):
+    '''Returns a tuple of (processor_name, identifier), given a Processor name.
+    This is to handle a processor name that may include a recipe identifier, in
+    the format:
+
+    com.github.autopkg.recipes.somerecipe/ProcessorName
+
+    identifier will be None if one was not extracted.'''
+    identifier, delim, processor_name = processor_name.partition('/')
+    if not delim:
+        # if no '/' was found, the first item in the tuple will be the full
+        # string, the processor name
+        processor_name = identifier
+        identifier = None
+    return (processor_name, identifier)
+
+
 def get_processor(processor_name, recipe=None, env={}):
     '''Returns a Processor object given a name and optionally a recipe, 
     importing a processor from the recipe directory if available'''
     if recipe:
         recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
-        processor_search_dirs = []
+        processor_search_dirs = [recipe_dir]
 
-        # look for any shared processors in the search dirs, by checking
-        # for a "SharedProcessors" dir at the roots
-        for r in env["RECIPE_SEARCH_DIRS"]:
-            repo_shared_proc_dir = os.path.join(r, "SharedProcessors")
-            if os.path.isdir(repo_shared_proc_dir):
-                processor_search_dirs.append(repo_shared_proc_dir)
+        # check if our processor_name includes a recipe identifier that
+        # should be used to locate the recipe.
+        # if so, search for the recipe by identifier in order to add
+        # its dirname to the processor search dirs
+        processor_name, processor_recipe_id = extract_processor_name_with_recipe_identifier(processor_name)
+        if processor_recipe_id:
+            shared_processor_recipe_path = find_recipe_by_identifier(
+                                            processor_recipe_id,
+                                            env["RECIPE_SEARCH_DIRS"])
+            if shared_processor_recipe_path:
+                processor_search_dirs.append(os.path.dirname(shared_processor_recipe_path))
 
         # search recipe dirs for processor
-        processor_search_dirs.append(recipe_dir)
         if recipe.get("PARENT_RECIPES"):
             # also look in the directories containing the parent recipes
             parent_recipe_dirs = list(set([
