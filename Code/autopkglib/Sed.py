@@ -34,6 +34,11 @@ class Sed(Processor):
             "required": True,
             "description": "An array of sed commands to be executed.",
         },
+        
+        "sed_debug": {
+            "required": False,
+            "description": "Set to true if you want to keep the temporary sed file created during the process, for debug purpose. False by default.",
+        },
     }
     output_variables = {
     }
@@ -41,6 +46,7 @@ class Sed(Processor):
     __doc__ = description
     
     def main(self):
+        sed_debug = self.env.get('sed_debug', False)
         target_file = self.env['target_file']
         sed_commands = self.env['sed_commands']
         if not target_file:
@@ -49,9 +55,12 @@ class Sed(Processor):
             raise ProcessorError("The target file don't exist! (%s)" % target_file)
         if not sed_commands:
             raise ProcessorError("Expected instruction from 'sed_commands' input variable but none is set!")
-        tmp_sed_commands_file = NamedTemporaryFile()
+        tmp_sed_commands_file = NamedTemporaryFile(delete=not sed_debug)
+        if sed_debug:
+            self.output("[DEBUG] Sed file is %s" % tmp_sed_commands_file.name)
         for command in sed_commands:
             tmp_sed_commands_file.write(command)
+            tmp_sed_commands_file.write('\n')
         tmp_sed_commands_file.flush()
         os.system("sed -f %s -i .%s %s" % (tmp_sed_commands_file.name, time.time(), target_file))
         tmp_sed_commands_file.close()
