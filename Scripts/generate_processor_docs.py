@@ -26,8 +26,7 @@ from tempfile import mkdtemp
 code_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../Code"))
 sys.path.append(code_dir)
 from autopkglib import get_processor, \
-                       processor_names, \
-                       get_autopkg_version
+                       processor_names
 
 # Additional helper function(s) from the CLI tool
 # Don't make an "autopkgc" file
@@ -90,17 +89,26 @@ def indent_length(line_str):
 
 
 def main(argv):
-    p = optparse.OptionParser()
+    usage = """%prog VERSION
+
+..where VERSION is the release version for which docs are being generated."""
+    p = optparse.OptionParser(usage=usage)
     p.description = (
         "Generate GitHub Wiki documentation from the core processors present "
         "in autopkglib. The autopkg.wiki repo is cloned locally, changes are "
-        "committed and the user is interactively given the option to push it "
-        "to the remote.")
+        "committed, a diff shown and the user is interactively given the "
+        "option to push to the remote.")
     p.add_option("-d", "--directory", metavar="CLONEDIRECTORY",
         help=("Directory path in which to clone the repo. If not "
               "specified, a temporary directory will be used."))
     options, arguments = p.parse_args()
-    
+    if len(arguments) < 1:
+        p.print_usage()
+        exit()
+
+    # Grab the version for the commit log.
+    version = arguments[0]
+
     print "Cloning AutoPkg wiki.."
     print
 
@@ -188,9 +196,6 @@ def main(argv):
 
     with open(sidebar_path, "w") as fd:
         fd.write(new_sidebar)
-
-    # Grab the version for the commit log.
-    version = get_autopkg_version()
 
     # Git commit everything
     os.chdir(output_dir)
