@@ -1,5 +1,12 @@
 ### 0.3.2 (Unreleased)
 
+FIXES:
+
+- Packaging server: When checking for permissions on the location of CACHE_DIR, handle
+  possibility of unexpected diskutil output.
+- MunkiImporter: Handle case where an installs array was present but an item is missing
+  a 'type' key
+
 CHANGES:
 
 - PlistReader 'info_path' input variable, if given a path to a .dmg, previously mounted
@@ -7,6 +14,8 @@ CHANGES:
   a disk image can still be given and the image will be mounted, ie.
   "%RECIPE_CACHE_DIR/my.dmg/Some.app", but the behaviour of mounting a path containing
   _only_ the disk image was unused and an unusual pattern compared with other processors.
+- Unarchiver: Create intermediate directories needed for 'destination_path' input var
+  (GH-100)
 
 ### 0.3.1 (July 01, 2014)
 
