@@ -114,13 +114,17 @@ class Packager(object):
                 return []
 
             vols = set()
-            for disk in du_list["AllDisksAndPartitions"]:
-                if "MountPoint" in disk:
-                    vols.add(disk["MountPoint"])
-                if "Partitions" in disk:
-                    for part in disk["Partitions"]:
-                        if "MountPoint" in part:
-                            vols.add(part["MountPoint"])
+            if "AllDisksAndPartitions" in du_list:
+                for disk in du_list["AllDisksAndPartitions"]:
+                    if "MountPoint" in disk:
+                        vols.add(disk["MountPoint"])
+                    if "Partitions" in disk:
+                        for part in disk["Partitions"]:
+                            if "MountPoint" in part:
+                                vols.add(part["MountPoint"])
+            else:
+                self.log.debug(
+                    "Missing AllDisksAndPartitions key in diskutil output")
             return list(vols)
 
 
