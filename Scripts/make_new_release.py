@@ -158,7 +158,7 @@ be done as root, so it's best done as a separate process.
         '-k', 'force_pkg_build=true',
         '--search-dir', recipes_dir,
         '--report-plist',
-        'AutoPkg.pkg'],
+        'AutoPkgGitMaster.pkg'],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE)
     out, err = p.communicate()
