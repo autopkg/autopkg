@@ -3,7 +3,8 @@
 FIXES:
 
 - Packaging server: When checking for permissions on the location of CACHE_DIR, handle
-  possibility of unexpected diskutil output.
+  possibility of unexpected diskutil output. This at least fixes an issue running pkg
+  recipes on 10.6.
 - MunkiImporter: Handle case where an installs array was present but an item is missing
   a 'type' key
 
