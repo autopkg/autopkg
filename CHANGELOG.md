@@ -1,4 +1,4 @@
-### 0.3.2 (Unreleased)
+### 0.3.2 (July 24, 2014)
 
 FIXES:
 
