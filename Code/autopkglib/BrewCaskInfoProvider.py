@@ -24,9 +24,10 @@ __all__ = ["BrewCaskInfoProvider"]
 
 
 class BrewCaskInfoProvider(Processor):
-    description = ("Provides crowd-sourced URL and version info from brew-cask: "
-                    "https://github.com/phinze/homebrew-cask. See available apps: "
-                    "https://github.com/phinze/homebrew-cask/tree/master/Casks")
+    description = ("Provides crowd-sourced URL and version info from thousands of "
+                    "applications listed in brew-cask: "
+                    "https://github.com/caskroom/homebrew-cask. See available apps: "
+                    "https://github.com/caskroom/homebrew-cask/tree/master/Casks")
     input_variables = {
         "cask_name": {
             "required": True,
@@ -63,7 +64,7 @@ class BrewCaskInfoProvider(Processor):
 
 
     def main(self):
-        github_raw_baseurl = "https://raw.github.com/phinze/homebrew-cask/master/Casks"
+        github_raw_baseurl = "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/Casks"
         cask_url = "%s/%s.rb" % (github_raw_baseurl, self.env["cask_name"])
         try:
             urlobj = urllib2.urlopen(cask_url)
