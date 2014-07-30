@@ -737,12 +737,14 @@ def search_recipes(argv):
     if options.use_token:
         gh.setup_token()
 
+    results_limit = 100
     term = arguments[0]
     q = "q=%s+extension:recipe+user:%s" % (term, options.user)
     qualifier_in = "in:path,file"
     if options.path_only:
         qualifier_in += "path"
     q = q + "+" + qualifier_in
+    q += "&per_page=%s" % results_limit
 
     # Do the search, including text match metadata
     (results, code) = gh.call_api("/search/code",
@@ -789,6 +791,11 @@ def search_recipes(argv):
         #     fragments += match["fragment"].strip()[index_lower:index_upper]
         # print format % (path, repo_name, fragments)
         print format % (name, os.path.join(repo_namespaced, path))
+
+    if count > results_limit:
+        print
+        print ("Warning: Search yielded more than 100 results. Please try a "
+               "more specific search term.")
 
 
 def display_help(argv, subcommands):
