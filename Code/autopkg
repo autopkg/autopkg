@@ -569,9 +569,16 @@ def repo_add(argv):
     '''Add/update one or more repos of recipes'''
     verb = argv[1]
     p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s recipe_repo_url\n"
-        "Download one or more new recipe repos and add it to the search path."
-        % ("%prog", verb))
+    p.set_usage("""Usage: %s %s recipe_repo_url
+Download one or more new recipe repos and add it to the search path.
+The 'recipe_repo_url' argument can be of the following forms:
+- repo (implies 'https://github.com/autopkg/repo')
+- user/repo (implies 'https://github.com/user/repo')
+- (http[s]://|git://|user@server:)path/to/any/git/repo
+
+Example: '%s repo-add recipes'
+..adds the autopkg/recipes repo from GitHub."""
+        % ("%prog", verb, "%prog"))
 
     # Parse arguments
     options, arguments = p.parse_args(argv[2:])
