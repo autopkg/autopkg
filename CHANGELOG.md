@@ -1,5 +1,12 @@
 ### 0.3.3 (Unreleased)
 
+IMPROVEMENTS:
+
+- 'search' verb:
+  - Split repo and recipe path into two columns, making it easier to group repos visually
+    and to give to 'repo-add'.
+  - Allow searches that return up to 100 results.
+
 ### 0.3.2 (July 24, 2014)
 
 FIXES:
