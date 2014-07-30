@@ -766,31 +766,21 @@ def search_recipes(argv):
         print "No results."
         return
 
-    max_name_length = max([len(r["name"]) for r in results["items"]])
-    name_spacer = max_name_length + 6
-    # match_padding = 12
+    column_spacer = 4
+    max_name_length = max([len(r["name"]) for r in results["items"]]) + column_spacer
+    max_repo_length = max([len(r["repository"]["name"]) for r in results["items"]]) + column_spacer
+    spacers = (max_name_length, max_repo_length)
 
     print
-    # format = "%-{0}s %-40s %-20s".format(path_spacer)
-    # print format % ("Path", "Repo (autopkg/)", "Search fragment")
-    # print format % ("----", "---------------", "---------------")
-    format = "%-{0}s %-40s".format(name_spacer)
-    print format % ("Name", "Repo/path")
-    print format % ("----", "---------")
+    format = "%-{0}s %-{1}s %-40s".format(*spacers)
+    print format % ("Name", "Repo", "Path")
+    print format % ("----", "----", "----")
     results["items"].sort(key=operator.itemgetter("repository"))
     for result in results["items"]:
-        # pprint.pprint(result["text_matches"])
         repo = result["repository"]
         name, path = result["name"], result["path"]
-        repo_namespaced = repo["full_name"]
         repo_name = repo["name"]
-        # fragments = ""
-        # for match in result["text_matches"]:
-        #     index_lower = match["matches"][0]["indices"][0] - match_padding
-        #     index_upper = match["matches"][-1]["indices"][-1] + match_padding
-        #     fragments += match["fragment"].strip()[index_lower:index_upper]
-        # print format % (path, repo_name, fragments)
-        print format % (name, os.path.join(repo_namespaced, path))
+        print format % (name, repo_name, path)
 
     if count > results_limit:
         print
