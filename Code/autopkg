@@ -43,9 +43,9 @@ _REPORT_PLIST = False
 def log(msg, error=False):
     '''Message logger, prints to stdout/stderr and suppress stdout
     when --report-plist is used.'''
-    if error:
+    if error or _REPORT_PLIST:
         print >> sys.stderr, msg
-    elif not _REPORT_PLIST and not error:
+    else:
         print >> sys.stdout, msg
 
 
