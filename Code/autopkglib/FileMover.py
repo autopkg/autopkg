@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 from os import rename
 from autopkglib import Processor, ProcessorError

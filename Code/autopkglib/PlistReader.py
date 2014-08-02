@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # Copyright 2013 Shea Craig
 # Mostly just reworked code from Per Olofsson/AppDmgVersioner.py and
