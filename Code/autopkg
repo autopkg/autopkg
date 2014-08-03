@@ -37,13 +37,10 @@ from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
 from autopkglib import get_autopkg_version, version_equal_or_greater
 
-_REPORT_PLIST = False
-
-
 def log(msg, error=False):
     '''Message logger, prints to stdout/stderr and suppress stdout
     when --report-plist is used.'''
-    if error or _REPORT_PLIST:
+    if error:
         print >> sys.stderr, msg
     else:
         print >> sys.stdout, msg
@@ -1109,12 +1106,8 @@ def run_recipes(argv):
     if options.pkg:
         cli_values["PKG"] = options.pkg
 
-    # so that log() can make use of it
-    global _REPORT_PLIST
     _REPORT_PLIST = options.report_plist
-    if _REPORT_PLIST:
-        options.verbose = 0
-
+    
     recipe_paths = []
     recipe_paths.extend(arguments)
     if options.recipe_list:
@@ -1146,6 +1139,18 @@ def run_recipes(argv):
             "Can't write results to %s: %s"
             % (current_run_results_plist, err.strerror))
 
+    if _REPORT_PLIST:
+        results_report_plist = os.path.join(cache_dir, "autopkg_results_report.plist")
+        results_report = {}
+        try:
+            FoundationPlist.writePlist(results_report, results_report_plist)
+        except IOError as err:
+            log_err(
+                "Can't write result status to %s: %s"
+                % (results_report_plist, err.strerror))
+                # Set this to false so we won't try again
+            _REPORT_PLIST = False
+                
     for recipe_path in recipe_paths:
         recipe = load_recipe(recipe_path, override_dirs, search_dirs)
         if not recipe:
@@ -1293,8 +1298,13 @@ def run_recipes(argv):
         for event_type in [
             "failures", "new_downloads", "new_packages", "new_imports"]:
             results_report[event_type] = locals()[event_type]
-        print FoundationPlist.writePlistToString(results_report)
-
+        try:
+            FoundationPlist.writePlist(results_report, results_report_plist)
+        except IOError as err:
+            log_err(
+                "Can't write result status to %s: %s"
+                % (results_report_plist, err.strerror))
+                
     return error_count
 
 
