@@ -47,6 +47,7 @@ class PlistReader(DmgMounter):
         },
         "plist_keys": {
             "required": False,
+            "default": {'CFBundleShortVersionString': 'version'},
             "description": ("Dictionary of plist values to query. Key names "
                             "should match a top-level key to read. Values "
                             "should be the desired output variable name. "
@@ -105,7 +106,7 @@ class PlistReader(DmgMounter):
 
 
     def main(self):
-        keys = self.env.get('plist_keys', {"CFBundleShortVersionString": "version"})
+        keys = self.env.get('plist_keys')
 
         # Many types of paths are accepted. Figure out which kind we have.
         path = os.path.normpath(self.env['info_path'])
