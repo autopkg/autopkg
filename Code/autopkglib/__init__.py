@@ -75,7 +75,7 @@ def get_all_prefs(domain=BUNDLE_ID):
     """Return a dict (or an empty dict) with the contents of all
     preferences in the domain."""
     prefs = {}
-    
+
     # get keys stored via 'defaults write [domain]'
     user_keylist = CFPreferencesCopyKeyList(
         BUNDLE_ID, kCFPreferencesCurrentUser, kCFPreferencesAnyHost)
@@ -133,8 +133,8 @@ def find_recipe_by_identifier(identifier, search_dirs):
                     return match
 
     return None
-    
-    
+
+
 def get_autopkg_version():
     try:
         version_plist = FoundationPlist.readPlist(
@@ -154,10 +154,10 @@ def version_equal_or_greater(a, b):
 def update_data(a_dict, key, value):
     """Update a_dict keys with value. Existing data can be referenced
     by wrapping the key in %percent% signs."""
-    
+
     def getdata(m):
         return a_dict[m.group("key")]
-        
+
     def do_variable_substitution(item):
         """Do variable substitution for item"""
         if isinstance(item, basestring):
@@ -181,7 +181,7 @@ def update_data(a_dict, key, value):
                 item_copy[key] = do_variable_substitution(value)
             return item_copy
         return item
-    
+
     a_dict[key] = do_variable_substitution(value)
 
 # Processor and ProcessorError base class definitions
@@ -191,11 +191,11 @@ class ProcessorError(Exception):
 
 class Processor(object):
     """Processor base class.
-    
+
     Processors accept a property list as input, process its contents, and
     returns a new or updated property list that can be processed further.
     """
-    
+
     def __init__(self, env=None, infile=None, outfile=None):
         #super(Processor, self).__init__()
         self.env = env
@@ -207,14 +207,14 @@ class Processor(object):
             self.outfile = sys.stdout
         else:
             self.outfile = outfile
-            
+
     def output(self, msg, verbose_level=1):
         if self.env.get('verbose', 0) >= verbose_level:
             print "%s: %s" % (self.__class__.__name__, msg)
-    
+
     def main(self):
         raise ProcessorError("Abstract method main() not implemented.")
-    
+
     def get_manifest(self):
         try:
             return (self.description,
@@ -222,10 +222,10 @@ class Processor(object):
                     self.output_variables)
         except AttributeError as e:
             raise ProcessorError("Missing manifest: %s" % e)
-    
+
     def read_input_plist(self):
         """Read environment from input plist."""
-        
+
         try:
             indata = self.infile.read()
             if indata:
@@ -234,47 +234,47 @@ class Processor(object):
                 self.env = dict()
         except BaseException as e:
             raise ProcessorError(e)
-    
+
     def write_output_plist(self):
         """Write environment to output as plist."""
-        
+
         if self.env is None:
             return
-        
+
         try:
             FoundationPlist.writePlist(self.env, self.outfile)
         except BaseException as e:
             raise ProcessorError(e)
-    
+
     def parse_arguments(self):
         """Parse arguments as key='value'."""
-        
+
         for arg in sys.argv[1:]:
             (key, sep, value) = arg.partition("=")
             if sep != "=":
                 raise ProcessorError("Illegal argument '%s'" % arg)
             self.update_data(key, value)
-            
+
     def inject(self, arguments):
         # Update data with arguments.
         for key, value in arguments.items():
             update_data(self.env, key, value)
-        
+
     def process(self):
         """Main processing loop."""
-        
+
         # Make sure all required arguments have been supplied.
         for variable, flags in self.input_variables.items():
             if flags["required"] and (variable not in self.env):
                 raise ProcessorError(
                     "%s requires %s" % (self.__name__, variable))
-        
+
         self.main()
         return self.env
-    
+
     def cmdexec(self, command, description):
         """Execute a command and return output."""
-        
+
         try:
             p = subprocess.Popen(command,
                                  stdout=subprocess.PIPE,
@@ -282,16 +282,16 @@ class Processor(object):
             (out, err) = p.communicate()
         except OSError as e:
             raise ProcessorError(
-                "%s execution failed with error code %d: %s" 
+                "%s execution failed with error code %d: %s"
                 % (command[0], e.errno, e.strerror))
         if p.returncode != 0:
             raise ProcessorError("%s failed: %s" % (description, err))
-        
+
         return out
-    
+
     def execute_shell(self):
         """Execute as a standalone binary on the commandline."""
-        
+
         try:
             self.read_input_plist()
             self.parse_arguments()
@@ -316,7 +316,7 @@ class AutoPackager(object):
         self.env = env
         self.results = []
         self.env["AUTOPKG_VERSION"] = get_autopkg_version()
-        
+
     def output(self, msg, verbose_level=1):
         if self.verbose >= verbose_level:
             print msg
@@ -386,7 +386,7 @@ class AutoPackager(object):
             # Make sure all required input variables exist.
             for key, flags in processor_class.input_variables.items():
                 if flags["required"] and (key not in variables):
-                    raise AutoPackagerError("%s requires missing argument %s" 
+                    raise AutoPackagerError("%s requires missing argument %s"
                                             % (step["Processor"], key))
 
             # Add output variables to set.
@@ -479,8 +479,8 @@ def import_processors():
 
     # find all the .py files (minus this one)
     processor_files = [
-            os.path.splitext(name)[0] 
-            for name in os.listdir(mydir) 
+            os.path.splitext(name)[0]
+            for name in os.listdir(mydir)
             if name.endswith('.py') and not name == '__init__.py']
 
     # Warning! Fancy dynamic importing ahead!
@@ -525,7 +525,7 @@ def extract_processor_name_with_recipe_identifier(processor_name):
 
 
 def get_processor(processor_name, recipe=None, env={}):
-    '''Returns a Processor object given a name and optionally a recipe, 
+    '''Returns a Processor object given a name and optionally a recipe,
     importing a processor from the recipe directory if available'''
     if recipe:
         recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
@@ -547,7 +547,7 @@ def get_processor(processor_name, recipe=None, env={}):
         if recipe.get("PARENT_RECIPES"):
             # also look in the directories containing the parent recipes
             parent_recipe_dirs = list(set([
-                os.path.dirname(item) 
+                os.path.dirname(item)
                 for item in recipe["PARENT_RECIPES"]]))
             processor_search_dirs.extend(parent_recipe_dirs)
 
@@ -578,6 +578,6 @@ def processor_names():
     return _processor_names
 
 
-# when importing autopkglib, need to also import all the processors 
+# when importing autopkglib, need to also import all the processors
 # in this same directory
 import_processors()
