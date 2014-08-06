@@ -23,6 +23,7 @@ class URLTextSearcher(Processor):
         'result_output_var_name': {
             'description': 'The name of the output variable that is returned by the match. If not specified then a default of "match" will be used.',
             'required': False,
+            'default': 'match',
         },
         'request_headers': {
             'description': 'Optional dictionary of headers to include with the download request.',
@@ -66,12 +67,7 @@ class URLTextSearcher(Processor):
         return (m.group(m.lastindex or 0), m.groupdict(), )
 
     def main(self):
-        output_var_name = None
-
-        if 'result_output_var_name' in self.env and self.env['result_output_var_name']:
-            output_var_name = self.env['result_output_var_name']
-        else:
-            output_var_name = 'match'
+        output_var_name = self.env['result_output_var_name']
 
         headers = self.env.get('request_headers', {})
 

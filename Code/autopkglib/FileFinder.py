@@ -34,6 +34,7 @@ Currently only supports glob filename patterns.
         },
         'find_method': {
             'description': 'Type of pattern to match. Currently only supported type is "glob" (also the default)',
+            'default': 'glob',
             'required': False,
         },
     }
@@ -60,7 +61,7 @@ Currently only supports glob filename patterns.
     def main(self):
         pattern = self.env.get('pattern')
 
-        method = self.env.get('find_method', 'glob')
+        method = self.env.get('find_method')
 
         if method == 'glob':
             self.env['found_filename'] = self.globfind(pattern)
