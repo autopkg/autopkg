@@ -398,7 +398,8 @@ def get_recipe_repo(git_path):
     url_path = os.path.splitext(parts.path)[0]
     dest_name = reverse_domain + url_path.replace('/', '.')
     recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or
-                       os.path.expanduser("~/Library/AutoPkg/RecipeRepos"))
+                       "~/Library/AutoPkg/RecipeRepos")
+    recipe_repo_dir = os.path.expanduser(recipe_repo_dir)
     dest_dir = os.path.join(recipe_repo_dir, dest_name)
     dest_dir = os.path.abspath(dest_dir)
     gitcmd = git_cmd()
@@ -1132,8 +1133,8 @@ def run_recipes(argv):
         log_err("-p/--pkg option can't be used with multiple recipes!")
         return -1
 
-    cache_dir = get_pref("CACHE_DIR") or os.path.expanduser(
-                "~/Library/AutoPkg/Cache")
+    cache_dir = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
+    cache_dir = os.path.expanduser(cache_dir)
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0755)
     current_run_results_plist = os.path.join(cache_dir, "autopkg_results.plist")
