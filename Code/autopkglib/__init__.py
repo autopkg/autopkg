@@ -263,13 +263,11 @@ class Processor(object):
     def process(self):
         """Main processing loop."""
 
-        # Apply default values to unspecified input variables
         for variable, flags in self.input_variables.items():
+            # Apply default values to unspecified input variables
             if "default" in flags.keys() and (variable not in self.env):
                 self.env[variable] = flags["default"]
-
-        # Make sure all required arguments have been supplied.
-        for variable, flags in self.input_variables.items():
+            # Make sure all required arguments have been supplied.
             if flags["required"] and (variable not in self.env):
                 raise ProcessorError(
                     "%s requires %s" % (self.__name__, variable))
