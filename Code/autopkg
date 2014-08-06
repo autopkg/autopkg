@@ -36,7 +36,7 @@ from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
 from autopkglib import get_autopkg_version, version_equal_or_greater
-
+from autopkglib import find_recipe_by_identifier, get_identifier, get_identifer_from_recipe_file
 _REPORT_PLIST = False
 
 
@@ -56,18 +56,6 @@ def log_err(msg):
 
 def print_version(argv):
     print get_autopkg_version()
-
-
-def supported_on_this_os():
-    '''Returns a tuple of a boolean and a requirements message, the latter
-    stating what versions of OS X are required to use this tool. The first
-    element is True if this OS version is supported, otherwise False.'''
-    supported = False
-    requirement_msg = "AutoPkg is supported only on OS X 10.6 or later."
-    kernel_version = int(os.uname()[2].split(".")[0])
-    if kernel_version >= 10:
-        supported = True
-    return (supported, requirement_msg)
 
 
 def recipe_has_step_processor(recipe, processor):
@@ -95,82 +83,35 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def valid_plist_with_keys(plist, keys_to_verify):
-    '''Ensures the keys in keys_to_verify exist. 
-       Returns False on any failure, True otherwise.'''
+def valid_plist_with_keys(filename, keys_to_verify):
+    '''Attempts to read a plist file and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise.'''
+    try:
+        # make sure we can read it
+        recipe_plist = FoundationPlist.readPlist(filename)
+    except FoundationPlist.FoundationPlistException, err:
+        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
+        return False
     for key in keys_to_verify:
-        try:
-            if not key in plist.keys():
-                return False
-        except AttributeError:
-            # not a dict-like object, therefore not valid
+        if not key in recipe_plist:
             return False
     # if we get here, we found all the keys
     return True
 
 
-def read_recipe_plist(filename):
-    '''Attempt to read a recipe plist. If there's an error, log it and return
-       an empty dictionary.'''
-    try:
-        return FoundationPlist.readPlist(filename)
-    except FoundationPlist.FoundationPlistException, err:
-        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
-        return {}
-
-
 def valid_recipe(filename):
     '''Returns True if filename contains a valid recipe,
-       otherwise returns False'''
-    recipe_plist = read_recipe_plist(filename)
-    return (valid_plist_with_keys(recipe_plist, ["Input", "Process"])
-        or valid_plist_with_keys(recipe_plist, ["Input", "Recipe"])
-        or valid_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"]))
+    otherwise returns False'''
+    return (valid_plist_with_keys(filename, ["Input", "Process"])
+        or valid_plist_with_keys(filename, ["Input", "Recipe"])
+        or valid_plist_with_keys(filename, ["Input", "ParentRecipe"]))
 
 
 def valid_override(filename):
     '''Returns True if filename contains a valid override,
-       otherwise returns False'''
-    recipe_plist = read_recipe_plist(filename)
-    return (valid_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
-            or valid_plist_with_keys(recipe_plist, ["Input", "Recipe"]))
-
-
-def get_identifier(recipe):
-    '''Return identifier from recipe dict. Tries the Identifier
-       top-level key and falls back to the legacy key location.'''
-    try:
-        return recipe["Identifier"]
-    except (KeyError, AttributeError, TypeError):
-        try:
-            return recipe["Input"]["IDENTIFIER"]
-        except (KeyError, AttributeError, TypeError):
-            return None
-
-
-def get_identifer_from_recipe_file(filename):
-    '''Attempts to read plist file filename and get the
-    identifier. Otherwise, returns None.'''
-    recipe_plist = read_recipe_plist(filename)
-    return get_identifier(recipe_plist)
-
-
-def find_recipe_by_identifier(identifier, search_dirs):
-    '''Search search_dirs for a recipe with the given
-    identifier'''
-    for directory in search_dirs:
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns  = [
-            os.path.join(normalized_dir, "*.recipe"),
-            os.path.join(normalized_dir, "*/*.recipe")
-        ]
-        for pattern in patterns:
-            matches = glob.glob(pattern)
-            for match in matches:
-                if get_identifer_from_recipe_file(match) == identifier:
-                    return match
-
-    return None
+    otherwise returns False'''
+    return (valid_plist_with_keys(filename, ["Input", "ParentRecipe"])
+        or valid_plist_with_keys(filename, ["Input", "Recipe"]))
 
 
 def find_recipe_by_name(name, search_dirs):
@@ -256,7 +197,7 @@ def load_recipe(name, override_dirs, recipe_dirs):
 
     if recipe_file:
         # read it
-        recipe = read_recipe_plist(recipe_file)
+        recipe = FoundationPlist.readPlist(recipe_file)
         # does it refer to another recipe?
         if recipe.get("ParentRecipe") or recipe.get("Recipe"):
             # save current recipe as a child
@@ -939,7 +880,7 @@ def list_recipes(argv):
             if filename.endswith(".recipe"):
                 pathname = os.path.join(normalized_dir, filename)
                 if valid_override(pathname):
-                    override = read_recipe_plist(pathname)
+                    override = FoundationPlist.readPlist(pathname)
                     id_or_name = get_identifier_from_override(override)
                     # find and validate recipe that will be overridden
                     recipe_path = find_recipe(id_or_name, search_dirs)
@@ -1173,6 +1114,10 @@ def run_recipes(argv):
         prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])
         prefs["PARENT_RECIPES"] = recipe.get("PARENT_RECIPES", [])
+        # Update search locations that may have been overridden with CLI or
+        # environment variables
+        prefs["RECIPE_SEARCH_DIRS"] = search_dirs
+        prefs["RECIPE_OVERRIDE_DIRS"] = override_dirs
 
         # Add our verbosity level
         prefs["verbose"] = options.verbose
@@ -1343,10 +1288,6 @@ def main(argv):
             "function": print_version,
             "help": "Print the current version of autopkg"}
     }
-
-    supported, req_msg = supported_on_this_os()
-    if not supported:
-        exit(req_msg)
 
     try:
         verb = argv[1]

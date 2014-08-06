@@ -22,6 +22,7 @@ import FoundationPlist
 import pprint
 import re
 import subprocess
+import glob
 
 from Foundation import NSArray, NSDictionary
 from CoreFoundation import CFPreferencesAppSynchronize, \
@@ -90,6 +91,48 @@ def get_all_prefs(domain=BUNDLE_ID):
             for key in keylist:
                 prefs[key] = get_pref(key, domain)
     return prefs
+
+
+def get_identifier(recipe):
+    '''Return identifier from recipe dict. Tries the Identifier
+    top-level key and falls back to the legacy key location.'''
+    try:
+        return recipe["Identifier"]
+    except (KeyError, AttributeError):
+        try:
+            return recipe["Input"]["IDENTIFIER"]
+        except (KeyError, AttributeError):
+            return None
+
+
+def get_identifer_from_recipe_file(filename):
+    '''Attempts to read plist file filename and get the
+    identifier. Otherwise, returns None.'''
+    try:
+        # make sure we can read it
+        recipe_plist = FoundationPlist.readPlist(filename)
+    except FoundationPlist.FoundationPlistException, err:
+        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
+        return None
+    return get_identifier(recipe_plist)
+
+
+def find_recipe_by_identifier(identifier, search_dirs):
+    '''Search search_dirs for a recipe with the given
+    identifier'''
+    for directory in search_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        patterns  = [
+            os.path.join(normalized_dir, "*.recipe"),
+            os.path.join(normalized_dir, "*/*.recipe")
+        ]
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                if get_identifer_from_recipe_file(match) == identifier:
+                    return match
+
+    return None
     
     
 def get_autopkg_version():
@@ -329,10 +372,15 @@ class AutoPackager(object):
         for step in recipe["Process"]:
             try:
                 processor_class = get_processor(
-                                      step["Processor"], recipe=recipe)
+                                      step["Processor"],
+                                      recipe=recipe,
+                                      env=self.env)
             except (KeyError, AttributeError):
-                raise AutoPackagerError(
-                        "Unknown processor '%s'" % step["Processor"])
+                msg = "Unknown processor '%s'." % step["Processor"]
+                if "SharedProcessorRepoURL" in step:
+                    msg += (" This shared processor can be added via the "
+                            "repo: %s." % step["SharedProcessorRepoURL"])
+                raise AutoPackagerError(msg)
             # Add arguments to set of variables.
             variables.update(set(step.get("Arguments", dict()).keys()))
             # Make sure all required input variables exist.
@@ -375,7 +423,9 @@ class AutoPackager(object):
             if self.verbose:
                 print step["Processor"]
 
-            processor_class = get_processor(step["Processor"])
+            processor_name, processor_recipe_id = \
+                extract_processor_name_with_recipe_identifier(step["Processor"])
+            processor_class = get_processor(processor_name)
             processor = processor_class(self.env)
             processor.inject(step.get("Arguments", dict()))
 
@@ -457,13 +507,43 @@ def add_processor(name, processor_object):
         _processor_names.append(name)
 
 
-def get_processor(processor_name, recipe=None):
+def extract_processor_name_with_recipe_identifier(processor_name):
+    '''Returns a tuple of (processor_name, identifier), given a Processor name.
+    This is to handle a processor name that may include a recipe identifier, in
+    the format:
+
+    com.github.autopkg.recipes.somerecipe/ProcessorName
+
+    identifier will be None if one was not extracted.'''
+    identifier, delim, processor_name = processor_name.partition('/')
+    if not delim:
+        # if no '/' was found, the first item in the tuple will be the full
+        # string, the processor name
+        processor_name = identifier
+        identifier = None
+    return (processor_name, identifier)
+
+
+def get_processor(processor_name, recipe=None, env={}):
     '''Returns a Processor object given a name and optionally a recipe, 
     importing a processor from the recipe directory if available'''
     if recipe:
-        # search recipe dirs for processor
         recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
         processor_search_dirs = [recipe_dir]
+
+        # check if our processor_name includes a recipe identifier that
+        # should be used to locate the recipe.
+        # if so, search for the recipe by identifier in order to add
+        # its dirname to the processor search dirs
+        processor_name, processor_recipe_id = extract_processor_name_with_recipe_identifier(processor_name)
+        if processor_recipe_id:
+            shared_processor_recipe_path = find_recipe_by_identifier(
+                                            processor_recipe_id,
+                                            env["RECIPE_SEARCH_DIRS"])
+            if shared_processor_recipe_path:
+                processor_search_dirs.append(os.path.dirname(shared_processor_recipe_path))
+
+        # search recipe dirs for processor
         if recipe.get("PARENT_RECIPES"):
             # also look in the directories containing the parent recipes
             parent_recipe_dirs = list(set([

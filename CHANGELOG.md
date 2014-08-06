@@ -1,4 +1,4 @@
-### 0.3.3 (Unreleased)
+### 0.4.0 (Unreleased)
 
 IMPROVEMENTS:
 
