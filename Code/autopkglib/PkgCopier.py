@@ -38,7 +38,7 @@ class PkgCopier(Copier):
         },
         "pkg_path": {
             "required": False,
-            "description": 
+            "description":
                 ("Path to destination. Defaults to "
                 "RECIPE_CACHE_DIR/os.path.basename(source_pkg)"),
         },
@@ -50,7 +50,7 @@ class PkgCopier(Copier):
     }
 
     __doc__ = description
-    
+
     def main(self):
         # Check if we're trying to copy something inside a dmg.
         (dmg_path, dmg,
@@ -80,16 +80,16 @@ class PkgCopier(Copier):
                     % (matched_source_path, source_pkg))
 
             # do the copy
-            pkg_path = (self.env.get("pkg_path") or 
+            pkg_path = (self.env.get("pkg_path") or
                 os.path.join(self.env['RECIPE_CACHE_DIR'],
                              os.path.basename(source_pkg)))
             self.copy(matched_source_path, pkg_path, overwrite=True)
             self.env["pkg_path"] = pkg_path
-            
+
         finally:
             if dmg:
                 self.unmount(dmg_path)
-    
+
 
 if __name__ == '__main__':
     processor = Copier()

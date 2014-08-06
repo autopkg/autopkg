@@ -40,7 +40,7 @@ class MunkiCatalogBuilder(Processor):
     output_variables = {
     }
     description = __doc__
-    
+
     def main(self):
         # MunkiImporter or other processor must set
         # env["munki_repo_changed"] = True in order for makecatalogs
@@ -48,10 +48,10 @@ class MunkiCatalogBuilder(Processor):
         if not self.env.get("munki_repo_changed"):
             self.output("Skipping makecatalogs because repo is unchanged.")
             return
-        
+
         # Generate arguments for makecatalogs.
         args = ["/usr/local/munki/makecatalogs", self.env["MUNKI_REPO"]]
-        
+
         # Call makecatalogs.
         try:
             proc = subprocess.Popen(
@@ -59,7 +59,7 @@ class MunkiCatalogBuilder(Processor):
             (out, err_out) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "makecatalog execution failed with error code %d: %s" 
+                "makecatalog execution failed with error code %d: %s"
                 % (err.errno, err.strerror))
         if proc.returncode != 0:
             raise ProcessorError(

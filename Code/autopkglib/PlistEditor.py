@@ -28,13 +28,13 @@ class PlistEditor(Processor):
     input_variables = {
         "input_plist_path": {
             "required": False,
-            "description": 
+            "description":
                 ("File path to a plist; empty or undefined to start with "
                  "an empty plist."),
         },
         "output_plist_path": {
             "required": True,
-            "description": 
+            "description":
                 "File path to a plist. Can be the same path as input_plist.",
         },
         "plist_data": {
@@ -42,13 +42,13 @@ class PlistEditor(Processor):
             "description":
                 ("A dictionary of data to be merged with the data from the "
                  "input plist."),
-        }, 
+        },
     }
     output_variables = {
     }
-    
+
     __doc__ = description
-    
+
     def readPlist(self, pathname):
         if not pathname:
             return {}
@@ -57,23 +57,23 @@ class PlistEditor(Processor):
         except Exception, err:
             raise ProcessorError(
                 'Could not read %s: %s' % (pathname, err))
-        
+
     def writePlist(self, data, pathname):
         try:
             FoundationPlist.writePlist(data, pathname)
         except Exception, err:
             raise ProcessorError(
                 'Could not write %s: %s' % (pathname, err))
-        
+
     def main(self):
         # read original plist (or empty plist)
         working_plist = self.readPlist(self.env.get("input_plist_path"))
-        
+
         # insert new data
         plist_data = self.env["plist_data"]
         for key in plist_data.keys():
             working_plist[key] = plist_data[key]
-            
+
         # write changed plist
         self.writePlist(working_plist, self.env["output_plist_path"])
         self.output("Updated plist at %s" % self.env["output_plist_path"])

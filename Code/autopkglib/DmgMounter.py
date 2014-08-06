@@ -26,13 +26,13 @@ __all__ = ["DmgMounter"]
 
 class DmgMounter(Processor):
     """Base class for Processors that need to mount disk images."""
-    
+
     DMG_EXTENSIONS = ['.dmg', '.iso', '.DMG', '.ISO']
-    
+
     def __init__(self, data=None, infile=None, outfile=None):
         super(DmgMounter, self).__init__(data, infile, outfile)
         self.mounts = dict()
-        
+
     def parsePathForDMG(self, pathname):
         # Helper method for working with paths that reference something
         # inside a disk image
@@ -44,7 +44,7 @@ class DmgMounter(Processor):
                 return dmg_path, dmg, dmg_source_path
         # no disk image in path
         return pathname, '', ''
-        
+
     def getFirstPlist(self, textString):
         """Gets the first plist from a text string that may contain one or
         more text-style plists.
@@ -77,7 +77,7 @@ class DmgMounter(Processor):
         if err:
             # some error with hdiutil.
             # Output but return False so we can attempt to continue
-            self.output('hdiutil imageinfo error %s with image %s.' 
+            self.output('hdiutil imageinfo error %s with image %s.'
                         % (err, dmgpath))
             return False
 
@@ -92,17 +92,17 @@ class DmgMounter(Processor):
                 pass
 
         return hasSLA
-    
+
     def mount(self, pathname):
         """Mount image with hdiutil."""
         # Make sure we don't try to mount something twice.
         if pathname in self.mounts:
             raise ProcessorError("%s is already mounted" % pathname)
-        
+
         stdin = ''
         if self.DMGhasSLA(pathname):
             stdin = 'Y\n'
-        
+
         # Call hdiutil.
         try:
             p = subprocess.Popen(("/usr/bin/hdiutil",
@@ -117,11 +117,11 @@ class DmgMounter(Processor):
             (out, err) = p.communicate(stdin)
         except OSError as e:
             raise ProcessorError(
-                "hdiutil execution failed with error code %d: %s" 
+                "hdiutil execution failed with error code %d: %s"
                 % (e.errno, e.strerror))
         if p.returncode != 0:
             raise ProcessorError("mounting %s failed: %s" % (pathname, err))
-        
+
         # Read output plist.
         (pliststr, out) = self.getFirstPlist(out)
         try:
@@ -129,7 +129,7 @@ class DmgMounter(Processor):
         except FoundationPlist.NSPropertyListSerializationException:
             raise ProcessorError(
                 "mounting %s failed: unexpected output from hdiutil" % pathname)
-        
+
         # Find mount point.
         for part in output.get("system-entities", []):
             if "mount-point" in part:
@@ -142,11 +142,11 @@ class DmgMounter(Processor):
 
     def unmount(self, pathname):
         """Unmount previously mounted image."""
-        
+
         # Don't try to unmount something we didn't mount.
         if not pathname in self.mounts:
             raise ProcessorError("%s is not mounted" % pathname)
-        
+
         # Call hdiutil.
         try:
             p = subprocess.Popen(("/usr/bin/hdiutil",
@@ -156,14 +156,14 @@ class DmgMounter(Processor):
             (out, err) = p.communicate()
         except OSError as e:
             raise ProcessorError(
-                "hdiutil execution failed with error code %d: %s" 
+                "hdiutil execution failed with error code %d: %s"
                 % (e.errno, e.strerror))
         if p.returncode != 0:
             raise ProcessorError("unmounting %s failed: %s" % (pathname, err))
-        
+
         # Delete mount from mount list.
         del self.mounts[pathname]
-    
+
 
 if __name__ == '__main__':
     try:
@@ -176,4 +176,4 @@ if __name__ == '__main__':
         sys.exit(10)
     else:
         sys.exit(0)
-    
+

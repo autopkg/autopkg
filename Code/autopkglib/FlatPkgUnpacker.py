@@ -71,7 +71,7 @@ class FlatPkgUnpacker(DmgMounter):
             try:
                 os.mkdir(self.env['destination_path'])
             except OSError as e:
-                raise ProcessorError("Can't create %s: %s" 
+                raise ProcessorError("Can't create %s: %s"
                     % (self.env['destination_path'], e.strerror))
         elif self.env.get('purge_destination'):
             for entry in os.listdir(self.env['destination_path']):
@@ -103,10 +103,10 @@ class FlatPkgUnpacker(DmgMounter):
                                  stderr=subprocess.PIPE)
             (out, err) = p.communicate()
         except OSError as e:
-            raise ProcessorError("xar execution failed with error code %d: %s" 
+            raise ProcessorError("xar execution failed with error code %d: %s"
                 % (e.errno, e.strerror))
         if p.returncode != 0:
-            raise ProcessorError("extraction of %s with xar failed: %s" 
+            raise ProcessorError("extraction of %s with xar failed: %s"
                 % (self.env['flat_pkg_path'], err))
 
     def pkgutilExpand(self):
@@ -128,10 +128,10 @@ class FlatPkgUnpacker(DmgMounter):
                                  stderr=subprocess.PIPE)
             (out, err) = p.communicate()
         except OSError as e:
-            raise ProcessorError("pkgutil execution failed with error code %d: %s" 
+            raise ProcessorError("pkgutil execution failed with error code %d: %s"
                 % (e.errno, e.strerror))
         if p.returncode != 0:
-            raise ProcessorError("extraction of %s with pkgutil failed: %s" 
+            raise ProcessorError("extraction of %s with pkgutil failed: %s"
                 % (self.env['flat_pkg_path'], err))
 
     def main(self):
@@ -148,7 +148,7 @@ class FlatPkgUnpacker(DmgMounter):
                 # Straight copy from file system.
                 self.source_path = self.env['flat_pkg_path']
             self.unpackFlatPkg()
-            self.output("Unpacked %s to %s" 
+            self.output("Unpacked %s to %s"
                 % (self.source_path, self.env['destination_path']))
         finally:
             if dmg:
@@ -158,4 +158,4 @@ class FlatPkgUnpacker(DmgMounter):
 if __name__ == '__main__':
     processor = FlatPkgUnpacker()
     processor.execute_shell()
-    
+

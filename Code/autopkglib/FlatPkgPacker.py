@@ -54,7 +54,7 @@ class FlatPkgPacker(Processor):
 
         self.flatten(source_dir, dest_pkg)
 
-        self.output("Flattened %s to %s" 
+        self.output("Flattened %s to %s"
             % (source_dir, dest_pkg))
 
 if __name__ == '__main__':

@@ -53,10 +53,10 @@ class PkgInfoCreator(Processor):
     }
     output_variables = {
     }
-    
+
     __doc__ = description
-    
-    
+
+
     def find_template(self):
         '''Searches for the template, looking in the recipe directory
         and parent recipe directories if needed.'''
@@ -69,7 +69,7 @@ class PkgInfoCreator(Processor):
             if self.env.get("PARENT_RECIPES"):
                 # also look in the directories containing the parent recipes
                 parent_recipe_dirs = list(set([
-                    os.path.dirname(item) 
+                    os.path.dirname(item)
                     for item in self.env["PARENT_RECIPES"]]))
                 search_dirs.extend(parent_recipe_dirs)
             for directory in search_dirs:
@@ -77,7 +77,7 @@ class PkgInfoCreator(Processor):
                 if os.path.exists(test_item):
                     return test_item
         raise ProcessorError("Can't find %s" % template_path)
-    
+
     def main(self):
         if self.env['pkgtype'] not in ("bundle", "flat"):
             raise ProcessorError("Unknown pkgtype %s" % self.env['pkgtype'])
@@ -86,7 +86,7 @@ class PkgInfoCreator(Processor):
             self.create_bundle_info(template)
         else:
             self.create_flat_info(template)
-    
+
     restartaction_to_postinstallaction = {
         "None": "none",
         "RecommendRestart": "restart",
@@ -110,13 +110,13 @@ class PkgInfoCreator(Processor):
         if "IFPkgFlagRestartAction" in info:
             pkg_info.set("postinstall-action",
                 self.restartaction_to_postinstallaction[info["IFPkgFlagRestartAction"]])
-        
+
         payload = ElementTree.SubElement(pkg_info, "payload")
         if "IFPkgFlagInstalledSize" in info:
             payload.set("installKBytes", str(info["IFPkgFlagInstalledSize"]))
-        
+
         return ElementTree.ElementTree(pkg_info)
-    
+
     postinstallaction_to_restartaction = {
         "none": "None",
         "logout": "RequireLogout",
@@ -139,11 +139,11 @@ class PkgInfoCreator(Processor):
             "IFPkgFlagUpdateInstalledLanguages": False,
             "IFPkgFormatVersion": 0.1,
         }
-        
+
         pkg_info = info.getroot()
         if pkg_info.tag != "pkg-info":
             raise ProcessorError("PackageInfo template root isn't pkg-info")
-        
+
         info["CFBundleShortVersionString"] = pkg_info.get("version", "")
         info["CFBundleIdentifier"] = pkg_info.get("identifier", "")
         info["IFPkgFlagDefaultLocation"] = pkg_info.get("install-location", "")
@@ -153,15 +153,15 @@ class PkgInfoCreator(Processor):
             raise ProcessorError("Don't know how to convert auth=%s to Info.plist format" % pkg_info.get("auth"))
         info["IFPkgFlagRestartAction"] = \
             self.postinstallaction_to_restartaction[pkg_info.get("postinstall-action", "none")]
-        
+
         payload = ElementTree.SubElement(pkg_info, "payload")
         info["IFPkgFlagInstalledSize"] = payload.get("installKBytes", 0)
-        
+
         return info
-    
+
     def load_template(self, template_path, template_type):
         """Load a package info template in Info.plist or PackageInfo format."""
-        
+
         if template_path.endswith(".plist"):
             # Try to load Info.plist in bundle format.
             try:
@@ -182,10 +182,10 @@ class PkgInfoCreator(Processor):
                 return info
             else:
                 return self.convert_flat_info_to_bundle(info)
-    
+
     def get_pkgroot_size(self, pkgroot):
         """Return the size of pkgroot (in kilobytes) and the number of files."""
-        
+
         size = 0
         nfiles = 0
         for (dirpath, dirnames, filenames) in os.walk(pkgroot):
@@ -197,46 +197,46 @@ class PkgInfoCreator(Processor):
                 # appears to match what du -sk returns, and what PackageMaker
                 # uses.
                 size += int(math.ceil(float(os.lstat(path).st_size) / 4096.0))
-        
+
         return (size, nfiles)
-    
+
     def create_flat_info(self, template):
         info = template
-        
+
         pkg_info = info.getroot()
         if pkg_info.tag != "pkg-info":
             raise ProcessorError("PackageInfo root should be pkg-info")
-        
+
         pkg_info.set("version", self.env['version'])
-        
+
         payload = pkg_info.find("payload")
         if payload is None:
             payload = ElementTree.SubElement(pkg_info, "payload")
         size, nfiles = self.get_pkgroot_size(self.env['pkgroot'])
         payload.set("installKBytes", str(size))
         payload.set("numberOfFiles", str(nfiles))
-        
+
         info.write(self.env['infofile'])
 
-    
+
     def create_bundle_info(self, template):
         info = template
-        
+
         info["CFBundleShortVersionString"] = self.env['version']
         ver = self.env['version'].split(".")
         info["IFMajorVersion"] = ver[0]
         info["IFMinorVersion"] = ver[1]
-        
+
         size, nfiles = self.get_pkgroot_size(self.env['pkgroot'])
         info["IFPkgFlagInstalledSize"] = size
-        
+
         try:
             FoundationPlist.writePlist(info, self.env['infofile'])
         except BaseException as e:
             raise ProcessorError("Couldn't write %s: %s" % (self.env['infofile'], e))
-    
+
 
 if __name__ == '__main__':
     processor = PkgInfoCreator()
     processor.execute_shell()
-    
+

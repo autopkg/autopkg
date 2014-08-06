@@ -33,7 +33,7 @@ class MunkiPkginfoMerger(Processor):
             "description": ("Dictionary containing additional Munki pkginfo. "
                 "This will be added to or replace keys in the pkginfo."),
         },
-        
+
     }
     output_variables = {
         "pkginfo": {
@@ -41,11 +41,11 @@ class MunkiPkginfoMerger(Processor):
         },
     }
     description = __doc__
-    
+
     def main(self):
         if "pkginfo" not in self.env:
             self.env["pkginfo"] = {}
-            
+
         for key in self.env["additional_pkginfo"].keys():
             self.env["pkginfo"][key] = self.env["additional_pkginfo"][key]
         self.output("Merged %s into pkginfo" % self.env["additional_pkginfo"])

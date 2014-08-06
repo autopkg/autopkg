@@ -28,12 +28,12 @@ class EndOfCheckPhase(Processor):
     output_variables = {
     }
     description = __doc__
-    
-    
+
+
     def main(self):
         return
-    
-    
+
+
 if __name__ == '__main__':
     processor = EndOfCheckPhase()
     processor.execute_shell()

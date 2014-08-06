@@ -57,7 +57,7 @@ class PkgCreator(Processor):
                             "'force_pkg_build' input variable.")
         },
     }
-    
+
     __doc__ = description
 
 
@@ -84,7 +84,7 @@ class PkgCreator(Processor):
                 return os.path.normpath(test_item)
 
         raise ProcessorError("Can't find %s" % relpath)
-    
+
     def xarExpand(self, source_path):
         try:
             xarcmd = ["/usr/bin/xar",
@@ -97,18 +97,18 @@ class PkgCreator(Processor):
                                  stderr=subprocess.PIPE)
             (out, err) = p.communicate()
         except OSError as e:
-            raise ProcessorError("xar execution failed with error code %d: %s" 
+            raise ProcessorError("xar execution failed with error code %d: %s"
                 % (e.errno, e.strerror))
         if p.returncode != 0:
-            raise ProcessorError("extraction of %s with xar failed: %s" 
+            raise ProcessorError("extraction of %s with xar failed: %s"
                 % (source_path, err))
 
-    
+
     def package(self):
         request = self.env["pkg_request"]
         if not 'pkgdir' in request:
             request['pkgdir'] = self.env['RECIPE_CACHE_DIR']
-        
+
         # Set variables, and check that all keys are in request.
         for key in ("pkgroot",
                     "pkgname",
@@ -130,11 +130,11 @@ class PkgCreator(Processor):
                     request[key] = "flat"
                 else:
                     raise ProcessorError("Request key %s missing" % key)
-        
+
         # Make sure chown dict is present.
         if not "chown" in request:
             request["chown"] = dict()
-        
+
         # Convert relative paths to absolute.
         for key, value in request.items():
             if key in ("pkgroot", "pkgdir", "infofile", "resources", "scripts"):
@@ -142,7 +142,7 @@ class PkgCreator(Processor):
                     # search for it
                     request[key] = self.find_path_for_relpath(value)
 
-        
+
         # Check for an existing flat package in the output dir and compare its
         # identifier and version to the one we're going to build.
         pkg_path = os.path.join(request['pkgdir'], request['pkgname'] + '.pkg')
@@ -154,7 +154,7 @@ class PkgCreator(Processor):
                 raise ProcessorError(
                     "Failed to parse existing package, as no PackageInfo "
                     "file count be found in the extracted archive.")
-                
+
             tree = ET.parse(packageinfo_file)
             root = tree.getroot()
             local_version = root.attrib['version']
@@ -165,7 +165,7 @@ class PkgCreator(Processor):
                     self.env["pkg_path"] = pkg_path
                     self.env["new_package_request"] = False
                     return
-        
+
         # Send packaging request.
         try:
             self.output("Connecting")
@@ -176,38 +176,38 @@ class PkgCreator(Processor):
         finally:
             self.output("Disconnecting")
             self.disconnect()
-        
+
         # Return path to pkg.
         self.env["pkg_path"] = pkg_path
-    
+
     def connect(self):
         try:
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.socket.connect(AUTO_PKG_SOCKET)
         except socket.error as e:
             raise ProcessorError("Couldn't connect to autopkgserver: %s" % e.strerror)
-    
+
     def send_request(self, request):
         self.socket.send(FoundationPlist.writePlistToString(request))
         with os.fdopen(self.socket.fileno()) as f:
             reply = f.read()
-        
+
         if reply.startswith("OK:"):
             return reply.replace("OK:", "").rstrip()
-        
+
         errors = reply.rstrip().split("\n")
         if not errors:
             errors = ["ERROR:No reply from server (crash?), check system logs"]
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
-    
+
     def disconnect(self):
         self.socket.close()
-        
+
     def main(self):
         self.package()
-    
+
 
 if __name__ == '__main__':
     processor = PkgCreator()
     processor.execute_shell()
-    
+

@@ -50,9 +50,9 @@ class CodeSignatureVerifier(DmgMounter):
     }
     output_variables = {
     }
-    
+
     description = __doc__
-    
+
     def codesign_get_authority_names(self, path):
         """
         Runs 'codesign --display -vvvv <path>' and returns a list of
@@ -62,15 +62,15 @@ class CodeSignatureVerifier(DmgMounter):
                    "--display",
                    "-vvvv",
                    path]
-        
+
         p = subprocess.Popen(process, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         codesign_details = p.communicate()[1]
-        
+
         authority_name_chain = []
         for m in re.finditer(re_authority_codesign, codesign_details):
             authority_name_chain.append(m.group('authority'))
         return authority_name_chain
-    
+
     def codesign_verify(self, path):
         """
         Runs 'codesign --verify --verbose <path>'. Returns True if
@@ -83,7 +83,7 @@ class CodeSignatureVerifier(DmgMounter):
         p = subprocess.Popen(process, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (output, error) = p.communicate()
 
-        # Log all output. codesign seems to output only 
+        # Log all output. codesign seems to output only
         # to stderr but check the stdout too
         if error:
             for line in error.splitlines():
@@ -97,7 +97,7 @@ class CodeSignatureVerifier(DmgMounter):
             return True
         else:
             return False
-    
+
     def pkgutil_check_signature(self, path):
         """
         Runs 'pkgutil --check-signature <path>'. Returns a tuple with boolean
@@ -108,7 +108,7 @@ class CodeSignatureVerifier(DmgMounter):
                    path]
         p = subprocess.Popen(process, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (output, error) = p.communicate()
-        
+
         # Log everything
         if output:
             for line in output.splitlines():
@@ -116,22 +116,22 @@ class CodeSignatureVerifier(DmgMounter):
         if error:
             for line in error.splitlines():
                 self.output("%s" % line)
-        
-        # Parse the output for certificate authority names 
+
+        # Parse the output for certificate authority names
         authority_name_chain = []
         for m in re.finditer(re_authority_pkgutil, output):
             authority_name_chain.append(m.group('authority'))
-        
+
         # Check the pkgutil exit code
         if p.returncode == 0:
             succeeded = True
         else:
             succeeded = False
-        
-        # Return a tuple with boolean status and 
+
+        # Return a tuple with boolean status and
         # a list with certificate authority names
         return succeeded, authority_name_chain
-    
+
     def process_app_bundle(self, path):
         self.output("Verifying application bundle signature...")
         # The first step is to run 'codesign --verify <path>'
@@ -139,7 +139,7 @@ class CodeSignatureVerifier(DmgMounter):
             self.output("Signature is valid")
         else:
             raise ProcessorError("Code signature verification failed")
-        
+
         if self.env.get('expected_authority_names', None):
             authority_names = self.codesign_get_authority_names(path)
             expected_authority_names = self.env['expected_authority_names']
@@ -150,17 +150,17 @@ class CodeSignatureVerifier(DmgMounter):
                 raise ProcessorError("Mismatch in authority names")
             else:
                 self.output("Authority name chain is valid")
-    
+
     def process_installer_package(self, path):
         self.output("Verifying installer package signature...")
         # The first step is to run 'pkgutil --check-signature <path>'
         pkgutil_succeeded, authority_names = self.pkgutil_check_signature(path)
-        
+
         if pkgutil_succeeded:
             self.output("Signature is valid")
         else:
             raise ProcessorError("Code signature verification failed")
-        
+
         if self.env.get('expected_authority_names', None):
             expected_authority_names = self.env['expected_authority_names']
             if authority_names != expected_authority_names:
@@ -170,7 +170,7 @@ class CodeSignatureVerifier(DmgMounter):
                 raise ProcessorError("Mismatch in authority names")
             else:
                 self.output("Authority name chain is valid")
-    
+
     def main(self):
         # Check if we're trying to read something inside a dmg.
         (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
@@ -188,10 +188,10 @@ class CodeSignatureVerifier(DmgMounter):
             else:
                 # just use the given path
                 input_path = self.env['input_path']
-            
+
             # Get current Darwin kernel version
             darwin_version = os.uname()[2]
-            
+
             # Currently we support only .app, .pkg or .mpkg types
             file_name, file_extension = os.path.splitext(input_path)
             if file_extension == ".app":
@@ -206,7 +206,7 @@ class CodeSignatureVerifier(DmgMounter):
                     self.process_installer_package(input_path)
             else:
                 raise ProcessorError("Unsupported file type")
-        
+
         finally:
             if dmg:
                 self.unmount(dmg_path)

@@ -33,12 +33,12 @@ class PkgExtractor(DmgMounter):
     input_variables = {
         "pkg_path": {
             "required": True,
-            "description": 
+            "description":
                 "Path to a package.",
         },
         "extract_root": {
             "required": True,
-            "description": 
+            "description":
                 "Path to where the new package root will be created.",
         },
     }
@@ -55,7 +55,7 @@ class PkgExtractor(DmgMounter):
             raise ProcessorError("Info.plist not found in pkg")
         if not os.path.exists(archive_path):
             raise ProcessorError("Archive.pax.gz not found in pkg")
-            
+
         if os.path.exists(extract_root):
             try:
                 shutil.rmtree(extract_root)
@@ -66,14 +66,14 @@ class PkgExtractor(DmgMounter):
             info = FoundationPlist.readPlist(info_plist)
         except FoundationPlist.FoundationPlistException, err:
             raise ProcessorError("Failed to read Info.plist: %s" % err)
-            
+
         install_target = info.get("IFPkgFlagDefaultLocation", "/").lstrip("/")
         extract_path = os.path.join(extract_root, install_target)
         try:
             os.makedirs(extract_path, 0755)
         except (OSError, IOError), err:
             raise ProcessorError("Failed to create extract_path: %s" % err)
-        
+
         # Unpack payload.
         try:
             p = subprocess.Popen(("/usr/bin/ditto",
@@ -86,7 +86,7 @@ class PkgExtractor(DmgMounter):
             (out, err) = p.communicate()
         except OSError as err:
             raise ProcessorError(
-                "ditto execution failed with error code %d: %s" 
+                "ditto execution failed with error code %d: %s"
                 % (err.errno, err.strerror))
         if p.returncode != 0:
             raise ProcessorError("Unpacking payload failed: %s" % err)
@@ -104,7 +104,7 @@ class PkgExtractor(DmgMounter):
                 # just use the given path
                 pkg_path = self.env['pkg_path']
             self.extract_payload(pkg_path, self.env["extract_root"])
-            
+
         finally:
             if dmg:
                 self.unmount(dmg_path)

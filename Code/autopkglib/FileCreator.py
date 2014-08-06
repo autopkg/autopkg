@@ -39,9 +39,9 @@ class FileCreator(Processor):
     }
     output_variables = {
     }
-    
+
     __doc__ = description
-    
+
     def main(self):
         try:
             with open(self.env['file_path'], "w") as f:
@@ -51,9 +51,9 @@ class FileCreator(Processor):
             raise ProcessorError("Can't create file at %s: %s" % (
                                   self.env['file_path'],
                                   e))
-    
+
 
 if __name__ == '__main__':
     processor = FileCreator()
     processor.execute_shell()
-    
+

@@ -43,13 +43,13 @@ class PkgRootCreator(Processor):
     }
     output_variables = {
     }
-    
+
     __doc__ = description
-    
+
     def main(self):
         # Delete pkgroot if it exists.
         try:
-            if (os.path.islink(self.env['pkgroot']) or 
+            if (os.path.islink(self.env['pkgroot']) or
                 os.path.isfile(self.env['pkgroot'])):
                 os.unlink(self.env['pkgroot'])
             elif os.path.isdir(self.env['pkgroot']):
@@ -57,7 +57,7 @@ class PkgRootCreator(Processor):
         except OSError as e:
             raise ProcessorError("Can't remove %s: %s" % (self.env['pkgroot'],
                                                           e.strerror))
-        
+
         # Create pkgroot. autopkghelper sets it to root:admin 01775.
         try:
             os.makedirs(self.env['pkgroot'])
@@ -65,7 +65,7 @@ class PkgRootCreator(Processor):
         except OSError as e:
             raise ProcessorError("Can't create %s: %s" % (self.env['pkgroot'],
                                                           e.strerror))
-        
+
         # Create directories.
         absroot = os.path.abspath(self.env['pkgroot'])
         for directory, mode in sorted(self.env['pkgdirs'].items()):
@@ -74,13 +74,13 @@ class PkgRootCreator(Processor):
             if directory.startswith("/"):
                 raise ProcessorError("%s in pkgroot is absolute." % directory)
             dirpath = os.path.join(absroot, directory)
-            
-            # Make sure we're not trying to make a directory outside the 
+
+            # Make sure we're not trying to make a directory outside the
             # pkgroot.
             abspath = os.path.abspath(dirpath)
             if os.path.commonprefix((absroot, abspath)) != absroot:
                 raise ProcessorError("%s is outside pkgroot" % directory)
-            
+
             try:
                 os.mkdir(dirpath)
                 os.chmod(dirpath, int(mode, 8))
@@ -88,9 +88,9 @@ class PkgRootCreator(Processor):
             except OSError as e:
                 raise ProcessorError("Can't create %s with mode %s: %s" % (
                                       dirpath, mode, e.strerror))
-    
+
 
 if __name__ == '__main__':
     processor = PkgRootCreator()
     processor.execute_shell()
-    
+

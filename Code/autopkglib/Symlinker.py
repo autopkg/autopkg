@@ -36,19 +36,19 @@ class Symlinker(Processor):
         },
         "overwrite": {
             "required": False,
-            "description": 
+            "description":
                 "Whether the destination will be overwritten if necessary.",
         },
     }
     output_variables = {
     }
-    
+
     __doc__ = description
-    
+
     def main(self):
         source_path = self.env['source_path']
         destination_path  = self.env['destination_path']
-        
+
         # Remove destination if needed.
         if os.path.exists(destination_path):
             if "overwrite" in self.env and self.env['overwrite']:
@@ -57,18 +57,18 @@ class Symlinker(Processor):
                 except OSError as e:
                     raise ProcessorError(
                         "Can't remove %s: %s" % (destination_path, e.strerror))
-            
+
         # Make symlink.
         try:
             os.symlink(source_path, destination_path)
-            self.output("Symlinked %s to %s" 
+            self.output("Symlinked %s to %s"
                         % (source_path, destination_path))
         except BaseException as e:
-            raise ProcessorError("Can't symlink %s to %s: %s" 
+            raise ProcessorError("Can't symlink %s to %s: %s"
                                  % (source_path, destination_path, e))
-                                     
+
 
 if __name__ == '__main__':
     processor = Symlinker()
     processor.execute_shell()
-    
+

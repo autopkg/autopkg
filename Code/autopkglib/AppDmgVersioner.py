@@ -45,20 +45,20 @@ class AppDmgVersioner(DmgMounter):
             "description": "Version of the app.",
         },
     }
-    
+
     __doc__ = description
-    
+
     def find_app(self, path):
         """Find app bundle at path."""
-        
+
         apps = glob.glob(os.path.join(path, "*.app"))
         if len(apps) == 0:
             raise ProcessorError("No app found in dmg")
         return apps[0]
-    
+
     def read_bundle_info(self, path):
         """Read Contents/Info.plist inside a bundle."""
-        
+
         plistpath = os.path.join(path, "Contents", "Info.plist")
         info, format, error = \
             NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
@@ -69,9 +69,9 @@ class AppDmgVersioner(DmgMounter):
             )
         if error:
             raise ProcessorError("Can't read %s: %s" % (plistpath, error))
-        
+
         return info
-    
+
     def main(self):
         # Mount the image.
         mount_point = self.mount(self.env["dmg_path"])
@@ -90,9 +90,9 @@ class AppDmgVersioner(DmgMounter):
                 raise ProcessorError(e)
         finally:
             self.unmount(self.env["dmg_path"])
-    
+
 
 if __name__ == '__main__':
     processor = AppDmgVersioner()
     processor.execute_shell()
-    
+

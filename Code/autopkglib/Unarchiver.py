@@ -56,9 +56,9 @@ class Unarchiver(Processor):
     }
     output_variables = {
     }
-    
+
     __doc__ = description
-    
+
     def get_archive_format(self, archive_path):
         for format, extns in EXTNS.items():
             for extn in extns:
@@ -91,7 +91,7 @@ class Unarchiver(Processor):
                         os.unlink(path)
                 except OSError as e:
                     raise ProcessorError("Can't remove %s: %s" % (path, e.strerror))
-        
+
         fmt = self.env.get("archive_format")
         if fmt is None:
             fmt = self.get_archive_format(archive_path)
@@ -135,11 +135,11 @@ class Unarchiver(Processor):
         if p.returncode != 0:
             raise ProcessorError("Unarchiving %s with %s failed: %s" % (
                                   archive_path, os.path.basename(cmd[0]), err))
-        
-        self.output("Unarchived %s to %s" 
+
+        self.output("Unarchived %s to %s"
                     % (archive_path, destination_path))
 
 if __name__ == '__main__':
     processor = Unarchiver()
     processor.execute_shell()
-    
+

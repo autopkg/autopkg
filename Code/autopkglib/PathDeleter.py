@@ -28,14 +28,14 @@ class PathDeleter(Processor):
     input_variables = {
         "path_list": {
             "required": True,
-            "description": 
+            "description":
                 "List of pathnames to be deleted",
         },
     }
     output_variables = {
     }
     description = __doc__
-    
+
     def main(self):
         for path in self.env["path_list"]:
             try:

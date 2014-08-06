@@ -62,9 +62,9 @@ class DmgCreator(Processor):
     }
     output_variables = {
     }
-    
+
     __doc__ = description
-    
+
     def main(self):
         # Remove existing dmg if it exists.
         if os.path.exists(self.env['dmg_path']):
@@ -124,13 +124,13 @@ class DmgCreator(Processor):
                                   e.errno, e.strerror))
         if p.returncode != 0:
             raise ProcessorError("creation of %s failed: %s" % (self.env['dmg_path'], err))
-        
+
         # Read output plist.
         #output = FoundationPlist.readPlistFromString(out)
-        self.output("Created dmg from %s at %s" 
+        self.output("Created dmg from %s at %s"
             % (self.env['dmg_root'], self.env['dmg_path']))
 
 if __name__ == '__main__':
     processor = DmgCreator()
     processor.execute_shell()
-    
+

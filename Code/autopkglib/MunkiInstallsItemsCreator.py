@@ -29,7 +29,7 @@ class MunkiInstallsItemsCreator(Processor):
     input_variables = {
         "installs_item_paths": {
             "required": True,
-            "description": 
+            "description":
                 "Array of paths to create installs items for.",
         },
         "faux_root": {
@@ -48,7 +48,7 @@ class MunkiInstallsItemsCreator(Processor):
                             "{'/Applications/Foo.app': 'CFBundleVersion',\n"
                             "'/Library/Bar.plugin': 'CFBundleShortVersionString'}"),
         },
-        
+
     }
     output_variables = {
         "additional_pkginfo": {
@@ -56,17 +56,17 @@ class MunkiInstallsItemsCreator(Processor):
         },
     }
     description = __doc__
-    
+
     def createInstallsItems(self):
         """Calls makepkginfo to create an installs array."""
         faux_root = ""
         if self.env.get("faux_root"):
             faux_root = self.env["faux_root"].rstrip("/")
-        
+
         args = ["/usr/local/munki/makepkginfo"]
         for item in self.env["installs_item_paths"]:
             args.extend(["-f", faux_root + item])
-        
+
         # Call makepkginfo.
         try:
             proc = subprocess.Popen(
@@ -74,7 +74,7 @@ class MunkiInstallsItemsCreator(Processor):
             (out, err) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "makepkginfo execution failed with error code %d: %s" 
+                "makepkginfo execution failed with error code %d: %s"
                 % (err.errno, err.strerror))
         if proc.returncode != 0:
             raise ProcessorError(
@@ -83,7 +83,7 @@ class MunkiInstallsItemsCreator(Processor):
         # Get pkginfo from output plist.
         pkginfo = FoundationPlist.readPlistFromString(out)
         installs_array = pkginfo.get("installs", [])
-        
+
         if faux_root:
             for item in installs_array:
                 if item["path"].startswith(faux_root):

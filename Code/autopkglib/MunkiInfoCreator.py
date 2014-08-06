@@ -52,9 +52,9 @@ class MunkiInfoCreator(Processor):
             "description": "The pkginfo property list.",
         },
     }
-    
+
     __doc__ = description
-    
+
     def main(self):
         # Wrap in a try/finally so the temp_path is always removed.
         temp_path = None
@@ -66,26 +66,26 @@ class MunkiInfoCreator(Processor):
             else:
                 # Assume 0.6.0
                 munkiopts = ("catalog",)
-            
+
             # Copy pkg to a temporary local directory, as installer -query
             # (which is called by makepkginfo) doesn't work on network drives.
             if self.env["pkg_path"].endswith("pkg"):
                 # Create temporary directory.
                 temp_path = tempfile.mkdtemp(prefix="autopkg", dir="/private/tmp")
-                
+
                 # Copy the pkg there
                 pkg_for_makepkginfo = os.path.join(temp_path, os.path.basename(self.env["pkg_path"]))
                 shutil.copyfile(self.env["pkg_path"], pkg_for_makepkginfo)
             else:
                 pkg_for_makepkginfo = self.env["pkg_path"]
-            
+
             # Generate arguments for makepkginfo.
             args = ["/usr/local/munki/makepkginfo"]
             for option in munkiopts:
                 if option in self.env:
                     args.append("--%s=%s" % (option, self.env[option]))
             args.append(pkg_for_makepkginfo)
-            
+
             # Call makepkginfo.
             try:
                 p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -95,28 +95,28 @@ class MunkiInfoCreator(Processor):
                                       e.errno, e.strerror))
             if p.returncode != 0:
                 raise ProcessorError("creating pkginfo for %s failed: %s" % (self.env['pkg_path'], err))
-            
+
         # makepkginfo cleanup.
         finally:
             if temp_path is not None:
                 shutil.rmtree(temp_path)
-        
+
         # Read output plist.
         output = FoundationPlist.readPlistFromString(out)
-        
+
         # Set version and name.
         if "version" in self.env:
             output["version"] = self.env["version"]
         if "name" in self.env:
             output["name"] = self.env["name"]
-        
+
         # Save info.
         self.env["munki_info"] = output
         if "info_path" in self.env:
             FoundationPlist.writePlist(output, self.env["info_path"])
-    
+
 
 if __name__ == '__main__':
     processor = MunkiInfoCreator()
     processor.execute_shell()
-    
+

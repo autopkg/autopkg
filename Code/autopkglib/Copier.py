@@ -47,9 +47,9 @@ class Copier(DmgMounter):
     }
     output_variables = {
     }
-    
+
     __doc__ = description
-    
+
     def copy(self, source_item, dest_item, overwrite=False):
         '''Copies source_item to dest_item, overwriting if allowed'''
         # Remove destination if needed.
@@ -62,7 +62,7 @@ class Copier(DmgMounter):
             except OSError, err:
                 raise ProcessorError(
                     "Can't remove %s: %s" % (dest_item, err.strerror))
-                    
+
         # Copy file or directory.
         try:
             if os.path.isdir(source_item):
@@ -75,7 +75,7 @@ class Copier(DmgMounter):
         except BaseException, err:
             raise ProcessorError(
                 "Can't copy %s to %s: %s" % (source_item, dest_item, err))
-    
+
     def main(self):
         source_path = self.env['source_path']
         # Check if we're trying to copy something inside a dmg.
@@ -106,9 +106,9 @@ class Copier(DmgMounter):
         finally:
             if dmg:
                 self.unmount(dmg_path)
-    
+
 
 if __name__ == '__main__':
     processor = Copier()
     processor.execute_shell()
-    
+

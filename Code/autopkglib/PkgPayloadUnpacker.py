@@ -30,7 +30,7 @@ class PkgPayloadUnpacker(Processor):
     input_variables = {
         "pkg_payload_path": {
             "required": True,
-            "description": 
+            "description":
                 ("Path to a payload from an expanded flat package or "
                  "Archive.pax.gz in a bundle package."),
         },
@@ -40,7 +40,7 @@ class PkgPayloadUnpacker(Processor):
         },
         "purge_destination": {
             "required": False,
-            "description": 
+            "description":
                 ("Whether the contents of the destination directory will "
                 "be removed before unpacking."),
         },
@@ -48,7 +48,7 @@ class PkgPayloadUnpacker(Processor):
     output_variables = {
     }
     description = __doc__
-    
+
     def unpackPkgPayload(self):
         """Uses ditto to unpack a package payload into destination_path"""
         # Create the destination directory if needed.
@@ -57,7 +57,7 @@ class PkgPayloadUnpacker(Processor):
                 os.mkdir(self.env['destination_path'])
             except OSError as err:
                 raise ProcessorError(
-                    "Can't create %s: %s" 
+                    "Can't create %s: %s"
                     % (self.env['destination_path'], err.strerror))
         elif self.env.get('purge_destination'):
             for entry in os.listdir(self.env['destination_path']):
@@ -83,15 +83,15 @@ class PkgPayloadUnpacker(Processor):
             (unused_out, err_out) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "ditto execution failed with error code %d: %s" 
+                "ditto execution failed with error code %d: %s"
                 % (err.errno, err.strerror))
         if proc.returncode != 0:
             raise ProcessorError(
-                "extraction of %s with ditto failed: %s" 
+                "extraction of %s with ditto failed: %s"
                 % (self.env['pkg_payload_path'], err_out))
-        self.output("Unpacked %s to %s" 
+        self.output("Unpacked %s to %s"
             % (self.env["pkg_payload_path"], self.env["destination_path"]))
-    
+
     def main(self):
         self.unpackPkgPayload()
 

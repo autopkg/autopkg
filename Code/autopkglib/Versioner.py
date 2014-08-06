@@ -28,13 +28,13 @@ class Versioner(DmgMounter):
     input_variables = {
         "input_plist_path": {
             "required": True,
-            "description": 
+            "description":
                 ("File path to a plist. Can point to a path inside a .dmg "
                  "which will be mounted."),
         },
         "plist_version_key": {
             "required": False,
-            "description": 
+            "description":
                 ("Which plist key to use; defaults to "
                 "CFBundleShortVersionString"),
         },
@@ -64,7 +64,7 @@ class Versioner(DmgMounter):
                 version_key = self.env.get(
                     "plist_version_key", "CFBundleShortVersionString")
                 self.env['version'] = plist.get(version_key, "UNKNOWN_VERSION")
-                self.output("Found version %s in file %s" 
+                self.output("Found version %s in file %s"
                             % (self.env['version'], input_plist_path))
             except FoundationPlist.FoundationPlistException, err:
                 raise ProcessorError(err)
@@ -78,4 +78,3 @@ if __name__ == '__main__':
     processor = Versioner()
     processor.execute_shell()
 
-    
