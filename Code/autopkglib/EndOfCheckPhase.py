@@ -13,7 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""Place-holder processor that autopkg uses to mark the end of the check
+phase"""
 
 from autopkglib import Processor
 
@@ -35,5 +36,5 @@ class EndOfCheckPhase(Processor):
 
 
 if __name__ == '__main__':
-    processor = EndOfCheckPhase()
-    processor.execute_shell()
+    PROCESSOR = EndOfCheckPhase()
+    PROCESSOR.execute_shell()
