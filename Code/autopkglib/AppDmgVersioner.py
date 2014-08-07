@@ -13,20 +13,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for AppDmgVersioner class"""
 
 import os.path
 import glob
-from Foundation import NSData, NSPropertyListSerialization, NSPropertyListMutableContainers
+#pylint: disable=no-name-in-module
+from Foundation import NSData, NSPropertyListSerialization
+from Foundation import NSPropertyListMutableContainers
+#pylint: enable=no-name-in-module
 
-from DmgMounter import DmgMounter
-from autopkglib import Processor, ProcessorError
+from autopkglib.DmgMounter import DmgMounter
+from autopkglib import ProcessorError
 
 
 __all__ = ["AppDmgVersioner"]
 
 
 class AppDmgVersioner(DmgMounter):
+    # we dynamically set the docstring from the description (DRY), so:
+    #pylint: disable=missing-docstring
     description = "Extracts bundle ID and version of app inside dmg."
     input_variables = {
         "dmg_path": {
@@ -50,7 +55,7 @@ class AppDmgVersioner(DmgMounter):
 
     def find_app(self, path):
         """Find app bundle at path."""
-
+        #pylint: disable=no-self-use
         apps = glob.glob(os.path.join(path, "*.app"))
         if len(apps) == 0:
             raise ProcessorError("No app found in dmg")
@@ -58,15 +63,18 @@ class AppDmgVersioner(DmgMounter):
 
     def read_bundle_info(self, path):
         """Read Contents/Info.plist inside a bundle."""
+        #pylint: disable=no-self-use
 
         plistpath = os.path.join(path, "Contents", "Info.plist")
-        info, format, error = \
+        #pylint: disable=line-too-long
+        info, _, error = (
             NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
                 NSData.dataWithContentsOfFile_(plistpath),
                 NSPropertyListMutableContainers,
                 None,
-                None
-            )
+                None))
+        #pylint: enable=line-too-long
+
         if error:
             raise ProcessorError("Can't read %s: %s" % (plistpath, error))
 
@@ -86,13 +94,13 @@ class AppDmgVersioner(DmgMounter):
                 self.env["version"] = info["CFBundleShortVersionString"]
                 self.output("BundleID: %s" % self.env["bundleid"])
                 self.output("Version: %s" % self.env["version"])
-            except BaseException as e:
-                raise ProcessorError(e)
+            except BaseException as err:
+                raise ProcessorError(err)
         finally:
             self.unmount(self.env["dmg_path"])
 
 
 if __name__ == '__main__':
-    processor = AppDmgVersioner()
-    processor.execute_shell()
+    PROCESSOR = AppDmgVersioner()
+    PROCESSOR.execute_shell()
 
