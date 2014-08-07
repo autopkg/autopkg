@@ -13,19 +13,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""See docstring for CodeSignatureVerifier class"""
 
 import os.path
 import subprocess
 import re
 
 from glob import glob
-from autopkglib import Processor, ProcessorError
-from DmgMounter import DmgMounter
+from autopkglib import ProcessorError
+from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["CodeSignatureVerifier"]
 
-re_authority_codesign = re.compile(r'Authority=(?P<authority>.*)\n')
-re_authority_pkgutil = re.compile(r'\s+[1-9]+\. (?P<authority>.*)\n')
+RE_AUTHORITY_CODESIGN = re.compile(r'Authority=(?P<authority>.*)\n')
+RE_AUTHORITY_PKGUTIL = re.compile(r'\s+[1-9]+\. (?P<authority>.*)\n')
 
 
 class CodeSignatureVerifier(DmgMounter):
@@ -34,15 +35,17 @@ class CodeSignatureVerifier(DmgMounter):
         "input_path": {
             "required": True,
             "description":
-                ("File path to an application bundle (.app) or installer package (.pkg or .mpkg). "
-                 "Can point to a globbed path inside a .dmg which will be mounted."),
+                ("File path to an application bundle (.app) or installer "
+                 "package (.pkg or .mpkg). Can point to a globbed path inside "
+                 "a .dmg which will be mounted."),
         },
         "expected_authority_names": {
             "required": False,
             "description":
-                ("An array of strings defining a list of expected certificate authority names. "
-                 "Complete list of the certificate name chain is required and it needs to be "
-                 "in the correct order. These can be determined by running: "
+                ("An array of strings defining a list of expected certificate "
+                 "authority names. Complete list of the certificate name chain "
+                 "is required and it needs to be in the correct order. These "
+                 "can be determined by running: "
                  "\n\t$ codesign -d -vvvv <path_to_app>"
                  "\n\tor"
                  "\n\t$ pkgutil --check-signature <path_to_pkg>"),
@@ -58,17 +61,19 @@ class CodeSignatureVerifier(DmgMounter):
         Runs 'codesign --display -vvvv <path>' and returns a list of
         found certificate authority names.
         """
+        #pylint: disable=no-self-use
         process = ["/usr/bin/codesign",
                    "--display",
                    "-vvvv",
                    path]
 
-        p = subprocess.Popen(process, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        codesign_details = p.communicate()[1]
+        proc = subprocess.Popen(process,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        codesign_details = proc.communicate()[1]
 
         authority_name_chain = []
-        for m in re.finditer(re_authority_codesign, codesign_details):
-            authority_name_chain.append(m.group('authority'))
+        for match in re.finditer(RE_AUTHORITY_CODESIGN, codesign_details):
+            authority_name_chain.append(match.group('authority'))
         return authority_name_chain
 
     def codesign_verify(self, path):
@@ -80,8 +85,9 @@ class CodeSignatureVerifier(DmgMounter):
                    "--verify",
                    "--verbose",
                    path]
-        p = subprocess.Popen(process, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (output, error) = p.communicate()
+        proc = subprocess.Popen(process,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (output, error) = proc.communicate()
 
         # Log all output. codesign seems to output only
         # to stderr but check the stdout too
@@ -93,7 +99,7 @@ class CodeSignatureVerifier(DmgMounter):
                 self.output("%s" % line)
 
         # Return true only if codesign exited with 0
-        if p.returncode == 0:
+        if proc.returncode == 0:
             return True
         else:
             return False
@@ -106,8 +112,9 @@ class CodeSignatureVerifier(DmgMounter):
         process = ["/usr/sbin/pkgutil",
                    "--check-signature",
                    path]
-        p = subprocess.Popen(process, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (output, error) = p.communicate()
+        proc = subprocess.Popen(process,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (output, error) = proc.communicate()
 
         # Log everything
         if output:
@@ -119,11 +126,11 @@ class CodeSignatureVerifier(DmgMounter):
 
         # Parse the output for certificate authority names
         authority_name_chain = []
-        for m in re.finditer(re_authority_pkgutil, output):
-            authority_name_chain.append(m.group('authority'))
+        for match in re.finditer(RE_AUTHORITY_PKGUTIL, output):
+            authority_name_chain.append(match.group('authority'))
 
         # Check the pkgutil exit code
-        if p.returncode == 0:
+        if proc.returncode == 0:
             succeeded = True
         else:
             succeeded = False
@@ -133,6 +140,7 @@ class CodeSignatureVerifier(DmgMounter):
         return succeeded, authority_name_chain
 
     def process_app_bundle(self, path):
+        '''Verifies the signature for an application bundle'''
         self.output("Verifying application bundle signature...")
         # The first step is to run 'codesign --verify <path>'
         if self.codesign_verify(path):
@@ -145,13 +153,15 @@ class CodeSignatureVerifier(DmgMounter):
             expected_authority_names = self.env['expected_authority_names']
             if authority_names != expected_authority_names:
                 self.output("Mismatch in authority names")
-                self.output("Expected: %s" % ' -> '.join(expected_authority_names))
+                self.output(
+                    "Expected: %s" % ' -> '.join(expected_authority_names))
                 self.output("Found:    %s" % ' -> '.join(authority_names))
                 raise ProcessorError("Mismatch in authority names")
             else:
                 self.output("Authority name chain is valid")
 
     def process_installer_package(self, path):
+        '''Verifies the signature for an installer pkg'''
         self.output("Verifying installer package signature...")
         # The first step is to run 'pkgutil --check-signature <path>'
         pkgutil_succeeded, authority_names = self.pkgutil_check_signature(path)
@@ -165,7 +175,8 @@ class CodeSignatureVerifier(DmgMounter):
             expected_authority_names = self.env['expected_authority_names']
             if authority_names != expected_authority_names:
                 self.output("Mismatch in authority names")
-                self.output("Expected: %s" % ' -> '.join(expected_authority_names))
+                self.output(
+                    "Expected: %s" % ' -> '.join(expected_authority_names))
                 self.output("Found:    %s" % ' -> '.join(authority_names))
                 raise ProcessorError("Mismatch in authority names")
             else:
@@ -174,7 +185,7 @@ class CodeSignatureVerifier(DmgMounter):
     def main(self):
         # Check if we're trying to read something inside a dmg.
         (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
-                                            self.env['input_path'])
+            self.env['input_path'])
         try:
             if dmg:
                 # Mount dmg and copy path inside.
@@ -183,7 +194,8 @@ class CodeSignatureVerifier(DmgMounter):
                 if len(globbed_paths) > 0:
                     input_path = globbed_paths[0]
                 else:
-                    self.output("Invalid input path: %s" % self.env['input_path'])
+                    self.output(
+                        "Invalid input path: %s" % self.env['input_path'])
                     raise ProcessorError("Invalid input path")
             else:
                 # just use the given path
@@ -193,15 +205,16 @@ class CodeSignatureVerifier(DmgMounter):
             darwin_version = os.uname()[2]
 
             # Currently we support only .app, .pkg or .mpkg types
-            file_name, file_extension = os.path.splitext(input_path)
+            file_extension = os.path.splitext(input_path)[1]
             if file_extension == ".app":
                 self.process_app_bundle(input_path)
             elif file_extension in [".pkg", ".mpkg"]:
-                # Check the kernel version to make sure we're running on Snow Leopard
+                # Check the kernel version to make sure we're running on
+                # Snow Leopard:
                 # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
                 if darwin_version.startswith("10."):
-                    self.output("Warning: Installer package signature verification "
-                                "not supported on Mac OS X 10.6")
+                    self.output("Warning: Installer package signature "
+                                "verification not supported on Mac OS X 10.6")
                 else:
                     self.process_installer_package(input_path)
             else:
@@ -213,6 +226,6 @@ class CodeSignatureVerifier(DmgMounter):
 
 
 if __name__ == '__main__':
-    processor = CodeSignatureVerifier()
-    processor.execute_shell()
+    PROCESSOR = CodeSignatureVerifier()
+    PROCESSOR.execute_shell()
 
