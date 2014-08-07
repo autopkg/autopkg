@@ -13,12 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for DmgCreator class"""
 
 import os
 import subprocess
-import shutil
-import tempfile
 
 from autopkglib import Processor, ProcessorError
 
@@ -29,7 +27,9 @@ DEFAULT_DMG_FORMAT = "UDZO"
 DEFAULT_ZLIB_LEVEL = 5
 
 class DmgCreator(Processor):
-    description = "Creates a disk image from a directory."
+    """Creates a disk image from a directory."""
+
+    description = __doc__
     input_variables = {
         "dmg_root": {
             "required": True,
@@ -41,8 +41,8 @@ class DmgCreator(Processor):
         },
         "dmg_format": {
             "required": False,
-            "description": "The dmg format. Defaults to %s."
-                            % DEFAULT_DMG_FORMAT,
+            "description": ("The dmg format. Defaults to %s."
+                            % DEFAULT_DMG_FORMAT),
         },
         "dmg_zlib_level": {
             "required": False,
@@ -53,17 +53,17 @@ class DmgCreator(Processor):
         },
         "dmg_megabytes": {
             "required": False,
-            "description": ("Value to set for the '-megabytes' option, useful as a "
-                            "workaround when hdiutil cannot accurately estimate "
-                            "the required size for the dmg before compression. Not "
-                            "normally required, and the option will not be used "
-                            "if this variable is not defined.")
+            "description": ("Value to set for the '-megabytes' option, useful "
+                            "as a workaround when hdiutil cannot accurately "
+                            "estimate the required size for the dmg before "
+                            "compression. Not normally required, and the "
+                            "option will not be used if this variable is not "
+                            "defined.")
         }
     }
     output_variables = {
     }
 
-    __doc__ = description
 
     def main(self):
         # Remove existing dmg if it exists.
@@ -73,18 +73,16 @@ class DmgCreator(Processor):
         # Determine the format.
         # allow a subset of the formats supported by hdiutil, those
         # which aren't obsolete or deprecated
-        valid_formats = [
-                        "UDRW",
-                        "UDRO",
-                        "UDCO",
-                        "UDZO",
-                        "UDBZ",
-                        "UFBI",
-                        "UDTO",
-                        "UDxx",
-                        "UDSP",
-                        "UDSB",
-                        ]
+        valid_formats = ["UDRW",
+                         "UDRO",
+                         "UDCO",
+                         "UDZO",
+                         "UDBZ",
+                         "UFBI",
+                         "UDTO",
+                         "UDxx",
+                         "UDSP",
+                         "UDSB",]
 
         dmg_format = self.env.get("dmg_format", DEFAULT_DMG_FORMAT)
         if dmg_format not in valid_formats:
@@ -98,13 +96,11 @@ class DmgCreator(Processor):
                 "dmg_zlib_level must be a value between 1 and 9.")
 
         # Build a command for hdiutil.
-        cmd = [
-              "/usr/bin/hdiutil",
-              "create",
-              "-plist",
-              "-format",
-              dmg_format
-              ]
+        cmd = ["/usr/bin/hdiutil",
+               "create",
+               "-plist",
+               "-format",
+               dmg_format]
         if dmg_format == "UDZO":
             cmd.extend(["-imagekey", "zlib-level=%s" % str(zlib_level)])
         if self.env.get("dmg_megabytes"):
@@ -115,22 +111,22 @@ class DmgCreator(Processor):
 
         # Call hdiutil.
         try:
-            p = subprocess.Popen(cmd,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
-            (out, err) = p.communicate()
-        except OSError as e:
-            raise ProcessorError("hdiutil execution failed with error code %d: %s" % (
-                                  e.errno, e.strerror))
-        if p.returncode != 0:
-            raise ProcessorError("creation of %s failed: %s" % (self.env['dmg_path'], err))
+            proc = subprocess.Popen(cmd,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+            stderr = proc.communicate()[1]
+        except OSError as err:
+            raise ProcessorError(
+                "hdiutil execution failed with error code %d: %s"
+                % (err.errno, err.strerror))
+        if proc.returncode != 0:
+            raise ProcessorError(
+                "creation of %s failed: %s" % (self.env['dmg_path'], stderr))
 
-        # Read output plist.
-        #output = FoundationPlist.readPlistFromString(out)
         self.output("Created dmg from %s at %s"
-            % (self.env['dmg_root'], self.env['dmg_path']))
+                    % (self.env['dmg_root'], self.env['dmg_path']))
 
 if __name__ == '__main__':
-    processor = DmgCreator()
-    processor.execute_shell()
+    PROCESSOR = DmgCreator()
+    PROCESSOR.execute_shell()
 
