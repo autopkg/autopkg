@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for FileFinder class"""
 
 
 from glob import glob
@@ -33,7 +33,8 @@ Currently only supports glob filename patterns.
             'required': True,
         },
         'find_method': {
-            'description': 'Type of pattern to match. Currently only supported type is "glob" (also the default)',
+            'description': ('Type of pattern to match. Currently only '
+                            'supported type is "glob" (also the default)'),
             'required': False,
         },
     }
@@ -46,7 +47,9 @@ Currently only supports glob filename patterns.
     description = __doc__
 
     def globfind(self, pattern):
-        '''If multiple files are found the last alphanumerically sorted found file is returned'''
+        '''If multiple files are found the last alphanumerically sorted found
+        file is returned'''
+        #pylint: disable=no-self-use
 
         glob_matches = glob(pattern)
 
@@ -70,5 +73,5 @@ Currently only supports glob filename patterns.
         self.output('Found file match: %s' % self.env['found_filename'])
 
 if __name__ == '__main__':
-    processor = FileFinder()
-    processor.execute_shell()
+    PROCESSOR = FileFinder()
+    PROCESSOR.execute_shell()
