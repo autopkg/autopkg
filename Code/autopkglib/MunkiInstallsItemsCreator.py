@@ -13,13 +13,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for MunkiInstallsItemsCreator class"""
 
 import FoundationPlist
 import subprocess
 
 from autopkglib import Processor, ProcessorError
+#pylint: disable=no-name-in-module
 from Foundation import NSDictionary
+#pylint: enable=no-name-in-module
 
 __all__ = ["MunkiInstallsItemsCreator"]
 
@@ -38,15 +40,16 @@ class MunkiInstallsItemsCreator(Processor):
         },
         "version_comparison_key": {
             "required": False,
-            "description": ("Set 'version_comparison_key' for installs items. "
-                            "If this is a string, it is set to this value for "
-                            "all items given to 'installs_item_paths'. If this "
-                            "is a dictionary, takes a mapping of a path as "
-                            "given to 'installs_item_paths' to the desired "
-                            "version_comparison_key.\n"
-                            "Example:\n"
-                            "{'/Applications/Foo.app': 'CFBundleVersion',\n"
-                            "'/Library/Bar.plugin': 'CFBundleShortVersionString'}"),
+            "description": (
+                "Set 'version_comparison_key' for installs items. "
+                "If this is a string, it is set to this value for "
+                "all items given to 'installs_item_paths'. If this "
+                "is a dictionary, takes a mapping of a path as "
+                "given to 'installs_item_paths' to the desired "
+                "version_comparison_key.\n"
+                "Example:\n"
+                "{'/Applications/Foo.app': 'CFBundleVersion',\n"
+                "'/Library/Bar.plugin': 'CFBundleShortVersionString'}"),
         },
 
     }
@@ -57,7 +60,7 @@ class MunkiInstallsItemsCreator(Processor):
     }
     description = __doc__
 
-    def createInstallsItems(self):
+    def create_installs_items(self):
         """Calls makepkginfo to create an installs array."""
         faux_root = ""
         if self.env.get("faux_root"):
@@ -97,21 +100,21 @@ class MunkiInstallsItemsCreator(Processor):
                 if isinstance(self.env["version_comparison_key"], basestring):
                     cmp_key = self.env["version_comparison_key"]
                 # It it's a dict, find if there's a key that matches a path
-                elif isinstance(self.env["version_comparison_key"], NSDictionary):
+                elif isinstance(
+                        self.env["version_comparison_key"], NSDictionary):
                     for path, key in self.env["version_comparison_key"].items():
                         if path == item["path"]:
                             cmp_key = key
 
                 if cmp_key:
-                    # Check that we really have this key available for comparison
+                    # Check that we really have this key available to compare
                     if cmp_key in item:
                         item["version_comparison_key"] = cmp_key
                     else:
                         raise ProcessorError(
-                        "version_comparison_key '%s' could not be found in the "
-                        "installs item for path '%s'" % (
-                            cmp_key,
-                            item["path"]))
+                            "version_comparison_key '%s' could not be found in "
+                            "the installs item for path '%s'"
+                            % (cmp_key, item["path"]))
 
         if not "additional_pkginfo" in self.env:
             self.env["additional_pkginfo"] = {}
@@ -119,9 +122,9 @@ class MunkiInstallsItemsCreator(Processor):
 
 
     def main(self):
-        self.createInstallsItems()
+        self.create_installs_items()
 
 
 if __name__ == "__main__":
-    processor = MunkiInstallsItemsCreator()
-    processor.execute_shell()
+    PROCESSOR = MunkiInstallsItemsCreator()
+    PROCESSOR.execute_shell()
