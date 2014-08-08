@@ -1066,7 +1066,7 @@ def run_recipes(argv):
     p.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
                  help=("Path to a pkg or dmg to provide to a recipe. "
                        "Downloading will be skipped."))
-    p.add_option("--report-plist", action="store_true", default=False,
+    p.add_option("--report-plist", action="store",type="string", default=None,
                  help="Output run report data in plist format to stdout. "
                       "Additional messages may still be printed to stderr.")
     p.add_option("-v", "--verbose", action="count", default=0,
@@ -1106,8 +1106,6 @@ def run_recipes(argv):
     if options.pkg:
         cli_values["PKG"] = options.pkg
 
-    _REPORT_PLIST = options.report_plist
-    
     recipe_paths = []
     recipe_paths.extend(arguments)
     if options.recipe_list:
@@ -1139,17 +1137,36 @@ def run_recipes(argv):
             "Can't write results to %s: %s"
             % (current_run_results_plist, err.strerror))
 
-    if _REPORT_PLIST:
-        results_report_plist = os.path.join(cache_dir, "autopkg_results_report.plist")
-        results_report = {}
-        try:
-            FoundationPlist.writePlist(results_report, results_report_plist)
-        except IOError as err:
-            log_err(
-                "Can't write result status to %s: %s"
-                % (results_report_plist, err.strerror))
-                # Set this to false so we won't try again
-            _REPORT_PLIST = False
+    if options.report_plist:
+        # Catch condition where old syntax is used 
+        if not options.report_plist[:1] is "-":
+            results_report = {}
+            is_file = os.path.isfile(options.report_plist);
+            has_file_access = os.access(options.report_plist,os.W_OK)
+            # check to see if there is access to parent directory
+            if os.access(os.path.abspath(os.path.join(options.report_plist, os.pardir)),os.W_OK):
+                if ( is_file and has_file_access ) or not is_file:
+                    # then write an empty plist so we don't have an innacurate on crash
+                    try:
+                        FoundationPlist.writePlist(results_report, options.report_plist)
+                    except FoundationPlist.FoundationPlistException, err:
+                        log_err("WARNING: plist error for %s: %s" % (options.report_plist, unicode(err)))
+                        return -1
+                else:
+                    # exit out
+                    log_err("Can't write report to %s"% options.report_plist)
+                    return -1
+            else:
+                log_err("Can't write %s to the specified directory."% options.report_plist)
+                return -1
+        else:
+            log_err("ERROR: --report-plist now requires specifing a file.")
+            log_err("NEW USAGE: autopkg run ... --report-plist=/path/to/file")
+            return -1
+
+
+
+
                 
     for recipe_path in recipe_paths:
         recipe = load_recipe(recipe_path, override_dirs, search_dirs)
@@ -1293,17 +1310,17 @@ def run_recipes(argv):
     if not new_downloads and not new_packages and not new_imports:
         log("\nNothing downloaded, packaged or imported.")
 
-    if _REPORT_PLIST:
+    if options.report_plist:
         results_report = {}
         for event_type in [
             "failures", "new_downloads", "new_packages", "new_imports"]:
             results_report[event_type] = locals()[event_type]
         try:
-            FoundationPlist.writePlist(results_report, results_report_plist)
+            FoundationPlist.writePlist(results_report, options.report_plist)
         except IOError as err:
             log_err(
                 "Can't write result status to %s: %s"
-                % (results_report_plist, err.strerror))
+                % (options.report_plist, err.strerror))
                 
     return error_count
 
