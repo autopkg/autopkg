@@ -13,10 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""See docstring for PkgInfoCreator class"""
 
-
-import os.path
-import subprocess
+import os
 import FoundationPlist
 import math
 from xml.etree import ElementTree
@@ -28,7 +27,8 @@ __all__ = ["PkgInfoCreator"]
 
 
 class PkgInfoCreator(Processor):
-    description = "Creates an Info.plist file for a package."
+    """Creates an PackageInfo file for a package."""
+    description = __doc__
     input_variables = {
         "template_path": {
             "required": True,
@@ -53,9 +53,6 @@ class PkgInfoCreator(Processor):
     }
     output_variables = {
     }
-
-    __doc__ = description
-
 
     def find_template(self):
         '''Searches for the template, looking in the recipe directory
@@ -83,18 +80,24 @@ class PkgInfoCreator(Processor):
             raise ProcessorError("Unknown pkgtype %s" % self.env['pkgtype'])
         template = self.load_template(self.find_template(), self.env['pkgtype'])
         if self.env['pkgtype'] == "bundle":
-            self.create_bundle_info(template)
+            raise ProcessorError("Bundle package creation no longer supported!")
         else:
             self.create_flat_info(template)
 
-    restartaction_to_postinstallaction = {
-        "None": "none",
-        "RecommendRestart": "restart",
-        "RequireLogout": "logout",
-        "RequireRestart": "restart",
-        "RequireShutdown": "shutdown",
-    }
     def convert_bundle_info_to_flat(self, info):
+        '''Converts pkg info from bundle format to flat format'''
+        #pylint: disable=no-self-use
+        # Since we now only support flat packages, we might be able to
+        # get rid of this in the near future, but all existing recipes
+        # would need to convert to only flat-style Resources/data
+        conversion_map = {
+            "None": "none",
+            "RecommendRestart": "restart",
+            "RequireLogout": "logout",
+            "RequireRestart": "restart",
+            "RequireShutdown": "shutdown",
+        }
+
         pkg_info = ElementTree.Element("pkg-info")
         pkg_info.set("format-version", "2")
         for bundle, flat in (("IFPkgFlagDefaultLocation", "install-location"),
@@ -108,8 +111,9 @@ class PkgInfoCreator(Processor):
             else:
                 pkg_info.set("auth", "none")
         if "IFPkgFlagRestartAction" in info:
-            pkg_info.set("postinstall-action",
-                self.restartaction_to_postinstallaction[info["IFPkgFlagRestartAction"]])
+            pkg_info.set(
+                "postinstall-action",
+                conversion_map[info["IFPkgFlagRestartAction"]])
 
         payload = ElementTree.SubElement(pkg_info, "payload")
         if "IFPkgFlagInstalledSize" in info:
@@ -117,47 +121,12 @@ class PkgInfoCreator(Processor):
 
         return ElementTree.ElementTree(pkg_info)
 
-    postinstallaction_to_restartaction = {
-        "none": "None",
-        "logout": "RequireLogout",
-        "restart": "RequireRestart",
-        "shutdown": "RequireShutdown",
-    }
     def convert_flat_info_to_bundle(self, info):
-        info = {
-            #"CFBundleIdentifier": "com.adobe.pkg.FlashPlayer",
-            "IFPkgFlagAllowBackRev": False,
-            #"IFPkgFlagAuthorizationAction": "RootAuthorization",
-            #"IFPkgFlagDefaultLocation": "/",
-            "IFPkgFlagFollowLinks": True,
-            "IFPkgFlagInstallFat": False,
-            "IFPkgFlagIsRequired": False,
-            "IFPkgFlagOverwritePermissions": False,
-            "IFPkgFlagRelocatable": False,
-            #"IFPkgFlagRestartAction": "None",
-            "IFPkgFlagRootVolumeOnly": False,
-            "IFPkgFlagUpdateInstalledLanguages": False,
-            "IFPkgFormatVersion": 0.1,
-        }
-
-        pkg_info = info.getroot()
-        if pkg_info.tag != "pkg-info":
-            raise ProcessorError("PackageInfo template root isn't pkg-info")
-
-        info["CFBundleShortVersionString"] = pkg_info.get("version", "")
-        info["CFBundleIdentifier"] = pkg_info.get("identifier", "")
-        info["IFPkgFlagDefaultLocation"] = pkg_info.get("install-location", "")
-        if pkg_info.get("auth") == "root":
-            info["IFPkgFlagAuthorizationAction"] = "RootAuthorization"
-        else:
-            raise ProcessorError("Don't know how to convert auth=%s to Info.plist format" % pkg_info.get("auth"))
-        info["IFPkgFlagRestartAction"] = \
-            self.postinstallaction_to_restartaction[pkg_info.get("postinstall-action", "none")]
-
-        payload = ElementTree.SubElement(pkg_info, "payload")
-        info["IFPkgFlagInstalledSize"] = payload.get("installKBytes", 0)
-
-        return info
+        '''Converts pkg info from flat format to bundle format'''
+        # since we now only support flat packages, just raise an exception
+        #pylint: disable=unused-argument
+        #pylint: disable=no-self-use
+        raise ProcessorError("Bundle package creation no longer supported!")
 
     def load_template(self, template_path, template_type):
         """Load a package info template in Info.plist or PackageInfo format."""
@@ -166,8 +135,10 @@ class PkgInfoCreator(Processor):
             # Try to load Info.plist in bundle format.
             try:
                 info = FoundationPlist.readPlist(self.env['template_path'])
-            except BaseException as e:
-                raise ProcessorError("Malformed Info.plist template %s" % self.env['template_path'])
+            except FoundationPlist.FoundationPlistException:
+                raise ProcessorError(
+                    "Malformed Info.plist template %s"
+                    % self.env['template_path'])
             if template_type == "bundle":
                 return info
             else:
@@ -176,8 +147,10 @@ class PkgInfoCreator(Processor):
             # Try to load PackageInfo in flat format.
             try:
                 info = ElementTree.parse(template_path)
-            except BaseException as e:
-                raise ProcessorError("Malformed PackageInfo template %s" % self.env['template_path'])
+            except FoundationPlist.FoundationPlistException:
+                raise ProcessorError(
+                    "Malformed PackageInfo template %s"
+                    % self.env['template_path'])
             if template_type == "flat":
                 return info
             else:
@@ -185,10 +158,11 @@ class PkgInfoCreator(Processor):
 
     def get_pkgroot_size(self, pkgroot):
         """Return the size of pkgroot (in kilobytes) and the number of files."""
+        #pylint: disable=no-self-use
 
         size = 0
         nfiles = 0
-        for (dirpath, dirnames, filenames) in os.walk(pkgroot):
+        for (dirpath, _, filenames) in os.walk(pkgroot):
             # Count the current directory and the number of files in it.
             nfiles += 1 + len(filenames)
             for filename in filenames:
@@ -201,6 +175,7 @@ class PkgInfoCreator(Processor):
         return (size, nfiles)
 
     def create_flat_info(self, template):
+        """Create PackageInfo file for flat package"""
         info = template
 
         pkg_info = info.getroot()
@@ -218,25 +193,15 @@ class PkgInfoCreator(Processor):
 
         info.write(self.env['infofile'])
 
-
     def create_bundle_info(self, template):
-        info = template
-
-        info["CFBundleShortVersionString"] = self.env['version']
-        ver = self.env['version'].split(".")
-        info["IFMajorVersion"] = ver[0]
-        info["IFMinorVersion"] = ver[1]
-
-        size, nfiles = self.get_pkgroot_size(self.env['pkgroot'])
-        info["IFPkgFlagInstalledSize"] = size
-
-        try:
-            FoundationPlist.writePlist(info, self.env['infofile'])
-        except BaseException as e:
-            raise ProcessorError("Couldn't write %s: %s" % (self.env['infofile'], e))
-
+        '''create Info.plist data for bundle-style pkg'''
+        # We don't support the creation of bundle-style pkgs
+        # any longer, so raise an exception
+        #pylint: disable=unused-argument
+        #pylint: disable=no-self-use
+        raise ProcessorError("Bundle package creation no longer supported!")
 
 if __name__ == '__main__':
-    processor = PkgInfoCreator()
-    processor.execute_shell()
+    PROCESSOR = PkgInfoCreator()
+    PROCESSOR.execute_shell()
 
