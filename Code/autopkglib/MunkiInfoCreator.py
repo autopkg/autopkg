@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for MunkiInfoCreator class"""
 
 import os.path
 import subprocess
@@ -28,7 +28,8 @@ __all__ = ["MunkiInfoCreator"]
 
 
 class MunkiInfoCreator(Processor):
-    description = "Creates a pkginfo file for a munki package."
+    """Creates a pkginfo file for a munki package."""
+    description = __doc__
     input_variables = {
         "pkg_path": {
             "required": True,
@@ -53,8 +54,6 @@ class MunkiInfoCreator(Processor):
         },
     }
 
-    __doc__ = description
-
     def main(self):
         # Wrap in a try/finally so the temp_path is always removed.
         temp_path = None
@@ -71,10 +70,12 @@ class MunkiInfoCreator(Processor):
             # (which is called by makepkginfo) doesn't work on network drives.
             if self.env["pkg_path"].endswith("pkg"):
                 # Create temporary directory.
-                temp_path = tempfile.mkdtemp(prefix="autopkg", dir="/private/tmp")
+                temp_path = tempfile.mkdtemp(
+                    prefix="autopkg", dir="/private/tmp")
 
                 # Copy the pkg there
-                pkg_for_makepkginfo = os.path.join(temp_path, os.path.basename(self.env["pkg_path"]))
+                pkg_for_makepkginfo = os.path.join(
+                    temp_path, os.path.basename(self.env["pkg_path"]))
                 shutil.copyfile(self.env["pkg_path"], pkg_for_makepkginfo)
             else:
                 pkg_for_makepkginfo = self.env["pkg_path"]
@@ -88,13 +89,16 @@ class MunkiInfoCreator(Processor):
 
             # Call makepkginfo.
             try:
-                p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                (out, err) = p.communicate()
-            except OSError as e:
-                raise ProcessorError("makepkginfo execution failed with error code %d: %s" % (
-                                      e.errno, e.strerror))
-            if p.returncode != 0:
-                raise ProcessorError("creating pkginfo for %s failed: %s" % (self.env['pkg_path'], err))
+                proc = subprocess.Popen(
+                    args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                (stdout, stderr) = proc.communicate()
+            except OSError as err:
+                raise ProcessorError(
+                    "makepkginfo execution failed with error code %d: %s"
+                    % (err.errno, err.strerror))
+            if proc.returncode != 0:
+                raise ProcessorError("creating pkginfo for %s failed: %s"
+                                     % (self.env['pkg_path'], stderr))
 
         # makepkginfo cleanup.
         finally:
@@ -102,7 +106,7 @@ class MunkiInfoCreator(Processor):
                 shutil.rmtree(temp_path)
 
         # Read output plist.
-        output = FoundationPlist.readPlistFromString(out)
+        output = FoundationPlist.readPlistFromString(stdout)
 
         # Set version and name.
         if "version" in self.env:
@@ -117,6 +121,6 @@ class MunkiInfoCreator(Processor):
 
 
 if __name__ == '__main__':
-    processor = MunkiInfoCreator()
-    processor.execute_shell()
+    PROCESSOR = MunkiInfoCreator()
+    PROCESSOR.execute_shell()
 
