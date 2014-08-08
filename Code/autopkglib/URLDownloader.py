@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for URLDownloader class"""
 
 import os.path
 import urllib2
@@ -44,7 +44,8 @@ def getxattr(pathname, attr):
 
 
 class URLDownloader(Processor):
-    description = "Downloads a URL to the specified download_dir."
+    """Downloads a URL to the specified download_dir."""
+    description = __doc__
     input_variables = {
         "url": {
             "required": True,
@@ -54,7 +55,7 @@ class URLDownloader(Processor):
             "required": False,
             "description":
                 ("Optional dictionary of headers to include with the download "
-                "request.")
+                 "request.")
         },
         "download_dir": {
             "required": False,
@@ -91,9 +92,6 @@ class URLDownloader(Processor):
         },
     }
 
-    __doc__ = description
-
-
     def main(self):
         self.env["last_modified"] = ""
         self.env["etag"] = ""
@@ -120,10 +118,9 @@ class URLDownloader(Processor):
         if not os.path.exists(download_dir):
             try:
                 os.makedirs(download_dir)
-            except OSError, e:
+            except OSError, err:
                 raise ProcessorError(
-                    "Can't create %s: %s"
-                    % (download_dir, e.strerror))
+                    "Can't create %s: %s" % (download_dir, err.strerror))
 
         # Download URL.
         url_handle = None
@@ -186,13 +183,14 @@ class URLDownloader(Processor):
 
             # save last-modified header if it exists
             if url_handle.info().get("last-modified"):
-                self.env["last_modified"] = url_handle.info().get(
-                                                "last-modified")
+                self.env["last_modified"] = (
+                    url_handle.info().get("last-modified"))
                 xattr.setxattr(
                     pathname, XATTR_LAST_MODIFIED,
                     url_handle.info().get("last-modified"))
-                self.output("Storing new Last-Modified header: %s" %
-                    url_handle.info().get("last-modified"))
+                self.output(
+                    "Storing new Last-Modified header: %s"
+                    % url_handle.info().get("last-modified"))
 
             # save etag if it exists
             self.env["etag"] = ""
@@ -200,20 +198,19 @@ class URLDownloader(Processor):
                 self.env["etag"] = url_handle.info().get("etag")
                 xattr.setxattr(
                     pathname, XATTR_ETAG, url_handle.info().get("etag"))
-                self.output("Storing new ETag header: %s" %
-                    url_handle.info().get("etag"))
+                self.output("Storing new ETag header: %s"
+                            % url_handle.info().get("etag"))
 
             self.output("Downloaded %s" % pathname)
 
-        except BaseException as e:
+        except BaseException as err:
             raise ProcessorError(
-                "Couldn't download %s: %s" % (self.env["url"], e))
+                "Couldn't download %s: %s" % (self.env["url"], err))
         finally:
             if url_handle is not None:
                 url_handle.close()
 
 
 if __name__ == "__main__":
-    processor = URLDownloader()
-    processor.execute_shell()
-
+    PROCESSOR = URLDownloader()
+    PROCESSOR.execute_shell()
