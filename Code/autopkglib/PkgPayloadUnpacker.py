@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for PkgPayloadUnpacker class"""
 
 import os
 import shutil
@@ -42,14 +42,14 @@ class PkgPayloadUnpacker(Processor):
             "required": False,
             "description":
                 ("Whether the contents of the destination directory will "
-                "be removed before unpacking."),
+                 "be removed before unpacking."),
         },
     }
     output_variables = {
     }
     description = __doc__
 
-    def unpackPkgPayload(self):
+    def unpack_pkg_payload(self):
         """Uses ditto to unpack a package payload into destination_path"""
         # Create the destination directory if needed.
         if not os.path.exists(self.env['destination_path']):
@@ -78,9 +78,9 @@ class PkgPayloadUnpacker(Processor):
                         self.env["pkg_payload_path"],
                         self.env["destination_path"]]
             proc = subprocess.Popen(dittocmd,
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE)
-            (unused_out, err_out) = proc.communicate()
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+            (_, err_out) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 "ditto execution failed with error code %d: %s"
@@ -89,13 +89,14 @@ class PkgPayloadUnpacker(Processor):
             raise ProcessorError(
                 "extraction of %s with ditto failed: %s"
                 % (self.env['pkg_payload_path'], err_out))
-        self.output("Unpacked %s to %s"
+        self.output(
+            "Unpacked %s to %s"
             % (self.env["pkg_payload_path"], self.env["destination_path"]))
 
     def main(self):
-        self.unpackPkgPayload()
+        self.unpack_pkg_payload()
 
 
 if __name__ == "__main__":
-    processor = PkgPayloadUnpacker()
-    processor.execute_shell()
+    PROCESSOR = PkgPayloadUnpacker()
+    PROCESSOR.execute_shell()
