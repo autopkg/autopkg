@@ -13,11 +13,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for SteoProcessingIf class"""
 
 from autopkglib import Processor, ProcessorError
 
+#pylint: disable=no-name-in-module
 from Foundation import NSPredicate
+#pylint: disable=no-name-in-module
 
 __all__ = ["StopProcessingIf"]
 
@@ -25,6 +27,7 @@ __all__ = ["StopProcessingIf"]
 class StopProcessingIf(Processor):
     """Sets a variable to tell AutoPackager to stop processing a recipe if a
        predicate comparison evaluates to true."""
+    description = __doc__
     input_variables = {
         "predicate": {
             "required": True,
@@ -39,9 +42,8 @@ class StopProcessingIf(Processor):
             "description": "Boolean. Should we stop processing the recipe?",
         },
     }
-    description = __doc__
 
-    def predicateEvaluatesAsTrue(self, predicate_string):
+    def predicate_evaluates_as_true(self, predicate_string):
         '''Evaluates predicate against our environment dictionary'''
         try:
             predicate = NSPredicate.predicateWithFormat_(predicate_string)
@@ -55,10 +57,10 @@ class StopProcessingIf(Processor):
         return result
 
     def main(self):
-        self.env["stop_processing_recipe"] = self.predicateEvaluatesAsTrue(
-            self.env["predicate"])
+        self.env["stop_processing_recipe"] = (
+            self.predicate_evaluates_as_true(self.env["predicate"]))
 
 
 if __name__ == '__main__':
-    processor = StopProcessingIf()
-    processor.execute_shell()
+    PROCESSOR = StopProcessingIf()
+    PROCESSOR.execute_shell()
