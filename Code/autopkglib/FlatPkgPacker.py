@@ -13,10 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""See docstring for FlatPkgPacker class"""
 
-
-import os
-import shutil
 import subprocess
 
 from autopkglib import Processor, ProcessorError
@@ -43,8 +41,11 @@ class FlatPkgPacker(Processor):
     output_variables = {}
 
     def flatten(self, source_dir, dest_pkg):
+        """Flattens a previously expanded flat package"""
+        #pylint: disable=no-self-use
         try:
-            subprocess.check_call(['/usr/sbin/pkgutil', '--flatten', source_dir, dest_pkg])
+            subprocess.check_call(['/usr/sbin/pkgutil',
+                                   '--flatten', source_dir, dest_pkg])
         except subprocess.CalledProcessError, err:
             raise ProcessorError("%s flattening %s" % (err, source_dir))
 
@@ -55,8 +56,8 @@ class FlatPkgPacker(Processor):
         self.flatten(source_dir, dest_pkg)
 
         self.output("Flattened %s to %s"
-            % (source_dir, dest_pkg))
+                    % (source_dir, dest_pkg))
 
 if __name__ == '__main__':
-    processor = FlatPkgPacker()
-    processor.execute_shell()
+    PROCESSOR = FlatPkgPacker()
+    PROCESSOR.execute_shell()
