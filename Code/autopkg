@@ -38,7 +38,6 @@ from autopkglib import get_processor, processor_names
 from autopkglib import get_autopkg_version, version_equal_or_greater
 from autopkglib import find_recipe_by_identifier, get_identifier
 
-_REPORT_PLIST = False
 
 
 def log(msg, error=False):
@@ -46,7 +45,7 @@ def log(msg, error=False):
     when --report-plist is used.'''
     if error:
         print >> sys.stderr, msg
-    elif not _REPORT_PLIST and not error:
+    else:
         print >> sys.stdout, msg
 
 
@@ -1022,10 +1021,8 @@ def run_recipes(argv):
     parser.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
                       help=("Path to a pkg or dmg to provide to a recipe. "
                             "Downloading will be skipped."))
-    parser.add_option("--report-plist", action="store_true", default=False,
-                      help="Output run report data in plist format to stdout. "
-                           "Additional messages may still be printed to "
-                           "stderr.")
+    parser.add_option("--report-plist", action="store",type="string", default=None,
+                        help=("File path to save run report plist."))
     parser.add_option("-v", "--verbose", action="count", default=0,
                       help="Verbose output.")
     add_search_and_override_dir_options(parser)
@@ -1099,6 +1096,14 @@ def run_recipes(argv):
         log_err(
             "Can't write results to %s: %s"
             % (current_run_results_plist, err.strerror))
+
+    results_report = {}
+    if options.report_plist:
+        try:
+            FoundationPlist.writePlist(results_report, options.report_plist)
+        except FoundationPlist.FoundationPlistException, err:
+            log_err("Can't write report plist to %s: %s" % (options.report_plist, unicode(err)))
+            return -1
 
     for recipe_path in recipe_paths:
         recipe = load_recipe(recipe_path, override_dirs, search_dirs)
@@ -1246,12 +1251,12 @@ def run_recipes(argv):
     if not new_downloads and not new_packages and not new_imports:
         log("\nNothing downloaded, packaged or imported.")
 
-    if _REPORT_PLIST:
+    if options.report_plist:
         results_report = {}
         for event_type in [
                 "failures", "new_downloads", "new_packages", "new_imports"]:
             results_report[event_type] = locals()[event_type]
-        print FoundationPlist.writePlistToString(results_report)
+        FoundationPlist.writePlist(results_report, options.report_plist)
 
     return error_count
 
