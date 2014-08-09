@@ -98,7 +98,7 @@ def main():
              "for the duplicate repo, and assign the source repo author "
              "to this team."
              "\n\n %prog [options] source-repo-user/recipe-repo-name")
-    
+
     default_org = "autopkg"
     permisison_levels = ["pull", "push", "admin"]
     default_permission_level = "admin"

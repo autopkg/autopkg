@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for PathDeleter class"""
 
 from autopkglib import Processor, ProcessorError
 import shutil
@@ -28,14 +28,14 @@ class PathDeleter(Processor):
     input_variables = {
         "path_list": {
             "required": True,
-            "description": 
+            "description":
                 "List of pathnames to be deleted",
         },
     }
     output_variables = {
     }
     description = __doc__
-    
+
     def main(self):
         for path in self.env["path_list"]:
             try:
@@ -57,5 +57,5 @@ class PathDeleter(Processor):
 
 
 if __name__ == "__main__":
-    processor = PathDeleter()
-    processor.execute_shell()
+    PROCESSOR = PathDeleter()
+    PROCESSOR.execute_shell()

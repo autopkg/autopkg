@@ -155,7 +155,7 @@ LAUNCH_JOBKEY_CAL_HOUR						= c_char_p("Hour")
 LAUNCH_JOBKEY_CAL_DAY						= c_char_p("Day")
 LAUNCH_JOBKEY_CAL_WEEKDAY					= c_char_p("Weekday")
 LAUNCH_JOBKEY_CAL_MONTH						= c_char_p("Month")
-                                    
+
 LAUNCH_JOBKEY_RESOURCELIMIT_CORE			= c_char_p("Core")
 LAUNCH_JOBKEY_RESOURCELIMIT_CPU				= c_char_p("CPU")
 LAUNCH_JOBKEY_RESOURCELIMIT_DATA			= c_char_p("Data")
@@ -201,10 +201,10 @@ class LaunchDCheckInError(Exception):
 
 def get_launchd_socket_fds():
     """Check in with launchd to get socket file descriptors."""
-    
+
     # Returna dictionary with lists of file descriptors.
     launchd_socket_fds = dict()
-    
+
     # Callback for dict iterator.
     def add_socket(launch_array, name, context=None):
         if launch_data_get_type(launch_array) != LAUNCH_DATA_ARRAY:
@@ -216,39 +216,39 @@ def get_launchd_socket_fds():
                 raise LaunchDCheckInError("Could not get file descriptor array entry: Type mismatch")
             fds.append(launch_data_get_fd(data_fd))
         launchd_socket_fds[name] = fds
-    
+
     # Wrap in try/finally to free resources allocated during lookup.
     try:
         # Create a checkin request.
         checkin_request = launch_data_new_string(LAUNCH_KEY_CHECKIN);
         if checkin_request == None:
             raise LaunchDCheckInError("Could not create checkin request")
-        
+
         # Check the checkin response.
         checkin_response = launch_msg(checkin_request);
         if checkin_response == None:
             raise LaunchDCheckInError("Error checking in")
-        
+
         if launch_data_get_type(checkin_response) == LAUNCH_DATA_ERRNO:
             errno = launch_data_get_errno(checkin_response)
             raise LaunchDCheckInError("Checkin failed")
-        
+
         # Get a dictionary of sockets.
         sockets = launch_data_dict_lookup(checkin_response, LAUNCH_JOBKEY_SOCKETS);
         if sockets == None:
             raise LaunchDCheckInError("Could not get socket dictionary from checkin response")
-        
+
         if launch_data_get_type(sockets) != LAUNCH_DATA_DICTIONARY:
             raise LaunchDCheckInError("Could not get socket dictionary from checkin response: Type mismatch")
-        
+
         # Iterate over the items with add_socket callback.
         launch_data_dict_iterate(sockets, DICTITCALLBACK(add_socket), None)
-        
+
         return launchd_socket_fds
-    
+
     finally:
         if checkin_response is not None:
             launch_data_free(checkin_response)
         if checkin_request is not None:
             launch_data_free(checkin_request)
-    
+

@@ -13,10 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""See docstring for MunkiPkginfoMerger class"""
 
-
-from autopkglib import Processor, ProcessorError
-
+from autopkglib import Processor
 
 __all__ = ["MunkiPkginfoMerger"]
 
@@ -30,10 +29,11 @@ class MunkiPkginfoMerger(Processor):
         },
         "additional_pkginfo": {
             "required": True,
-            "description": ("Dictionary containing additional Munki pkginfo. "
+            "description": (
+                "Dictionary containing additional Munki pkginfo. "
                 "This will be added to or replace keys in the pkginfo."),
         },
-        
+
     }
     output_variables = {
         "pkginfo": {
@@ -41,15 +41,16 @@ class MunkiPkginfoMerger(Processor):
         },
     }
     description = __doc__
-    
+
     def main(self):
         if "pkginfo" not in self.env:
             self.env["pkginfo"] = {}
-            
+
         for key in self.env["additional_pkginfo"].keys():
             self.env["pkginfo"][key] = self.env["additional_pkginfo"][key]
         self.output("Merged %s into pkginfo" % self.env["additional_pkginfo"])
 
+
 if __name__ == "__main__":
-    processor = MunkiPkginfoMerger()
-    processor.execute_shell()
+    PROCESSOR = MunkiPkginfoMerger()
+    PROCESSOR.execute_shell()

@@ -46,7 +46,7 @@ def api_call(endpoint, token, baseurl='https://api.github.com', data=None, json_
                'Authorization': 'token %s' % token}
     for header, value in additional_headers.items():
         headers[header] = value
-        
+
     req = urllib2.Request(baseurl + endpoint, headers=headers)
     try:
         results = urllib2.urlopen(req, data=data)

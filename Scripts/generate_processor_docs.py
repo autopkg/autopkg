@@ -65,11 +65,11 @@ def generate_markdown(dict_data, indent=0):
             string += " " * indent + "- **%s:** %s\n" % (
                                                 escape(key), escape(value))
     return string
-        
+
 
 def clone_wiki_dir(clone_dir=None):
-    '''Clone the AutoPkg GitHub repo and return the path to where it was 
-    cloned. The path can be specified with 'clone_dir', otherwise a 
+    '''Clone the AutoPkg GitHub repo and return the path to where it was
+    cloned. The path can be specified with 'clone_dir', otherwise a
     temporary directory will be used.'''
 
     if not clone_dir:
@@ -140,7 +140,7 @@ def main(argv):
             output_vars = processor_class.output_variables
         except AttributeError:
             output_vars = {}
-        
+
         filename = "Processor-%s.md" % processor_name
         pathname = os.path.join(output_dir, filename)
         output = "# %s\n" % escape(processor_name)
@@ -154,9 +154,9 @@ def main(argv):
         output += generate_markdown(output_vars)
         output += "\n"
         writefile(output, pathname)
-    
+
     # Generate the Processors section of the Sidebar
-    processor_heading = "  * **Processors**"  
+    processor_heading = "  * **Processors**"
     toc_string = ""
     toc_string += processor_heading + "\n"
     for processor_name in processor_names():

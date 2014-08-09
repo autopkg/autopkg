@@ -24,7 +24,11 @@ With AutoPkg, we define these steps in a "Recipe" plist-based format, run automa
 Installation
 ------------
 
-Install the [latest release](https://github.com/autopkg/autopkg/releases/latest). AutoPkg requires 10.6 or later, and Git is highly recommended to have installed so that it can manage adding new recipe repositories. Knowledge of Git itself is not required.
+Install the [latest release](https://github.com/autopkg/autopkg/releases/latest).
+
+AutoPkg requires OS X 10.6 or later, and Git is highly recommended to have installed so that it can manage recipe repositories. Knowledge of Git itself is not required.
+
+Git can be installed via Apple's command-line developer tools package, which on 10.9 can be prompted for installation by simply typing 'git' in a Terminal window.
 
 
 Usage
