@@ -1060,12 +1060,6 @@ def run_recipes(argv):
     if options.pkg:
         cli_values["PKG"] = options.pkg
 
-    # so that log() can make use of it
-    global _REPORT_PLIST
-    _REPORT_PLIST = options.report_plist
-    if _REPORT_PLIST:
-        options.verbose = 0
-
     recipe_paths = []
     recipe_paths.extend(arguments)
     if options.recipe_list:
