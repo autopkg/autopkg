@@ -41,8 +41,7 @@ from autopkglib import find_recipe_by_identifier, get_identifier
 
 
 def log(msg, error=False):
-    '''Message logger, prints to stdout/stderr and suppress stdout
-    when --report-plist is used.'''
+    '''Message logger, prints to stdout/stderr.'''
     if error:
         print >> sys.stderr, msg
     else:
@@ -400,6 +399,16 @@ def print_new_packages(new_packages):
             version = item["version"]
         log("    %-24s %-16s %-32s" % (
             identifier, version, item["pkg_path"]))
+
+
+def write_plist_exit_on_fail(plist_dict, path):
+    '''Writes a dict to a new plist at path, exits the program
+    if the write fails.'''
+    try:
+        FoundationPlist.writePlist(plist_dict, path)
+    except FoundationPlist.NSPropertyListWriteException:
+        log_err("Failed to save plist to %s." % path)
+        sys.exit(-1)
 
 
 def print_tool_info(options):
@@ -1021,8 +1030,8 @@ def run_recipes(argv):
     parser.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
                       help=("Path to a pkg or dmg to provide to a recipe. "
                             "Downloading will be skipped."))
-    parser.add_option("--report-plist", action="store",type="string", default=None,
-                        help=("File path to save run report plist."))
+    parser.add_option("--report-plist", metavar="OUTPUT_PATH",
+                      help=("File path to save run report plist."))
     parser.add_option("-v", "--verbose", action="count", default=0,
                       help="Verbose output.")
     add_search_and_override_dir_options(parser)
@@ -1091,13 +1100,9 @@ def run_recipes(argv):
             "Can't write results to %s: %s"
             % (current_run_results_plist, err.strerror))
 
-    results_report = {}
     if options.report_plist:
-        try:
-            FoundationPlist.writePlist(results_report, options.report_plist)
-        except FoundationPlist.FoundationPlistException, err:
-            log_err("Can't write report plist to %s: %s" % (options.report_plist, unicode(err)))
-            return -1
+        results_report = dict()
+        write_plist_exit_on_fail(results_report, options.report_plist)
 
     for recipe_path in recipe_paths:
         recipe = load_recipe(recipe_path, override_dirs, search_dirs)
@@ -1245,12 +1250,13 @@ def run_recipes(argv):
     if not new_downloads and not new_packages and not new_imports:
         log("\nNothing downloaded, packaged or imported.")
 
+    # save report plist with the summary data
     if options.report_plist:
-        results_report = {}
         for event_type in [
                 "failures", "new_downloads", "new_packages", "new_imports"]:
             results_report[event_type] = locals()[event_type]
-        FoundationPlist.writePlist(results_report, options.report_plist)
+        write_plist_exit_on_fail(results_report, options.report_plist)
+        log("\nReport plist saved to %s." % options.report_plist)
 
     return error_count
 
