@@ -1,3 +1,20 @@
+#!/usr/bin/python
+#
+# Copyright 2014 Timothy Sutton
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""Routines for working with the GitHub API"""
+
 import json
 import os
 import sys
@@ -12,8 +29,10 @@ TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 
 
 class RequestWithMethod(urllib2.Request):
-    """Custom Request class that can accept arbitrary methods besides GET/POST"""
-    # http://benjamin.smedbergs.us/blog/2008-10-21/putting-and-deleteing-in-python-urllib2/
+    """Custom Request class that can accept arbitrary methods besides
+    GET/POST"""
+    # http://benjamin.smedbergs.us/blog/2008-10-21/
+    #        putting-and-deleteing-in-python-urllib2/
     def __init__(self, method, *args, **kwargs):
         self._method = method
         urllib2.Request.__init__(self, *args, **kwargs)
@@ -23,9 +42,9 @@ class RequestWithMethod(urllib2.Request):
 
 
 class GitHubSession(object):
+    """Handles a session with the GitHub API"""
     def __init__(self):
         self.token = None
-
 
     def setup_token(self):
         """Return a GitHub OAuth token string. Will create one if necessary.
@@ -44,8 +63,8 @@ profile page at https://github.com/settings/applications and
 revoke it at any time. This token will be stored in your user's
 home folder at %s.""" % TOKEN_LOCATION
             username = raw_input("Username: ")
-            pw = getpass("Password: ")
-            auth = b64encode(username + ":" + pw)
+            password = getpass("Password: ")
+            auth = b64encode(username + ":" + password)
 
             # https://developer.github.com/v3/oauth/#scopes
             req = urllib2.Request(BASE_URL + "/authorizations")
@@ -63,24 +82,27 @@ home folder at %s.""" % TOKEN_LOCATION
                 with open(TOKEN_LOCATION, "w") as tokenf:
                     tokenf.write(token)
                 os.chmod(TOKEN_LOCATION, 0600)
-            except IOError as e:
-                print >> sys.stderr, "Couldn't write token file at %s! Error: %s" % (
-                    TOKEN_LOCATION, e)
+            except IOError as err:
+                print >> sys.stderr, (
+                    "Couldn't write token file at %s! Error: %s"
+                    % (TOKEN_LOCATION, err))
         else:
             try:
                 with open(TOKEN_LOCATION, "r") as tokenf:
                     token = tokenf.read()
-            except IOError as e:
-                print >> sys.stderr, "Couldn't read token file at %s! Error: %s" % (
-                    TOKEN_LOCATION, e)
+            except IOError as err:
+                print >> sys.stderr, (
+                    "Couldn't read token file at %s! Error: %s"
+                    % (TOKEN_LOCATION, err))
 
-            # TODO: validate token given we found one but haven't checked its auth status
+            # TODO: validate token given we found one but haven't checked its
+            # auth status
 
         self.token = token
 
 
-    def call_api(self, endpoint, method="GET", query={}, data=None, headers={},
-                 accept="application/vnd.github.v3+json"):
+    def call_api(self, endpoint, method="GET", query=None, data=None,
+                 headers=None, accept="application/vnd.github.v3+json"):
         """Return a tuple of a serialized JSON response and HTTP status code
         from a call to a GitHub API endpoint. Certain APIs return no JSON
         result and so the first item in the tuple (the response) will be None.
@@ -90,7 +112,8 @@ home folder at %s.""" % TOKEN_LOCATION
         query: optional additional query to include with URI (passed directly)
         data: optional dict that will be sent as JSON with request
         headers: optional dict of additional headers to send with request
-        accept: optional Accept media type for exceptional APIs (like release assets)."""
+        accept: optional Accept media type for exceptional APIs (like release
+                assets)."""
 
         url = BASE_URL + endpoint
         if query:
@@ -105,8 +128,8 @@ home folder at %s.""" % TOKEN_LOCATION
         if self.token:
             req.add_header("Authorization", "token %s" % self.token)
         if headers:
-            for k, v in headers.items():
-                req.add_header(k, v)
+            for key, value in headers.items():
+                req.add_header(key, value)
 
         try:
             urlfd = urllib2.urlopen(req, data=data)
@@ -116,18 +139,18 @@ home folder at %s.""" % TOKEN_LOCATION
                 resp_data = json.loads(response)
             else:
                 resp_data = None
-        except urllib2.HTTPError as e:
-            status = e.code
-            print >> sys.stderr, "API error: %s" % e
+        except urllib2.HTTPError as err:
+            status = err.code
+            print >> sys.stderr, "API error: %s" % err
             try:
-                error_json = json.loads(e.read())
+                error_json = json.loads(err.read())
                 resp_data = error_json
-            except:
-                print >> sys.stderr, e.read()
+            except BaseException:
+                print >> sys.stderr, err.read()
                 resp_data = None
-        except urllib2.URLError as e:
+        except urllib2.URLError as err:
             print >> sys.stderr, "Error opening URL: %s" % url
-            print >> sys.stderr, e.reason
+            print >> sys.stderr, err.reason
             (resp_data, status) = (None, None)
 
         return (resp_data, status)
