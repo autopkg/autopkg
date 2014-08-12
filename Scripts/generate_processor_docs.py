@@ -13,26 +13,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""A utility to export info from autopkg processors and upload it as processor
+documentation for the GitHub autopkg wiki"""
 
 import imp
 import os
 import optparse
-import re
 import sys
 
 from tempfile import mkdtemp
 
+#pylint: disable=import-error
 # Grabbing some functions from the Code directory
-code_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../Code"))
-sys.path.append(code_dir)
-from autopkglib import get_processor, \
-                       processor_names
+CODE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../Code"))
+sys.path.append(CODE_DIR)
+from autopkglib import get_processor, processor_names
 
 # Additional helper function(s) from the CLI tool
 # Don't make an "autopkgc" file
 sys.dont_write_bytecode = True
-imp.load_source("autopkg", os.path.join(code_dir, "autopkg"))
+imp.load_source("autopkg", os.path.join(CODE_DIR, "autopkg"))
 from autopkg import run_git
+#pylint: enable=import-error
 
 
 def writefile(stringdata, path):
@@ -62,8 +64,8 @@ def generate_markdown(dict_data, indent=0):
             string += " " * indent + "- **%s:**\n" % escape(key)
             string += generate_markdown(value, indent=indent + 4)
         else:
-            string += " " * indent + "- **%s:** %s\n" % (
-                                                escape(key), escape(value))
+            string += (" " * indent + "- **%s:** %s\n"
+                       % (escape(key), escape(value)))
     return string
 
 
@@ -76,10 +78,7 @@ def clone_wiki_dir(clone_dir=None):
         outdir = mkdtemp()
     else:
         outdir = clone_dir
-    git_output = run_git([
-        "clone",
-        "https://github.com/autopkg/autopkg.wiki",
-        outdir])
+    run_git(["clone", "https://github.com/autopkg/autopkg.wiki", outdir])
     return os.path.abspath(outdir)
 
 
@@ -88,22 +87,23 @@ def indent_length(line_str):
     return len(line_str) - len(line_str.lstrip())
 
 
-def main(argv):
+def main(_):
+    """Do it all"""
     usage = """%prog VERSION
 
 ..where VERSION is the release version for which docs are being generated."""
-    p = optparse.OptionParser(usage=usage)
-    p.description = (
+    parser = optparse.OptionParser(usage=usage)
+    parser.description = (
         "Generate GitHub Wiki documentation from the core processors present "
         "in autopkglib. The autopkg.wiki repo is cloned locally, changes are "
         "committed, a diff shown and the user is interactively given the "
         "option to push to the remote.")
-    p.add_option("-d", "--directory", metavar="CLONEDIRECTORY",
-        help=("Directory path in which to clone the repo. If not "
-              "specified, a temporary directory will be used."))
-    options, arguments = p.parse_args()
+    parser.add_option("-d", "--directory", metavar="CLONEDIRECTORY",
+                      help=("Directory path in which to clone the repo. If not "
+                            "specified, a temporary directory will be used."))
+    options, arguments = parser.parse_args()
     if len(arguments) < 1:
-        p.print_usage()
+        parser.print_usage()
         exit()
 
     # Grab the version for the commit log.
@@ -173,8 +173,8 @@ def main(argv):
     # - Copy the lines following the Processors section
 
     sidebar_path = os.path.join(output_dir, "_Sidebar.md")
-    with open(sidebar_path, "r") as fd:
-        current_sidebar_lines = fd.read().splitlines()
+    with open(sidebar_path, "r") as fdesc:
+        current_sidebar_lines = fdesc.read().splitlines()
 
     # Determine our indent amount
     section_indent = indent_length(processor_heading)
@@ -194,39 +194,29 @@ def main(argv):
     new_sidebar += toc_string
     new_sidebar += "\n".join(current_sidebar_lines[processors_end:]) + "\n"
 
-    with open(sidebar_path, "w") as fd:
-        fd.write(new_sidebar)
+    with open(sidebar_path, "w") as fdesc:
+        fdesc.write(new_sidebar)
 
     # Git commit everything
     os.chdir(output_dir)
-    run_git([
-        "add",
-        "--all"])
-    run_git([
-        "commit",
-        "-m", "Updating Wiki docs for release %s" % version])
+    run_git(["add", "--all"])
+    run_git(["commit", "-m", "Updating Wiki docs for release %s" % version])
 
     # Show the full diff
-    print run_git([
-        "log",
-        "-p",
-        "--color",
-        "-1"])
+    print run_git(["log", "-p", "--color", "-1"])
 
     # Do we accept?
     print "-------------------------------------------------------------------"
     print
-    print ("Shown above is the commit log for the changes to the wiki markdown. \n"
-           "Type 'push' to accept and push the changes to GitHub. The wiki repo \n"
-           "local clone can be also inspected at:\n"
-           "%s." % output_dir)
+    print (
+        "Shown above is the commit log for the changes to the wiki markdown. \n"
+        "Type 'push' to accept and push the changes to GitHub. The wiki repo \n"
+        "local clone can be also inspected at:\n"
+        "%s." % output_dir)
 
     push_commit = raw_input()
     if push_commit == "push":
-        run_git([
-            "push",
-            "origin",
-            "master"])
+        run_git(["push", "origin", "master"])
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
