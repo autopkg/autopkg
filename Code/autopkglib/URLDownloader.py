@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for URLDownloader class"""
 
 import os.path
 import urllib2
@@ -44,7 +44,8 @@ def getxattr(pathname, attr):
 
 
 class URLDownloader(Processor):
-    description = "Downloads a URL to the specified download_dir."
+    """Downloads a URL to the specified download_dir."""
+    description = __doc__
     input_variables = {
         "url": {
             "required": True,
@@ -52,13 +53,13 @@ class URLDownloader(Processor):
         },
         "request_headers": {
             "required": False,
-            "description": 
+            "description":
                 ("Optional dictionary of headers to include with the download "
-                "request.")
+                 "request.")
         },
         "download_dir": {
             "required": False,
-            "description": 
+            "description":
                 ("The directory where the file will be downloaded to. Defaults "
                  "to RECIPE_CACHE_DIR/downloads."),
         },
@@ -68,7 +69,7 @@ class URLDownloader(Processor):
         },
         "PKG": {
             "required": False,
-            "description": 
+            "description":
                 ("Local path to the pkg/dmg we'd otherwise download. "
                  "If provided, the download is skipped and we just use "
                  "this package or disk image."),
@@ -85,26 +86,23 @@ class URLDownloader(Processor):
             "description": "etag header for the downloaded item.",
         },
         "download_changed": {
-            "description": 
+            "description":
                 ("Boolean indicating if the download has changed since the "
                  "last time it was downloaded."),
         },
     }
-    
-    __doc__ = description
-    
-    
+
     def main(self):
         self.env["last_modified"] = ""
         self.env["etag"] = ""
         existing_file_length = None
-        
+
         if "PKG" in self.env:
             self.env["pathname"] = os.path.expanduser(self.env["PKG"])
             self.env["download_changed"] = True
             self.output("Given %s, no download needed." % self.env["pathname"])
             return
-            
+
         if not "filename" in self.env:
             # Generate filename.
             filename = self.env["url"].rpartition("/")[2]
@@ -115,26 +113,25 @@ class URLDownloader(Processor):
         pathname = os.path.join(download_dir, filename)
         # Save pathname to environment
         self.env["pathname"] = pathname
-        
+
         # create download_dir if needed
         if not os.path.exists(download_dir):
             try:
                 os.makedirs(download_dir)
-            except OSError, e:
+            except OSError, err:
                 raise ProcessorError(
-                    "Can't create %s: %s" 
-                    % (download_dir, e.strerror))
-        
+                    "Can't create %s: %s" % (download_dir, err.strerror))
+
         # Download URL.
         url_handle = None
         try:
             request = urllib2.Request(url=self.env["url"])
-            
+
             if "request_headers" in self.env:
                 headers = self.env["request_headers"]
                 for header, value in headers.items():
                     request.add_header(header, value)
-                    
+
             # if file already exists, add some headers to the request
             # so we don't retrieve the content if it hasn't changed
             if os.path.exists(pathname):
@@ -145,7 +142,7 @@ class URLDownloader(Processor):
                 if last_modified:
                     request.add_header("If-Modified-Since", last_modified)
                 existing_file_length = os.path.getsize(pathname)
-                    
+
             # Open URL.
             try:
                 url_handle = urllib2.urlopen(request)
@@ -158,7 +155,7 @@ class URLDownloader(Processor):
                     return
                 else:
                     raise
-            
+
             # If Content-Length header is present and we had a cached
             # file, see if it matches the size of the cached file.
             # Useful for webservers that don't provide Last-Modified
@@ -183,37 +180,37 @@ class URLDownloader(Processor):
                     if len(data) == 0:
                         break
                     file_handle.write(data)
-                    
+
             # save last-modified header if it exists
             if url_handle.info().get("last-modified"):
-                self.env["last_modified"] = url_handle.info().get(
-                                                "last-modified")
+                self.env["last_modified"] = (
+                    url_handle.info().get("last-modified"))
                 xattr.setxattr(
                     pathname, XATTR_LAST_MODIFIED,
                     url_handle.info().get("last-modified"))
-                self.output("Storing new Last-Modified header: %s" %
-                    url_handle.info().get("last-modified"))
-                            
+                self.output(
+                    "Storing new Last-Modified header: %s"
+                    % url_handle.info().get("last-modified"))
+
             # save etag if it exists
             self.env["etag"] = ""
             if url_handle.info().get("etag"):
                 self.env["etag"] = url_handle.info().get("etag")
                 xattr.setxattr(
                     pathname, XATTR_ETAG, url_handle.info().get("etag"))
-                self.output("Storing new ETag header: %s" %
-                    url_handle.info().get("etag"))
-                    
+                self.output("Storing new ETag header: %s"
+                            % url_handle.info().get("etag"))
+
             self.output("Downloaded %s" % pathname)
-        
-        except BaseException as e:
+
+        except BaseException as err:
             raise ProcessorError(
-                "Couldn't download %s: %s" % (self.env["url"], e))
+                "Couldn't download %s: %s" % (self.env["url"], err))
         finally:
             if url_handle is not None:
                 url_handle.close()
 
 
 if __name__ == "__main__":
-    processor = URLDownloader()
-    processor.execute_shell()
-    
+    PROCESSOR = URLDownloader()
+    PROCESSOR.execute_shell()

@@ -36,16 +36,15 @@ from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
 from autopkglib import get_autopkg_version, version_equal_or_greater
-from autopkglib import find_recipe_by_identifier, get_identifier, get_identifer_from_recipe_file
-_REPORT_PLIST = False
+from autopkglib import find_recipe_by_identifier, get_identifier
+
 
 
 def log(msg, error=False):
-    '''Message logger, prints to stdout/stderr and suppress stdout
-    when --report-plist is used.'''
+    '''Message logger, prints to stdout/stderr.'''
     if error:
         print >> sys.stderr, msg
-    elif not _REPORT_PLIST and not error:
+    else:
         print >> sys.stdout, msg
 
 
@@ -55,6 +54,9 @@ def log_err(msg):
 
 
 def print_version(argv):
+    '''Prints autopkg version'''
+    # make PyLint happy here since all our verb functions are passed argv
+    _ = argv[1]
     print get_autopkg_version()
 
 
@@ -103,15 +105,15 @@ def valid_recipe(filename):
     '''Returns True if filename contains a valid recipe,
     otherwise returns False'''
     return (valid_plist_with_keys(filename, ["Input", "Process"])
-        or valid_plist_with_keys(filename, ["Input", "Recipe"])
-        or valid_plist_with_keys(filename, ["Input", "ParentRecipe"]))
+            or valid_plist_with_keys(filename, ["Input", "Recipe"])
+            or valid_plist_with_keys(filename, ["Input", "ParentRecipe"]))
 
 
 def valid_override(filename):
     '''Returns True if filename contains a valid override,
     otherwise returns False'''
     return (valid_plist_with_keys(filename, ["Input", "ParentRecipe"])
-        or valid_plist_with_keys(filename, ["Input", "Recipe"]))
+            or valid_plist_with_keys(filename, ["Input", "Recipe"]))
 
 
 def find_recipe_by_name(name, search_dirs):
@@ -123,7 +125,7 @@ def find_recipe_by_name(name, search_dirs):
     # search by "Name", using file/directory hierarchy rules
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns  = [
+        patterns = [
             os.path.join(normalized_dir, "%s.recipe" % name),
             os.path.join(normalized_dir, "*/%s.recipe" % name)
         ]
@@ -177,7 +179,6 @@ def load_recipe(name, override_dirs, recipe_dirs):
     name, so that if recipe names shift with updated recipe repos, the
     override still applies to the recipe from which it was derived.'''
 
-    override = None
     recipe_file = None
     if os.path.isfile(name):
         # name is path to a specific recipe or override file
@@ -189,7 +190,7 @@ def load_recipe(name, override_dirs, recipe_dirs):
     if not recipe_file:
         # name wasn't a filename. Try again, using name as identifier
         recipe_file = find_recipe_by_identifier(
-                          name, override_dirs + recipe_dirs)
+            name, override_dirs + recipe_dirs)
 
     if not recipe_file:
         # Let's search by simple name
@@ -221,7 +222,7 @@ def load_recipe(name, override_dirs, recipe_dirs):
                     if 'MinimumVersion' not in candidate_recipe.keys():
                         candidate_recipe['MinimumVersion'] = '0'
                 if version_equal_or_greater(child_recipe['MinimumVersion'],
-                    recipe['MinimumVersion']):
+                                            recipe['MinimumVersion']):
                     recipe['MinimumVersion'] = child_recipe['MinimumVersion']
 
                 recipe["Process"].extend(child_recipe.get("Process", []))
@@ -249,8 +250,8 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs):
     recipe = load_recipe(recipe_name, override_dirs, recipe_dirs)
     if recipe:
         log("Description:         %s" %
-            "\n                     ".join(
-                    recipe.get("Description", "").splitlines()))
+            "\n                     "
+            .join(recipe.get("Description", "").splitlines()))
         log("Identifier:          %s" % get_identifier(recipe))
         log("Munki import recipe: %s" % has_munkiimporter_step(recipe))
         log("Has check phase:     %s" % has_check_phase(recipe))
@@ -258,7 +259,7 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs):
         log("Recipe file path:    %s" % recipe["RECIPE_PATH"])
         if recipe.get("PARENT_RECIPES"):
             log("Parent recipe(s):    %s"
-              % "\n                     ".join(recipe["PARENT_RECIPES"]))
+                % "\n                     ".join(recipe["PARENT_RECIPES"]))
         log("Input values: ")
         output = pprint.pformat(recipe.get("Input", {}), indent=4)
         log(" " + output[1:-1])
@@ -339,7 +340,8 @@ def get_recipe_repo(git_path):
     url_path = os.path.splitext(parts.path)[0]
     dest_name = reverse_domain + url_path.replace('/', '.')
     recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or
-                       os.path.expanduser("~/Library/AutoPkg/RecipeRepos"))
+                       "~/Library/AutoPkg/RecipeRepos")
+    recipe_repo_dir = os.path.expanduser(recipe_repo_dir)
     dest_dir = os.path.join(recipe_repo_dir, dest_name)
     dest_dir = os.path.abspath(dest_dir)
     gitcmd = git_cmd()
@@ -399,9 +401,20 @@ def print_new_packages(new_packages):
             identifier, version, item["pkg_path"]))
 
 
+def write_plist_exit_on_fail(plist_dict, path):
+    '''Writes a dict to a new plist at path, exits the program
+    if the write fails.'''
+    try:
+        FoundationPlist.writePlist(plist_dict, path)
+    except FoundationPlist.NSPropertyListWriteException:
+        log_err("Failed to save plist to %s." % path)
+        sys.exit(-1)
+
+
 def print_tool_info(options):
     """Eventually will print some information about the tool
     and environment. For now, just print the current prefs"""
+    _ = options
     print "Current preferences:"
     pprint.pprint(get_all_prefs())
 
@@ -468,16 +481,18 @@ def get_override_dirs():
     return dirs or default
 
 
-def add_search_and_override_dir_options(p):
+def add_search_and_override_dir_options(parser):
     '''Several subcommands use these same options'''
-    p.add_option("-d", "--search-dir", metavar="DIRECTORY", dest="search_dirs",
-                 action="append", default=[],
-                 help=("Directory to search for recipes. Can be specified "
-                                    "multiple times."))
-    p.add_option("--override-dir", metavar="DIRECTORY", dest="override_dirs",
-                 action="append", default=[],
-                 help=("Directory to search for recipe overrides. Can be "
-                       "specified multiple times."))
+    parser.add_option(
+        "-d", "--search-dir", metavar="DIRECTORY", dest="search_dirs",
+        action="append", default=[],
+        help=("Directory to search for recipes. Can be specified "
+              "multiple times."))
+    parser.add_option(
+        "--override-dir", metavar="DIRECTORY", dest="override_dirs",
+        action="append", default=[],
+        help=("Directory to search for recipe overrides. Can be "
+              "specified multiple times."))
 
 
 ########################
@@ -486,7 +501,8 @@ def add_search_and_override_dir_options(p):
 
 def expand_repo_url(url):
     '''Given a GitHub repo URL-ish name, returns a full GitHub URL. Falls
-    back to the 'autopkg' GitHub org, and full non-GitHub URLs return unmodified.
+    back to the 'autopkg' GitHub org, and full non-GitHub URLs return
+    unmodified.
     Examples:
     'user/reciperepo'         -> 'https://github.com/user/reciperepo'
     'reciperepo'              -> 'https://github.com/autopkg/reciperepo'
@@ -496,11 +512,11 @@ def expand_repo_url(url):
     # if no URL scheme was given in the URL, try GitHub URLs
     if not parsed_url.scheme:
         # if URL looks like 'name/repo' then prepend the base GitHub URL
-        if re.match("\w+/\w+", url):
+        if re.match(r"\w+/\w+", url):
             url = "https://github.com/%s" % url
 
         # if URL is one word, assume it's a repo within the 'autopkg' org
-        elif re.match("\w", url):
+        elif re.match(r"\w", url):
             url = "https://github.com/autopkg/%s" % url
 
     return url
@@ -509,8 +525,8 @@ def expand_repo_url(url):
 def repo_add(argv):
     '''Add/update one or more repos of recipes'''
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("""Usage: %s %s recipe_repo_url
+    parser = optparse.OptionParser()
+    parser.set_usage("""Usage: %s %s recipe_repo_url
 Download one or more new recipe repos and add it to the search path.
 The 'recipe_repo_url' argument can be of the following forms:
 - repo (implies 'https://github.com/autopkg/repo')
@@ -519,10 +535,10 @@ The 'recipe_repo_url' argument can be of the following forms:
 
 Example: '%s repo-add recipes'
 ..adds the autopkg/recipes repo from GitHub."""
-        % ("%prog", verb, "%prog"))
+                     % ("%prog", verb, "%prog"))
 
     # Parse arguments
-    options, arguments = p.parse_args(argv[2:])
+    arguments = parser.parse_args(argv[2:])[1]
     if len(arguments) < 1:
         log_err("Need at least one recipe repo URL!")
         return -1
@@ -550,15 +566,15 @@ Example: '%s repo-add recipes'
 
 def repo_delete(argv):
     '''Delete a recipe repo'''
-    main_command_name = os.path.basename(argv[0])
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s recipe_repo_path_or_url [...]\n"
-        "Delete one or more recipe repo and remove it from the search path."
-        % ("%prog", verb))
+    parser = optparse.OptionParser()
+    parser.set_usage(
+        "Usage: %s %s recipe_repo_path_or_url [...]\n"
+        "Delete one or more recipe repo and remove it from the search "
+        "path." % ("%prog", verb))
 
     # Parse arguments
-    options, arguments = p.parse_args(argv[2:])
+    arguments = parser.parse_args(argv[2:])[1]
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
@@ -593,13 +609,9 @@ def repo_delete(argv):
 def repo_list(argv):
     '''List recipe repos'''
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s\n"
-        "List all installed recipe repos."
-        % ("%prog", verb))
-
-    # Parse arguments
-    options, arguments = p.parse_args(argv[2:])
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s\n"
+                     "List all installed recipe repos." % ("%prog", verb))
 
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     if recipe_repos:
@@ -612,16 +624,15 @@ def repo_list(argv):
 
 def repo_update(argv):
     '''Update one or more recipe repos'''
-    main_command_name = os.path.basename(argv[0])
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s recipe_repo_path_or_url [...]\n"
-        "Update one or more recipe repos.\n"
-        "You may also use 'all' to update all installed recipe repos."
-        % ("%prog", verb))
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s recipe_repo_path_or_url [...]\n"
+                     "Update one or more recipe repos.\n"
+                     "You may also use 'all' to update all installed recipe "
+                     "repos." % ("%prog", verb))
 
     # Parse arguments
-    options, arguments = p.parse_args(argv[2:])
+    arguments = parser.parse_args(argv[2:])[1]
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
@@ -637,7 +648,7 @@ def repo_update(argv):
             repo_path = get_repo_info(path_or_url).get('path')
             if not repo_path:
                 log_err("ERROR: Can't find an installed repo for %s"
-                         % path_or_url)
+                        % path_or_url)
             else:
                 repo_dirs.append(repo_path)
 
@@ -653,51 +664,53 @@ def search_recipes(argv):
     '''Search recipes on GitHub'''
     default_user = "autopkg"
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s [options] search_term\n"
-                "Search for recipes on GitHub. The AutoPkg organization at "
-                "github.com/autopkg\n"
-                "is the canonical 'repository' of recipe "
-                "repos, which is what is searched by\n"
-                "default."
-                % ("%prog", verb))
-    p.add_option("-u", "--user", default=default_user,
-                 help=("Alternate GitHub user whose repos to search. "
-                       "Defaults to '%s'." % default_user))
-    p.add_option("-p", "--path-only", action="store_true", default=False,
-                 help=("Restrict search results to the recipe's path only. "
-                       "Note that the search API currently does not support "
-                       "fuzzy matches, so only exact directory or "
-                       "filenames (minus the extensions) will be returned."))
-    p.add_option("-t", "--use-token", action="store_true", default=False,
-                help=("Use a public-scope GitHub token for a higher "
-                      "rate limit. If a token doesn't exist, you'll "
-                      "be prompted for your account credentials to "
-                      "create one."))
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s [options] search_term\n"
+                     "Search for recipes on GitHub. The AutoPkg organization "
+                     "at github.com/autopkg\n"
+                     "is the canonical 'repository' of recipe repos, "
+                     "which is what is searched by\n"
+                     "default."
+                     % ("%prog", verb))
+    parser.add_option("-u", "--user", default=default_user,
+                      help=("Alternate GitHub user whose repos to search. "
+                            "Defaults to '%s'." % default_user))
+    parser.add_option("-p", "--path-only", action="store_true", default=False,
+                      help=("Restrict search results to the recipe's path "
+                            "only. Note that the search API currently does not "
+                            "support fuzzy matches, so only exact directory or "
+                            "filenames (minus the extensions) will be "
+                            "returned."))
+    parser.add_option("-t", "--use-token", action="store_true", default=False,
+                      help=("Use a public-scope GitHub token for a higher "
+                            "rate limit. If a token doesn't exist, you'll "
+                            "be prompted for your account credentials to "
+                            "create one."))
 
     # Parse arguments
-    options, arguments = p.parse_args(argv[2:])
+    options, arguments = parser.parse_args(argv[2:])
     if len(arguments) < 1:
         log_err("No search query specified!")
         return -1
 
-    gh = autopkglib.github.GitHubSession()
+    gh_session = autopkglib.github.GitHubSession()
     if options.use_token:
-        gh.setup_token()
+        gh_session.setup_token()
 
     results_limit = 100
     term = arguments[0]
-    q = "q=%s+extension:recipe+user:%s" % (term, options.user)
+    query = "q=%s+extension:recipe+user:%s" % (term, options.user)
     qualifier_in = "in:path,file"
     if options.path_only:
         qualifier_in += "path"
-    q = q + "+" + qualifier_in
-    q += "&per_page=%s" % results_limit
+    query += "+" + qualifier_in
+    query += "&per_page=%s" % results_limit
 
     # Do the search, including text match metadata
-    (results, code) = gh.call_api("/search/code",
-                        query=q,
-                        accept="application/vnd.github.v3.text-match+json")
+    (results, code) = gh_session.call_api(
+        "/search/code",
+        query=query,
+        accept="application/vnd.github.v3.text-match+json")
     if code == 403:
         log_err(
             "You've probably hit the GitHub's search rate limit, officially 5 "
@@ -715,20 +728,23 @@ def search_recipes(argv):
         return
 
     column_spacer = 4
-    max_name_length = max([len(r["name"]) for r in results["items"]]) + column_spacer
-    max_repo_length = max([len(r["repository"]["name"]) for r in results["items"]]) + column_spacer
+    max_name_length = (
+        max([len(r["name"]) for r in results["items"]]) + column_spacer)
+    max_repo_length = (
+        max([len(r["repository"]["name"]) for r in results["items"]])
+        + column_spacer)
     spacers = (max_name_length, max_repo_length)
 
     print
-    format = "%-{0}s %-{1}s %-40s".format(*spacers)
-    print format % ("Name", "Repo", "Path")
-    print format % ("----", "----", "----")
+    format_str = "%-{0}s %-{1}s %-40s".format(*spacers)
+    print format_str % ("Name", "Repo", "Path")
+    print format_str % ("----", "----", "----")
     results["items"].sort(key=operator.itemgetter("repository"))
     for result in results["items"]:
         repo = result["repository"]
         name, path = result["name"], result["path"]
         repo_name = repo["name"]
-        print format % (name, repo_name, path)
+        print format_str % (name, repo_name, path)
 
     if count > results_limit:
         print
@@ -755,12 +771,12 @@ def display_help(argv, subcommands):
 def get_info(argv):
     '''Display info about configuration or a recipe'''
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s [options] [recipe]" % ("%prog", verb))
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s [options] [recipe]" % ("%prog", verb))
 
     # Parse arguments
-    add_search_and_override_dir_options(p)
-    options, arguments = p.parse_args(argv[2:])
+    add_search_and_override_dir_options(parser)
+    options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -793,14 +809,14 @@ def processor_info(argv):
                 print " " * indent, "%s: %s" % (key, value)
 
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s [options] processorname" % ("%prog", verb))
-    p.add_option("-r", "--recipe", metavar="RECIPE",
-                 help="Name of recipe using the processor.")
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s [options] processorname" % ("%prog", verb))
+    parser.add_option("-r", "--recipe", metavar="RECIPE",
+                      help="Name of recipe using the processor.")
 
     # Parse arguments
-    add_search_and_override_dir_options(p)
-    options, arguments = p.parse_args(argv[2:])
+    add_search_and_override_dir_options(parser)
+    options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -847,9 +863,9 @@ def processor_info(argv):
 def list_processors(argv):
     '''List the processors in autopkglib'''
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s [options]\n"
-        "List the core Processors." % ("%prog", verb))
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s [options]\n"
+                     "List the core Processors." % ("%prog", verb))
 
     print "\n".join(sorted(processor_names()))
 
@@ -857,14 +873,14 @@ def list_processors(argv):
 def list_recipes(argv):
     '''List all available recipes'''
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s [options]\n"
-        "List all the recipes this tool can find automatically."
-        % ("%prog", verb))
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s [options]\n"
+                     "List all the recipes this tool can find automatically."
+                     % ("%prog", verb))
 
-    # Parse arguments
-    add_search_and_override_dir_options(p)
-    options, arguments = p.parse_args(argv[1:])
+    # Parse options
+    add_search_and_override_dir_options(parser)
+    options = parser.parse_args(argv[1:])[0]
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -913,18 +929,18 @@ def list_recipes(argv):
 def make_override(argv):
     '''Make a recipe override skeleton.'''
     verb = argv[1]
-    p = optparse.OptionParser()
+    parser = optparse.OptionParser()
 
-    p.set_usage("Usage: %s %s [options] [recipe]\n"
-        "Create a skeleton override file for a recipe. It will "
-        "be stored in the first default override directory "
-        "or that given by '--override-dir'" % ("%prog", verb))
+    parser.set_usage("Usage: %s %s [options] [recipe]\n"
+                     "Create a skeleton override file for a recipe. It will "
+                     "be stored in the first default override directory "
+                     "or that given by '--override-dir'" % ("%prog", verb))
 
     # Parse arguments
-    add_search_and_override_dir_options(p)
-    p.add_option("-n", "--name", metavar="FILENAME",
-                 help="Name for override file.")
-    options, arguments = p.parse_args(argv[2:])
+    add_search_and_override_dir_options(parser)
+    parser.add_option("-n", "--name", metavar="FILENAME",
+                      help="Name for override file.")
+    options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -956,8 +972,10 @@ def make_override(argv):
                 % recipe.get("RECIPE_PATH", recipe_name))
         return 1
 
-    override_name = (options.name
+    override_name = (
+        options.name
         or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0])
+
     reversed_name = '.'.join(reversed(override_name.split('.')))
     override_identifier = "local." + reversed_name
 
@@ -977,8 +995,10 @@ def make_override(argv):
             log_err("Could not create %s: %s" % (override_dir, err))
             return -1
 
-    override_name = (options.name
+    override_name = (
+        options.name
         or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0])
+
     override_file = os.path.join(override_dir, "%s.recipe" % override_name)
     if os.path.exists(override_file):
         log_err("An override plist already exists at %s, "
@@ -993,30 +1013,29 @@ def make_override(argv):
 def run_recipes(argv):
     """Run one or more recipes"""
     verb = argv[1]
-    p = optparse.OptionParser()
-    p.set_usage("Usage: %s %s [options] [recipe ...]\n"
-        "Run one or more recipes." % ("%prog", verb))
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s [options] [recipe ...]\n"
+                     "Run one or more recipes." % ("%prog", verb))
 
     # Parse arguments.
-    p.add_option("-c", "--check", action="store_true",
-                 help="Only check for new/changed downloads.")
-    p.add_option("-k", "--key", action="append", dest="variables", default=[],
-                 metavar="KEY=VALUE",
-                 help=("Provide key/value pairs for recipe input. "
-                       "Caution: values specified here will be applied "
-                       "to all recipes."))
-    p.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
-                 help="Path to a text file with a list of recipes to run.")
-    p.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
-                 help=("Path to a pkg or dmg to provide to a recipe. "
-                       "Downloading will be skipped."))
-    p.add_option("--report-plist", action="store_true", default=False,
-                 help="Output run report data in plist format to stdout. "
-                      "Additional messages may still be printed to stderr.")
-    p.add_option("-v", "--verbose", action="count", default=0,
-                 help="Verbose output.")
-    add_search_and_override_dir_options(p)
-    options, arguments = p.parse_args(argv[2:])
+    parser.add_option("-c", "--check", action="store_true",
+                      help="Only check for new/changed downloads.")
+    parser.add_option("-k", "--key", action="append", dest="variables",
+                      default=[], metavar="KEY=VALUE",
+                      help=("Provide key/value pairs for recipe input. "
+                            "Caution: values specified here will be applied "
+                            "to all recipes."))
+    parser.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
+                      help="Path to a text file with a list of recipes to run.")
+    parser.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
+                      help=("Path to a pkg or dmg to provide to a recipe. "
+                            "Downloading will be skipped."))
+    parser.add_option("--report-plist", metavar="OUTPUT_PATH",
+                      help=("File path to save run report plist."))
+    parser.add_option("-v", "--verbose", action="count", default=0,
+                      help="Verbose output.")
+    add_search_and_override_dir_options(parser)
+    options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -1043,38 +1062,32 @@ def run_recipes(argv):
         (key, sep, value) = arg.partition("=")
         if sep != "=":
             log_err("Invalid variable [key=value]: %s" % arg)
-            log_err(p.get_usage())
+            log_err(parser.get_usage())
             return 1
         cli_values[key] = value
 
     if options.pkg:
         cli_values["PKG"] = options.pkg
 
-    # so that log() can make use of it
-    global _REPORT_PLIST
-    _REPORT_PLIST = options.report_plist
-    if _REPORT_PLIST:
-        options.verbose = 0
-
     recipe_paths = []
     recipe_paths.extend(arguments)
     if options.recipe_list:
-        with open(options.recipe_list, "r") as fd:
-            data = fd.read()
+        with open(options.recipe_list, "r") as file_desc:
+            data = file_desc.read()
         recipes = [line for line in data.splitlines()
                    if line and not line.startswith("#")]
         recipe_paths.extend(recipes)
 
     if not recipe_paths:
-        log_err(p.get_usage())
+        log_err(parser.get_usage())
         return -1
 
     if len(recipe_paths) > 1 and options.pkg:
         log_err("-p/--pkg option can't be used with multiple recipes!")
         return -1
 
-    cache_dir = get_pref("CACHE_DIR") or os.path.expanduser(
-                "~/Library/AutoPkg/Cache")
+    cache_dir = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
+    cache_dir = os.path.expanduser(cache_dir)
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0755)
     current_run_results_plist = os.path.join(cache_dir, "autopkg_results.plist")
@@ -1086,6 +1099,10 @@ def run_recipes(argv):
         log_err(
             "Can't write results to %s: %s"
             % (current_run_results_plist, err.strerror))
+
+    if options.report_plist:
+        results_report = dict()
+        write_plist_exit_on_fail(results_report, options.report_plist)
 
     for recipe_path in recipe_paths:
         recipe = load_recipe(recipe_path, override_dirs, search_dirs)
@@ -1198,14 +1215,14 @@ def run_recipes(argv):
                 if item["Output"].get("pkginfo_repo_path"):
                     imported_item = {}
                     imported_item["name"] = item["Output"]["munki_info"]["name"]
-                    imported_item["version"] = item[
-                                            "Output"]["munki_info"]["version"]
-                    imported_item["catalogs"] = item[
-                                            "Output"]["munki_info"]["catalogs"]
-                    imported_item["pkginfo_path"] = item["Output"].get(
-                                                            "pkginfo_repo_path")
-                    imported_item["pkg_path"] = item["Output"].get(
-                                                                "pkg_repo_path")
+                    imported_item["version"] = (
+                        item["Output"]["munki_info"]["version"])
+                    imported_item["catalogs"] = (
+                        item["Output"]["munki_info"]["catalogs"])
+                    imported_item["pkginfo_path"] = (
+                        item["Output"].get("pkginfo_repo_path"))
+                    imported_item["pkg_path"] = (
+                        item["Output"].get("pkg_repo_path"))
                     new_imports.append(imported_item)
 
     # done running recipes, print a summary
@@ -1233,12 +1250,13 @@ def run_recipes(argv):
     if not new_downloads and not new_packages and not new_imports:
         log("\nNothing downloaded, packaged or imported.")
 
-    if _REPORT_PLIST:
-        results_report = {}
+    # save report plist with the summary data
+    if options.report_plist:
         for event_type in [
-            "failures", "new_downloads", "new_packages", "new_imports"]:
+                "failures", "new_downloads", "new_packages", "new_imports"]:
             results_report[event_type] = locals()[event_type]
-        print FoundationPlist.writePlistToString(results_report)
+        write_plist_exit_on_fail(results_report, options.report_plist)
+        log("\nReport plist saved to %s." % options.report_plist)
 
     return error_count
 

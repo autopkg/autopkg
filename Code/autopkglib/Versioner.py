@@ -13,11 +13,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""See docstring for Versioner class"""
 
 import os.path
 
-from autopkglib import Processor, ProcessorError
-from DmgMounter import DmgMounter
+from autopkglib import ProcessorError
+from autopkglib.DmgMounter import DmgMounter
 import FoundationPlist
 
 __all__ = ["Versioner"]
@@ -25,6 +26,8 @@ __all__ = ["Versioner"]
 
 class Versioner(DmgMounter):
     """Returns version information from a plist"""
+    description = __doc__
+
     input_variables = {
         "input_plist_path": {
             "required": True,
@@ -37,7 +40,7 @@ class Versioner(DmgMounter):
             "default": "CFBundleShortVersionString",
             "description":
                 ("Which plist key to use; defaults to "
-                "CFBundleShortVersionString"),
+                 "CFBundleShortVersionString"),
         },
     }
     output_variables = {
@@ -45,13 +48,12 @@ class Versioner(DmgMounter):
             "description": "Version of the item.",
         },
     }
-    description = __doc__
-
 
     def main(self):
+        """Return a version for file at input_plist_path"""
         # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
-                                            self.env['input_plist_path'])
+        (dmg_path, dmg, dmg_source_path) = (
+            self.parsePathForDMG(self.env['input_plist_path']))
         try:
             if dmg:
                 # Mount dmg and copy path inside.
@@ -75,6 +77,6 @@ class Versioner(DmgMounter):
 
 
 if __name__ == '__main__':
-    processor = Versioner()
-    processor.execute_shell()
+    PROCESSOR = Versioner()
+    PROCESSOR.execute_shell()
 

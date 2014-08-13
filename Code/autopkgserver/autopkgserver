@@ -20,17 +20,17 @@ A packaging request is made by creating a property list file and sending it to
 the daemon's listening socket.
 
 Protocol:
-    
+
     When a client connects to the server it should send an XML property list
     with a packaging request. The server will process the request, and if
     there are any problems it'll reply with one or more lines of:
-    
+
         ERROR:<error message 1>
         ERROR:<error message 2>
         ERROR:<error message 3...>
-    
+
     Otherwise it'll reply with OK and the path to the package:
-    
+
         OK:/Users/example/Downloads/example.pkg
 
 Request format:
@@ -40,26 +40,26 @@ Request format:
 
     pkgroot         The virtual root of the files to be packaged, must be a
                     directory owned by the calling user.
-    
+
     pkgdir          The directory where the pkg will be created, must be a
                     directory owned by the calling user.
-    
+
     pkgname         The file or bundle name of the pkg, without pkg extension.
-    
+
     pkgtype         The package type, "flat" or "bundle".
-    
+
     id              The package ID.
-    
+
     version         The package version.
-    
+
     infofile        A path to an Info.plist file for the package.
-    
+
     resources       A path to a directory to be included as Resources in the
                     package.
-    
+
     chown           An array of dictionaries with paths, relative to the
                     pkgroot, and the desired owner. Keys:
-                    
+
                     path    Path relative to pkgroot. Symlinks and .. are not
                             allowed in the path.
                     user    A string with a user name, or an int with a uid.
@@ -120,7 +120,7 @@ chown_structure = {
 #################
 ## Global Init ##
 #################
-    
+
 
 # Set up signal handlers.
 #def sig_handler(num, frame):
@@ -133,23 +133,23 @@ chown_structure = {
 
 class PkgHandler(SocketServer.StreamRequestHandler):
     """Handler for packaging requests."""
-    
+
     re_uid_gid = re.compile(r'^AUTH:AUTHENTICATE (?P<uid>\d{1,10}):(?P<gid>\d{1,10})$')
-    
+
     def verify_request_syntax(self, plist):
         """Verify the basic syntax of request plist."""
-        
+
         # Keep a list of error messages.
         errors = list()
-        
+
         # Root should be a dictionary.
         if not isinstance(plist, dict):
             errors.append("Request root is not a dictionary")
             # Bail out early if it's not.
             return False
-        
+
         syntax_ok = True
-        
+
         # Verify existance and type of keys in the root.
         for key, keytype in request_structure.items():
             if not key in plist:
@@ -161,14 +161,14 @@ class PkgHandler(SocketServer.StreamRequestHandler):
                         "Request key %s is not of type %s" % \
                         (key, str(keytype)))
                     syntax_ok = False
-        
+
         if syntax_ok:
-            
+
             # Check package type.
             if plist.pkgtype not in ("bundle", "flat"):
                 errors.append("pkgtype must be flat or bundle")
                 syntax_ok = False
-            
+
             # Make sure all chown entries are dictionaries, and children are
             # the correct type.
             for chown_entry in plist.chown:
@@ -184,15 +184,15 @@ class PkgHandler(SocketServer.StreamRequestHandler):
                                 "Request key chown.%s is not of type %s" % \
                                 (key, str(keytype)))
                             syntax_ok = False
-        
+
         return (syntax_ok, errors)
-    
+
     def getpeerid(self):
         """
         Get peer credentials on a UNIX domain socket.
         Returns uid, gids.
         """
-        
+
         # /usr/include/sys/ucred.h
         #
         # struct xucred {
@@ -201,7 +201,7 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         #         short   cr_ngroups;             /* number of advisory groups */
         #         gid_t   cr_groups[NGROUPS];     /* advisory group list */
         # };
-        
+
         LOCAL_PEERCRED = 0x001
         XUCRED_VERSION = 0
         NGROUPS = 16
@@ -209,31 +209,31 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         cr_uid = 1
         cr_ngroups = 2
         cr_groups = 3
-        
+
         xucred_fmt = "IIh%dI" % NGROUPS
         res = struct.unpack(xucred_fmt, self.request.getsockopt(0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)))
-        
+
         if res[cr_version] != XUCRED_VERSION:
             raise OSError("Incompatible struct xucred version")
-        
+
         return res[cr_uid], res[cr_groups:cr_groups + res[cr_ngroups]]
-    
+
     def handle(self):
         """Handle an incoming packaging request."""
-        
+
         try:
             # Log through server parent.
             self.log = self.server.log
             self.log.debug("Handling request")
-            
+
             # Get uid and primary gid of connecting peer.
             uid, gids = self.getpeerid()
             gid = gids[0]
             self.log.debug("Got packaging request from uid %d gid %d" % (uid, gid))
-            
+
             # Receive a plist.
             plist_string = self.request.recv(8192)
-            
+
             # Try to parse it.
             try:
                 plist = plistlib.readPlistFromString(plist_string)
@@ -242,20 +242,20 @@ class PkgHandler(SocketServer.StreamRequestHandler):
                 self.request.send("ERROR:Malformed request\n")
                 return
             self.log.debug("Parsed request plist")
-            
+
             # Verify the plist syntax.
             syntax_ok, errors = self.verify_request_syntax(plist)
             if not syntax_ok:
                 self.log.error("Plist syntax error")
                 self.request.send("".join(["ERROR:%s\n" % e for e in errors]))
                 return
-            
+
             if os.path.exists(plist.pkgroot):
                 name = os.path.basename(plist.pkgroot)
             else:
                 self.request.send("ERROR:Can't find pkgroot")
                 return
-            
+
             self.log.info("Dispatching worker to process request for user %d" % (uid))
             try:
                 p = Packager(self.log, plist, name, uid, gid)
@@ -265,20 +265,20 @@ class PkgHandler(SocketServer.StreamRequestHandler):
             except PackagerError as e:
                 self.log.error("Packaging failed: %s" % (e))
                 self.request.send(str(e) + "\n")
-        
+
         except BaseException as e:
             self.log.error("Caught exception: %s" % repr(e))
             self.request.send("ERROR:Caught exception: %s" % repr(e))
             return
-    
+
 
 class AutoPkgServer(SocketServer.UnixStreamServer):
     """Daemon that runs as root, receiving requests to create installer packages."""
-    
+
     allow_reuse_address = True
     request_queue_size = 10
     timeout = 10
-    
+
     def __init__(self, socket_fd, RequestHandlerClass):
         # Avoid initialization of UnixStreamServer as we need to open the
         # socket from a file descriptor instead of creating our own.
@@ -288,16 +288,16 @@ class AutoPkgServer(SocketServer.UnixStreamServer):
                                          self.socket.getsockname(),
                                          RequestHandlerClass)
         self.timed_out = False
-    
+
     #def server_bind(self):
     #    """Override binding to inherit socket from launchd."""
-    #    
-    
+    #
+
     def setup_logging(self):
         try:
             self.log = logging.getLogger(APPNAME)
             self.log.setLevel(logging.DEBUG)
-            
+
             log_console = logging.StreamHandler()
             log_console.setLevel(logging.DEBUG)
             log_file = logging.handlers.RotatingFileHandler(
@@ -307,23 +307,23 @@ class AutoPkgServer(SocketServer.UnixStreamServer):
                 9,
                 "utf-8")
             log_file.setLevel(logging.DEBUG)
-            
+
             console_formatter = logging.Formatter("%(message)s")
             file_formatter = \
                 logging.Formatter("%(asctime)s %(module)s[%(process)d]: " + \
                                   "%(message)s   (%(funcName)s)")
-            
+
             log_console.setFormatter(console_formatter)
             log_file.setFormatter(file_formatter)
-            
+
             self.log.addHandler(log_console)
             self.log.addHandler(log_file)
         except (OSError, IOError) as e:
             raise AutoPkgServerError("Can't open log: %s" % (e.strerror))
-    
+
     def handle_timeout(self):
         self.timed_out = True
-    
+
 
 def main(argv):
     # Make sure we're launched as root
@@ -332,13 +332,13 @@ def main(argv):
         # Sleep to avoid respawn.
         time.sleep(10)
         return 1
-    
+
     # Make sure that the executable and all containing directories are owned
     # by root:wheel or root:admin, and not writeable by other users.
     root_uid = 0
     wheel_gid = 0
     admin_gid = 80
-    
+
     exepath = os.path.realpath(os.path.abspath(__file__))
     path_ok = True
     while True:
@@ -355,15 +355,15 @@ def main(argv):
         exepath = os.path.dirname(exepath)
         if exepath == "/":
             break
-    
+
     if not path_ok:
         # Sleep to avoid respawn.
         time.sleep(10)
         return 1
-    
+
     # Keep track of time for launchd.
     start_time = time.time()
-    
+
     # Get socket file descriptors from launchd.
     try:
         sockets = launch.get_launchd_socket_fds()
@@ -371,26 +371,26 @@ def main(argv):
         print >>sys.stderr, "launchd check-in failed: %s" % e
         time.sleep(10)
         return 1
-    
+
     if not "AutoPkgServer" in sockets:
         print >>sys.stderr, "No AutoPkgServer in launchd sockets"
         time.sleep(10)
         return 1
-    
+
     # Create the server object.
     server = AutoPkgServer(sockets["AutoPkgServer"][0], PkgHandler)
     server.setup_logging()
-    
+
     # Wrap main loop in try/finally to unlink the socket when we exit.
     try:
         server.log.info("%s v%s starting" % (APPNAME, VERSION))
-        
+
         # Serve all pending requests until we time out.
         while True:
             server.handle_request()
             if server.timed_out == False:
                 continue
-            
+
             # Keep running for at least 10 seconds make launchd happy.
             run_time = time.time() - start_time
             server.log.info("run time: %fs" % run_time)
@@ -406,7 +406,7 @@ def main(argv):
         # Make sure the socket is removed.
         #os.unlink(SOCKET)
         pass
-    
+
     return 0
 
 if __name__ == '__main__':

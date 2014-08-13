@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for BrewCaskInfoProvider class"""
 
 import re
 import urllib2
@@ -24,15 +24,19 @@ __all__ = ["BrewCaskInfoProvider"]
 
 
 class BrewCaskInfoProvider(Processor):
-    description = ("Provides crowd-sourced URL and version info from thousands of "
-                    "applications listed in brew-cask: "
-                    "https://github.com/caskroom/homebrew-cask. See available apps: "
-                    "https://github.com/caskroom/homebrew-cask/tree/master/Casks")
+    # we dynamically set the docstring from the description (DRY), so:
+    #pylint: disable=missing-docstring
+
+    description = ("Provides crowd-sourced URL and version info from thousands "
+                   "of applications listed in brew-cask: "
+                   "https://github.com/caskroom/homebrew-cask. See available "
+                   "apps: https://github.com/caskroom/homebrew-cask/tree/"
+                   "master/Casks")
     input_variables = {
         "cask_name": {
             "required": True,
-            "description": ("Name of cask to fetch, as would be given to the 'brew' command. "
-                            "Example: 'audacity'")
+            "description": ("Name of cask to fetch, as would be given to the "
+                            "'brew' command. Example: 'audacity'")
         }
     }
     output_variables = {
@@ -40,9 +44,10 @@ class BrewCaskInfoProvider(Processor):
             "description": "URL for the Cask's download.",
         },
         "version": {
-            "description": ("Version info from formula. Depending on the nature of the formula "
-                            "and stability of the URL, this might be simply 'latest'. It's "
-                            "provided here for convenience in the recipe.")
+            "description": ("Version info from formula. Depending on the "
+                            "nature of the formula and stability of the URL, "
+                            "this might be simply 'latest'. It's provided "
+                            "here for convenience in the recipe.")
         }
     }
 
@@ -50,8 +55,9 @@ class BrewCaskInfoProvider(Processor):
 
 
     def parse_formula(self, formula):
-        """Return a dict containing attributes of the formula, ie. 'url', 'version', etc.
-        parsed from the formula .rb file."""
+        """Return a dict containing attributes of the formula, ie. 'url',
+        'version', etc. parsed from the formula .rb file."""
+        #pylint: disable=no-self-use
         attrs = {}
         regex = r"  (?P<attr>.+) '(?P<value>.+)'"
         for line in formula.splitlines():
@@ -64,13 +70,14 @@ class BrewCaskInfoProvider(Processor):
 
 
     def main(self):
-        github_raw_baseurl = "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/Casks"
+        github_raw_baseurl = (
+            "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/"
+            "Casks")
         cask_url = "%s/%s.rb" % (github_raw_baseurl, self.env["cask_name"])
         try:
             urlobj = urllib2.urlopen(cask_url)
-        except urllib2.HTTPError as e:
-            raise ProcessorError("Error opening URL %s: %s"
-                % (cask_url, e))
+        except urllib2.HTTPError as err:
+            raise ProcessorError("Error opening URL %s: %s"% (cask_url, err))
 
         formula_data = urlobj.read()
         parsed = self.parse_formula(formula_data)
@@ -85,9 +92,9 @@ class BrewCaskInfoProvider(Processor):
             self.env["version"] = ""
 
         self.output("Got URL %s from for cask '%s':"
-            % (self.env["url"], self.env["cask_name"]))
+                    % (self.env["url"], self.env["cask_name"]))
 
 
 if __name__ == "__main__":
-    processor = BrewCaskInfoProvider()
-    processor.execute_shell()
+    PROCESSOR = BrewCaskInfoProvider()
+    PROCESSOR.execute_shell()

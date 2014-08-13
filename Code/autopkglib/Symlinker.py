@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for Symlinker class"""
 
 import os
 
@@ -24,7 +24,8 @@ __all__ = ["Symlinker"]
 
 
 class Symlinker(Processor):
-    description = "Copies source_path to destination_path."
+    """Copies source_path to destination_path."""
+    description = __doc__
     input_variables = {
         "source_path": {
             "required": True,
@@ -36,39 +37,36 @@ class Symlinker(Processor):
         },
         "overwrite": {
             "required": False,
-            "description": 
+            "description":
                 "Whether the destination will be overwritten if necessary.",
         },
     }
     output_variables = {
     }
-    
-    __doc__ = description
-    
+
     def main(self):
         source_path = self.env['source_path']
-        destination_path  = self.env['destination_path']
-        
+        destination_path = self.env['destination_path']
+
         # Remove destination if needed.
         if os.path.exists(destination_path):
             if "overwrite" in self.env and self.env['overwrite']:
                 try:
                     os.unlink(destination_path)
-                except OSError as e:
-                    raise ProcessorError(
-                        "Can't remove %s: %s" % (destination_path, e.strerror))
-            
+                except OSError as err:
+                    raise ProcessorError("Can't remove %s: %s"
+                                         % (destination_path, err.strerror))
+
         # Make symlink.
         try:
             os.symlink(source_path, destination_path)
-            self.output("Symlinked %s to %s" 
+            self.output("Symlinked %s to %s"
                         % (source_path, destination_path))
-        except BaseException as e:
-            raise ProcessorError("Can't symlink %s to %s: %s" 
-                                 % (source_path, destination_path, e))
-                                     
+        except BaseException as err:
+            raise ProcessorError("Can't symlink %s to %s: %s"
+                                 % (source_path, destination_path, err))
+
 
 if __name__ == '__main__':
-    processor = Symlinker()
-    processor.execute_shell()
-    
+    PROCESSOR = Symlinker()
+    PROCESSOR.execute_shell()
