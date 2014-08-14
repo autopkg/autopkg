@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # Copyright 2013 Greg Neagle
 #
@@ -13,11 +13,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""See docstring for Versioner class"""
 
 import os.path
 
-from autopkglib import Processor, ProcessorError
-from DmgMounter import DmgMounter
+from autopkglib import ProcessorError
+from autopkglib.DmgMounter import DmgMounter
 import FoundationPlist
 
 __all__ = ["Versioner"]
@@ -25,18 +26,20 @@ __all__ = ["Versioner"]
 
 class Versioner(DmgMounter):
     """Returns version information from a plist"""
+    description = __doc__
+
     input_variables = {
         "input_plist_path": {
             "required": True,
-            "description": 
+            "description":
                 ("File path to a plist. Can point to a path inside a .dmg "
                  "which will be mounted."),
         },
         "plist_version_key": {
             "required": False,
-            "description": 
+            "description":
                 ("Which plist key to use; defaults to "
-                "CFBundleShortVersionString"),
+                 "CFBundleShortVersionString"),
         },
     }
     output_variables = {
@@ -44,13 +47,12 @@ class Versioner(DmgMounter):
             "description": "Version of the item.",
         },
     }
-    description = __doc__
-
 
     def main(self):
+        """Return a version for file at input_plist_path"""
         # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
-                                            self.env['input_plist_path'])
+        (dmg_path, dmg, dmg_source_path) = (
+            self.parsePathForDMG(self.env['input_plist_path']))
         try:
             if dmg:
                 # Mount dmg and copy path inside.
@@ -64,7 +66,7 @@ class Versioner(DmgMounter):
                 version_key = self.env.get(
                     "plist_version_key", "CFBundleShortVersionString")
                 self.env['version'] = plist.get(version_key, "UNKNOWN_VERSION")
-                self.output("Found version %s in file %s" 
+                self.output("Found version %s in file %s"
                             % (self.env['version'], input_plist_path))
             except FoundationPlist.FoundationPlistException, err:
                 raise ProcessorError(err)
@@ -75,7 +77,6 @@ class Versioner(DmgMounter):
 
 
 if __name__ == '__main__':
-    processor = Versioner()
-    processor.execute_shell()
+    PROCESSOR = Versioner()
+    PROCESSOR.execute_shell()
 
-    

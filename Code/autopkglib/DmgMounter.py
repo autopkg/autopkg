@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # Copyright 2010 Per Olofsson
 #
@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""See docstring for DmgMounter class"""
 
 import sys
 import subprocess
@@ -26,110 +27,115 @@ __all__ = ["DmgMounter"]
 
 class DmgMounter(Processor):
     """Base class for Processors that need to mount disk images."""
-    
+
     DMG_EXTENSIONS = ['.dmg', '.iso', '.DMG', '.ISO']
-    
+
     def __init__(self, data=None, infile=None, outfile=None):
         super(DmgMounter, self).__init__(data, infile, outfile)
         self.mounts = dict()
-        
+
+    #pylint: disable=invalid-name
     def parsePathForDMG(self, pathname):
-        # Helper method for working with paths that reference something
-        # inside a disk image
+        """Helper method for working with paths that reference something
+        inside a disk image"""
         for extension in self.DMG_EXTENSIONS:
-            (dmg_path, dmg, dmg_source_path) = pathname.partition(
-                                                    extension + "/")
+            (dmg_path, dmg, dmg_source_path) = (
+                pathname.partition(extension + "/"))
             if dmg:
                 dmg_path += extension
                 return dmg_path, dmg, dmg_source_path
         # no disk image in path
         return pathname, '', ''
-        
-    def getFirstPlist(self, textString):
+    #pylint: enable=invalid-name
+
+    def get_first_plist(self, text_string):
         """Gets the first plist from a text string that may contain one or
         more text-style plists.
         Returns a tuple - the first plist (if any) and the remaining
         string after the plist"""
+        #pylint: disable=no-self-use
+
         plist_header = '<?xml version'
         plist_footer = '</plist>'
-        plist_start_index = textString.find(plist_header)
+        plist_start_index = text_string.find(plist_header)
         if plist_start_index == -1:
             # not found
-            return ("", textString)
-        plist_end_index = textString.find(
+            return ("", text_string)
+        plist_end_index = text_string.find(
             plist_footer, plist_start_index + len(plist_header))
         if plist_end_index == -1:
             # not found
-            return ("", textString)
+            return ("", text_string)
         # adjust end value
         plist_end_index = plist_end_index + len(plist_footer)
-        return (textString[plist_start_index:plist_end_index],
-                textString[plist_end_index:])
+        return (text_string[plist_start_index:plist_end_index],
+                text_string[plist_end_index:])
 
-    def DMGhasSLA(self, dmgpath):
+    def dmg_has_sla(self, dmgpath):
         '''Returns true if dmg has a Software License Agreement.
         These dmgs normally cannot be attached without user intervention'''
-        hasSLA = False
+        has_sla = False
         proc = subprocess.Popen(
-                    ['/usr/bin/hdiutil', 'imageinfo', dmgpath, '-plist'],
-                    bufsize=-1, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (out, err) = proc.communicate()
-        if err:
+            ['/usr/bin/hdiutil', 'imageinfo', dmgpath, '-plist'],
+            bufsize=-1, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (stdout, stderr) = proc.communicate()
+        if stderr:
             # some error with hdiutil.
             # Output but return False so we can attempt to continue
-            self.output('hdiutil imageinfo error %s with image %s.' 
-                        % (err, dmgpath))
+            self.output('hdiutil imageinfo error %s with image %s.'
+                        % (stderr, dmgpath))
             return False
 
-        (pliststr, out) = self.getFirstPlist(out)
+        (pliststr, stdout) = self.get_first_plist(stdout)
         if pliststr:
             try:
                 plist = FoundationPlist.readPlistFromString(pliststr)
                 properties = plist.get('Properties')
                 if properties:
-                    hasSLA = properties.get('Software License Agreement', False)
+                    has_sla = properties.get(
+                        'Software License Agreement', False)
             except FoundationPlist.NSPropertyListSerializationException:
                 pass
 
-        return hasSLA
-    
+        return has_sla
+
     def mount(self, pathname):
         """Mount image with hdiutil."""
         # Make sure we don't try to mount something twice.
         if pathname in self.mounts:
             raise ProcessorError("%s is already mounted" % pathname)
-        
+
         stdin = ''
-        if self.DMGhasSLA(pathname):
+        if self.dmg_has_sla(pathname):
             stdin = 'Y\n'
-        
+
         # Call hdiutil.
         try:
-            p = subprocess.Popen(("/usr/bin/hdiutil",
-                                  "attach",
-                                  "-plist",
-                                  "-mountrandom", "/private/tmp",
-                                  "-nobrowse",
-                                  pathname),
-                                 stdout=subprocess.PIPE,
-                                 stderr=subprocess.PIPE,
-                                 stdin=subprocess.PIPE)
-            (out, err) = p.communicate(stdin)
-        except OSError as e:
+            proc = subprocess.Popen(("/usr/bin/hdiutil",
+                                     "attach",
+                                     "-plist",
+                                     "-mountrandom", "/private/tmp",
+                                     "-nobrowse",
+                                     pathname),
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    stdin=subprocess.PIPE)
+            (stdout, stderr) = proc.communicate(stdin)
+        except OSError as err:
             raise ProcessorError(
-                "hdiutil execution failed with error code %d: %s" 
-                % (e.errno, e.strerror))
-        if p.returncode != 0:
-            raise ProcessorError("mounting %s failed: %s" % (pathname, err))
-        
+                "hdiutil execution failed with error code %d: %s"
+                % (err.errno, err.strerror))
+        if proc.returncode != 0:
+            raise ProcessorError("mounting %s failed: %s" % (pathname, stderr))
+
         # Read output plist.
-        (pliststr, out) = self.getFirstPlist(out)
+        (pliststr, stdout) = self.get_first_plist(stdout)
         try:
             output = FoundationPlist.readPlistFromString(pliststr)
         except FoundationPlist.NSPropertyListSerializationException:
             raise ProcessorError(
                 "mounting %s failed: unexpected output from hdiutil" % pathname)
-        
+
         # Find mount point.
         for part in output.get("system-entities", []):
             if "mount-point" in part:
@@ -142,38 +148,40 @@ class DmgMounter(Processor):
 
     def unmount(self, pathname):
         """Unmount previously mounted image."""
-        
+
         # Don't try to unmount something we didn't mount.
         if not pathname in self.mounts:
             raise ProcessorError("%s is not mounted" % pathname)
-        
+
         # Call hdiutil.
         try:
-            p = subprocess.Popen(("/usr/bin/hdiutil",
-                                  "detach",
-                                  self.mounts[pathname]),
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            (out, err) = p.communicate()
-        except OSError as e:
+            proc = subprocess.Popen(("/usr/bin/hdiutil",
+                                     "detach",
+                                     self.mounts[pathname]),
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+            stderr = proc.communicate()[1]
+        except OSError as err:
             raise ProcessorError(
-                "hdiutil execution failed with error code %d: %s" 
-                % (e.errno, e.strerror))
-        if p.returncode != 0:
-            raise ProcessorError("unmounting %s failed: %s" % (pathname, err))
-        
+                "hdiutil execution failed with error code %d: %s"
+                % (err.errno, err.strerror))
+        if proc.returncode != 0:
+            raise ProcessorError(
+                "unmounting %s failed: %s" % (pathname, stderr))
+
         # Delete mount from mount list.
         del self.mounts[pathname]
-    
+
 
 if __name__ == '__main__':
     try:
-        dmgmounter = DmgMounter()
-        mountpoint = dmgmounter.mount("Download/Firefox-sv-SE.dmg")
-        print "Mounted at %s" % mountpoint
-        dmgmounter.unmount("Download/Firefox-sv-SE.dmg")
-    except ProcessorError as e:
-        print >> sys.stderr, "ProcessorError: %s" % e
+        DMGMOUNTER = DmgMounter()
+        MOUNTPOINT = DMGMOUNTER.mount("Download/Firefox-sv-SE.dmg")
+        print "Mounted at %s" % MOUNTPOINT
+        DMGMOUNTER.unmount("Download/Firefox-sv-SE.dmg")
+    except ProcessorError as err:
+        print >> sys.stderr, "ProcessorError: %s" % err
         sys.exit(10)
     else:
         sys.exit(0)
-    
+

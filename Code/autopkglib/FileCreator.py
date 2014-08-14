@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # Copyright 2011 Per Olofsson
 #
@@ -13,10 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-import os.path
-import shutil
+"""Processor that creates a file"""
 
 from autopkglib import Processor, ProcessorError
 
@@ -25,8 +22,9 @@ __all__ = ["FileCreator"]
 
 
 class FileCreator(Processor):
-    description = "Create a file."
-    # FIXME: add mode, owner
+    """Create a file."""
+    description = __doc__
+    # TODO: add mode, owner
     input_variables = {
         "file_path": {
             "required": True,
@@ -39,21 +37,18 @@ class FileCreator(Processor):
     }
     output_variables = {
     }
-    
-    __doc__ = description
-    
+
     def main(self):
         try:
-            with open(self.env['file_path'], "w") as f:
-                f.write(self.env['file_content'])
+            with open(self.env['file_path'], "w") as fileref:
+                fileref.write(self.env['file_content'])
             self.output("Created file at %s" % self.env['file_path'])
-        except BaseException as e:
-            raise ProcessorError("Can't create file at %s: %s" % (
-                                  self.env['file_path'],
-                                  e))
-    
+        except BaseException as err:
+            raise ProcessorError("Can't create file at %s: %s"
+                                 % (self.env['file_path'], err))
+
 
 if __name__ == '__main__':
-    processor = FileCreator()
-    processor.execute_shell()
-    
+    PROCESSOR = FileCreator()
+    PROCESSOR.execute_shell()
+

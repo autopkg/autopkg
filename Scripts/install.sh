@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Manual script-based installation of AutoPkg.
+# This is intended for development use only - for regular use, please use
+# a release installer package from: https://github.com/autopkg/autopkg/releases
 
 INSTALL_DIR="/Library/AutoPkg"
 LAUNCH_DAEMON="/Library/LaunchDaemons/com.github.autopkg.autopkgserver.plist"

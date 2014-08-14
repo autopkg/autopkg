@@ -1,4 +1,21 @@
-### 0.3.2 (Unreleased)
+### 0.4.0 (Unreleased)
+
+IMPROVEMENTS:
+
+- 'search' verb:
+  - Split repo and recipe path into two columns, making it easier to group repos visually
+    and to give to 'repo-add'.
+  - Allow searches that return up to 100 results.
+
+### 0.3.2 (July 24, 2014)
+
+FIXES:
+
+- Packaging server: When checking for permissions on the location of CACHE_DIR, handle
+  possibility of unexpected diskutil output. This at least fixes an issue running pkg
+  recipes on 10.6.
+- MunkiImporter: Handle case where an installs array was present but an item is missing
+  a 'type' key
 
 CHANGES:
 
@@ -7,6 +24,8 @@ CHANGES:
   a disk image can still be given and the image will be mounted, ie.
   "%RECIPE_CACHE_DIR/my.dmg/Some.app", but the behaviour of mounting a path containing
   _only_ the disk image was unused and an unusual pattern compared with other processors.
+- Unarchiver: Create intermediate directories needed for 'destination_path' input var
+  (GH-100)
 
 ### 0.3.1 (July 01, 2014)
 
