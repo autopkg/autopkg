@@ -46,6 +46,11 @@ class AbsoluteManageExport(Processor):
             'description': 'Path to a plist config for the Software Package to be used in Absolute Manage',
             'required': False,
         },
+        'import_abman_to_servercenter': {
+            'description': 'Imports autopkg .pkg result to AbMan',
+            'required': False,
+        },
+
     }
 
     output_variables = {}
@@ -53,8 +58,9 @@ class AbsoluteManageExport(Processor):
     unique_id = str(uuid.uuid4()).upper()
     unique_id_sd = str(uuid.uuid4()).upper()
     sdpackages_template = {'SDPackageExportVersion': 1, 'SDPayloadFolder': 'Payloads', 'SDPackageList': [{'IsNewEntry': False, 'OptionalData': [], 'RequiresLoggedInUser': False, 'InstallTimeEnd': [], 'AllowOnDemandInstallation': False, 'InstallTime': [], 'AutoStartInstallationMinutes': [], 'SoftwarePatchIdentifier': [], 'RestartNotificationNagTime': [], 'PlatformArchitecture': 131071, 'ExecutableSize': 0, 'ResetSeed': 1, 'Priority': 2, 'WU_LanguageCode': [], 'WU_SuperseededByPackageID': [], 'WU_IsUninstallable': [], 'WU_LastDeploymentChangeTime': [], 'IsMacOSPatch': False, 'UploadStatus': [], 'id': 0, 'RequiresAdminPrivileges': False, 'InstallationContextSelector': 2, 'SoftwareSpecNeedToExist': True, 'MinimumOS': 0, 'Description': '', 'AllowOnDemandRemoval': False, 'RetrySeed': 1, 'MaximumOS': 0, 'SoftwarePatchStatus': 0, 'IsMetaPackage': False, 'SoftwarePatchSupportedOS': [], 'ScanAllVolumes': False, 'DontInstallOnSlowNetwork': False, 'ShowRestartNotification': False, 'SelfHealingOptions': [], 'AllowDeferMinutes': [], 'last_modified': '', 'SoftwarePatchRecommended': [], 'UserContext': '', 'EnableSelfHealing': False, 'InstallationDateTime': [], 'AllowToPostponeRestart': False, 'PayloadExecutableUUID': '', 'WU_IsBeta': [], 'OSPlatform': 1, 'RequiresRestart': 0, 'Name': '', 'FindCriteria': {'Operator': 'AND', 'Value': [{'Operator': 'AND', 'Value': [{'Operator': '=', 'Units': 'Minutes', 'Property': 'Name', 'Value2': '', 'Value': ''}]}, {'UseNativeType': True, 'Value': True, 'Units': 'Minutes', 'Value2': '', 'Operator': '=', 'Property': 'IsPackage'}, {'UseNativeType': True, 'Value': True, 'Units': 'Minutes', 'Value2': '', 'Operator': '=', 'Property': 'IsApplication'}]}, 'SDPayloadList': [{'IsNewEntry': 0, 'OptionalData': [], 'SelectedObjectIsExecutable': True, 'Description': '', 'ExecutableName': '', 'ExecutableSize': 0, 'TransferExecutableFolder': False, 'id': 0, 'SourceFilePath': '', 'last_modified': '', 'PayloadOptions': 0, 'UniqueID': '', 'IsVisible': True, 'UploadStatus': 2, 'MD5Checksum': '', 'Name': ''}], 'DisplayProgressDuringInstall': False, 'ContinueInstallationAfterFailure': False, 'UserInteraction': 1, 'WarnAboutSlowNetwork': False, 'InstallTimeOptions': 1, 'WU_IsMandatory': [], 'DownloadPackagesBeforeShowingToUser': False, 'PackageType': 1, 'WU_Deadline': [], 'SoftwarePatchVersion': [], 'WU_DeploymentAction': [], 'TargetInstallationVolume': '', 'KeepPackageFileAfterInstallation': False, 'MD5Checksum': [], 'TransferExecutableFolder': [], 'WU_SuperseededByPackageName': [], 'StagingServerOption': 1, 'ExecutableOptions': '', 'WU_UninstallationBehaviorImpact': [], 'ExecutableName': [], 'ExecutableServerVolume': [], 'DontInstallIfUserIsLoggedIn': False, 'SourceFilePath': [], 'UserContextPassword': '', 'AvailabilityDate': datetime.datetime.today(), 'WU_InstallationBehaviorImpact': [], 'PostNotificationAutoClose': [], 'UniqueID': '', 'UseSoftwareSpec': False, 'ExecutablePath': [], 'IsWindowsPatch': False}]}
+    open_exe = "/usr/bin/open"
 
-    def export_amsdpackages(self, source_dir, dest_dir, am_options):
+    def export_amsdpackages(self, source_dir, dest_dir, am_options, import_pkg):
 
         if os.path.exists(dest_dir):
             shutil.rmtree(dest_dir)
@@ -105,14 +111,22 @@ class AbsoluteManageExport(Processor):
         self.sdpackages_template['SDPackageList'][0]['SDPayloadList'][0]['last_modified'] = ""
 
         plistlib.writePlist(self.sdpackages_template, dest_dir + "/SDPackages.ampkgprops")
+        if import_pkg:
+            try:
+                subprocess.check_output([self.open_exe, "lanrevadmin://importsoftwarepackage?packagepath=" + dest_dir])
+                subprocess.check_output([self.open_exe, "lanrevadmin://commitsoftwarepackagechanges"])
+            except (subprocess.CalledProcessError, OSError), err:
+                raise err
+
 
 
     def main(self):
         source_payload = self.env.get('source_payload_path')
         dest_payload = self.env.get('dest_payload_path')
         sdpackages_ampkgprops = self.env.get('sdpackages_ampkgprops_path')
+        import_pkg = self.env.get('import_abman_to_servercenter')
 
-        self.export_amsdpackages(source_payload, dest_payload, sdpackages_ampkgprops)
+        self.export_amsdpackages(source_payload, dest_payload, sdpackages_ampkgprops, import_pkg)
 
         self.output("[+] Exported [%s] to ./"
             % source_payload)
