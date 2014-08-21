@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>com.github.autopkg.autopkgserver</string>
+	<string>com.github.autopkgserver</string>
 	<key>KeepAlive</key>
 	<false/>
 	<key>ProgramArguments</key>
