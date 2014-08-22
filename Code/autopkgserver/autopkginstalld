@@ -25,8 +25,9 @@ import SocketServer
 import socket
 import plistlib
 import struct
-import subprocess
 
+from itemcopier import ItemCopier, ItemCopierError
+from installer import Installer, InstallerError
 import launch
 
 APPNAME = "autopkginstalld"
@@ -115,47 +116,39 @@ class RunHandler(SocketServer.StreamRequestHandler):
                 return
             self.log.debug("Parsed request plist")
 
-            # Verify the plist syntax.
-            syntax_ok, errors = self.verify_request_syntax(plist)
-            if not syntax_ok:
-                self.log.error("Plist syntax error")
-                self.request.send(
-                    "".join(["ERROR:%s\n" % err for err in errors]))
-                return
-
-            self.log.info(
-                "Dispatching worker to process request for user %d" % (uid))
-            try:
-                cmd = ['/usr/sbin/installer', '-verboseR',
-                       '-pkg', plist['package'],
-                       '-target', '/']
-                proc = subprocess.Popen(cmd, shell=False, bufsize=-1,
-                                        stdin=subprocess.PIPE,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.STDOUT)
-                while True:
-                    output = proc.stdout.readline().decode('UTF-8')
-                    if not output and (proc.poll() != None):
-                        break
-                    self.request.send("STATUS:%s" % output.encode('UTF-8'))
-                    self.log.info(output.rstrip())
-
-                if proc.returncode != 0:
-                    self.request.send("ERROR:%s\n" % proc.returncode)
-                else:
+            if 'package' in plist:
+                self.log.info(
+                    "Dispatching Installer worker to process request for "
+                    "user %d" % uid)
+                try:
+                    installer = Installer(self.log, self.request, plist)
+                    result = installer.install()
                     self.request.send("OK:DONE\n")
-                self.log.info('install request completed.')
-            except BaseException as err:
-                self.log.error("Install failed: %s" % err)
-                self.request.send(str(err) + "\n")
+                except InstallerError as err:
+                    self.log.error("Installing failed: %s" % err)
+                    self.request.send(str(err) + "\n")
+            elif 'mount_point' in plist:
+                self.log.info(
+                    "Dispatching ItemCopier worker to process request for "
+                    "user %d" % uid)
+                try:
+                    copier = ItemCopier(self.log, self.request, plist)
+                    result = copier.copy()
+                    self.request.send("OK:DONE\n")
+                except ItemCopierError as err:
+                    self.log.error("Copying failed: %s" % err)
+                    self.request.send(str(err) + "\n")
+            else:
+                self.log.error("Unsupported request format")
+                self.request.send("ERROR:Unsupported request format")
 
         except BaseException as err:
             self.log.error("Caught exception: %s" % repr(err))
             self.request.send("ERROR:Caught exception: %s" % repr(err))
-            return
 
 
 class AutoPkgInstallDaemonError(Exception):
+    """Exception class for AutoPkgInstallDaemon errors"""
     pass
 
 

@@ -13,39 +13,39 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""See docstring for Installer class"""
+"""See docstring for InstallFromDMG class"""
 
 import os.path
 import socket
 import FoundationPlist
 
-from glob import glob
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
+
 
 AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
 
 
-__all__ = ["Installer"]
+__all__ = ["InstallFromDMG"]
 
 
-class Installer(DmgMounter):
-    """Calls autopkginstalld to install a package."""
+class InstallFromDMG(DmgMounter):
+    """Calls autopkginstalld to copy items from a disk image to the root
+    filesystem."""
     description = __doc__
     input_variables = {
-        "pkg_path": {
+        "dmg_path": {
+            "required": True,
+            "description": "Path to the disk image."
+        },
+        "items_to_copy": {
             "required": True,
             "description": (
-                "Path to the package to be installed. Can be inside a disk "
-                "image.")
-        },
-        "new_package_request": {
-            "required": False,
-            "description": (
-                "new_package_request is set by the PkgCreator processor to "
-                "indicate that a new package was built. If this key is set in "
-                "the environment and is False or empty the installation will be"
-                "skipped.")
+                "Array of dictionaries describing what is to be copied. "
+                "Each item should contain 'source_path' and "
+                "'destination_path', and may optionally include: "
+                "'destination_item' to rename the item on copy, and "
+                "'user', 'group' and 'mode' to explictly set those items.")
         },
         "download_changed": {
             "required": False,
@@ -53,7 +53,7 @@ class Installer(DmgMounter):
                 "download_changed is set by the URLDownloaded processor to "
                 "indicate that a new file was downloaded. If this key is set "
                 "in the environment and is False or empty the installation "
-                "will be skipped, unless new_package_request is non-False.")
+                "will be skipped.")
         },
     }
     output_variables = {
@@ -61,48 +61,20 @@ class Installer(DmgMounter):
     }
 
     def install(self):
-        '''Build an installation request, send it to autopkginstalld'''
+        '''Build an ItemCopier request, send it to autopkginstalld'''
 
-        if "new_package_request" in self.env:
-            if not self.env["new_package_request"]:
-                # PkgCreator did not build a new package, so skip the install
-                self.output("Skipping installation: no new package.")
-                self.env["install_result"] = "OK:SKIPPED"
-                return
-        elif "download_changed" in self.env:
+        if "download_changed" in self.env:
             if not self.env["download_changed"]:
-                # URLDownloader did not download something new,
+                # URLDownloader did not download something new, 
                 # so skip the install
                 self.output("Skipping installation: no new download.")
                 self.env["install_result"] = "OK:SKIPPED"
                 return
-
-        pkg_path = self.env["pkg_path"]
-        # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_pkg_path) = self.parsePathForDMG(pkg_path)
         try:
-            if dmg:
-                # Mount dmg and copy path inside.
-                mount_point = self.mount(dmg_path)
-                pkg_path = os.path.join(mount_point, dmg_pkg_path)
-            # process path with glob.glob
-            matches = glob(pkg_path)
-            if len(matches) == 0:
-                raise ProcessorError(
-                    "Error processing path '%s' with glob. " % pkg_path)
-            matched_pkg_path = matches[0]
-            if len(matches) > 1:
-                self.output(
-                    "WARNING: Multiple paths match 'pkg_path' glob '%s':"
-                    % pkg_path)
-                for match in matches:
-                    self.output("  - %s" % match)
+            mount_point = self.mount(self.env['dmg_path'])
 
-            if [c for c in '*?[]!' if c in pkg_path]:
-                self.output("Using path '%s' matched from globbed '%s'."
-                            % (matched_pkg_path, pkg_path))
-
-            request = {'package': matched_pkg_path}
+            request = {'mount_point': mount_point,
+                       'items_to_copy': self.env["items_to_copy"]}
             result = None
             # Send install request.
             try:
@@ -119,10 +91,8 @@ class Installer(DmgMounter):
             # Return result.
             self.output("Result: %s" % result)
             self.env["install_result"] = result
-
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount(self.env['dmg_path'])
 
     def connect(self):
         '''Connect to autopkginstalld'''
@@ -168,6 +138,6 @@ class Installer(DmgMounter):
 
 
 if __name__ == '__main__':
-    PROCESSOR = Installer()
+    PROCESSOR = InstallFromDMG()
     PROCESSOR.execute_shell()
 
