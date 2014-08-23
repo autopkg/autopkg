@@ -20,6 +20,7 @@ import urllib
 import urllib2
 import urlparse
 import os
+import re
 from xml.etree import ElementTree
 
 from autopkglib import Processor, ProcessorError
@@ -190,8 +191,11 @@ class SparkleUpdateInfoProvider(Processor):
     def main(self):
         """Get URL for latest version in update feed"""
         def compare_version(this, that):
+            leadingcharacters = re.compile('^\D+')
+            stripped_this = regexp.sub('', this)
+            stripped_that = regexp.sub('', that)
             """Compare loose versions"""
-            return cmp(LooseVersion(this), LooseVersion(that))
+            return cmp(LooseVersion(stripped_this), LooseVersion(stripped_that))
 
         items = self.get_feed_data(self.env.get("appcast_url"))
         sorted_items = sorted(items,
