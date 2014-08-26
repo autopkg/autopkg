@@ -37,6 +37,7 @@ class Versioner(DmgMounter):
         },
         "plist_version_key": {
             "required": False,
+            "default": "CFBundleShortVersionString",
             "description":
                 ("Which plist key to use; defaults to "
                  "CFBundleShortVersionString"),
@@ -63,8 +64,7 @@ class Versioner(DmgMounter):
                 input_plist_path = self.env['input_plist_path']
             try:
                 plist = FoundationPlist.readPlist(input_plist_path)
-                version_key = self.env.get(
-                    "plist_version_key", "CFBundleShortVersionString")
+                version_key = self.env.get("plist_version_key")
                 self.env['version'] = plist.get(version_key, "UNKNOWN_VERSION")
                 self.output("Found version %s in file %s"
                             % (self.env['version'], input_plist_path))

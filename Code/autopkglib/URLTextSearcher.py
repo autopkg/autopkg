@@ -39,6 +39,7 @@ class URLTextSearcher(Processor):
                             'by the match. If not specified then a default of '
                             '"match" will be used.'),
             'required': False,
+            'default': 'match',
         },
         'request_headers': {
             'description': ('Optional dictionary of headers to include with '
@@ -91,13 +92,7 @@ class URLTextSearcher(Processor):
         return (match.group(match.lastindex or 0), match.groupdict(), )
 
     def main(self):
-        output_var_name = None
-
-        if ('result_output_var_name' in self.env
-                and self.env['result_output_var_name']):
-            output_var_name = self.env['result_output_var_name']
-        else:
-            output_var_name = 'match'
+        output_var_name = self.env['result_output_var_name']
 
         headers = self.env.get('request_headers', {})
 
