@@ -46,9 +46,17 @@ class CodeSignatureVerifier(DmgMounter):
                  "authority names. Complete list of the certificate name chain "
                  "is required and it needs to be in the correct order. These "
                  "can be determined by running: "
-                 "\n\t$ codesign -d -vvvv <path_to_app>"
+                 "\n\t$ codesign --display -vvvv <path_to_app>"
                  "\n\tor"
                  "\n\t$ pkgutil --check-signature <path_to_pkg>"),
+        },
+        "requirement": {
+            "required": False,
+            "description":
+                ("A requirement string to pass to codesign. "
+                 "This should always be set to the original designated requirement "
+                 "of the application and can be determined by running:"
+                 "\n\t$ codesign --display -r- <path_to_app>"),
         },
     }
     output_variables = {
@@ -76,15 +84,21 @@ class CodeSignatureVerifier(DmgMounter):
             authority_name_chain.append(match.group('authority'))
         return authority_name_chain
 
-    def codesign_verify(self, path):
+    def codesign_verify(self, path, test_requirement=None):
         """
         Runs 'codesign --verify --verbose <path>'. Returns True if
         codesign exited with 0 and False otherwise.
         """
+        
         process = ["/usr/bin/codesign",
                    "--verify",
-                   "--verbose",
-                   path]
+                   "--verbose"]
+        
+        if test_requirement:
+            process.append("-R=%s" % test_requirement)
+        
+        process.append(path)
+        
         proc = subprocess.Popen(process,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (output, error) = proc.communicate()
@@ -143,7 +157,8 @@ class CodeSignatureVerifier(DmgMounter):
         '''Verifies the signature for an application bundle'''
         self.output("Verifying application bundle signature...")
         # The first step is to run 'codesign --verify <path>'
-        if self.codesign_verify(path):
+        requirement = self.env.get('requirement', None)
+        if self.codesign_verify(path, requirement):
             self.output("Signature is valid")
         else:
             raise ProcessorError("Code signature verification failed")
