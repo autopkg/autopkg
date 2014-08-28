@@ -743,8 +743,14 @@ def search_recipes(argv):
     for result in results["items"]:
         repo = result["repository"]
         name, path = result["name"], result["path"]
-        repo_name = repo["name"]
+        if repo["full_name"].startswith("autopkg"):
+            repo_name = repo["name"]
+        else:
+            repo_name = repo["full_name"]
         print format_str % (name, repo_name, path)
+
+    print
+    print "To add a new recipe repo, use 'autopkg repo-add <repo name>'"
 
     if count > results_limit:
         print

@@ -157,6 +157,7 @@ be done as root, so it's best done as a separate process.
     subprocess.check_call(['git', 'tag', tag_name])
     subprocess.check_call(['git', 'push', 'origin', 'master'])
     subprocess.check_call(['git', 'push', '--tags', 'origin', 'master'])
+
     # extract release notes for this new version
     match = re.search(r"(?P<current_ver_notes>\#\#\# %s.+?)\#\#\#"
                       % current_version, new_changelog, re.DOTALL)
@@ -170,22 +171,25 @@ be done as root, so it's best done as a separate process.
         ['git', 'clone', 'https://github.com/autopkg/recipes', recipes_dir])
     # running using the system AutoPkg directory so that we ensure we're at the
     # minimum required version to run the AutoPkg recipe
+    report_plist_path = tempfile.mkstemp()[1]
     proc = subprocess.Popen(['/Library/AutoPkg/autopkg',
                              'run',
                              '-k', 'force_pkg_build=true',
                              '--search-dir', recipes_dir,
-                             '--report-plist',
+                             '--report-plist', report_plist_path,
                              'AutoPkgGitMaster.pkg'],
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
     out, err = proc.communicate()
+    print out
     print >> sys.stderr, err
     try:
-        report = plistlib.readPlistFromString(out)
+        report = plistlib.readPlist(report_plist_path)
     except BaseException as err:
         print >> sys.stderr, (
             "Couldn't parse a valid report plist from the autopkg run!")
         sys.exit(err)
+    os.remove(report_plist_path)
 
     if report['failures']:
         sys.exit("Recipe run error: %s" % report['failures'][0]['message'])
