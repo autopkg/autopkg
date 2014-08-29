@@ -2,10 +2,31 @@
 
 IMPROVEMENTS:
 
-- 'search' verb:
-  - Split repo and recipe path into two columns, making it easier to group repos visually
-    and to give to 'repo-add'.
-  - Allow searches that return up to 100 results.
+- Recipe processors may now be used from recipes located outside the directory containing
+  the processor. The recipe should refer to the processor as 'recipe.identifier/ProcessorName'.
+  The recipe given by 'recipe.identifier' must be in the search path. See the [wiki page]
+  (https://github.com/autopkg/autopkg/wiki/Processor-Locations) for more details. (GH-82)
+- New Installer and InstallFromDMG processors, able to install pkgs and copy items from a disk
+  image to the local filesystem. Allows for a new pattern of recipes that can install
+  updates from recipes onto the system running autopkg.
+- 'search' verb: Split repo and recipe path into two columns, making it easier to group repos
+  visually and to pass to 'repo-add'. Allow searches that return up to 100 results.
+- Processor input variables may now define a 'default' key, whose value will be substituted
+  into that env key if it is not specified in the recipe. Removes the need to do manual
+  default value code in the main processor logic. (GH-7, GH-107)
+
+FIXES:
+
+- Python scripts explicitly use OS X system Python at /usr/bin/python.
+
+CHANGES:
+
+- '--report-plist' is no longer a switch that toggles outputting the report to stdout,
+  suppressing all other stdout logging. It now takes a path where the report will
+  be saved, and logging to stdout not suppressed. The structure of the report remains
+  the same. (GH-104)
+- CACHE_DIR and RECIPE_REPO_DIR preferences can now include paths with a '~' that will
+  be expanded, shell-style, to the user's home. (GH-105)
 
 ### 0.3.2 (July 24, 2014)
 
