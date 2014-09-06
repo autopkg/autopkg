@@ -65,6 +65,46 @@ class CodeSignatureVerifier(DmgMounter):
 
     description = __doc__
 
+    def spctl_assess(self, path, assessment_type):
+        """
+        Runs 'spctl --verbose --assess --type <type> <path>'. Returns True if
+        spctl exited with 0 and False otherwise.
+        """
+        # Get current Darwin kernel version
+        darwin_version = os.uname()[2]
+
+        # Check the kernel version to make sure we're not running
+        # on Snow Leopard:
+        # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
+        if darwin_version.startswith("10."):
+            self.output("Warning: System policy assessment "
+                        "not supported on Mac OS X 10.6")
+            return True
+
+        self.output("Running system policy assessment...")
+        command = ["/usr/sbin/spctl",
+                   "--verbose",
+                   "--assess",
+                   "--type", assessment_type,
+                   path]
+        proc = subprocess.Popen(command,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (output, error) = proc.communicate()
+
+        # Log all output
+        if error:
+            for line in error.splitlines():
+                self.output("%s" % line)
+        if output:
+            for line in output.splitlines():
+                self.output("%s" % line)
+
+        # Return true only if spctl exited with 0
+        if proc.returncode == 0:
+            return True
+        else:
+            return False
+
     def codesign_get_authority_names(self, path):
         """
         Runs 'codesign --display -vvvv <path>' and returns a list of
@@ -188,6 +228,9 @@ class CodeSignatureVerifier(DmgMounter):
             else:
                 self.output("Authority name chain is valid")
 
+        if not self.spctl_assess(path, "execute"):
+            raise ProcessorError("System policy assessment failed")
+
     def process_installer_package(self, path):
         '''Verifies the signature for an installer pkg'''
         self.output("Verifying installer package signature...")
@@ -209,6 +252,9 @@ class CodeSignatureVerifier(DmgMounter):
                 raise ProcessorError("Mismatch in authority names")
             else:
                 self.output("Authority name chain is valid")
+
+        if not self.spctl_assess(path, "install"):
+            raise ProcessorError("System policy assessment failed")
 
     def main(self):
         # Check if we're trying to read something inside a dmg.
