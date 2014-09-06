@@ -130,16 +130,16 @@ class CodeSignatureVerifier(DmgMounter):
         Runs 'codesign --verify --verbose <path>'. Returns True if
         codesign exited with 0 and False otherwise.
         """
-        
+
         process = ["/usr/bin/codesign",
                    "--verify",
                    "--verbose"]
-        
+
         if test_requirement:
             process.append("-R=%s" % test_requirement)
-        
+
         process.append(path)
-        
+
         proc = subprocess.Popen(process,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (output, error) = proc.communicate()
