@@ -124,6 +124,19 @@ class CodeSignatureVerifier(DmgMounter):
         Runs 'pkgutil --check-signature <path>'. Returns a tuple with boolean
         pkgutil exit status and a list of found certificate authority names
         """
+        authority_name_chain = []
+
+        # Get current Darwin kernel version
+        darwin_version = os.uname()[2]
+
+        # Check the kernel version to make sure we're not running
+        # on Snow Leopard:
+        # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
+        if darwin_version.startswith("10."):
+            self.output("Warning: Installer package signature "
+                        "verification not supported on Mac OS X 10.6")
+            return True, authority_name_chain
+
         process = ["/usr/sbin/pkgutil",
                    "--check-signature",
                    path]
@@ -140,7 +153,6 @@ class CodeSignatureVerifier(DmgMounter):
                 self.output("%s" % line)
 
         # Parse the output for certificate authority names
-        authority_name_chain = []
         for match in re.finditer(RE_AUTHORITY_PKGUTIL, output):
             authority_name_chain.append(match.group('authority'))
 
@@ -217,22 +229,12 @@ class CodeSignatureVerifier(DmgMounter):
                 # just use the given path
                 input_path = self.env['input_path']
 
-            # Get current Darwin kernel version
-            darwin_version = os.uname()[2]
-
             # Currently we support only .app, .pkg or .mpkg types
             file_extension = os.path.splitext(input_path)[1]
             if file_extension == ".app":
                 self.process_app_bundle(input_path)
             elif file_extension in [".pkg", ".mpkg"]:
-                # Check the kernel version to make sure we're running on
-                # Snow Leopard:
-                # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
-                if darwin_version.startswith("10."):
-                    self.output("Warning: Installer package signature "
-                                "verification not supported on Mac OS X 10.6")
-                else:
-                    self.process_installer_package(input_path)
+                self.process_installer_package(input_path)
             else:
                 raise ProcessorError("Unsupported file type")
 
