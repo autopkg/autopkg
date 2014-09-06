@@ -54,8 +54,9 @@ class CodeSignatureVerifier(DmgMounter):
             "required": False,
             "description":
                 ("A requirement string to pass to codesign. "
-                 "This should always be set to the original designated requirement "
-                 "of the application and can be determined by running:"
+                 "This should always be set to the original "
+                 "designated requirement of the application "
+                 "and can be determined by running:"
                  "\n\t$ codesign --display -r- <path_to_app>"),
         },
     }
