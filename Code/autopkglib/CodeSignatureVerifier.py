@@ -127,13 +127,14 @@ class CodeSignatureVerifier(DmgMounter):
 
     def codesign_verify(self, path, test_requirement=None):
         """
-        Runs 'codesign --verify --verbose <path>'. Returns True if
+        Runs 'codesign --verify --deep <path>'. Returns True if
         codesign exited with 0 and False otherwise.
         """
 
         process = ["/usr/bin/codesign",
                    "--verify",
-                   "--verbose"]
+                   "--deep",
+                   "--verbose=1"]
 
         if test_requirement:
             process.append("-R=%s" % test_requirement)
