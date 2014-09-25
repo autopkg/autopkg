@@ -27,13 +27,8 @@ import subprocess
 import sys
 import urllib2
 
-#from base64 import b64encode
-#from getpass import getpass
 from pprint import pprint
-#from shutil import rmtree
 from tempfile import mkdtemp
-#from time import sleep
-#from urllib import urlencode
 
 BASE_URL = "https://api.github.com"
 TOKEN = None
@@ -222,8 +217,8 @@ def main():
     # We need to explicitly set a Content-Length of 0, otherwise
     # the API server is expecting us to send data because of PUT
     response, code = call_api(user_add_team_endpoint,
-                       headers={"Content-Length": 0},
-                       method="PUT")
+                              headers={"Content-Length": 0},
+                              method="PUT")
     if code == 200:
         print "User membership of team is now %s" % response["state"]
     else:
