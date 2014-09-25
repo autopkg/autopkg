@@ -202,17 +202,20 @@ def main():
         sys.exit("Error creating team!")
 
     # Add the user to the new team
+    # https://developer.github.com/v3/orgs/teams/#add-team-membership
     print "Adding %s to new team.." % source_repo_user
-    user_add_team_endpoint = ("/teams/%s/members/%s"
+    user_add_team_endpoint = ("/teams/%s/memberships/%s"
                               % (new_team["id"], source_repo_user))
     # We need to explicitly set a Content-Length of 0, otherwise
     # the API server is expecting us to send data because of PUT
-    _, code = call_api(user_add_team_endpoint,
+    response, code = call_api(user_add_team_endpoint,
                        headers={"Content-Length": 0},
                        method="PUT")
-    # Should return 204 on success
-    if code != 204:
-        sys.exit("Error adding team member %s to new team." % source_repo_user)
+    if code == 200:
+        print "User membership of team is now %s" % response["state"]
+    else:
+        sys.exit("Error adding team member %s to new team, "
+                 "HTTP status code %s." % (source_repo_user, code))
 
     # Duplicate the repo using Git
     # https://help.github.com/articles/duplicating-a-repository
