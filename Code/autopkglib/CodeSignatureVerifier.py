@@ -46,9 +46,18 @@ class CodeSignatureVerifier(DmgMounter):
                  "authority names. Complete list of the certificate name chain "
                  "is required and it needs to be in the correct order. These "
                  "can be determined by running: "
-                 "\n\t$ codesign -d -vvvv <path_to_app>"
+                 "\n\t$ codesign --display -vvvv <path_to_app>"
                  "\n\tor"
                  "\n\t$ pkgutil --check-signature <path_to_pkg>"),
+        },
+        "requirement": {
+            "required": False,
+            "description":
+                ("A requirement string to pass to codesign. "
+                 "This should always be set to the original "
+                 "designated requirement of the application "
+                 "and can be determined by running:"
+                 "\n\t$ codesign --display -r- <path_to_app>"),
         },
     }
     output_variables = {
@@ -76,15 +85,22 @@ class CodeSignatureVerifier(DmgMounter):
             authority_name_chain.append(match.group('authority'))
         return authority_name_chain
 
-    def codesign_verify(self, path):
+    def codesign_verify(self, path, test_requirement=None):
         """
-        Runs 'codesign --verify --verbose <path>'. Returns True if
+        Runs 'codesign --verify --deep <path>'. Returns True if
         codesign exited with 0 and False otherwise.
         """
+
         process = ["/usr/bin/codesign",
                    "--verify",
-                   "--verbose",
-                   path]
+                   "--deep",
+                   "--verbose=1"]
+
+        if test_requirement:
+            process.append("-R=%s" % test_requirement)
+
+        process.append(path)
+
         proc = subprocess.Popen(process,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (output, error) = proc.communicate()
@@ -109,6 +125,19 @@ class CodeSignatureVerifier(DmgMounter):
         Runs 'pkgutil --check-signature <path>'. Returns a tuple with boolean
         pkgutil exit status and a list of found certificate authority names
         """
+        authority_name_chain = []
+
+        # Get current Darwin kernel version
+        darwin_version = os.uname()[2]
+
+        # Check the kernel version to make sure we're not running
+        # on Snow Leopard:
+        # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
+        if darwin_version.startswith("10."):
+            self.output("Warning: Installer package signature "
+                        "verification not supported on Mac OS X 10.6")
+            return True, authority_name_chain
+
         process = ["/usr/sbin/pkgutil",
                    "--check-signature",
                    path]
@@ -125,7 +154,6 @@ class CodeSignatureVerifier(DmgMounter):
                 self.output("%s" % line)
 
         # Parse the output for certificate authority names
-        authority_name_chain = []
         for match in re.finditer(RE_AUTHORITY_PKGUTIL, output):
             authority_name_chain.append(match.group('authority'))
 
@@ -143,7 +171,8 @@ class CodeSignatureVerifier(DmgMounter):
         '''Verifies the signature for an application bundle'''
         self.output("Verifying application bundle signature...")
         # The first step is to run 'codesign --verify <path>'
-        if self.codesign_verify(path):
+        requirement = self.env.get('requirement', None)
+        if self.codesign_verify(path, requirement):
             self.output("Signature is valid")
         else:
             raise ProcessorError("Code signature verification failed")
@@ -201,22 +230,12 @@ class CodeSignatureVerifier(DmgMounter):
                 # just use the given path
                 input_path = self.env['input_path']
 
-            # Get current Darwin kernel version
-            darwin_version = os.uname()[2]
-
             # Currently we support only .app, .pkg or .mpkg types
             file_extension = os.path.splitext(input_path)[1]
             if file_extension == ".app":
                 self.process_app_bundle(input_path)
             elif file_extension in [".pkg", ".mpkg"]:
-                # Check the kernel version to make sure we're running on
-                # Snow Leopard:
-                # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
-                if darwin_version.startswith("10."):
-                    self.output("Warning: Installer package signature "
-                                "verification not supported on Mac OS X 10.6")
-                else:
-                    self.process_installer_package(input_path)
+                self.process_installer_package(input_path)
             else:
                 raise ProcessorError("Unsupported file type")
 
