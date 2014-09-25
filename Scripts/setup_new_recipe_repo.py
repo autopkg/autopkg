@@ -160,6 +160,10 @@ def main():
     global TOKEN
     TOKEN = opts.token
 
+    # Get the authenticated username for later use
+    resp, code = call_api("/user")
+    auth_user = resp["login"]
+
     # Grab the source repo metadata for later use
     # (currently we're only using description)
     src_repo, code = call_api(
@@ -200,6 +204,15 @@ def main():
                               data=new_team_data)
     if code != 201:
         sys.exit("Error creating team!")
+
+    # For some reason, the authenticated user automatically gets added
+    # to the new team, which is not what we want, so remove the user
+    remove_member_endpoint = ("/teams/%s/members/%s"
+                              % (new_team["id"], auth_user))
+    _, code = call_api(remove_member_endpoint, method="DELETE")
+    if code != 204:
+        print >> sys.stderr, ("Warning: Unexpected HTTP result on removing "
+                              "%s from new team." % auth_user)
 
     # Add the user to the new team
     # https://developer.github.com/v3/orgs/teams/#add-team-membership
