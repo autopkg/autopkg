@@ -127,17 +127,6 @@ class CodeSignatureVerifier(DmgMounter):
         """
         authority_name_chain = []
 
-        # Get current Darwin kernel version
-        darwin_version = os.uname()[2]
-
-        # Check the kernel version to make sure we're not running
-        # on Snow Leopard:
-        # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
-        if darwin_version.startswith("10."):
-            self.output("Warning: Installer package signature "
-                        "verification not supported on Mac OS X 10.6")
-            return True, authority_name_chain
-
         process = ["/usr/sbin/pkgutil",
                    "--check-signature",
                    path]
@@ -191,6 +180,17 @@ class CodeSignatureVerifier(DmgMounter):
 
     def process_installer_package(self, path):
         '''Verifies the signature for an installer pkg'''
+        # Get current Darwin kernel version
+        darwin_version = os.uname()[2]
+
+        # Check the kernel version to make sure we're not running
+        # on Snow Leopard:
+        # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
+        if darwin_version.startswith("10."):
+            self.output("Warning: Installer package signature "
+                        "verification not supported on Mac OS X 10.6")
+            return
+
         self.output("Verifying installer package signature...")
         # The first step is to run 'pkgutil --check-signature <path>'
         pkgutil_succeeded, authority_names = self.pkgutil_check_signature(path)
