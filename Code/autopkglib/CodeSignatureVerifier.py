@@ -92,7 +92,12 @@ class CodeSignatureVerifier(DmgMounter):
         
         process = ["/usr/bin/codesign",
                    "--verify",
-                   "--verbose"]
+                   "--verbose=1"]
+        
+        # No --deep option in Snow Leopard
+        darwin_version = os.uname()[2]
+        if not darwin_version.startswith("10."):
+            process.append("--deep")
         
         if test_requirement:
             process.append("-R=%s" % test_requirement)
