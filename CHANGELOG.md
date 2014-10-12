@@ -1,5 +1,7 @@
 ### 0.4.1 (Unreleased)
 
+- CodeSignatureVerifier: use the '--deep' option for verify, when running on 10.7+. (GH-124)
+
 ### 0.4.0 (August 29, 2014)
 
 IMPROVEMENTS:
