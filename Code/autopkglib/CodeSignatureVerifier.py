@@ -20,6 +20,7 @@ import subprocess
 import re
 
 from glob import glob
+from distutils.version import StrictVersion
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
@@ -94,9 +95,9 @@ class CodeSignatureVerifier(DmgMounter):
                    "--verify",
                    "--verbose=1"]
         
-        # No --deep option in Snow Leopard
+        # Only use --deep option in OS X 10.9.5 or later
         darwin_version = os.uname()[2]
-        if not darwin_version.startswith("10."):
+        if StrictVersion(darwin_version) >= StrictVersion('13.4.0'):
             process.append("--deep")
         
         if test_requirement:
@@ -232,7 +233,7 @@ class CodeSignatureVerifier(DmgMounter):
                 # Check the kernel version to make sure we're running on
                 # Snow Leopard:
                 # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
-                if darwin_version.startswith("10."):
+                if StrictVersion(darwin_version) < StrictVersion('11.0'):
                     self.output("Warning: Installer package signature "
                                 "verification not supported on Mac OS X 10.6")
                 else:
