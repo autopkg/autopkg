@@ -1,6 +1,7 @@
 ### 0.4.1 (Unreleased)
 
-- CodeSignatureVerifier: use the '--deep' option for verify, when running on 10.7+. (GH-124)
+- CodeSignatureVerifier: use the '--deep' option for verify, when running on 10.9.5 or greater.
+  (GH-124, GH-125)
 
 ### 0.4.0 (August 29, 2014)
 
