@@ -55,8 +55,9 @@ class CodeSignatureVerifier(DmgMounter):
             "required": False,
             "description":
                 ("A requirement string to pass to codesign. "
-                 "This should always be set to the original designated requirement "
-                 "of the application and can be determined by running:"
+                 "This should always be set to the original designated "
+                 "requirement of the application and can be determined "
+                 "by running:"
                  "\n\t$ codesign --display -r- <path_to_app>"),
         },
     }
@@ -90,21 +91,21 @@ class CodeSignatureVerifier(DmgMounter):
         Runs 'codesign --verify --verbose <path>'. Returns True if
         codesign exited with 0 and False otherwise.
         """
-        
+
         process = ["/usr/bin/codesign",
                    "--verify",
                    "--verbose=1"]
-        
+
         # Only use --deep option in OS X 10.9.5 or later
         darwin_version = os.uname()[2]
         if StrictVersion(darwin_version) >= StrictVersion('13.4.0'):
             process.append("--deep")
-        
+
         if test_requirement:
             process.append("-R=%s" % test_requirement)
-        
+
         process.append(path)
-        
+
         proc = subprocess.Popen(process,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (output, error) = proc.communicate()
