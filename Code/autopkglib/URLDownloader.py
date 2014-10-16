@@ -145,7 +145,7 @@ class URLDownloader(Processor):
                 if last_modified:
                     request.add_header("If-Modified-Since", last_modified)
                 existing_file_length = os.path.getsize(pathname)
-                    
+
             # Open URL.
             try:
                 url_handle = urllib2.urlopen(request)
