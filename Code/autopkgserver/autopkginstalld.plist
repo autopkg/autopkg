@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.github.autopkg.autopkginstalld</string>
+	<key>KeepAlive</key>
+	<false/>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Library/AutoPkg/autopkgserver/autopkginstalld</string>
+	</array>
+	<key>Sockets</key>
+	<dict>
+		<key>autopkginstalld</key>
+		<dict>
+			<key>SockPathName</key>
+			<string>/var/run/autopkginstalld</string>
+			<key>SockPathMode</key>
+			<integer>438</integer>
+		</dict>
+	</dict>
+</dict>
+</plist>

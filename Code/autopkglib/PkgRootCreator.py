@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # Copyright 2010 Per Olofsson
 #
@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for PkgRootCreator class"""
 
 import os.path
 import shutil
@@ -29,7 +29,8 @@ CHUNK_SIZE = 256 * 1024
 
 
 class PkgRootCreator(Processor):
-    description = "Creates a package root and a directory structure."
+    """Creates a package root and a directory structure."""
+    description = __doc__
     input_variables = {
         "pkgroot": {
             "required": True,
@@ -37,35 +38,34 @@ class PkgRootCreator(Processor):
         },
         "pkgdirs": {
             "required": True,
-            "description": ("A dictionary of directories to be created "
+            "description": (
+                "A dictionary of directories to be created "
                 "inside the pkgroot, with their modes in octal form."),
         }
     }
     output_variables = {
     }
-    
-    __doc__ = description
-    
+
     def main(self):
         # Delete pkgroot if it exists.
         try:
-            if (os.path.islink(self.env['pkgroot']) or 
-                os.path.isfile(self.env['pkgroot'])):
+            if (os.path.islink(self.env['pkgroot'])
+                    or os.path.isfile(self.env['pkgroot'])):
                 os.unlink(self.env['pkgroot'])
             elif os.path.isdir(self.env['pkgroot']):
                 shutil.rmtree(self.env['pkgroot'])
-        except OSError as e:
+        except OSError as err:
             raise ProcessorError("Can't remove %s: %s" % (self.env['pkgroot'],
-                                                          e.strerror))
-        
+                                                          err.strerror))
+
         # Create pkgroot. autopkghelper sets it to root:admin 01775.
         try:
             os.makedirs(self.env['pkgroot'])
             self.output("Created %s" % self.env['pkgroot'])
-        except OSError as e:
+        except OSError as err:
             raise ProcessorError("Can't create %s: %s" % (self.env['pkgroot'],
-                                                          e.strerror))
-        
+                                                          err.strerror))
+
         # Create directories.
         absroot = os.path.abspath(self.env['pkgroot'])
         for directory, mode in sorted(self.env['pkgdirs'].items()):
@@ -74,23 +74,23 @@ class PkgRootCreator(Processor):
             if directory.startswith("/"):
                 raise ProcessorError("%s in pkgroot is absolute." % directory)
             dirpath = os.path.join(absroot, directory)
-            
-            # Make sure we're not trying to make a directory outside the 
+
+            # Make sure we're not trying to make a directory outside the
             # pkgroot.
             abspath = os.path.abspath(dirpath)
             if os.path.commonprefix((absroot, abspath)) != absroot:
                 raise ProcessorError("%s is outside pkgroot" % directory)
-            
+
             try:
                 os.mkdir(dirpath)
                 os.chmod(dirpath, int(mode, 8))
                 self.output("Created %s" % dirpath)
-            except OSError as e:
-                raise ProcessorError("Can't create %s with mode %s: %s" % (
-                                      dirpath, mode, e.strerror))
-    
+            except OSError as err:
+                raise ProcessorError("Can't create %s with mode %s: %s"
+                                     % (dirpath, mode, err.strerror))
+
 
 if __name__ == '__main__':
-    processor = PkgRootCreator()
-    processor.execute_shell()
-    
+    PROCESSOR = PkgRootCreator()
+    PROCESSOR.execute_shell()
+

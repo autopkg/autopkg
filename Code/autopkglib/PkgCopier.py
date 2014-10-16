@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 #
 # Copyright 2013 Greg Neagle
 #
@@ -13,34 +13,33 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""See docstring for PkgCopier class"""
 
 import os.path
-import shutil
 import glob
 
-from autopkglib import Processor, ProcessorError
-from Copier import Copier
+from autopkglib.Copier import Copier
 
 
 __all__ = ["PkgCopier"]
 
 
 class PkgCopier(Copier):
-    description = "Copies source_pkg to pkg_path."
+    """Copies source_pkg to pkg_path."""
+    description = __doc__
     input_variables = {
         "source_pkg": {
             "required": True,
-            "description": ("Path to a pkg to copy. Can point to a path inside "
-            "a .dmg which will be mounted. This path may also contain basic "
-            "globbing characters such as the wildcard '*', but only the first "
-            "result will be returned."),
+            "description": (
+                "Path to a pkg to copy. Can point to a path inside "
+                "a .dmg which will be mounted. This path may also contain "
+                "basic globbing characters such as the wildcard '*', but only "
+                "the first result will be returned."),
         },
         "pkg_path": {
             "required": False,
-            "description": 
-                ("Path to destination. Defaults to "
-                "RECIPE_CACHE_DIR/os.path.basename(source_pkg)"),
+            "description": ("Path to destination. Defaults to "
+                            "RECIPE_CACHE_DIR/os.path.basename(source_pkg)"),
         },
     }
     output_variables = {
@@ -49,8 +48,6 @@ class PkgCopier(Copier):
         },
     }
 
-    __doc__ = description
-    
     def main(self):
         # Check if we're trying to copy something inside a dmg.
         (dmg_path, dmg,
@@ -70,27 +67,28 @@ class PkgCopier(Copier):
             matches = glob.glob(source_pkg)
             matched_source_path = matches[0]
             if len(matches) > 1:
-                self.output("WARNING: Multiple paths match 'source_pkg' glob '%s':"
+                self.output(
+                    "WARNING: Multiple paths match 'source_pkg' glob '%s':"
                     % source_pkg)
                 for match in matches:
                     self.output("  - %s" % match)
 
             if [c for c in '*?[]!' if c in source_pkg]:
                 self.output("Using path '%s' matched from globbed '%s'."
-                    % (matched_source_path, source_pkg))
+                            % (matched_source_path, source_pkg))
 
             # do the copy
-            pkg_path = (self.env.get("pkg_path") or 
-                os.path.join(self.env['RECIPE_CACHE_DIR'],
-                             os.path.basename(source_pkg)))
+            pkg_path = (self.env.get("pkg_path") or
+                        os.path.join(self.env['RECIPE_CACHE_DIR'],
+                                     os.path.basename(source_pkg)))
             self.copy(matched_source_path, pkg_path, overwrite=True)
             self.env["pkg_path"] = pkg_path
-            
+
         finally:
             if dmg:
                 self.unmount(dmg_path)
-    
+
 
 if __name__ == '__main__':
-    processor = Copier()
-    processor.execute_shell()
+    PROCESSOR = Copier()
+    PROCESSOR.execute_shell()

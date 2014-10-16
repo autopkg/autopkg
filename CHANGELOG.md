@@ -1,10 +1,98 @@
-### 0.3.0 (Unreleased)
+### 0.4.1 (Unreleased)
+
+- CodeSignatureVerifier: use the '--deep' option for verify, when running on 10.9.5 or greater.
+  (GH-124, GH-125)
+
+### 0.4.0 (August 29, 2014)
+
+IMPROVEMENTS:
+
+- Recipe processors may now be used from recipes located outside the directory containing
+  the processor. The recipe should refer to the processor as 'recipe.identifier/ProcessorName'.
+  The recipe given by 'recipe.identifier' must be in the search path. See the [wiki page]
+  (https://github.com/autopkg/autopkg/wiki/Processor-Locations) for more details. (GH-82)
+- New Installer and InstallFromDMG processors, able to install pkgs and copy items from a disk
+  image to the local filesystem. Allows for a new pattern of recipes that can install
+  updates from recipes onto the system running autopkg.
+- 'search' verb: Split repo and recipe path into two columns, making it easier to group repos
+  visually and to pass to 'repo-add'. Allow searches that return up to 100 results.
+- Processor input variables may now define a 'default' key, whose value will be substituted
+  into that env key if it is not specified in the recipe. Removes the need to do manual
+  default value code in the main processor logic. (GH-7, GH-107)
+
+FIXES:
+
+- Python scripts explicitly use OS X system Python at /usr/bin/python.
+
+CHANGES:
+
+- '--report-plist' is no longer a switch that toggles outputting the report to stdout,
+  suppressing all other stdout logging. It now takes a path where the report will
+  be saved, and logging to stdout not suppressed. The structure of the report remains
+  the same. (GH-104)
+- CACHE_DIR and RECIPE_REPO_DIR preferences can now include paths with a '~' that will
+  be expanded, shell-style, to the user's home. (GH-105)
+
+### 0.3.2 (July 24, 2014)
+
+FIXES:
+
+- Packaging server: When checking for permissions on the location of CACHE_DIR, handle
+  possibility of unexpected diskutil output. This at least fixes an issue running pkg
+  recipes on 10.6.
+- MunkiImporter: Handle case where an installs array was present but an item is missing
+  a 'type' key
+
+CHANGES:
+
+- PlistReader 'info_path' input variable, if given a path to a .dmg, previously mounted
+  the dmg and searched the root for a bundle and its Info.plist. A path that _contains_
+  a disk image can still be given and the image will be mounted, ie.
+  "%RECIPE_CACHE_DIR/my.dmg/Some.app", but the behaviour of mounting a path containing
+  _only_ the disk image was unused and an unusual pattern compared with other processors.
+- Unarchiver: Create intermediate directories needed for 'destination_path' input var
+  (GH-100)
+
+### 0.3.1 (July 01, 2014)
+
+ADDITIONS:
+
+- New CodeSignatureVerifier processor, contributed by Hannes Juutilainen. (GH-92)
+  - This can be used to verify code signatures for application bundles and
+    installer packages against the expected certificate names, given as arguments
+    to the processor. This would typically be used in download recipes to verify
+    the authenticity of the downloaded item.
+
+
+FIXES:
+
+- Print a warning message when a recipe's ParentRecipe can't be found. (GH-30)
+- Provide a more useful error message when a package cannot be built due to
+  "ignore ownership on this volume" being set on the disk containing the pkg
+  root. (GH-34)
+- Fix a crash due to a missing import in a specific case where DmgMounter tries
+  to handle an hdiutil-related error.
+- Fix a crash as a result of parsing an incomplete recipe plist
+
+### 0.3.0 (May 20, 2014)
 
 ADDITIONS:
 
 - New "search" autopkg CLI verb, used to search recipes using the GitHub API.
 - MunkiInstallsItemsCreator and MunkiImporter now support setting 'version_comparison_key' to define this key for installs items. (GH-76, GH-54)
 - MunkiImporter supports a new input variable, 'MUNKI_PKGINFO_FILE_EXTENSION', which when set, will save pkginfos with an alternate file extension. It is an all caps variable because you would typically define this globally using 'defaults write'.
+- DmgCreator supports new input variables:
+  - 'dmg_megabytes' to work around hdiutil sizing issues (GH-87)
+  - 'dmg_format' and 'dmg_zlib_level' to set alternate disk image formats and gzip compression level (GH-14, GH-70)
+
+CHANGES:
+
+- PkgCreator processor does not rebuild a package on every run if one exists in the output directory with the same filename, identifier and version. This behavior can be overridden with the 'force_pkg_build' input variable.
+
+FIXES:
+
+- PlistReader, when searching a path for a bundle, no longer follows symlinks that don't contain extensions. It's common for a dmg to contain a symlink to '/Applications' and we don't want to go searching this path for bundles.
+- autopkgserver's `pkg_request` argument no longer rejects an `id` that contains dashes between words (GH-91)
 
 ### 0.2.9 (February 28, 2014)
 

@@ -1,0 +1,286 @@
+#!/usr/bin/python
+#
+# Copyright 2014 Greg Neagle
+# Based heavily on Per Olofsson's autopkgserver
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+'''A server that installs Apple packages'''
+
+import os
+import sys
+import time
+import stat
+import logging, logging.handlers
+import SocketServer
+import socket
+import plistlib
+import struct
+
+from itemcopier import ItemCopier, ItemCopierError
+from installer import Installer, InstallerError
+import launch
+
+APPNAME = "autopkginstalld"
+VERSION = "0.1"
+
+class RunHandler(SocketServer.StreamRequestHandler):
+    '''Handler for autopkginstalld run requests'''
+
+    def verify_request_syntax(self, plist):
+        """Verify the basic syntax of an installation request plist."""
+
+        # Keep a list of error messages.
+        errors = list()
+
+        # Root should be a dictionary.
+        if not isinstance(plist, dict):
+            errors.append("Request root is not a dictionary")
+            # Bail out early if it's not.
+            return False, errors
+
+        syntax_ok = True
+        for key in ['package']:
+            if not key in plist:
+                syntax_ok = False
+                errors.append("Request does not contain %s" % key)
+
+        return syntax_ok, errors
+
+    def getpeerid(self):
+        """
+        Get peer credentials on a UNIX domain socket.
+        Returns uid, gids.
+        """
+
+        # /usr/include/sys/ucred.h
+        #
+        # struct xucred {
+        #         u_int   cr_version;           /* structure layout version */
+        #         uid_t   cr_uid;               /* effective user id */
+        #         short   cr_ngroups;           /* number of advisory groups */
+        #         gid_t   cr_groups[NGROUPS];   /* advisory group list */
+        # };
+
+        LOCAL_PEERCRED = 0x001
+        XUCRED_VERSION = 0
+        NGROUPS = 16
+        cr_version = 0
+        cr_uid = 1
+        cr_ngroups = 2
+        cr_groups = 3
+
+        xucred_fmt = "IIh%dI" % NGROUPS
+        res = struct.unpack(
+            xucred_fmt,
+            self.request.getsockopt(
+                0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)))
+
+        if res[cr_version] != XUCRED_VERSION:
+            raise OSError("Incompatible struct xucred version")
+
+        return res[cr_uid], res[cr_groups:cr_groups + res[cr_ngroups]]
+
+    def handle(self):
+        """Handle an incoming run request."""
+
+        try:
+            # Log through server parent.
+            self.log = self.server.log
+            self.log.debug("Handling request")
+
+            # Get uid and primary gid of connecting peer.
+            uid, gids = self.getpeerid()
+            gid = gids[0]
+            self.log.debug(
+                "Got run request from uid %d gid %d" % (uid, gid))
+
+            # Receive a plist.
+            plist_string = self.request.recv(8192)
+
+            # Try to parse it.
+            try:
+                plist = plistlib.readPlistFromString(plist_string)
+            except BaseException as err:
+                self.log.error("Malformed request")
+                self.request.send("ERROR:Malformed request\n")
+                return
+            self.log.debug("Parsed request plist")
+
+            if 'package' in plist:
+                self.log.info(
+                    "Dispatching Installer worker to process request for "
+                    "user %d" % uid)
+                try:
+                    installer = Installer(self.log, self.request, plist)
+                    result = installer.install()
+                    self.request.send("OK:DONE\n")
+                except InstallerError as err:
+                    self.log.error("Installing failed: %s" % err)
+                    self.request.send(str(err) + "\n")
+            elif 'mount_point' in plist:
+                self.log.info(
+                    "Dispatching ItemCopier worker to process request for "
+                    "user %d" % uid)
+                try:
+                    copier = ItemCopier(self.log, self.request, plist)
+                    result = copier.copy()
+                    self.request.send("OK:DONE\n")
+                except ItemCopierError as err:
+                    self.log.error("Copying failed: %s" % err)
+                    self.request.send(str(err) + "\n")
+            else:
+                self.log.error("Unsupported request format")
+                self.request.send("ERROR:Unsupported request format")
+
+        except BaseException as err:
+            self.log.error("Caught exception: %s" % repr(err))
+            self.request.send("ERROR:Caught exception: %s" % repr(err))
+
+
+class AutoPkgInstallDaemonError(Exception):
+    """Exception class for AutoPkgInstallDaemon errors"""
+    pass
+
+
+class AutoPkgInstallDaemon(SocketServer.UnixStreamServer):
+    """Daemon that runs as root,
+    receiving requests to install packages."""
+
+    allow_reuse_address = True
+    request_queue_size = 10
+    timeout = 10
+
+    def __init__(self, socket_fd, RequestHandlerClass):
+        # Avoid initialization of UnixStreamServer as we need to open the
+        # socket from a file descriptor instead of creating our own.
+        self.socket = socket.fromfd(
+            socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
+        self.socket.listen(self.request_queue_size)
+        SocketServer.BaseServer.__init__(self,
+                                         self.socket.getsockname(),
+                                         RequestHandlerClass)
+        self.timed_out = False
+
+    def setup_logging(self):
+        """Sets up logging to a file in /private/var/log/"""
+        try:
+            self.log = logging.getLogger(APPNAME)
+            self.log.setLevel(logging.DEBUG)
+
+            log_console = logging.StreamHandler()
+            log_console.setLevel(logging.DEBUG)
+            log_file = logging.handlers.RotatingFileHandler(
+                "/private/var/log/%s" % APPNAME,
+                "a",
+                100000,
+                9,
+                "utf-8")
+            log_file.setLevel(logging.DEBUG)
+
+            console_formatter = logging.Formatter("%(message)s")
+            file_formatter = logging.Formatter(
+                "%(asctime)s %(module)s[%(process)d]: "
+                "%(message)s   (%(funcName)s)")
+
+            log_console.setFormatter(console_formatter)
+            log_file.setFormatter(file_formatter)
+
+            self.log.addHandler(log_console)
+            self.log.addHandler(log_file)
+        except (OSError, IOError) as err:
+            raise AutoPkgInstallDaemonError(
+                "Can't open log: %s" % (err.strerror))
+
+    def handle_timeout(self):
+        self.timed_out = True
+
+
+def main(argv):
+    # Make sure we're launched as root
+    if os.geteuid() != 0:
+        print >>sys.stderr, "%s must be run as root." % APPNAME
+        # Sleep to avoid respawn.
+        time.sleep(10)
+        return 1
+
+    # Make sure that the executable and all containing directories are owned
+    # by root:wheel or root:admin, and not writeable by other users.
+    root_uid = 0
+    wheel_gid = 0
+    admin_gid = 80
+
+    exepath = os.path.realpath(os.path.abspath(__file__))
+    path_ok = True
+    while True:
+        info = os.stat(exepath)
+        if info.st_uid != root_uid:
+            print >> sys.stderr, "%s must be owned by root." % exepath
+            path_ok = False
+        if info.st_gid not in (wheel_gid, admin_gid):
+            print >> sys.stderr, "%s must have group wheel or admin." % exepath
+            path_ok = False
+        if info.st_mode & stat.S_IWOTH:
+            print >> sys.stderr, "%s mustn't be world writeable." % exepath
+            path_ok = False
+        exepath = os.path.dirname(exepath)
+        if exepath == "/":
+            break
+
+    if not path_ok:
+        # Sleep to avoid respawn.
+        time.sleep(10)
+        return 1
+
+    # Keep track of time for launchd.
+    start_time = time.time()
+
+    # Get socket file descriptors from launchd.
+    try:
+        sockets = launch.get_launchd_socket_fds()
+    except launch.LaunchDCheckInError as err:
+        print >> sys.stderr, "launchd check-in failed: %s" % err
+        time.sleep(10)
+        return 1
+
+    if not "autopkginstalld" in sockets:
+        print >> sys.stderr, "No autopkginstalld in launchd sockets"
+        time.sleep(10)
+        return 1
+
+    # Create the daemon object.
+    daemon = AutoPkgInstallDaemon(sockets["autopkginstalld"][0], RunHandler)
+    daemon.setup_logging()
+    daemon.log.info("%s v%s starting" % (APPNAME, VERSION))
+
+    # Serve all pending requests until we time out.
+    while True:
+        daemon.handle_request()
+        if daemon.timed_out == False:
+            continue
+
+        # Keep running for at least 10 seconds make launchd happy.
+        run_time = time.time() - start_time
+        daemon.log.info("run time: %fs" % run_time)
+        if run_time < 10.0:
+            # Only sleep for a short while in case new requests pop up.
+            sleep_time = min(1.0, 10.0 - run_time)
+            daemon.log.debug( \
+                "sleeping for %f seconds to make launchd happy" % sleep_time)
+            time.sleep(sleep_time)
+        else:
+            break
+
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
