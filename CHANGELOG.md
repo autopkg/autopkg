@@ -1,5 +1,8 @@
 ### 0.4.1 (Unreleased)
 
+- CodeSignatureVerifier: support for 'requirement' input variable for defining an expected
+  requirement string in a binary or bundle. See Apple TN2206 for more details on code
+  signing. (GH-114)
 - CodeSignatureVerifier: use the '--deep' option for verify, when running on 10.9.5 or greater.
   (GH-124, GH-125)
 
