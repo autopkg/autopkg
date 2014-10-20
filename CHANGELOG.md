@@ -1,5 +1,7 @@
 ### 0.4.1 (Unreleased)
 
+IMPROVEMENTS:
+
 - CodeSignatureVerifier: support for 'requirement' input variable for defining an expected
   requirement string in a binary or bundle. See Apple TN2206 for more details on code
   signing. (GH-114)
