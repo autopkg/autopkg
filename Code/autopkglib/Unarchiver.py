@@ -54,7 +54,7 @@ class Unarchiver(Processor):
         "archive_format": {
             "required": False,
             "description": ("The archive format. Currently supported: 'zip', "
-                            "'tar_gzip', 'tar_bzip2', 'tar'. If omitted, the"
+                            "'tar_gzip', 'tar_bzip2', 'tar'. If omitted, the "
                             "file extension is used to guess the format.")
         }
     }
