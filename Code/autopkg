@@ -1028,11 +1028,11 @@ def run_recipes(argv):
                      "Run one or more recipes." % ("%prog", verb))
 
     # Parse arguments.
-    parser.add_option('-b', '--before', action='append', dest='preprocessors', default=[],
+    parser.add_option('--pre', '--preprocessor', action='append', dest='preprocessors', default=[],
                  metavar="PREPROCESSOR",
                  help=("A pre processor to run before each recipe. "
                        "Can be repeated to run multiple pre processor."))
-    parser.add_option('-a', '--after', action='append', dest='postprocessors', default=[],
+    parser.add_option('--post', '--postprocessor', action='append', dest='postprocessors', default=[],
                  metavar="POSTPROCESSOR",
                  help=("A post processor to run after each recipe. "
                        "Can be repeated to run multiple pre processor."))
