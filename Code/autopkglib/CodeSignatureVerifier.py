@@ -33,6 +33,13 @@ RE_AUTHORITY_PKGUTIL = re.compile(r'\s+[1-9]+\. (?P<authority>.*)\n')
 class CodeSignatureVerifier(DmgMounter):
     """Verifies application bundle or installer package signature"""
     input_variables = {
+        "DISABLE_CODE_SIGNATURE_VERIFICATION": {
+            "required": False,
+            "description":
+                ("If enforcing end users to perform strict verification is "
+                 "not desireable from the perspective of the recipe writer, "
+                 "this can be set to True. Otherwise, key can be absent altogether"),
+        },
         "input_path": {
             "required": True,
             "description":
@@ -205,6 +212,10 @@ class CodeSignatureVerifier(DmgMounter):
                 self.output("Authority name chain is valid")
 
     def main(self):
+        if self.env.get('DISABLE_CODE_SIGNATURE_VERIFICATION'):
+            self.output("Code signature verification overridden due to no-op "
+                        "mode, continuing")
+            return
         # Check if we're trying to read something inside a dmg.
         (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
             self.env['input_path'])
@@ -250,4 +261,3 @@ class CodeSignatureVerifier(DmgMounter):
 if __name__ == '__main__':
     PROCESSOR = CodeSignatureVerifier()
     PROCESSOR.execute_shell()
-
