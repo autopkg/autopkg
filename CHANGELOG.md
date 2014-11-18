@@ -1,5 +1,12 @@
 ### 0.4.2 (Unreleased)
 
+IMPROVEMENTS:
+
+- CodeSignatureVerifier: support for 'DISABLE_CODE_SIGNATURE_VERIFICATION' input variable,
+  which when set (to anything) will skip any verification performed by this processor. One
+  would define this using the '--key' option for a run, or using a defaults preference.
+  (GH-131)
+
 ### 0.4.1 (October 20, 2014)
 
 IMPROVEMENTS:
