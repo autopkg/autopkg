@@ -36,9 +36,10 @@ class CodeSignatureVerifier(DmgMounter):
         "DISABLE_CODE_SIGNATURE_VERIFICATION": {
             "required": False,
             "description":
-                ("If enforcing end users to perform strict verification is "
-                 "not desireable from the perspective of the recipe writer, "
-                 "this can be set to True. Otherwise, key can be absent altogether"),
+                ("Skip this Processor step altogether. Typically this "
+                "would be invoked using AutoPkg's defaults or via '--key' "
+                "CLI options at the time of the run, rather than being "
+                "defined explicitly within a recipe."),
         },
         "input_path": {
             "required": True,
@@ -213,8 +214,8 @@ class CodeSignatureVerifier(DmgMounter):
 
     def main(self):
         if self.env.get('DISABLE_CODE_SIGNATURE_VERIFICATION'):
-            self.output("Code signature verification overridden due to no-op "
-                        "mode, continuing")
+            self.output("Code signature verification disabled for this recipe "
+                        "run.")
             return
         # Check if we're trying to read something inside a dmg.
         (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
