@@ -929,10 +929,10 @@ def list_recipes(argv):
                         # override points to a valid recipe
                         result = os.path.splitext(filename)[0]
 
-                        # only add identifier if it is different from the file name,
-                        # which is the fallback of get_identifier_from_override()
-                        if options.with_identifiers and not id_or_name == result:
-                            result = format_str % (result, id_or_name)
+                        if options.with_identifiers:
+                            identifier = get_identifier_from_recipe(pathname);
+                            if identifier:
+                                result = format_str % (result, identifier)
 
                         recipes.add(result)
 
