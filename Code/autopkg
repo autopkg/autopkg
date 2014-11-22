@@ -897,8 +897,14 @@ def list_recipes(argv):
                      "List all the recipes this tool can find automatically."
                      % ("%prog", verb))
 
-    parser.add_option("-w", "--with-identifiers", action="store_true",
-                      help="Include recipe identifiers in the list.")
+    parser.add_option("-i", "--with-identifiers", action="store_true",
+                      help="Include recipe's identifier in the list.")
+
+    parser.add_option("-p", "--with-paths", action="store_true",
+                      help="Include recipe's path in the list.")
+
+    parser.add_option("-x","--plist", action="store_true",
+                      help="Print output in plist format.")
 
     # Parse options
     add_search_and_override_dir_options(parser)
@@ -906,11 +912,7 @@ def list_recipes(argv):
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
-    recipes = set()
-
-    if options.with_identifiers: 
-        spacers = (40,0)
-        format_str = "%-{0}s %-{1}s".format(*spacers)
+    recipes = []
 
     # find all valid overrides first
     for directory in override_dirs:
@@ -927,14 +929,18 @@ def list_recipes(argv):
                     recipe_path = find_recipe(id_or_name, search_dirs)
                     if recipe_path and valid_recipe(recipe_path):
                         # override points to a valid recipe
-                        result = os.path.splitext(filename)[0]
+                        result = {'name':os.path.splitext(filename)[0]}
+
+                        if options.with_paths:
+                            result['path'] = pathname
 
                         if options.with_identifiers:
                             identifier = get_identifier_from_recipe(pathname);
                             if identifier:
-                                result = format_str % (result, identifier)
+                                result['identifier'] = identifier
 
-                        recipes.add(result)
+                        if not result in recipes:
+                            recipes.append(result)
 
 
     for directory in search_dirs:
@@ -943,23 +949,52 @@ def list_recipes(argv):
             continue
         
         # find all top-level recipes and recipes one level down
-        matches = glob.glob(os.path.join(normalized_dir, "*.recipe")) + \
-                    glob.glob(os.path.join(normalized_dir, "*/*.recipe"))
+        matches = (
+            glob.glob(os.path.join(normalized_dir, "*.recipe")) +
+            glob.glob(os.path.join(normalized_dir, "*/*.recipe")))
 
         for match in matches:
             if valid_recipe(match):
                 recipe_name = os.path.basename(match)
                 # get rid of file extension
-                result = os.path.splitext(recipe_name)[0]
+                result = {"name":os.path.splitext(recipe_name)[0]}
+
+                if options.with_paths:
+                    result['path'] = match
 
                 if options.with_identifiers:
                     identifier = get_identifier_from_recipe(match);
                     if identifier:
-                        result = format_str % (result, identifier)
+                        result['identifier'] = identifier
 
-                recipes.add(result)
+                if not result in recipes:
+                    recipes.append(result)
 
-    print "\n".join(sorted(list(recipes)))
+    if options.plist:
+        print FoundationPlist.writePlistToString(sorted(recipes,
+                                    key=lambda s: s['name'].lower()))
+    else:
+        column_spacer = 1
+
+        max_name_length = (
+            max([len(r["name"]) for r in recipes]) + column_spacer)
+        max_identifier_length = (
+            max([len(r.get("identifier") or '') for r in recipes])
+            + column_spacer)
+
+        spacers = (max_name_length, max_identifier_length)
+
+        format_str = "%-{0}s %-{1}s %-20s".format(*spacers)
+
+        output = set()
+        for rec in recipes:
+            # To make display cleaner, switch out a ~ for the users home
+            home_path = rec.get('path').replace(os.environ['HOME'], '~')
+            output.add(format_str % (rec.get('name'),
+                                     rec.get('identifier') or '',
+                                     home_path or ''))
+
+        print "\n".join(sorted(list(output),key=lambda s: s.lower()))
 
 
 def make_override(argv):
