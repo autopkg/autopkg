@@ -983,16 +983,18 @@ def list_recipes(argv):
             + column_spacer)
 
         spacers = (max_name_length, max_identifier_length)
-
         format_str = "%-{0}s %-{1}s %-20s".format(*spacers)
 
         output = set()
-        for rec in recipes:
+        for recipe in recipes:
             # To make display cleaner, switch out a ~ for the users home
-            home_path = rec.get('path').replace(os.environ['HOME'], '~')
-            output.add(format_str % (rec.get('name'),
-                                     rec.get('identifier') or '',
-                                     home_path or ''))
+            recipe_path = None
+            if 'path' in recipe:
+                recipe_path = recipe['path'].replace(os.environ['HOME'], '~')
+
+            output.add(format_str % (recipe.get('name'),
+                                     recipe.get('identifier') or '',
+                                     recipe_path or ''))
 
         print "\n".join(sorted(list(output),key=lambda s: s.lower()))
 
