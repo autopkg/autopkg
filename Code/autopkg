@@ -145,6 +145,19 @@ def find_recipe(id_or_name, search_dirs):
             find_recipe_by_name(id_or_name, search_dirs))
 
 
+def get_identifier_from_recipe(recipe_file):
+    '''Return the identifier from a recipe file, if it fails for any
+    reason just pass'''
+    try:
+        recipe = FoundationPlist.readPlist(recipe_file)
+        if 'Identifier' in recipe:
+            return recipe['Identifier']
+        elif "IDENTIFIER" in recipe["Input"]:
+            return recipe["Input"]["IDENTIFIER"]
+    except Exception ,e:
+        # do nothing on error
+        pass    
+
 def get_identifier_from_override(override):
     '''Return the identifier from an override, falling back with a
     warning to just the 'name' of the recipe.'''
@@ -884,6 +897,9 @@ def list_recipes(argv):
                      "List all the recipes this tool can find automatically."
                      % ("%prog", verb))
 
+    parser.add_option("-w", "--with-identifiers", action="store_true",
+                      help="Include recipe identifiers in the list.")
+
     # Parse options
     add_search_and_override_dir_options(parser)
     options = parser.parse_args(argv[1:])[0]
@@ -891,6 +907,10 @@ def list_recipes(argv):
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
     recipes = set()
+
+    if options.with_identifiers: 
+        spacers = (40,0)
+        format_str = "%-{0}s %-{1}s".format(*spacers)
 
     # find all valid overrides first
     for directory in override_dirs:
@@ -907,27 +927,37 @@ def list_recipes(argv):
                     recipe_path = find_recipe(id_or_name, search_dirs)
                     if recipe_path and valid_recipe(recipe_path):
                         # override points to a valid recipe
-                        recipes.add(os.path.splitext(filename)[0])
+                        result = os.path.splitext(filename)[0]
+
+                        # only add identifier if it is different from the file name,
+                        # which is the fallback of get_identifier_from_override()
+                        if options.with_identifiers and not id_or_name == result:
+                            result = format_str % (result, id_or_name)
+
+                        recipes.add(result)
+
 
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
             continue
-        # find all top-level recipes
-        matches = glob.glob(os.path.join(normalized_dir, "*.recipe"))
-        for match in matches:
-            if valid_recipe(match):
-                basename = os.path.basename(match)
-                recipes.add(os.path.splitext(basename)[0])
+        
+        # find all top-level recipes and recipes one level down
+        matches = glob.glob(os.path.join(normalized_dir, "*.recipe")) + \
+                    glob.glob(os.path.join(normalized_dir, "*/*.recipe"))
 
-        # look for recipes one level down
-        matches = glob.glob(os.path.join(normalized_dir, "*/*.recipe"))
         for match in matches:
             if valid_recipe(match):
                 recipe_name = os.path.basename(match)
                 # get rid of file extension
-                recipe_name = os.path.splitext(recipe_name)[0]
-                recipes.add(recipe_name)
+                result = os.path.splitext(recipe_name)[0]
+
+                if options.with_identifiers:
+                    identifier = get_identifier_from_recipe(match);
+                    if identifier:
+                        result = format_str % (result, identifier)
+
+                recipes.add(result)
 
     print "\n".join(sorted(list(recipes)))
 
