@@ -36,7 +36,9 @@ from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
 from autopkglib import get_autopkg_version, version_equal_or_greater
-from autopkglib import find_recipe_by_identifier, get_identifier, get_identifer_from_recipe_file
+from autopkglib import find_recipe_by_identifier, \
+                       get_identifier, \
+                       get_identifer_from_recipe_file
 
 
 
@@ -882,16 +884,13 @@ def list_recipes(argv):
     parser.set_usage("Usage: %s %s [options]\n"
                      "List all the recipes this tool can find automatically."
                      % ("%prog", verb))
-
     parser.add_option("-i", "--with-identifiers", action="store_true",
                       help="Include recipe's identifier in the list.")
-
     parser.add_option("-p", "--with-paths", action="store_true",
                       help="Include recipe's path in the list.")
-
     parser.add_option("-a", "--show-all", action="store_true",
-                      help="Show all recipes including ones that are overridden.")
-
+                      help=("Show all recipes including ones that are "
+                            "overridden."))
     parser.add_option("--plist", action="store_true",
                       help="Print output in plist format.")
 
@@ -907,7 +906,7 @@ def list_recipes(argv):
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
             continue
-        
+
         # find all top-level recipes and recipes one level down
         matches = (
             glob.glob(os.path.join(normalized_dir, "*.recipe")) +
@@ -920,7 +919,7 @@ def list_recipes(argv):
                 recipe = {"name": os.path.splitext(recipe_name)[0],
                           "path": match}
 
-                identifier = get_identifer_from_recipe_file(match);
+                identifier = get_identifer_from_recipe_file(match)
                 if identifier:
                     recipe["identifier"] = identifier
 
@@ -950,19 +949,22 @@ def list_recipes(argv):
 
                         # determine which identifier to use
                         if options.show_all:
-                            identifier = get_identifer_from_recipe_file(pathname);
+                            identifier = \
+                                get_identifer_from_recipe_file(pathname)
                         else:
-                            identifier = id_or_name;
+                            identifier = id_or_name
 
                         if identifier:
-                            recipe["identifier"] = get_identifer_from_recipe_file(pathname)
+                            recipe["identifier"] = \
+                                get_identifer_from_recipe_file(pathname)
 
-                        # If --show-all is not opted, iterate over the recipe list
-                        # to locate the parent recipe and replace it with the current recipe
+                        # If --show-all is not opted, iterate over the recipe
+                        # list to locate the parent recipe and replace it with
+                        # the current recipe
                         if not options.show_all:
                             for r in recipes:
                                 if r["name"] == recipe["name"] and \
-                                r.get("identifier") == id_or_name:
+                                   r.get("identifier") == id_or_name:
                                     recipes.remove(r)
 
                         recipe_overrides.append(recipe)
@@ -970,16 +972,17 @@ def list_recipes(argv):
     recipes.extend(recipe_overrides)
 
     if options.plist:
-        print FoundationPlist.writePlistToString(sorted(recipes,
-                                    key=lambda s: s["name"].lower()))
+        lowercase_sorted = sorted(recipes,
+                                  key=lambda s: s["name"].lower())
+        print FoundationPlist.writePlistToString(lowercase_sorted)
     else:
         column_spacer = 1
 
         max_name_length = (
             max([len(r["name"]) for r in recipes]) + column_spacer)
-        
+
         max_identifier_length = (
-            max([len(r.get("identifier","")) for r in recipes])
+            max([len(r.get("identifier", "")) for r in recipes])
             + column_spacer) if options.with_identifiers else column_spacer
 
         spacers = (max_name_length, max_identifier_length)
@@ -990,7 +993,8 @@ def list_recipes(argv):
 
         for recipe in recipes:
             # only display identifier string if enabled
-            identifier = recipe.get("identifier","") if options.with_identifiers else ""
+            identifier = recipe.get("identifier", "") if \
+                options.with_identifiers else ""
 
             # To make display cleaner, switch out a ~ for the users home
             recipe_path = ""
@@ -1001,7 +1005,7 @@ def list_recipes(argv):
                                      identifier,
                                      recipe_path))
 
-        print "\n".join(sorted(list(output),key=lambda s: s.lower()))
+        print "\n".join(sorted(list(output), key=lambda s: s.lower()))
 
 
 def make_override(argv):
