@@ -288,7 +288,7 @@ class Processor(object):
                             "of: %s" % (variable, self.env[variable]),
                            verbose_level=2)
             # Make sure all required arguments have been supplied.
-            if flags["required"] and (variable not in self.env):
+            if flags.get("required") and (variable not in self.env):
                 raise ProcessorError(
                     "%s requires %s" % (self.__name__, variable))
 
