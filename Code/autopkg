@@ -882,7 +882,8 @@ def list_recipes(argv):
     verb = argv[1]
     parser = optparse.OptionParser()
     parser.set_usage("Usage: %s %s [options]\n"
-                     "List all the recipes this tool can find automatically."
+                     "List all the recipes this tool can find automatically.\n"
+                     "Bold entries indicate a recipe with an active override."
                      % ("%prog", verb))
     parser.add_option("-i", "--with-identifiers", action="store_true",
                       help="Include recipe's identifier in the list.")
@@ -892,7 +893,7 @@ def list_recipes(argv):
                       help=("Show all recipes including ones that are "
                             "overridden."))
     parser.add_option("--plist", action="store_true",
-                      help="Print output in plist format.")
+                      help="Print all discovered recipes in plist format.\nIt is unnecessary")
 
     # Parse options
     add_search_and_override_dir_options(parser)
@@ -900,6 +901,11 @@ def list_recipes(argv):
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
+
+    # Determine scope of list
+    augmented_list = False
+    if options.with_identifiers or options.with_paths:
+        augmented_list = True
 
     recipes = []
     for directory in search_dirs:
@@ -914,14 +920,15 @@ def list_recipes(argv):
 
         for match in matches:
             if valid_recipe(match):
+                recipe = FoundationPlist.readPlist(match)
                 recipe_name = os.path.basename(match)
-                # get rid of file extension
-                recipe = {"name": os.path.splitext(recipe_name)[0],
-                          "path": match}
 
-                identifier = get_identifer_from_recipe_file(match)
-                if identifier:
-                    recipe["identifier"] = identifier
+                recipe["Name"] = os.path.splitext(recipe_name)[0]
+                recipe["Path"] = match
+                if not "Identifier" in recipe:
+                    identifier = get_identifer_from_recipe_file(match)
+                    if identifier:
+                        recipe["Identifier"] = identifier
 
                 if not recipe in recipes:
                     recipes.append(recipe)
@@ -929,6 +936,7 @@ def list_recipes(argv):
     # Find all valid overrides. Use new list here so we don't need to iterate
     # over these items as they're added if the --show-all option is set.
     recipe_overrides = []
+    active_overrides = []
     for directory in override_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
@@ -943,69 +951,83 @@ def list_recipes(argv):
                     recipe_path = find_recipe(id_or_name, search_dirs)
                     if recipe_path and valid_recipe(recipe_path):
                         # override points to a valid recipe
+                        recipe_name = os.path.basename(pathname)
+                        override["Name"] = os.path.splitext(recipe_name)[0]
+                        override["Path"] = pathname
 
-                        recipe = {"name": os.path.splitext(filename)[0],
-                                  "path": pathname}
+                        # set up IsOverride key/value used later to help
+                        # determine which recipe parent has an active override
+                        override["IsOverride"] = True
 
-                        # determine which identifier to use
-                        if options.show_all:
-                            identifier = \
-                                get_identifer_from_recipe_file(pathname)
-                        else:
-                            identifier = id_or_name
+                        # If --show-all is not opted, iterate over the recipe list
+                        # to locate the parent recipe and replace it with the current recipe
+                        for recipe in recipes:
+                            if recipe["Name"] == override["Name"] and \
+                               recipe.get("Identifier") == override.get("ParentRecipe"):
+                                if not options.show_all:
+                                    active_overrides.append(override["Identifier"])
+                                    recipes.remove(recipe)
+                                else:
+                                    active_overrides.append(override["ParentRecipe"])
 
-                        if identifier:
-                            recipe["identifier"] = \
-                                get_identifer_from_recipe_file(pathname)
-
-                        # If --show-all is not opted, iterate over the recipe
-                        # list to locate the parent recipe and replace it with
-                        # the current recipe
-                        if not options.show_all:
-                            for r in recipes:
-                                if r["name"] == recipe["name"] and \
-                                   r.get("identifier") == id_or_name:
-                                    recipes.remove(r)
-
-                        recipe_overrides.append(recipe)
+                        recipe_overrides.append(override)
 
     recipes.extend(recipe_overrides)
+    lowercase_sorted = sorted(set(recipes), key=lambda s: s["Name"].lower())
 
     if options.plist:
-        lowercase_sorted = sorted(recipes,
-                                  key=lambda s: s["name"].lower())
         print FoundationPlist.writePlistToString(lowercase_sorted)
     else:
         column_spacer = 1
+        max_name_length = 0
+        max_identifier_length = 0
 
-        max_name_length = (
-            max([len(r["name"]) for r in recipes]) + column_spacer)
+        if recipes:
+            max_name_length = (
+                max([len(r["Name"]) for r in recipes]) + column_spacer)
 
-        max_identifier_length = (
-            max([len(r.get("identifier", "")) for r in recipes])
-            + column_spacer) if options.with_identifiers else column_spacer
+            max_identifier_length = (
+                max([len(r.get("Identifier", "")) for r in recipes])
+                + column_spacer) if options.with_identifiers else column_spacer
 
         spacers = (max_name_length, max_identifier_length)
         format_str = "%-{0}s %-{1}s %-20s".format(*spacers)
 
-        output = set()
+        output = []
         user_home = os.environ.get("HOME")
 
-        for recipe in recipes:
-            # only display identifier string if enabled
-            identifier = recipe.get("identifier", "") if \
-                options.with_identifiers else ""
+        for recipe in lowercase_sorted:
+            name = recipe["Name"]
 
-            # To make display cleaner, switch out a ~ for the users home
+            # Only display identifier string if enabled
+            identifier = ""
+            if options.with_identifiers:
+                # If the recipe is an override, but show all is NOT enabled
+                # display the parent recipe as the identifier. Do this since
+                # local.XXX.recipe isn't informative as to the recipe's origin.
+                # The line is made bold later indicating there is an active override.
+                if recipe.get('IsOverride') and not options.show_all:
+                    identifier = recipe.get("ParentRecipe", "")
+                else:
+                    identifier = recipe.get("Identifier", "")
+    
+            # To make display cleaner, switch out a ~ for the user's home.
             recipe_path = ""
-            if options.with_paths and "path" in recipe and user_home:
-                recipe_path = recipe["path"].replace(user_home, "~")
+            if options.with_paths and "Path" in recipe and user_home:
+                recipe_path = recipe["Path"].replace(user_home, "~")
 
-            output.add(format_str % (recipe.get("name"),
+            out_string = (format_str % (name,
                                      identifier,
                                      recipe_path))
 
-        print "\n".join(sorted(list(output), key=lambda s: s.lower()))
+            # Make the string bold to indicate A recipe with an active override
+            if augmented_list and recipe.get("Identifier") in active_overrides:
+                out_string = '\x1b[%sm%s\x1b[m' % ('1;137',out_string)
+
+            if not out_string in output:
+                output.append(out_string)
+            
+        print "\n".join(output)
 
 
 def make_override(argv):
