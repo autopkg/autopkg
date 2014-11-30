@@ -893,7 +893,9 @@ def list_recipes(argv):
                       help=("Show all recipes including ones that are "
                             "overridden."))
     parser.add_option("--plist", action="store_true",
-                      help="Print all discovered recipes in plist format.\nIt is unnecessary")
+                      help="Print all discovered recipes in plist format.\n"
+                            "This provides all available key/value pairs of recipes.\n"
+                            "No other arguments are required.")
 
     # Parse options
     add_search_and_override_dir_options(parser)
@@ -925,6 +927,10 @@ def list_recipes(argv):
 
                 recipe["Name"] = os.path.splitext(recipe_name)[0]
                 recipe["Path"] = match
+
+                # If a top level "Identifer" keys is not discovered,  
+                # this will copy an IDENTIFIER key in the "Input" 
+                # entry to the top level of the recipe dictionary.
                 if not "Identifier" in recipe:
                     identifier = get_identifer_from_recipe_file(match)
                     if identifier:
