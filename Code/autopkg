@@ -86,38 +86,59 @@ def builds_a_package(recipe):
     '''Does this recipe build any packages?'''
     return recipe_has_step_processor(recipe, "PkgCreator")
 
+def recipe_plist_from_file(filename):
+    '''Create a recipe plist from a file. Handle exceptions and log'''
+    if os.path.isfile(filename):
+        try:
+            # make sure we can read it
+            recipe_plist = FoundationPlist.readPlist(filename)
+        except FoundationPlist.FoundationPlistException, err:
+            log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
+            return
+        return recipe_plist
+
+def valid_recipe_plist_with_keys(recipe_plist,keys_to_verify):
+    '''Attempts to read a plist and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise.'''
+    if recipe_plist:
+        for key in keys_to_verify:
+            if not key in recipe_plist:
+                return False
+        # if we get here, we found all the keys
+        return True
+    return False
 
 def valid_plist_with_keys(filename, keys_to_verify):
     '''Attempts to read a plist file and ensures the keys in
     keys_to_verify exist. Returns False on any failure, True otherwise.'''
-    try:
-        # make sure we can read it
-        recipe_plist = FoundationPlist.readPlist(filename)
-    except FoundationPlist.FoundationPlistException, err:
-        log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
-        return False
-    for key in keys_to_verify:
-        if not key in recipe_plist:
-            return False
-    # if we get here, we found all the keys
-    return True
+    recipe_plist = recipe_plist_from_file(filename)
+    return valid_plist_with_keys(recipe_plist, keys_to_verify)
 
+def valid_recipe_plist(recipe_plist):
+    '''Returns True if recipe plist is a valid recipe,
+    otherwise returns False'''
+    return (valid_recipe_plist_with_keys(recipe_plist, ["Input", "Process"])
+            or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
+            or valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"]))
 
-def valid_recipe(filename):
+def valid_recipe_file(filename):
     '''Returns True if filename contains a valid recipe,
     otherwise returns False'''
-    return (valid_plist_with_keys(filename, ["Input", "Process"])
-            or valid_plist_with_keys(filename, ["Input", "Recipe"])
-            or valid_plist_with_keys(filename, ["Input", "ParentRecipe"]))
+    recipe_plist = recipe_plist_from_file(filename)
+    return valid_recipe_plist(recipe_plist)
+    
+def valid_override_plist(recipe_plist):
+    '''Returns True if the recipe is a valid override,
+    otherwise returns False'''
+    return (valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
+            or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"]))
 
-
-def valid_override(filename):
+def valid_override_file(filename):
     '''Returns True if filename contains a valid override,
     otherwise returns False'''
-    return (valid_plist_with_keys(filename, ["Input", "ParentRecipe"])
-            or valid_plist_with_keys(filename, ["Input", "Recipe"]))
-
-
+    override_plist = recipe_plist_from_file(filename)
+    return valid_override_plist(override_plist)
+    
 def find_recipe_by_name(name, search_dirs):
     '''Search search_dirs for a recipe by file/directory naming rules'''
     if name.endswith(".recipe"):
@@ -134,7 +155,7 @@ def find_recipe_by_name(name, search_dirs):
         for pattern in patterns:
             matches = glob.glob(pattern)
             for match in matches:
-                if valid_recipe(match):
+                if valid_recipe_file(match):
                     return match
 
     return None
@@ -185,7 +206,7 @@ def load_recipe(name, override_dirs, recipe_dirs):
         # name is path to a specific recipe or override file
         # ignore override and recipe directories
         # and attempt to open the file specified by name
-        if valid_recipe(name):
+        if valid_recipe_file(name):
             recipe_file = name
 
     if not recipe_file:
@@ -883,15 +904,14 @@ def list_recipes(argv):
     parser = optparse.OptionParser()
     parser.set_usage("Usage: %s %s [options]\n"
                      "List all the recipes this tool can find automatically.\n"
-                     "Bold entries indicate a recipe with an active override."
                      % ("%prog", verb))
     parser.add_option("-i", "--with-identifiers", action="store_true",
                       help="Include recipe's identifier in the list.")
     parser.add_option("-p", "--with-paths", action="store_true",
                       help="Include recipe's path in the list.")
     parser.add_option("-a", "--show-all", action="store_true",
-                      help=("Show all recipes including ones that are "
-                            "overridden."))
+                      help=("Show all recipes including ParentRecipes that are "
+                            "overridden by an override with the same name."))
     parser.add_option("--plist", action="store_true",
                       help="Print all discovered recipes in plist format.\n"
                             "This provides all available key/value pairs of recipes.\n"
@@ -903,11 +923,6 @@ def list_recipes(argv):
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
-
-    # Determine scope of list
-    augmented_list = False
-    if options.with_identifiers or options.with_paths:
-        augmented_list = True
 
     recipes = []
     for directory in search_dirs:
@@ -921,7 +936,7 @@ def list_recipes(argv):
             glob.glob(os.path.join(normalized_dir, "*/*.recipe")))
 
         for match in matches:
-            if valid_recipe(match):
+            if valid_recipe_file(match):
                 recipe = FoundationPlist.readPlist(match)
                 recipe_name = os.path.basename(match)
 
@@ -932,14 +947,12 @@ def list_recipes(argv):
                 # this will copy an IDENTIFIER key in the "Input" 
                 # entry to the top level of the recipe dictionary.
                 if not "Identifier" in recipe:
-                    identifier = get_identifer_from_recipe_file(match)
+                    identifier = get_identifier(recipe)
                     if identifier:
                         recipe["Identifier"] = identifier
 
                 recipes.append(recipe)
 
-    # Find all valid overrides. Use new list here so we don't need to iterate
-    # over these items as they're added if the --show-all option is set.
     for directory in override_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
@@ -947,16 +960,20 @@ def list_recipes(argv):
         for filename in os.listdir(normalized_dir):
             if filename.endswith(".recipe"):
                 pathname = os.path.join(normalized_dir, filename)
-                if valid_override(pathname):
-                    override = FoundationPlist.readPlist(pathname)
-                    id_or_name = get_identifier_from_override(override)
+                override = FoundationPlist.readPlist(pathname)
+
+                if valid_override_plist(override):
                     # override points to a valid recipe
+                    id_or_name = get_identifier_from_override(override)
                     recipe_name = os.path.basename(pathname)
                     override["Name"] = os.path.splitext(recipe_name)[0]
                     override["Path"] = pathname
                     override["IsOverride"] = True 
 
                     if not options.show_all:
+                        # If an override has the same Name as the ParentRecipe
+                        # and the override's ParentRecipe matches said
+                        # recipe, remove the ParentRecipe from the listing.
                         for r in recipes:
                             if r["Name"] == recipe["Name"] and \
                                r.get("Identifier") == id_or_name:
