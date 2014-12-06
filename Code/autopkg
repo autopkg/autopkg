@@ -964,19 +964,18 @@ def list_recipes(argv):
 
                 if valid_override_plist(override):
                     # override points to a valid recipe
-                    id_or_name = get_identifier_from_override(override)
-                    recipe_name = os.path.basename(pathname)
-                    override["Name"] = os.path.splitext(recipe_name)[0]
+                    override_name = os.path.basename(pathname)
+                    override["Name"] = os.path.splitext(override_name)[0]
                     override["Path"] = pathname
                     override["IsOverride"] = True 
 
                     if not options.show_all:
                         # If an override has the same Name as the ParentRecipe
-                        # and the override's ParentRecipe matches said
-                        # recipe, remove the ParentRecipe from the listing.
+                        # AND the override's ParentRecipe matches said
+                        # recipe's Identifier, remove the ParentRecipe from the listing.
                         for r in recipes:
-                            if r["Name"] == recipe["Name"] and \
-                               r.get("Identifier") == id_or_name:
+                            if r["Name"] == override["Name"] and \
+                               r.get("Identifier") == override.get("ParentRecipe"):
                                 recipes.remove(r)
 
                     recipes.append(override)
