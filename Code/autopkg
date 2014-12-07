@@ -37,9 +37,7 @@ from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
 from autopkglib import get_autopkg_version, version_equal_or_greater
 from autopkglib import find_recipe_by_identifier, \
-                       get_identifier, \
-                       get_identifer_from_recipe_file
-
+                       get_identifier
 
 
 def log(msg, error=False):
@@ -97,7 +95,7 @@ def recipe_plist_from_file(filename):
             return
         return recipe_plist
 
-def valid_recipe_plist_with_keys(recipe_plist,keys_to_verify):
+def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
     '''Attempts to read a plist and ensures the keys in
     keys_to_verify exist. Returns False on any failure, True otherwise.'''
     if recipe_plist:
@@ -126,7 +124,7 @@ def valid_recipe_file(filename):
     otherwise returns False'''
     recipe_plist = recipe_plist_from_file(filename)
     return valid_recipe_plist(recipe_plist)
-    
+
 def valid_override_plist(recipe_plist):
     '''Returns True if the recipe is a valid override,
     otherwise returns False'''
@@ -138,7 +136,7 @@ def valid_override_file(filename):
     otherwise returns False'''
     override_plist = recipe_plist_from_file(filename)
     return valid_override_plist(override_plist)
-    
+
 def find_recipe_by_name(name, search_dirs):
     '''Search search_dirs for a recipe by file/directory naming rules'''
     if name.endswith(".recipe"):
@@ -913,9 +911,9 @@ def list_recipes(argv):
                       help=("Show all recipes including ParentRecipes that are "
                             "overridden by an override with the same name."))
     parser.add_option("--plist", action="store_true",
-                      help="Print all discovered recipes in plist format.\n"
+                      help=("Print all discovered recipes in plist format.\n"
                             "This provides all available key/value pairs of recipes.\n"
-                            "No other arguments are required.")
+                            "No other arguments are required."))
 
     # Parse options
     add_search_and_override_dir_options(parser)
@@ -925,6 +923,10 @@ def list_recipes(argv):
     search_dirs = options.search_dirs or get_search_dirs()
 
     recipes = []
+    augmented_list = False
+    if options.with_identifiers or options.with_paths or options.plist:
+        augmented_list = True
+
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
@@ -936,15 +938,15 @@ def list_recipes(argv):
             glob.glob(os.path.join(normalized_dir, "*/*.recipe")))
 
         for match in matches:
-            if valid_recipe_file(match):
-                recipe = FoundationPlist.readPlist(match)
+            recipe = recipe_plist_from_file(match)
+            if valid_recipe_plist(recipe):
                 recipe_name = os.path.basename(match)
 
                 recipe["Name"] = os.path.splitext(recipe_name)[0]
                 recipe["Path"] = match
 
-                # If a top level "Identifer" keys is not discovered,  
-                # this will copy an IDENTIFIER key in the "Input" 
+                # If a top level "Identifer" keys is not discovered,
+                # this will copy an IDENTIFIER key in the "Input"
                 # entry to the top level of the recipe dictionary.
                 if not "Identifier" in recipe:
                     identifier = get_identifier(recipe)
@@ -960,23 +962,23 @@ def list_recipes(argv):
         for filename in os.listdir(normalized_dir):
             if filename.endswith(".recipe"):
                 pathname = os.path.join(normalized_dir, filename)
-                override = FoundationPlist.readPlist(pathname)
-
+                override = recipe_plist_from_file(pathname)
+                
                 if valid_override_plist(override):
                     # override points to a valid recipe
                     override_name = os.path.basename(pathname)
                     override["Name"] = os.path.splitext(override_name)[0]
                     override["Path"] = pathname
-                    override["IsOverride"] = True 
+                    override["IsOverride"] = True
 
-                    if not options.show_all:
+                    if augmented_list and not options.show_all:
                         # If an override has the same Name as the ParentRecipe
                         # AND the override's ParentRecipe matches said
                         # recipe's Identifier, remove the ParentRecipe from the listing.
-                        for r in recipes:
-                            if r["Name"] == override["Name"] and \
-                               r.get("Identifier") == override.get("ParentRecipe"):
-                                recipes.remove(r)
+                        for recipe in recipes:
+                            if recipe["Name"] == override["Name"] and \
+                               recipe.get("Identifier") == override.get("ParentRecipe"):
+                                recipes.remove(recipe)
 
                     recipes.append(override)
 
@@ -1009,8 +1011,8 @@ def list_recipes(argv):
             # Only display identifier string if enabled
             identifier = ""
             if options.with_identifiers:
-                    identifier = recipe.get("Identifier", "")
-    
+                identifier = recipe.get("Identifier", "")
+
             # To make display cleaner, switch out a ~ for the user's home.
             recipe_path = ""
             if options.with_paths and "Path" in recipe:
@@ -1019,13 +1021,11 @@ def list_recipes(argv):
                 else:
                     recipe_path = recipe["Path"]
 
-            out_string = (format_str % (name,
-                                     identifier,
-                                     recipe_path))
+            out_string = (format_str % (name, identifier, recipe_path))
 
             if not out_string in output:
                 output.append(out_string)
-            
+
         print "\n".join(output)
 
 
