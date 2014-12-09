@@ -1028,7 +1028,6 @@ def list_recipes(argv):
             format_str = "%s%s%s"
 
         output = []
-        user_home = os.environ.get("HOME")
 
         for recipe in lowercase_sorted:
             name = recipe["Name"]
@@ -1041,10 +1040,10 @@ def list_recipes(argv):
             # To make display cleaner, switch out a ~ for the user's home.
             recipe_path = ""
             if options.with_paths and "Path" in recipe:
+                user_home = os.environ.get("HOME")
+                recipe_path = recipe["Path"]
                 if user_home:
-                    recipe_path = recipe["Path"].replace(user_home, "~")
-                else:
-                    recipe_path = recipe["Path"]
+                    recipe_path = recipe_path.replace(user_home, "~")
 
             out_string = (format_str % (name, identifier, recipe_path))
 
