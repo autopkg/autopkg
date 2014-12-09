@@ -963,7 +963,7 @@ def list_recipes(argv):
             if filename.endswith(".recipe"):
                 pathname = os.path.join(normalized_dir, filename)
                 override = recipe_plist_from_file(pathname)
-                
+
                 if valid_override_plist(override):
                     # override points to a valid recipe
                     override_name = os.path.basename(pathname)
@@ -991,7 +991,7 @@ def list_recipes(argv):
         max_name_length = 0
         max_identifier_length = 0
 
-        if recipes:
+        if recipes and augmented_list:
             max_name_length = (
                 max([len(r["Name"]) for r in recipes]) + column_spacer)
 
@@ -999,8 +999,10 @@ def list_recipes(argv):
                 max([len(r.get("Identifier", "")) for r in recipes])
                 + column_spacer) if options.with_identifiers else column_spacer
 
-        spacers = (max_name_length, max_identifier_length)
-        format_str = "%-{0}s %-{1}s %-20s".format(*spacers)
+            spacers = (max_name_length, max_identifier_length)
+            format_str = "%-{0}s %-{1}s %-20s".format(*spacers)
+        else:
+            format_str = "%s%s%s"
 
         output = []
         user_home = os.environ.get("HOME")
