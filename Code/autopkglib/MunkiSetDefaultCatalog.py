@@ -14,16 +14,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""See docstring for MunkiSetDefaultCatalog class"""
 
-
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor
+#pylint: disable=no-name-in-module
 from Foundation import CFPreferencesCopyAppValue
+#pylint: enable=no-name-in-module
 
 __all__ = ["MunkiSetDefaultCatalog"]
 
 
 class MunkiSetDefaultCatalog(Processor):
-    """Edit current munki pkginfo to set target catalog to the default one set for the current user."""
+    """Edit current munki pkginfo to set target catalog to the default
+    one set for the current user."""
     input_variables = {
         "pkginfo": {
             "required": False,
@@ -36,17 +39,20 @@ class MunkiSetDefaultCatalog(Processor):
         },
     }
     description = __doc__
-    
+
     def main(self):
         if "pkginfo" not in self.env:
             self.env["pkginfo"] = {}
-        default_catalog = CFPreferencesCopyAppValue("default_catalog", "com.googlecode.munki.munkiimport")
+        default_catalog = CFPreferencesCopyAppValue(
+            "default_catalog",
+            "com.googlecode.munki.munkiimport")
         if default_catalog:
-            self.env["pkginfo"]["catalogs"]  = [default_catalog]
-            self.output("Updated target catalogs into pkginfo with %s" % default_catalog)
+            self.env["pkginfo"]["catalogs"] = [default_catalog]
+            self.output("Updated target catalogs into pkginfo with %s"
+                        % default_catalog)
         else:
             self.output("No default catalogs found, nothing changed")
 
 if __name__ == "__main__":
-    processor = MunkiSetDefaultCatalog()
-    processor.execute_shell()
+    PROCESSOR = MunkiSetDefaultCatalog()
+    PROCESSOR.execute_shell()
