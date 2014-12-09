@@ -25,8 +25,9 @@ __all__ = ["MunkiSetDefaultCatalog"]
 
 
 class MunkiSetDefaultCatalog(Processor):
-    """Edit current munki pkginfo to set target catalog to the default
-    one set for the current user."""
+    """Edit current munki pkginfo to set the 'catalog' key to the default
+    catalog preference for munkiimport (com.googlecode.munki.munkiimport),
+    if one has been set. Typically this would be run as a preprocessor."""
     input_variables = {
         "pkginfo": {
             "required": False,
@@ -35,7 +36,7 @@ class MunkiSetDefaultCatalog(Processor):
     }
     output_variables = {
         "pkginfo": {
-            "description": "updated pkginfo.",
+            "description": "Updated pkginfo.",
         },
     }
     description = __doc__
