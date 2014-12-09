@@ -931,8 +931,11 @@ def list_recipes(argv):
     add_search_and_override_dir_options(parser)
     options = parser.parse_args(argv[1:])[0]
 
-    augmented_list = True if options.with_identifiers or options.with_paths \
-                                                      or options.plist else False
+    augmented_list = False
+    if options.with_identifiers or \
+       options.with_paths or \
+       options.plist:
+        augmented_list = True
 
     if options.show_all and not augmented_list:
         log_err("The '--show-all' option is only valid when used with "
