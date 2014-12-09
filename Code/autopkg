@@ -1146,14 +1146,15 @@ def run_recipes(argv):
                      "Run one or more recipes." % ("%prog", verb))
 
     # Parse arguments.
-    parser.add_option('--pre', '--preprocessor', action='append', dest='preprocessors', default=[],
-                 metavar="PREPROCESSOR",
-                 help=("A pre processor to run before each recipe. "
-                       "Can be repeated to run multiple pre processor."))
-    parser.add_option('--post', '--postprocessor', action='append', dest='postprocessors', default=[],
-                 metavar="POSTPROCESSOR",
-                 help=("A post processor to run after each recipe. "
-                       "Can be repeated to run multiple pre processor."))
+    parser.add_option('--pre', '--preprocessor', action='append',
+                      dest='preprocessors', default=[], metavar="PREPROCESSOR",
+                      help=("Name of a processor to run before each recipe. "
+                            "Can be repeated to run multiple preprocessors."))
+    parser.add_option('--post', '--postprocessor', action='append',
+                      dest='postprocessors', default=[],
+                      metavar="POSTPROCESSOR",
+                      help=("Name of a processor to run after each recipe. "
+                            "Can be repeated to run multiple postprocessors."))
     parser.add_option("-c", "--check", action="store_true",
                       help="Only check for new/changed downloads.")
     parser.add_option("-k", "--key", action="append", dest="variables",
@@ -1241,7 +1242,11 @@ def run_recipes(argv):
         write_plist_exit_on_fail(results_report, options.report_plist)
 
     for recipe_path in recipe_paths:
-        recipe = load_recipe(recipe_path, override_dirs, search_dirs, options.preprocessors, options.postprocessors)
+        recipe = load_recipe(recipe_path,
+                             override_dirs,
+                             search_dirs,
+                             options.preprocessors,
+                             options.postprocessors)
         if not recipe:
             log_err("No valid recipe found for %s" % recipe_path)
             error_count += 1
