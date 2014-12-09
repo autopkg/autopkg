@@ -19,7 +19,6 @@
 from autopkglib import Processor, ProcessorError
 from Foundation import NSArray
 import CoreFoundation
-import subprocess
 
 __all__ = ["MunkiSetDefaultCatalog"]
 
