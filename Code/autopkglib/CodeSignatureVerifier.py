@@ -176,7 +176,10 @@ class CodeSignatureVerifier(DmgMounter):
         if self.codesign_verify(path, requirement):
             self.output("Signature is valid")
         else:
-            raise ProcessorError("Code signature verification failed")
+            raise ProcessorError(
+                "Code signature verification failed. Note that "
+                "all verifications can be disabled by setting the variable "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
 
         if self.env.get('expected_authority_names', None):
             authority_names = self.codesign_get_authority_names(path)
@@ -186,7 +189,10 @@ class CodeSignatureVerifier(DmgMounter):
                 self.output(
                     "Expected: %s" % ' -> '.join(expected_authority_names))
                 self.output("Found:    %s" % ' -> '.join(authority_names))
-                raise ProcessorError("Mismatch in authority names")
+                raise ProcessorError(
+                    "Mismatch in authority names. Note that all "
+                    "verification can be disabled by setting the variable "
+                    "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
             else:
                 self.output("Authority name chain is valid")
 
@@ -199,7 +205,10 @@ class CodeSignatureVerifier(DmgMounter):
         if pkgutil_succeeded:
             self.output("Signature is valid")
         else:
-            raise ProcessorError("Code signature verification failed")
+            raise ProcessorError(
+                "Code signature verification failed. Note that all "
+                "verification can be disabled by setting the variable "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
 
         if self.env.get('expected_authority_names', None):
             expected_authority_names = self.env['expected_authority_names']
@@ -208,7 +217,10 @@ class CodeSignatureVerifier(DmgMounter):
                 self.output(
                     "Expected: %s" % ' -> '.join(expected_authority_names))
                 self.output("Found:    %s" % ' -> '.join(authority_names))
-                raise ProcessorError("Mismatch in authority names")
+                raise ProcessorError(
+                    "Mismatch in authority names. Note that all "
+                    "verification can be disabled by setting the variable "
+                    "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
             else:
                 self.output("Authority name chain is valid")
 
