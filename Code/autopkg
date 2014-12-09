@@ -907,26 +907,36 @@ def list_recipes(argv):
                       help="Include recipe's identifier in the list.")
     parser.add_option("-p", "--with-paths", action="store_true",
                       help="Include recipe's path in the list.")
+    parser.add_option("--plist", action="store_true",
+                      help=("Print recipe list in plist format.\n"
+                            "This provides all available key/value pairs of recipes.\n"))
     parser.add_option("-a", "--show-all", action="store_true",
                       help=("Show all recipes including ParentRecipes that are "
-                            "overridden by an override with the same name."))
-    parser.add_option("--plist", action="store_true",
-                      help=("Print all discovered recipes in plist format.\n"
-                            "This provides all available key/value pairs of recipes.\n"
-                            "No other arguments are required."))
+                            "overridden by an override with the same name.\n"
+                            "Use in conjunction with '--with-identifiers', "\
+                            "'--with-paths', or '-plist'"))
+
 
     # Parse options
     add_search_and_override_dir_options(parser)
     options = parser.parse_args(argv[1:])[0]
 
+    augmented_list = True if options.with_identifiers or options.with_paths \
+                                                      or options.plist else False
+
+    if options.show_all and not augmented_list:
+        print "    The '--show-all' option is only valid when used with " \
+              " '--with-paths', '--with-identifiers', or the '--plist' option."
+        return
+    elif options.plist and (options.with_identifiers or options.with_paths):
+        print "    It is invalid to specify '--with-identifiers' or '--with-paths' "\
+              "when using the '--plist' option."
+        return
+
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
 
     recipes = []
-    augmented_list = False
-    if options.with_identifiers or options.with_paths or options.plist:
-        augmented_list = True
-
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
