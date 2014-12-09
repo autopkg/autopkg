@@ -918,14 +918,13 @@ def list_recipes(argv):
     parser.add_option("-p", "--with-paths", action="store_true",
                       help="Include recipe's path in the list.")
     parser.add_option("--plist", action="store_true",
-                      help=("Print recipe list in plist format.\n"
-                            "This provides all available key/value pairs of recipes.\n"))
+                      help=("Print recipe list in plist format. This provides "
+                            "all available key/value pairs of recipes."))
     parser.add_option("-a", "--show-all", action="store_true",
-                      help=("Show all recipes including ParentRecipes that are "
-                            "overridden by an override with the same name.\n"
-                            "Use in conjunction with '--with-identifiers', "\
-                            "'--with-paths', or '-plist'"))
-
+                      help=("Include recipes with duplicate shortnames, "
+                            "including overrides. Use in conjunction with "
+                            "'--with-identifiers', '--with-paths', or "
+                            "'--plist'."))
 
     # Parse options
     add_search_and_override_dir_options(parser)
