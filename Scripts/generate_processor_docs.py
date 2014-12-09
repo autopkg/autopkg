@@ -156,7 +156,7 @@ def main(_):
         writefile(output, pathname)
 
     # Generate the Processors section of the Sidebar
-    processor_heading = "  * **Processors**"
+    processor_heading = "  * **Processor Reference**"
     toc_string = ""
     toc_string += processor_heading + "\n"
     for processor_name in processor_names():
