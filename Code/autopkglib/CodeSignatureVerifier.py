@@ -37,9 +37,9 @@ class CodeSignatureVerifier(DmgMounter):
             "required": False,
             "description":
                 ("Skip this Processor step altogether. Typically this "
-                "would be invoked using AutoPkg's defaults or via '--key' "
-                "CLI options at the time of the run, rather than being "
-                "defined explicitly within a recipe."),
+                 "would be invoked using AutoPkg's defaults or via '--key' "
+                 "CLI options at the time of the run, rather than being "
+                 "defined explicitly within a recipe."),
         },
         "input_path": {
             "required": True,
