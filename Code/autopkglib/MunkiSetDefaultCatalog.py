@@ -17,7 +17,6 @@
 
 
 from autopkglib import Processor, ProcessorError
-from Foundation import NSArray
 from Foundation import CFPreferencesCopyAppValue
 
 __all__ = ["MunkiSetDefaultCatalog"]
@@ -43,7 +42,7 @@ class MunkiSetDefaultCatalog(Processor):
             self.env["pkginfo"] = {}
         default_catalog = CFPreferencesCopyAppValue("default_catalog", "com.googlecode.munki.munkiimport")
         if default_catalog:
-            self.env["pkginfo"]["catalogs"]  = NSArray.arrayWithObject_(default_catalog)
+            self.env["pkginfo"]["catalogs"]  = [default_catalog]
             self.output("Updated target catalogs into pkginfo with %s" % default_catalog)
         else:
             self.output("No default catalogs found, nothing changed")
