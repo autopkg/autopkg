@@ -996,10 +996,12 @@ def list_recipes(argv):
                     if augmented_list and not options.show_all:
                         # If an override has the same Name as the ParentRecipe
                         # AND the override's ParentRecipe matches said
-                        # recipe's Identifier, remove the ParentRecipe from the listing.
+                        # recipe's Identifier, remove the ParentRecipe from the
+                        # listing.
                         for recipe in recipes:
                             if recipe["Name"] == override["Name"] and \
-                               recipe.get("Identifier") == override.get("ParentRecipe"):
+                               recipe.get("Identifier") == \
+                               override.get("ParentRecipe"):
                                 recipes.remove(recipe)
 
                     recipes.append(override)
