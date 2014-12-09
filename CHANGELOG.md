@@ -1,11 +1,20 @@
 ### 0.4.2 (Unreleased)
 
+ADDITIONS:
+
+- Support for adding pre- and postprocessors via the `--preprocessor/--pre` and
+  `--post/--postprocessor` options to `autopkg run`. See the
+  [new wiki page](https://github.com/autopkg/autopkg/wiki/PreAndPostProcessorSupport)
+  for more details. (GH-108)
+
 IMPROVEMENTS:
 
 - CodeSignatureVerifier: support for 'DISABLE_CODE_SIGNATURE_VERIFICATION' input variable,
   which when set (to anything) will skip any verification performed by this processor. One
   would define this using the '--key' option for a run, or using a defaults preference.
   (GH-131)
+- new `list-recipes` command options for more detailed listings. Listings can now include
+  identifiers, recipe paths, and can be output in a parsable plist format. (GH-135)
 
 ### 0.4.1 (October 20, 2014)
 
