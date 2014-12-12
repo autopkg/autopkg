@@ -1,4 +1,4 @@
-### 0.4.2 (Unreleased)
+### 0.4.2 (December 12, 2014)
 
 ADDITIONS:
 
