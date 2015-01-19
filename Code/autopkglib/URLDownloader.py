@@ -125,7 +125,7 @@ class URLDownloader(Processor):
         # Download URL.
         url_handle = None
         try:
-            request = urllib2.Request(self.env["url"])
+            request = urllib2.Request(url=self.env["url"])
 
             if "request_headers" in self.env:
                 headers = self.env["request_headers"]
