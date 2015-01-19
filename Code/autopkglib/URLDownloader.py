@@ -126,7 +126,8 @@ class URLDownloader(Processor):
         # Download URL.
         url_handle = None
         try:
-            url = urllib.quote(self.env["url"], 'http://')
+            url = urllib.unquote(self.env["url"])
+            url = urllib.quote(url, 'http://')
             request = urllib2.Request(url)
 
             if "request_headers" in self.env:
