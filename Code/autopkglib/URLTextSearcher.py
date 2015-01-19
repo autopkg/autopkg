@@ -16,6 +16,7 @@
 """See docstring for URLTextSearcher class"""
 
 import re
+import urllib
 import urllib2
 
 from autopkglib import Processor, ProcessorError
@@ -49,6 +50,11 @@ class URLTextSearcher(Processor):
         're_flags': {
             'description': ('Optional array of strings of Python regular '
                             'expression flags. E.g. IGNORECASE.'),
+            'required': False,
+        },
+        'url_quote': {
+            'description': ('If True, causes the matched string to be '
+                            'encoded. Equal to urllib.quote(url)'),
             'required': False,
         },
     }
@@ -89,6 +95,9 @@ class URLTextSearcher(Processor):
             raise ProcessorError('No match found on URL: %s' % url)
 
         # return the last matched group with the dict of named groups
+        if url_quote:
+            match = urllib.quote(match)
+            
         return (match.group(match.lastindex or 0), match.groupdict(), )
 
     def main(self):
@@ -97,6 +106,8 @@ class URLTextSearcher(Processor):
         headers = self.env.get('request_headers', {})
 
         flags = self.env.get('re_flags', {})
+        
+        url_quote = self.env.get('url_quote', False)
 
         groupmatch, groupdict = self.get_url_and_search(
             self.env['url'], self.env['re_pattern'], headers, flags)
@@ -108,6 +119,8 @@ class URLTextSearcher(Processor):
         self.output_variables = {}
         for key in groupdict.keys():
             self.env[key] = groupdict[key]
+            if url_quote:
+                self.env[key] = urllib(self.env[key])
             self.output('Found matching text (%s): %s' % (key, self.env[key], ))
             self.output_variables[key] = {
                 'description': 'Matched regular expression group'}
