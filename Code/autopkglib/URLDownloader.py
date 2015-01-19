@@ -16,6 +16,7 @@
 """See docstring for URLDownloader class"""
 
 import os.path
+import urllib
 import urllib2
 import xattr
 
@@ -125,7 +126,8 @@ class URLDownloader(Processor):
         # Download URL.
         url_handle = None
         try:
-            request = urllib2.Request(url=self.env["url"])
+            url = urllib.quote(self.env["url"], 'http://')
+            request = urllib2.Request(url)
 
             if "request_headers" in self.env:
                 headers = self.env["request_headers"]
