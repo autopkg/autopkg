@@ -1406,6 +1406,9 @@ def main(argv):
     """Main routine"""
     # define our subcommands ('verbs')
     subcommands = {
+        "find": {
+            "function": search_recipes,
+            "help": "Search for recipes on GitHub."},
         "help": {
             "function": display_help,
             "help": "Display this help"},
