@@ -110,7 +110,7 @@ class Installer(DmgMounter):
                 self.connect()
                 self.output("Sending installation request")
                 result = self.send_request(request)
-            except BaseException as err:
+            except Exception as err:
                 result = "ERROR: %s" % repr(err)
             finally:
                 self.output("Disconnecting")

@@ -65,7 +65,7 @@ class InstallFromDMG(DmgMounter):
 
         if "download_changed" in self.env:
             if not self.env["download_changed"]:
-                # URLDownloader did not download something new, 
+                # URLDownloader did not download something new,
                 # so skip the install
                 self.output("Skipping installation: no new download.")
                 self.env["install_result"] = "OK:SKIPPED"
@@ -82,7 +82,7 @@ class InstallFromDMG(DmgMounter):
                 self.connect()
                 self.output("Sending installation request")
                 result = self.send_request(request)
-            except BaseException as err:
+            except Exception as err:
                 result = "ERROR: %s" % repr(err)
             finally:
                 self.output("Disconnecting")

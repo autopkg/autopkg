@@ -203,7 +203,7 @@ class URLDownloader(Processor):
 
             self.output("Downloaded %s" % pathname)
 
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(
                 "Couldn't download %s: %s" % (self.env["url"], err))
         finally:
