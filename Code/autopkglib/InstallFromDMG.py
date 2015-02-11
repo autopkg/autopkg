@@ -50,7 +50,7 @@ class InstallFromDMG(DmgMounter):
         "download_changed": {
             "required": False,
             "description": (
-                "download_changed is set by the URLDownloaded processor to "
+                "download_changed is set by the URLDownloader processor to "
                 "indicate that a new file was downloaded. If this key is set "
                 "in the environment and is False or empty the installation "
                 "will be skipped.")
