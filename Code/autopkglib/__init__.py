@@ -463,7 +463,12 @@ class AutoPackager(object):
 
             try:
                 self.env = processor.process()
-            except ProcessorError as err:
+            except Exception as err:
+                # Well-behaved processors should handle exceptions and
+                # raise ProcessorError. However, we catch Exception
+                # here to ensure that unexpected/unhandled exceptions
+                # from one processor do not prevent execution of
+                # subsequent recipes.
                 print >> sys.stderr, unicode(err)
                 raise AutoPackagerError(
                     "Error in %s: Processor: %s: Error: %s"
