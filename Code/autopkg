@@ -258,20 +258,20 @@ def load_recipe(name, override_dirs, recipe_dirs, preprocessors=None, postproces
                 log_err('Could not find parent recipe for %s' % name)
         else:
             recipe["RECIPE_PATH"] = recipe_file
-    
+
     if recipe and preprocessors:
         steps = []
         for preprocessor_name in preprocessors:
             steps.append({"Processor": preprocessor_name})
         steps.extend(recipe["Process"])
         recipe["Process"] = steps
-    
+
     if recipe and postprocessors:
         steps = recipe["Process"]
         for postprocessor_name in postprocessors:
             steps.append({"Processor": postprocessor_name})
         recipe["Process"] = steps
-    
+
     return recipe
 
 
