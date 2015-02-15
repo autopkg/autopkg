@@ -118,7 +118,7 @@ class MunkiImporter(Processor):
 
         pkgid_table = {}
         app_table = {}
-        installer_item_table = {}
+        name_version_table = {}
         hash_table = {}
         checksum_table = {}
 
@@ -139,11 +139,11 @@ class MunkiImporter(Processor):
                 hash_table[item['installer_item_hash']].append(itemindex)
 
             # add to installer item table
-            if not name in installer_item_table:
-                installer_item_table[name] = {}
-            if not vers in installer_item_table[name]:
-                installer_item_table[name][vers] = []
-            installer_item_table[name][vers].append(itemindex)
+            if not name in name_version_table:
+                name_version_table[name] = {}
+            if not vers in name_version_table[name]:
+                name_version_table[name][vers] = []
+            name_version_table[name][vers].append(itemindex)
 
             # add to table of receipts
             for receipt in item.get('receipts', []):
@@ -193,7 +193,7 @@ class MunkiImporter(Processor):
         pkgdb['hashes'] = hash_table
         pkgdb['receipts'] = pkgid_table
         pkgdb['applications'] = app_table
-        pkgdb['installer_items'] = installer_item_table
+        pkgdb['name_versions'] = name_version_table
         pkgdb['checksums'] = checksum_table
         pkgdb['items'] = catalogitems
 
@@ -216,8 +216,8 @@ class MunkiImporter(Processor):
         # match name and version
         name = pkginfo.get('name', 'NO NAME')
         vers = pkginfo.get('version', 'NO VERSION')
-        if name in pkgdb['installer_items']:
-            matchingindexes = pkgdb['installer_items'][name].get(vers)
+        if name in pkgdb['name_versions']:
+            matchingindexes = pkgdb['name_versions'][name].get(vers)
             if matchingindexes:
                 # we have an item with the same name and version in the repo
                 return pkgdb['items'][matchingindexes[0]]
