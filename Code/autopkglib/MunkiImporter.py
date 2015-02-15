@@ -139,15 +139,11 @@ class MunkiImporter(Processor):
                 hash_table[item['installer_item_hash']].append(itemindex)
 
             # add to installer item table
-            if 'installer_item_location' in item:
-                installer_item_name = os.path.basename(
-                    item['installer_item_location'])
-                if not installer_item_name in installer_item_table:
-                    installer_item_table[installer_item_name] = {}
-                if not vers in installer_item_table[installer_item_name]:
-                    installer_item_table[installer_item_name][vers] = []
-                installer_item_table[
-                    installer_item_name][vers].append(itemindex)
+            if not name in installer_item_table:
+                installer_item_table[name] = {}
+            if not vers in installer_item_table[name]:
+                installer_item_table[name][vers] = []
+            installer_item_table[name][vers].append(itemindex)
 
             # add to table of receipts
             for receipt in item.get('receipts', []):
@@ -216,6 +212,16 @@ class MunkiImporter(Processor):
             return None
 
         pkgdb = self.make_catalog_db()
+
+        # match name and version
+        name = pkginfo.get('name', 'NO NAME')
+        vers = pkginfo.get('version', 'NO VERSION')
+        if name in pkgdb['installer_items']:
+            matchingindexes = pkgdb['installer_items'][name].get(vers)
+            if matchingindexes:
+                # we have an item with the same name and version in the repo
+                return pkgdb['items'][matchingindexes[0]]
+
 
         # match hashes for the pkg or dmg
         if 'installer_item_hash' in pkginfo:
