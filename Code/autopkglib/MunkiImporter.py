@@ -252,11 +252,9 @@ class MunkiImporter(Processor):
                         matching_indexes = (
                             matching_indexes.intersection(set(match)))
 
-            # if we get here, we may have found matches
+            # did we find any matches?
             if matching_indexes:
                 return pkgdb['items'][list(matching_indexes)[0]]
-            else:
-                return None
 
         # fall back to matching against receipts
         matching_indexes = []
@@ -279,11 +277,9 @@ class MunkiImporter(Processor):
                         matching_indexes = (
                             matching_indexes.intersection(set(match)))
 
-            # if we get here, we may have found matches
-            if matching_indexes:
-                return pkgdb['items'][list(matching_indexes)[0]]
-            else:
-                return None
+        # did we find any matches?
+        if matching_indexes:
+            return pkgdb['items'][list(matching_indexes)[0]]
 
         # try to match against install md5checksums
         filelist = [item for item in pkginfo.get('installs', [])
