@@ -219,7 +219,6 @@ class MunkiImporter(Processor):
 
         # match hashes for the pkg or dmg
         if 'installer_item_hash' in pkginfo:
-            pkgdb = self.make_catalog_db()
             matchingindexes = pkgdb['hashes'].get(
                 pkginfo['installer_item_hash'])
             if matchingindexes:
