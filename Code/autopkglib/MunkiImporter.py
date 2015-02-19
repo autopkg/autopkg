@@ -415,6 +415,9 @@ class MunkiImporter(Processor):
             raise ProcessorError(
                 "makepkginfo execution failed with error code %d: %s"
                 % (err.errno, err.strerror))
+        if err_out:
+            for err_line in err_out.splitlines():
+                self.output(err_line)
         if proc.returncode != 0:
             raise ProcessorError(
                 "creating pkginfo for %s failed: %s"
