@@ -103,7 +103,7 @@ class URLTextSearcher(Processor):
         headers = self.env.get('request_headers', {})
 
         flags = self.env.get('re_flags', {})
-        
+
         groupmatch, groupdict = self.get_url_and_search(
             self.env['url'], self.env['re_pattern'], headers, flags)
 
