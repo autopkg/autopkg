@@ -114,7 +114,7 @@ class URLTextSearcher(Processor):
         self.output_variables = {}
         for key in groupdict.keys():
             self.env[key] = groupdict[key]
-            if self.env.get('url_quote', False)
+            if self.env.get('url_quote', False):
                 self.env[key] = urllib.quote(self.env[key], 'http://')
             self.output('Found matching text (%s): %s' % (key, self.env[key], ))
             self.output_variables[key] = {
