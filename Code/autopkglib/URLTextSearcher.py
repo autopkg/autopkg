@@ -95,9 +95,6 @@ class URLTextSearcher(Processor):
             raise ProcessorError('No match found on URL: %s' % url)
 
         # return the last matched group with the dict of named groups
-        if url_quote:
-            match = urllib.quote(match)
-            
         return (match.group(match.lastindex or 0), match.groupdict(), )
 
     def main(self):
@@ -120,7 +117,7 @@ class URLTextSearcher(Processor):
         for key in groupdict.keys():
             self.env[key] = groupdict[key]
             if url_quote:
-                self.env[key] = urllib(self.env[key])
+                self.env[key] = urllib.quote(self.env[key], 'http://')
             self.output('Found matching text (%s): %s' % (key, self.env[key], ))
             self.output_variables[key] = {
                 'description': 'Matched regular expression group'}
