@@ -146,7 +146,7 @@ class URLDownloader(Processor):
             # Open URL.
             try:
                 url_handle = urllib2.urlopen(request)
-            except urllib2.HTTPError, http_err:
+            except urllib2.HTTPError as http_err:
                 if http_err.code == 304:
                     # resource not modified
                     self.env["download_changed"] = False
@@ -154,7 +154,11 @@ class URLDownloader(Processor):
                     self.output("Using existing %s" % pathname)
                     return
                 else:
-                    raise
+                    raise ProcessorError(
+                        "Couldn't download %s: %s" % (self.env["url"], err))
+            except urllib2.URLError as err:
+                raise ProcessorError(
+                    "Couldn't download %s: %s" % (self.env["url"], err))
 
             # If Content-Length header is present and we had a cached
             # file, see if it matches the size of the cached file.
@@ -174,12 +178,16 @@ class URLDownloader(Processor):
 
             # Download file.
             self.env["download_changed"] = True
-            with open(pathname, "wb") as file_handle:
-                while True:
-                    data = url_handle.read(CHUNK_SIZE)
-                    if len(data) == 0:
-                        break
-                    file_handle.write(data)
+            try:
+                with open(pathname, "wb") as file_handle:
+                    while True:
+                        data = url_handle.read(CHUNK_SIZE)
+                        if len(data) == 0:
+                            break
+                        file_handle.write(data)
+            except (IOError, urllib2.URLError) as err:
+                raise ProcessorError(
+                    "Couldn't download %s: %s" % (self.env["url"], err))
 
             # save last-modified header if it exists
             if url_handle.info().get("last-modified"):
@@ -203,9 +211,6 @@ class URLDownloader(Processor):
 
             self.output("Downloaded %s" % pathname)
 
-        except Exception as err:
-            raise ProcessorError(
-                "Couldn't download %s: %s" % (self.env["url"], err))
         finally:
             if url_handle is not None:
                 url_handle.close()
