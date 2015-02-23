@@ -63,7 +63,7 @@ class Copier(DmgMounter):
                     shutil.rmtree(dest_item)
                 else:
                     os.unlink(dest_item)
-            except OSError, err:
+            except OSError as err:
                 raise ProcessorError(
                     "Can't remove %s: %s" % (dest_item, err.strerror))
 
@@ -76,7 +76,9 @@ class Copier(DmgMounter):
             else:
                 shutil.copy(source_item, dest_item)
             self.output("Copied %s to %s" % (source_item, dest_item))
-        except Exception, err:
+        except (IOError, OSError, shutil.Error, shutil.SpecialFileError) as \
+                err:
+            # The above shutil methods can raise any of the above exceptions.
             raise ProcessorError(
                 "Can't copy %s to %s: %s" % (source_item, dest_item, err))
 
