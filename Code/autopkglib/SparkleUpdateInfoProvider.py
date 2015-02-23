@@ -122,13 +122,13 @@ class SparkleUpdateInfoProvider(Processor):
 
         try:
             url_handle = urllib2.urlopen(request)
-        except Exception:
+        except (ValueError, urllib2.URLError):
             raise ProcessorError("Can't open URL %s" % request.get_full_url())
 
         data = url_handle.read()
         try:
             xmldata = ElementTree.fromstring(data)
-        except Exception:
+        except ElementTree.ParseError:
             raise ProcessorError("Error parsing XML from appcast feed.")
 
         items = xmldata.findall("channel/item")
