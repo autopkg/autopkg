@@ -17,10 +17,7 @@
 
 import os.path
 import glob
-#pylint: disable=no-name-in-module
-from Foundation import NSData, NSPropertyListSerialization
-from Foundation import NSPropertyListMutableContainers
-#pylint: enable=no-name-in-module
+import FoundationPlist
 
 from autopkglib.DmgMounter import DmgMounter
 from autopkglib import ProcessorError
@@ -38,6 +35,13 @@ class AppDmgVersioner(DmgMounter):
             "required": True,
             "description": "Path to a dmg containing an app.",
         },
+        "plist_version_key": {
+            "required": False,
+            "default": "CFBundleShortVersionString",
+            "description":
+                ("Which plist key to use; defaults to "
+                 "CFBundleShortVersionString"),
+        },
     }
     output_variables = {
         "app_name": {
@@ -53,6 +57,7 @@ class AppDmgVersioner(DmgMounter):
 
     __doc__ = description
 
+
     def find_app(self, path):
         """Find app bundle at path."""
         #pylint: disable=no-self-use
@@ -61,24 +66,6 @@ class AppDmgVersioner(DmgMounter):
             raise ProcessorError("No app found in dmg")
         return apps[0]
 
-    def read_bundle_info(self, path):
-        """Read Contents/Info.plist inside a bundle."""
-        #pylint: disable=no-self-use
-
-        plistpath = os.path.join(path, "Contents", "Info.plist")
-        #pylint: disable=line-too-long
-        info, _, error = (
-            NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
-                NSData.dataWithContentsOfFile_(plistpath),
-                NSPropertyListMutableContainers,
-                None,
-                None))
-        #pylint: enable=line-too-long
-
-        if error:
-            raise ProcessorError("Can't read %s: %s" % (plistpath, error))
-
-        return info
 
     def main(self):
         # Mount the image.
@@ -87,11 +74,12 @@ class AppDmgVersioner(DmgMounter):
         # unmounted.
         try:
             app_path = self.find_app(mount_point)
-            info = self.read_bundle_info(app_path)
+            plist_path = os.path.join(app_path, 'Contents', 'Info.plist')
+            info = FoundationPlist.readPlist(plist_path)
             self.env["app_name"] = os.path.basename(app_path)
             try:
                 self.env["bundleid"] = info["CFBundleIdentifier"]
-                self.env["version"] = info["CFBundleShortVersionString"]
+                self.env["version"] = info[self.env["plist_version_key"]]
                 self.output("BundleID: %s" % self.env["bundleid"])
                 self.output("Version: %s" % self.env["version"])
             except BaseException as err:
