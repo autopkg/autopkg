@@ -57,7 +57,7 @@ class PlistEditor(Processor):
             return {}
         try:
             return FoundationPlist.readPlist(pathname)
-        except Exception, err:
+        except (ValueError, NSPropertyListSerializationException) as err:
             raise ProcessorError(
                 'Could not read %s: %s' % (pathname, err))
 
@@ -66,7 +66,7 @@ class PlistEditor(Processor):
         #pylint: disable=no-self-use
         try:
             FoundationPlist.writePlist(data, pathname)
-        except Exception, err:
+        except NSPropertyListWriteException as err:
             raise ProcessorError(
                 'Could not write %s: %s' % (pathname, err))
 
