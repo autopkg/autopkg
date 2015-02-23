@@ -43,7 +43,7 @@ class FileCreator(Processor):
             with open(self.env['file_path'], "w") as fileref:
                 fileref.write(self.env['file_content'])
             self.output("Created file at %s" % self.env['file_path'])
-        except Exception as err:
+        except IOError as err:
             raise ProcessorError("Can't create file at %s: %s"
                                  % (self.env['file_path'], err))
 
