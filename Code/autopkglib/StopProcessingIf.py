@@ -47,7 +47,7 @@ class StopProcessingIf(Processor):
         '''Evaluates predicate against our environment dictionary'''
         try:
             predicate = NSPredicate.predicateWithFormat_(predicate_string)
-        except Exception, err:
+        except ValueError as err:
             raise ProcessorError(
                 "Predicate error for '%s': %s"
                 % (predicate_string, err))
