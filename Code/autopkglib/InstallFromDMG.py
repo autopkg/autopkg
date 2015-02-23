@@ -82,7 +82,7 @@ class InstallFromDMG(DmgMounter):
                 self.connect()
                 self.output("Sending installation request")
                 result = self.send_request(request)
-            except Exception as err:
+            except ProcessorError as err:
                 result = "ERROR: %s" % repr(err)
             finally:
                 self.output("Disconnecting")
