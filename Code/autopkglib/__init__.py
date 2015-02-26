@@ -222,7 +222,7 @@ class Processor(object):
     def output(self, msg, verbose_level=1):
         """Print a message if verbosity is >= verbose_level"""
         if self.env.get('verbose', 0) >= verbose_level:
-            print "%s: %s" % (self.__class__.__name__, msg)
+            print "%s: %s" % (self.__class__.__name__, msg.encode('utf-8'))
 
     def main(self):
         """Stub method"""
