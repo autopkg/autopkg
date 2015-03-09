@@ -227,12 +227,15 @@ def locate_recipe(name, override_dirs, recipe_dirs,
         make_suggestions_for(name)
 
     if not recipe_file and search_github:
-        answer = raw_input("Search GitHub for %s recipe? [y/n]: " % name)
+        answer = raw_input(
+            "Search GitHub AutoPkg repos for %s recipe? [y/n]: " % name)
         if answer.lower().startswith('y'):
             results_limit = 100
             query = "q=%s+extension:recipe+user:autopkg+in:file,path" % name
             query += "&per_page=%s" % results_limit
+
             results = do_gh_code_search(query, use_token=False)
+
             if not results or not results.get('total_count'):
                 print "Nothing found."
                 return None
