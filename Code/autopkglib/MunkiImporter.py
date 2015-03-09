@@ -97,6 +97,9 @@ class MunkiImporter(Processor):
         "munki_repo_changed": {
             "description": "True if item was imported."
         },
+        "munki_importer_summary_result": {
+            "description": "Description of interesting results."
+        },
     }
     description = __doc__
 
@@ -478,6 +481,18 @@ class MunkiImporter(Processor):
         self.env["pkg_path"] = self.env["pkg_repo_path"]
         self.env["munki_info"] = pkginfo
         self.env["munki_repo_changed"] = True
+        self.env["munki_importer_summary_result"] = {
+            'summary_text': 'The following new items were imported into Munki:',
+            'header': ("%-24s %-16s %-32s %s\n" 
+                       % ("Name", "Version", "Catalogs", "Pkginfo Path") +
+                       "%-24s %-16s %-32s %s" 
+                       % ("----", "-------", "--------", "------------")),
+            'row': ("%-24s %-16s %-32s %s"
+                    % (pkginfo["name"],
+                       pkginfo["version"], ", ".join(pkginfo["catalogs"]),
+                       self.env["pkginfo_repo_path"].partition("pkgsinfo/")[2]))
+        }
+        
 
         self.output("Copied pkginfo to %s" % self.env["pkginfo_repo_path"])
         self.output("Copied pkg to %s" % self.env["pkg_repo_path"])

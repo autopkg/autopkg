@@ -16,6 +16,7 @@
 """autopkg tool. Runs autopkg recipes and also handles other
 related tasks"""
 
+import difflib
 import glob
 import sys
 import os
@@ -84,6 +85,7 @@ def builds_a_package(recipe):
     '''Does this recipe build any packages?'''
     return recipe_has_step_processor(recipe, "PkgCreator")
 
+
 def recipe_plist_from_file(filename):
     '''Create a recipe plist from a file. Handle exceptions and log'''
     if os.path.isfile(filename):
@@ -91,9 +93,11 @@ def recipe_plist_from_file(filename):
             # make sure we can read it
             recipe_plist = FoundationPlist.readPlist(filename)
         except FoundationPlist.FoundationPlistException, err:
-            log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
+            log_err(
+                "WARNING: plist error for %s: %s" % (filename, unicode(err)))
             return
         return recipe_plist
+
 
 def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
     '''Attempts to read a plist and ensures the keys in
@@ -106,18 +110,23 @@ def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
         return True
     return False
 
+
 def valid_plist_with_keys(filename, keys_to_verify):
     '''Attempts to read a plist file and ensures the keys in
     keys_to_verify exist. Returns False on any failure, True otherwise.'''
     recipe_plist = recipe_plist_from_file(filename)
     return valid_plist_with_keys(recipe_plist, keys_to_verify)
 
+
 def valid_recipe_plist(recipe_plist):
     '''Returns True if recipe plist is a valid recipe,
     otherwise returns False'''
-    return (valid_recipe_plist_with_keys(recipe_plist, ["Input", "Process"])
-            or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
-            or valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"]))
+    return (
+        valid_recipe_plist_with_keys(recipe_plist, ["Input", "Process"])
+        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
+        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
+    )
+
 
 def valid_recipe_file(filename):
     '''Returns True if filename contains a valid recipe,
@@ -125,17 +134,21 @@ def valid_recipe_file(filename):
     recipe_plist = recipe_plist_from_file(filename)
     return valid_recipe_plist(recipe_plist)
 
+
 def valid_override_plist(recipe_plist):
     '''Returns True if the recipe is a valid override,
     otherwise returns False'''
-    return (valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
-            or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"]))
+    return (
+        valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
+        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"]))
+
 
 def valid_override_file(filename):
     '''Returns True if filename contains a valid override,
     otherwise returns False'''
     override_plist = recipe_plist_from_file(filename)
     return valid_override_plist(override_plist)
+
 
 def find_recipe_by_name(name, search_dirs):
     '''Search search_dirs for a recipe by file/directory naming rules'''
@@ -165,6 +178,7 @@ def find_recipe(id_or_name, search_dirs):
     return (find_recipe_by_identifier(id_or_name, search_dirs) or
             find_recipe_by_name(id_or_name, search_dirs))
 
+
 def get_identifier_from_override(override):
     '''Return the identifier from an override, falling back with a
     warning to just the 'name' of the recipe.'''
@@ -185,22 +199,18 @@ def get_identifier_from_override(override):
     return name
 
 
-def load_recipe(name, override_dirs, recipe_dirs, preprocessors=None, postprocessors=None):
-    '''Loads a recipe. If the name is the pathname to a file on disk, we
-    attempt to load that file and use it as recipe. If a parent recipe
+def locate_recipe(name, override_dirs, recipe_dirs,
+                  make_suggestions=True, search_github=True):
+    '''Locates a recipe by name. If the name is the pathname to a file on disk,
+    we attempt to load that file and use it as recipe. If a parent recipe
     is required we first add the child recipe's directory to the search path
     so that the parent can be found, assuming it is in the same directory.
 
     Otherwise, we treat name as a recipe name or identifier and search first
     the override directories, then the recipe directories for a matching
-    recipe. If we find one, we load it and return the plist object (which
-    should be functionally equivelent to a dictionary). If an override file is
-    used, it prefers finding the original recipe by identifier rather than
-    name, so that if recipe names shift with updated recipe repos, the
-    override still applies to the recipe from which it was derived.'''
+    recipe.'''
 
     recipe_file = None
-    recipe = None
     if os.path.isfile(name):
         # name is path to a specific recipe or override file
         # ignore override and recipe directories
@@ -209,13 +219,94 @@ def load_recipe(name, override_dirs, recipe_dirs, preprocessors=None, postproces
             recipe_file = name
 
     if not recipe_file:
-        # name wasn't a filename. Try again, using name as identifier
-        recipe_file = find_recipe_by_identifier(
-            name, override_dirs + recipe_dirs)
+        # name wasn't a filename. Let's search our local repos.
+        recipe_file = find_recipe(name, override_dirs + recipe_dirs)
 
-    if not recipe_file:
-        # Let's search by simple name
-        recipe_file = find_recipe_by_name(name, override_dirs + recipe_dirs)
+    if not recipe_file and make_suggestions:
+        print "Didn't find a recipe for %s." % name
+        make_suggestions_for(name)
+
+    if not recipe_file and search_github:
+        answer = raw_input("Search GitHub for %s recipe? [y/n]: " % name)
+        if answer.lower().startswith('y'):
+            results_limit = 100
+            query = "q=%s+extension:recipe+user:autopkg+in:file,path" % name
+            query += "&per_page=%s" % results_limit
+            results = do_gh_code_search(query, use_token=False)
+            if not results or not results.get('total_count'):
+                print "Nothing found."
+                return None
+
+            results_items = results["items"]
+
+            # filter out any results that are in repos we already have added
+            # locally
+            recipe_repo_urls = []
+            recipe_repos = get_pref("RECIPE_REPOS") or {}
+            for key in recipe_repos.keys():
+                recipe_repo_urls.append(recipe_repos[key]['URL'])
+            results_items = [
+                item for item in results_items
+                if item['repository']['html_url'] not in recipe_repo_urls]
+
+            if len(results_items) > 1:
+                # filter results items by matching filenames.
+                # this works around the fact that we can't do a
+                # case-insensitive filename search with the GitHub API
+                results_items = [item for item in results_items
+                                 if name.lower() in item['name'].lower()]
+
+            if not results_items:
+                print "Nothing found."
+                return None
+
+            print_gh_search_results(results_items)
+
+            # make a list of unique repo names
+            repo_names = []
+            for item in results_items:
+                repo_name = item["repository"]['name']
+                if repo_name not in repo_names:
+                    repo_names.append(repo_name)
+
+            if len(repo_names) == 1:
+                # we found results in a single repo, so offer to add it
+                repo = results_items[0]["repository"]
+                print
+                answer = raw_input(
+                    "Add recipe repo '%s'? [y/n]: " % repo['name'])
+                if answer.lower().startswith('y'):
+                    repo_add([None, 'repo-add', repo['name']])
+                    # try once again to locate the recipe, but don't
+                    # search GitHub again!
+                    print
+                    recipe_dirs = get_search_dirs()
+                    recipe_file = locate_recipe(
+                        name, override_dirs, recipe_dirs,
+                        make_suggestions=True, search_github=False)
+            elif len(repo_names) > 1:
+                print
+                print ("To add a new recipe repo, use 'autopkg repo-add "
+                       "<repo name>'")
+                return None
+
+    return recipe_file
+
+
+def load_recipe(name, override_dirs, recipe_dirs,
+                preprocessors=None, postprocessors=None,
+                make_suggestions=True, search_github=True):
+    '''Loads a recipe, first locating it by name.
+    If we find one, we load it and return the plist object (which
+    should be functionally equivelent to a dictionary). If an override file is
+    used, it prefers finding the original recipe by identifier rather than
+    name, so that if recipe names shift with updated recipe repos, the
+    override still applies to the recipe from which it was derived.'''
+
+    recipe = None
+    recipe_file = locate_recipe(name, override_dirs, recipe_dirs,
+                                make_suggestions=make_suggestions,
+                                search_github=search_github)
 
     if recipe_file:
         # read it
@@ -258,20 +349,20 @@ def load_recipe(name, override_dirs, recipe_dirs, preprocessors=None, postproces
                 log_err('Could not find parent recipe for %s' % name)
         else:
             recipe["RECIPE_PATH"] = recipe_file
-    
+
     if recipe and preprocessors:
         steps = []
         for preprocessor_name in preprocessors:
             steps.append({"Processor": preprocessor_name})
         steps.extend(recipe["Process"])
         recipe["Process"] = steps
-    
+
     if recipe and postprocessors:
         steps = recipe["Process"]
         for postprocessor_name in postprocessors:
             steps.append({"Processor": postprocessor_name})
         recipe["Process"] = steps
-    
+
     return recipe
 
 
@@ -690,6 +781,54 @@ def repo_update(argv):
             log_err(err)
 
 
+def do_gh_code_search(query, use_token=False):
+    '''Search GitHub code repos'''
+    gh_session = autopkglib.github.GitHubSession()
+    if use_token:
+        gh_session.setup_token()
+    # Do the search, including text match metadata
+    (results, code) = gh_session.call_api(
+        "/search/code",
+        query=query,
+        accept="application/vnd.github.v3.text-match+json")
+    if code == 403:
+        log_err(
+            "You've probably hit the GitHub's search rate limit, officially 5 "
+            "requests per minute. Server response follows:\n")
+        log_err(results["message"])
+        log_err(results["documentation_url"])
+        return None
+    if results == None or code == None:
+        log_err("A GitHub API error occurred!")
+        return None
+    return results
+
+
+def print_gh_search_results(results_items):
+    '''Pretty print our GitHub search results'''
+    column_spacer = 4
+    max_name_length = (
+        max([len(r["name"]) for r in results_items]) + column_spacer)
+    max_repo_length = (
+        max([len(r["repository"]["name"]) for r in results_items])
+        + column_spacer)
+    spacers = (max_name_length, max_repo_length)
+
+    print
+    format_str = "%-{0}s %-{1}s %-40s".format(*spacers)
+    print format_str % ("Name", "Repo", "Path")
+    print format_str % ("----", "----", "----")
+    results_items.sort(key=operator.itemgetter("repository"))
+    for result in results_items:
+        repo = result["repository"]
+        name, path = result["name"], result["path"]
+        if repo["full_name"].startswith("autopkg"):
+            repo_name = repo["name"]
+        else:
+            repo_name = repo["full_name"]
+        print format_str % (name, repo_name, path)
+
+
 def search_recipes(argv):
     '''Search recipes on GitHub'''
     default_user = "autopkg"
@@ -723,10 +862,6 @@ def search_recipes(argv):
         log_err("No search query specified!")
         return -1
 
-    gh_session = autopkglib.github.GitHubSession()
-    if options.use_token:
-        gh_session.setup_token()
-
     results_limit = 100
     term = arguments[0]
     query = "q=%s+extension:recipe+user:%s" % (term, options.user)
@@ -736,48 +871,16 @@ def search_recipes(argv):
     query += "+" + qualifier_in
     query += "&per_page=%s" % results_limit
 
-    # Do the search, including text match metadata
-    (results, code) = gh_session.call_api(
-        "/search/code",
-        query=query,
-        accept="application/vnd.github.v3.text-match+json")
-    if code == 403:
-        log_err(
-            "You've probably hit the GitHub's search rate limit, officially 5 "
-            "requests per minute. Server response follows:\n")
-        log_err(results["message"])
-        log_err(results["documentation_url"])
-        return -1
-    if results == None or code == None:
-        log_err("A GitHub API error occurred!")
-        return -1
+    results = do_gh_code_search(query, use_token=options.use_token)
+    if not results:
+        return
 
     count = results["total_count"]
     if count == 0:
         print "No results."
         return
 
-    column_spacer = 4
-    max_name_length = (
-        max([len(r["name"]) for r in results["items"]]) + column_spacer)
-    max_repo_length = (
-        max([len(r["repository"]["name"]) for r in results["items"]])
-        + column_spacer)
-    spacers = (max_name_length, max_repo_length)
-
-    print
-    format_str = "%-{0}s %-{1}s %-40s".format(*spacers)
-    print format_str % ("Name", "Repo", "Path")
-    print format_str % ("----", "----", "----")
-    results["items"].sort(key=operator.itemgetter("repository"))
-    for result in results["items"]:
-        repo = result["repository"]
-        name, path = result["name"], result["path"]
-        if repo["full_name"].startswith("autopkg"):
-            repo_name = repo["name"]
-        else:
-            repo_name = repo["full_name"]
-        print format_str % (name, repo_name, path)
+    print_gh_search_results(results["items"])
 
     print
     print "To add a new recipe repo, use 'autopkg repo-add <repo name>'"
@@ -825,7 +928,7 @@ def get_info(argv):
         if get_recipe_info(arguments[0], override_dirs, search_dirs):
             return 0
         else:
-            log_err("Can't find recipe %s, or it is invalid." % arguments[0])
+            #log_err("Can't find recipe %s, or it is invalid." % arguments[0])
             return -1
     else:
         log_err("Too many recipes!")
@@ -906,47 +1009,49 @@ def list_processors(argv):
     print "\n".join(sorted(processor_names()))
 
 
-def list_recipes(argv):
-    '''List all available recipes'''
-    verb = argv[1]
-    parser = optparse.OptionParser()
-    parser.set_usage("Usage: %s %s [options]\n"
-                     "List all the recipes this tool can find automatically.\n"
-                     % ("%prog", verb))
-    parser.add_option("-i", "--with-identifiers", action="store_true",
-                      help="Include recipe's identifier in the list.")
-    parser.add_option("-p", "--with-paths", action="store_true",
-                      help="Include recipe's path in the list.")
-    parser.add_option("--plist", action="store_true",
-                      help=("Print recipe list in plist format. This provides "
-                            "all available key/value pairs of recipes."))
-    parser.add_option("-a", "--show-all", action="store_true",
-                      help=("Include recipes with duplicate shortnames, "
-                            "including overrides. Use in conjunction with "
-                            "'--with-identifiers', '--with-paths', or "
-                            "'--plist'."))
+def make_suggestions_for(search_name):
+    '''Suggest existing recipes with names similar to search name.'''
+    # trim '.recipe' from the end if it exists
+    if os.path.splitext(search_name)[1].lower() == '.recipe':
+        search_name = os.path.splitext(search_name)[0]
+    (search_name_base, search_name_ext) = os.path.splitext(search_name.lower())
+    recipe_names = [os.path.splitext(item['Name'])
+                    for item in get_recipe_list()]
+    recipe_names = list(set(recipe_names))
 
-    # Parse options
-    add_search_and_override_dir_options(parser)
-    options = parser.parse_args(argv[1:])[0]
+    matches = []
+    if len(search_name_base) > 3:
+        matches = [''.join(item) for item in recipe_names
+                   if (search_name_base in item[0].lower()
+                       and search_name_ext in item[1].lower())]
+    if search_name_ext:
+        compare_names = [item[0].lower() for item in recipe_names
+                         if item[1].lower() == search_name_ext]
+    else:
+        compare_names = [item[0].lower() for item in recipe_names]
 
-    augmented_list = False
-    if options.with_identifiers or \
-       options.with_paths or \
-       options.plist:
-        augmented_list = True
+    close_matches = difflib.get_close_matches(
+        search_name_base, compare_names)
+    if close_matches:
+        matches.extend(
+            [''.join(item) for item in recipe_names
+             if (''.join(item) not in matches
+                 and item[0].lower() in close_matches)])
+        if search_name_ext:
+            matches = [item for item in matches
+                       if os.path.splitext(item)[1] == search_name_ext]
 
-    if options.show_all and not augmented_list:
-        log_err("The '--show-all' option is only valid when used with "
-                "'--with-paths', '--with-identifiers', or '--plist' options.")
-        return -1
-    elif options.plist and (options.with_identifiers or options.with_paths):
-        log_err("It is invalid to specify '--with-identifiers' or "
-                "'--with-paths' with '--plist'.")
-        return -1
+    if len(matches) == 1:
+        print "Maybe you meant %s?" % matches[0]
+    elif len(matches):
+        print "Maybe you meant one of: %s?" % ', '.join(matches)
 
-    override_dirs = options.override_dirs or get_override_dirs()
-    search_dirs = options.search_dirs or get_search_dirs()
+
+def get_recipe_list(override_dirs=None, search_dirs=None,
+                    augmented_list=False, show_all=False):
+    '''Factor out the core of list_recipes for use in other functions'''
+    override_dirs = override_dirs or get_override_dirs()
+    search_dirs = search_dirs or get_search_dirs()
 
     recipes = []
     for directory in search_dirs:
@@ -993,7 +1098,7 @@ def list_recipes(argv):
                     override["Path"] = pathname
                     override["IsOverride"] = True
 
-                    if augmented_list and not options.show_all:
+                    if augmented_list and not show_all:
                         # If an override has the same Name as the ParentRecipe
                         # AND the override's ParentRecipe matches said
                         # recipe's Identifier, remove the ParentRecipe from the
@@ -1005,6 +1110,55 @@ def list_recipes(argv):
                                 recipes.remove(recipe)
 
                     recipes.append(override)
+    return recipes
+
+
+def list_recipes(argv):
+    '''List all available recipes'''
+    verb = argv[1]
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s [options]\n"
+                     "List all the recipes this tool can find automatically.\n"
+                     % ("%prog", verb))
+    parser.add_option("-i", "--with-identifiers", action="store_true",
+                      help="Include recipe's identifier in the list.")
+    parser.add_option("-p", "--with-paths", action="store_true",
+                      help="Include recipe's path in the list.")
+    parser.add_option("--plist", action="store_true",
+                      help=("Print recipe list in plist format. This provides "
+                            "all available key/value pairs of recipes."))
+    parser.add_option("-a", "--show-all", action="store_true",
+                      help=("Include recipes with duplicate shortnames, "
+                            "including overrides. Use in conjunction with "
+                            "'--with-identifiers', '--with-paths', or "
+                            "'--plist'."))
+
+    # Parse options
+    add_search_and_override_dir_options(parser)
+    options = parser.parse_args(argv[1:])[0]
+
+    augmented_list = False
+    if options.with_identifiers or \
+       options.with_paths or \
+       options.plist:
+        augmented_list = True
+
+    if options.show_all and not augmented_list:
+        log_err("The '--show-all' option is only valid when used with "
+                "'--with-paths', '--with-identifiers', or '--plist' options.")
+        return -1
+    elif options.plist and (options.with_identifiers or options.with_paths):
+        log_err("It is invalid to specify '--with-identifiers' or "
+                "'--with-paths' with '--plist'.")
+        return -1
+
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+
+    recipes = get_recipe_list(override_dirs=override_dirs,
+                              search_dirs=search_dirs,
+                              augmented_list=augmented_list,
+                              show_all=options.show_all)
 
     lowercase_sorted = sorted(recipes, key=lambda s: s["Name"].lower())
 
@@ -1090,7 +1244,7 @@ def make_override(argv):
                          recipe_dirs=search_dirs)
     if not recipe:
         log_err("No valid recipe found for %s" % recipe_name)
-        log_err("Dir(s) searched: %s" % ":".join(search_dirs))
+        log_err("Dir(s) searched:\n\t%s" % "\n\t".join(search_dirs))
         return 1
 
     # make sure parent has an identifier
@@ -1139,11 +1293,16 @@ def make_override(argv):
 
 
 def run_recipes(argv):
-    """Run one or more recipes"""
+    """Run one or more recipes. If called with 'install' verb, run .install
+       recipe"""
     verb = argv[1]
     parser = optparse.OptionParser()
-    parser.set_usage("Usage: %s %s [options] [recipe ...]\n"
-                     "Run one or more recipes." % ("%prog", verb))
+    if verb == 'install':
+        parser.set_usage("Usage: %s %s [options] [itemname ...]\n"
+                         "Install one or more items." % ("%prog", verb))
+    else:
+        parser.set_usage("Usage: %s %s [options] [recipe ...]\n"
+                         "Run one or more recipes." % ("%prog", verb))
 
     # Parse arguments.
     parser.add_option('--pre', '--preprocessor', action='append',
@@ -1178,9 +1337,7 @@ def run_recipes(argv):
     search_dirs = options.search_dirs or get_search_dirs()
 
     # initialize some variables
-    new_downloads = []
-    new_packages = []
-    new_imports = []
+    summary_results = {}
     failures = []
     error_count = 0
 
@@ -1207,6 +1364,17 @@ def run_recipes(argv):
         cli_values["PKG"] = options.pkg
 
     recipe_paths = []
+    if verb == 'install':
+        # hold on for syntactic sugar!
+        for index, item in enumerate(arguments):
+            # if recipe doesn't have an extension, append '.install'
+            if not os.path.splitext(item)[1]:
+                # no extension!
+                arguments[index] = item + '.install'
+            elif os.path.splitext(item)[1] != '.install':
+                log_err("Can't install with a non-install recipe: %s" % item)
+                del arguments[index]
+
     recipe_paths.extend(arguments)
     if options.recipe_list:
         with open(options.recipe_list, "r") as file_desc:
@@ -1241,14 +1409,23 @@ def run_recipes(argv):
         results_report = dict()
         write_plist_exit_on_fail(results_report, options.report_plist)
 
+    make_suggestions = True
+    if len(recipe_paths) > 1:
+        # don't make suggestions or offer to search GitHub
+        # if we have a list of recipes
+        make_suggestions = False
+
     for recipe_path in recipe_paths:
         recipe = load_recipe(recipe_path,
                              override_dirs,
                              search_dirs,
                              options.preprocessors,
-                             options.postprocessors)
+                             options.postprocessors,
+                             make_suggestions=make_suggestions,
+                             search_github=make_suggestions)
         if not recipe:
-            log_err("No valid recipe found for %s" % recipe_path)
+            if not make_suggestions:
+                log_err("No valid recipe found for %s" % recipe_path)
             error_count += 1
             continue
 
@@ -1333,38 +1510,21 @@ def run_recipes(argv):
         # and record for later summary and use
         for item in autopackager.results:
             if item.get("Output"):
-                # look for changed downloads
-                if item["Output"].get("download_changed"):
-                    new_downloads.append(item["Output"].get("pathname"))
-
-                # look for packages
-                if item["Output"].get("new_package_request"):
-                    built_package = {}
-                    built_package["pkg_path"] = item["Output"].get("pkg_path")
-                    # populate version, identifiers if we had a PkgCreator step
-                    if item["Input"].get("pkg_request"):
-                        for pkg_request_key in ["version", "id"]:
-                            built_package[pkg_request_key] = item[
-                                "Input"]["pkg_request"][pkg_request_key]
-                    # otherwise, the pkg recipe probably extracted or repacked a
-                    # pkg we don't yet have a single location where version info
-                    # may live within a processor's env, so at least for now, we
-                    # skip this missing info in the report
-                    new_packages.append(built_package)
-
-                # look for items imported into munki repo
-                if item["Output"].get("pkginfo_repo_path"):
-                    imported_item = {}
-                    imported_item["name"] = item["Output"]["munki_info"]["name"]
-                    imported_item["version"] = (
-                        item["Output"]["munki_info"]["version"])
-                    imported_item["catalogs"] = (
-                        item["Output"]["munki_info"]["catalogs"])
-                    imported_item["pkginfo_path"] = (
-                        item["Output"].get("pkginfo_repo_path"))
-                    imported_item["pkg_path"] = (
-                        item["Output"].get("pkg_repo_path"))
-                    new_imports.append(imported_item)
+                # record any summary results
+                output_keys = item["Output"].keys()
+                results_keys = [key for key in output_keys
+                                if key.endswith('_summary_result')]
+                for key in results_keys:
+                    result = item["Output"][key]
+                    summary_text = result.get('summary_text', '')
+                    header = result.get('header', '')
+                    row = result.get('row')
+                    if key not in summary_results:
+                        summary_results[key] = {}
+                        summary_results[key]['summary_text'] = summary_text
+                        summary_results[key]['header'] = header
+                        summary_results[key]['rows'] = []
+                    summary_results[key]['rows'].append(row)
 
     # done running recipes, print a summary
     if failures:
@@ -1373,22 +1533,16 @@ def run_recipes(argv):
             log("    %s" % item["recipe"])
             log("        %s" % item["message"])
 
-    if new_downloads:
-        log("\nThe following new items were downloaded:")
-        for item in new_downloads:
-            log("    %s" % item)
+    if summary_results:
+        for key, value in summary_results.items():
+            log("\n%s" % value['summary_text'])
+            if value.get('header'):
+                for line in value['header'].splitlines():
+                    log("    %s" % line)
+            for row in value['rows']:
+                log("    %s" % row)
 
-    if new_packages:
-        log("\nThe following packages were built:")
-        print_new_packages(new_packages)
-        log("\n")
-
-    if new_imports:
-        log("\nThe following new items were imported:")
-        print_new_imports(new_imports)
-        log("\n")
-
-    if not new_downloads and not new_packages and not new_imports:
+    if not summary_results:
         log("\nNothing downloaded, packaged or imported.")
 
     # save report plist with the summary data
@@ -1412,6 +1566,11 @@ def main(argv):
         "info": {
             "function": get_info,
             "help": "Get info about configuration or a recipe"},
+        "install": {
+            "function": run_recipes,
+            "help": ("Run one or more install recipes. "
+                     "Example: autopkg install Firefox -- "
+                     "equivalent to: autopkg run Firefox.install")},
         "list-recipes": {
             "function": list_recipes,
             "help": "List recipes available locally"},

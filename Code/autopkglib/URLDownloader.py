@@ -90,8 +90,10 @@ class URLDownloader(Processor):
                 ("Boolean indicating if the download has changed since the "
                  "last time it was downloaded."),
         },
+        "url_downloader_summary_result": {
+            "description": "Description of interesting results."
+        },
     }
-
     def main(self):
         self.env["last_modified"] = ""
         self.env["etag"] = ""
@@ -202,6 +204,11 @@ class URLDownloader(Processor):
                             % url_handle.info().get("etag"))
 
             self.output("Downloaded %s" % pathname)
+            self.env['url_downloader_summary_result'] = {
+                'summary_text': 'The following new items were downloaded:',
+                'header': '',
+                'row': pathname
+            }
 
         except BaseException as err:
             raise ProcessorError(

@@ -57,7 +57,12 @@ class InstallFromDMG(DmgMounter):
         },
     }
     output_variables = {
-        "install_result": "Result of install request."
+        "install_result": {
+            "description": "Result of install request."
+        },
+        "install_from_dmg_summary_result": {
+            "description": "Description of interesting results."
+        }
     }
 
     def install(self):
@@ -68,7 +73,7 @@ class InstallFromDMG(DmgMounter):
                 # URLDownloader did not download something new, 
                 # so skip the install
                 self.output("Skipping installation: no new download.")
-                self.env["install_result"] = "OK:SKIPPED"
+                self.env["install_result"] = "SKIPPED"
                 return
         try:
             mount_point = self.mount(self.env['dmg_path'])
@@ -91,6 +96,13 @@ class InstallFromDMG(DmgMounter):
             # Return result.
             self.output("Result: %s" % result)
             self.env["install_result"] = result
+            if result == 'DONE':
+                self.env['install_from_dmg_summary_result'] = {
+                    'summary_text': ('Items from the following disk images '
+                                     'were successfully installed:'),
+                    'header': '',
+                    'row': self.env['dmg_path']
+                }
         finally:
             self.unmount(self.env['dmg_path'])
 

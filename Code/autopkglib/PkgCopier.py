@@ -46,6 +46,9 @@ class PkgCopier(Copier):
         "pkg_path": {
             "description": "Path to copied pkg.",
         },
+        "pkg_copier_summary_result": {
+            "description": "Description of interesting results."
+        }
     }
 
     def main(self):
@@ -83,7 +86,12 @@ class PkgCopier(Copier):
                                      os.path.basename(source_pkg)))
             self.copy(matched_source_path, pkg_path, overwrite=True)
             self.env["pkg_path"] = pkg_path
-
+            self.env["pkg_copier_summary_result"] = {
+                'summary_text': 'The following packages were copied:',
+                'header': '',
+                'row': pkg_path
+            }
+            
         finally:
             if dmg:
                 self.unmount(dmg_path)

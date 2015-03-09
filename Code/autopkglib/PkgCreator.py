@@ -59,6 +59,9 @@ class PkgCreator(Processor):
                 "version already exists and thus no package was built (see "
                 "'force_pkg_build' input variable.")
         },
+        "pkg_creator_summary_result": {
+            "description": "Description of interesting results."
+        }
     }
 
     def find_path_for_relpath(self, relpath):
@@ -183,6 +186,15 @@ class PkgCreator(Processor):
 
         # Return path to pkg.
         self.env["pkg_path"] = pkg_path
+        self.env["pkg_creator_summary_result"] = {
+            'summary_text': 'The following packages were built:',
+            'header': ("%-24s %-16s %-32s\n"
+                       % ("Identifier", "Version", "Pkg path") +
+                       "%-24s %-16s %-32s"
+                       % ("----------", "-------", "--------")),
+            'row': ("%-24s %-16s %-32s"
+                    % (request['id'], request['version'], pkg_path))
+        }
 
     def connect(self):
         '''Connect to autopkgserver'''
