@@ -661,8 +661,11 @@ def repo_update(argv):
                      "You may also use 'all' to update all installed recipe "
                      "repos." % ("%prog", verb))
 
+    parser.add_option("--check", action="store_true", default=False,
+                      help=("Check for new commits to the specified recipe repo."))
+
     # Parse arguments
-    arguments = parser.parse_args(argv[2:])[1]
+    options, arguments = parser.parse_args(argv[2:])
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
@@ -683,13 +686,94 @@ def repo_update(argv):
                 repo_dirs.append(repo_path)
 
     for repo_dir in repo_dirs:
-        log("Attempting git pull for %s..." % repo_dir)
         try:
-            log(run_git(['pull'], git_directory=repo_dir))
+            if options.check:
+                git_rem_sha1 = ['ls-remote', '--heads', 'origin', './.', 'master']
+                git_local_sha1 = ['rev-parse', 'master']
+                rem_sha1 = run_git(git_rem_sha1, git_directory=repo_dir)
+                loc_sha1 = run_git(git_local_sha1, git_directory=repo_dir)
+                if not rem_sha1.split()[0].strip() == loc_sha1.strip():
+                    print 'Repo updates available for %s' % os.path.basename(repo_dir)
+                    print 'To see changes run "%s repo-log --new %s"' % \
+                                (os.path.realpath(sys.argv[0]), repo_dir)
+            else:
+                log("Attempting git pull for %s..." % (message, repo_dir))
+                output = run_git('pull', git_directory=repo_dir)
+                if output:
+                    log(output)
+                else:
+                    log("%s is up-to-date..." % (repo_dir))
         except GitError, err:
             log_err(err)
 
+def repo_log(argv):
+    '''Update one or more recipe repos'''
+    verb = argv[1]
+    parser = optparse.OptionParser()
+    parser.set_usage("Usage: %s %s recipe_repo_path_or_url [...]\n"
+                     "Show commit history of recipe repos.\n"
+                     "You may also use 'all' to check all installed recipe "
+                     "repos." % ("%prog", verb))
 
+    parser.add_option("--new", action="store_true", default=False,
+                      help=("Show only unmerged commits to the recipe repo."))
+
+    parser.add_option("--diff", action="store_true", default=False,
+                      help=("Include file diffs for commits."))
+
+    parser.add_option("--number", action="store",type="int", default=0,
+                      help="Number of commits to show.")
+
+    # Parse arguments
+    options, arguments = parser.parse_args(argv[2:])
+
+    if len(arguments) < 1:
+        log_err("Need at least one recipe repo path or URL!")
+        return -1
+
+    if 'all' in arguments:
+        # just get all repos
+        recipe_repos = get_pref("RECIPE_REPOS") or {}
+        repo_dirs = [key for key in recipe_repos.keys()]
+    else:
+        repo_dirs = []
+        for path_or_url in arguments:
+            path_or_url = expand_repo_url(path_or_url)
+            repo_path = get_repo_info(path_or_url).get('path')
+            if not repo_path:
+                log_err("ERROR: Can't find an installed repo for %s"
+                        % path_or_url)
+            else:
+                repo_dirs.append(repo_path)
+
+    if options.new:
+        git_command = ['log', 'master..origin/master']
+        message = "Updates available: {0}"
+    else:
+        git_command = ['log', 'master']
+        message = "Showing commits for: {0}"
+
+
+    if options.diff:
+        git_command.append('--patch')
+
+    if options.number > 0:
+        git_command.append('-n%d' % options.number)
+
+    for repo_dir in repo_dirs:
+        pretty_format = '--pretty=format:%CredChanges (%aD):%n  %Creset%s%n'
+        git_command.append(pretty_format)
+        try:
+            run_git(['fetch'], git_directory=repo_dir)
+            results = run_git(git_command, git_directory=repo_dir)
+            if results:
+                log(message.format(repo_dir))
+                log(results)
+            elif options.new:
+                log("%s is up-to-date" % os.path.basename(repo_dir))
+        except GitError, err:
+            log_err(err)
+                     
 def search_recipes(argv):
     '''Search recipes on GitHub'''
     default_user = "autopkg"
@@ -1436,6 +1520,9 @@ def main(argv):
         "repo-update": {
             "function": repo_update,
             "help": "Update one or more recipe repos"},
+        "repo-log": {
+            "function": repo_log,
+            "help": "Show commit history of recipe repos"},
         "run": {
             "function": run_recipes,
             "help": "Run one or more recipes"},
