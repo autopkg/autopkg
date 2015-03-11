@@ -242,22 +242,25 @@ def locate_recipe(name, override_dirs, recipe_dirs,
 
             results_items = results["items"]
 
-            # filter out any results that are in repos we already have added
-            # locally
-            recipe_repo_urls = []
-            recipe_repos = get_pref("RECIPE_REPOS") or {}
-            for key in recipe_repos.keys():
-                recipe_repo_urls.append(recipe_repos[key]['URL'])
-            results_items = [
-                item for item in results_items
-                if item['repository']['html_url'] not in recipe_repo_urls]
-
-            if len(results_items) > 1:
-                # filter results items by matching filenames.
-                # this works around the fact that we can't do a
-                # case-insensitive filename search with the GitHub API
-                results_items = [item for item in results_items
-                                 if name.lower() in item['name'].lower()]
+            # Note 2015-03-11: this next block would erroneously remove repos
+            # that have new recipes that match our search (new recipes we don't
+            # yet have locally because we haven't done a repo-update)
+            #
+            ## filter out any results that are in repos we already have added
+            ## locally
+            #recipe_repo_urls = []
+            #recipe_repos = get_pref("RECIPE_REPOS") or {}
+            #for key in recipe_repos.keys():
+            #    recipe_repo_urls.append(recipe_repos[key]['URL'])
+            #results_items = [
+            #    item for item in results_items
+            #    if item['repository']['html_url'] not in recipe_repo_urls]
+            #if len(results_items) > 1:
+            #    # filter results items by matching filenames.
+            #    # this works around the fact that we can't do a
+            #    # case-insensitive filename search with the GitHub API
+            #    results_items = [item for item in results_items
+            #                     if name.lower() in item['name'].lower()]
 
             if not results_items:
                 print "Nothing found."
