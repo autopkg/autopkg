@@ -28,6 +28,7 @@ EXTNS = {
     'zip': ['zip'],
     'tar_gzip': ['tar.gz', 'tgz'],
     'tar_bzip2': ['tar.bz2', 'tbz'],
+    'tar_xz': ['xz'],
     'tar': ['tar']
 }
 
