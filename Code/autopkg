@@ -1547,6 +1547,7 @@ def run_recipes(argv):
             log("\n%s" % value['summary_text'])
             if value.get('header'):
                 # we have a table
+                # make our table header
                 display_header = [item.replace('_', ' ').title() 
                                   for item in value['header']]
                 underlines = ['-'*len(item) for item in value['header']]
@@ -1557,15 +1558,19 @@ def run_recipes(argv):
                         this_row.append(row[field])
                     rows.append(this_row)
 
+                # calculate the widths of each column
                 widths = []
                 for column in range(len(value['header'])):
                     this_column = [len(row[column]) for row in rows]
                     widths.append(max(this_column) + 2)
 
+                # build a format string for each row based on our
+                # column widths
                 format_str = '    '
                 for width in widths:
                     format_str += "{:<" + str(width) + "}"
 
+                # print each row (which includes the header rows)
                 for row in rows:
                     log(format_str.format(*row))
 
