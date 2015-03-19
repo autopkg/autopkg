@@ -100,8 +100,7 @@ class InstallFromDMG(DmgMounter):
                 self.env['install_from_dmg_summary_result'] = {
                     'summary_text': ('Items from the following disk images '
                                      'were successfully installed:'),
-                    'header': '',
-                    'row': self.env['dmg_path']
+                    'data': self.env['dmg_path']
                 }
         finally:
             self.unmount(self.env['dmg_path'])

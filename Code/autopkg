@@ -1502,16 +1502,6 @@ def run_recipes(argv):
             except OSError, err:
                 log_err("Can't create %s: %s" % (receipt_dir, err.strerror))
 
-        if os.path.exists(receipt_dir):
-            receipt_path = os.path.join(receipt_dir, receipt_name)
-            try:
-                FoundationPlist.writePlist(autopackager.results, receipt_path)
-                if options.verbose:
-                    log("Receipt written to %s" % receipt_path)
-            except IOError as err:
-                log_err("Can't write receipt to %s: %s"
-                        % (receipt_path, err.strerror))
-
         # look through results for interesting info
         # and record for later summary and use
         for item in autopackager.results:
@@ -1523,14 +1513,27 @@ def run_recipes(argv):
                 for key in results_keys:
                     result = item["Output"][key]
                     summary_text = result.get('summary_text', '')
-                    header = result.get('header', '')
-                    row = result.get('row')
+                    data = result.get('data')
                     if key not in summary_results:
                         summary_results[key] = {}
                         summary_results[key]['summary_text'] = summary_text
-                        summary_results[key]['header'] = header
-                        summary_results[key]['rows'] = []
-                    summary_results[key]['rows'].append(row)
+                        summary_results[key]['header'] = None
+                        if type(data).__name__ in ['dict', '__NSCFDictionary']:
+                            summary_results[key]['header'] = (
+                                result.get('report_fields') or data.keys())
+                        summary_results[key]['data_rows'] = []
+                    summary_results[key]['data_rows'].append(data)
+
+        # save receipt
+        if os.path.exists(receipt_dir):
+            receipt_path = os.path.join(receipt_dir, receipt_name)
+            try:
+                FoundationPlist.writePlist(autopackager.results, receipt_path)
+                if options.verbose:
+                    log("Receipt written to %s" % receipt_path)
+            except IOError as err:
+                log_err("Can't write receipt to %s: %s"
+                        % (receipt_path, err.strerror))
 
     # done running recipes, print a summary
     if failures:
@@ -1543,19 +1546,41 @@ def run_recipes(argv):
         for key, value in summary_results.items():
             log("\n%s" % value['summary_text'])
             if value.get('header'):
-                for line in value['header'].splitlines():
-                    log("    %s" % line)
-            for row in value['rows']:
-                log("    %s" % row)
+                # we have a table
+                display_header = [item.replace('_', ' ').title() 
+                                  for item in value['header']]
+                underlines = ['-'*len(item) for item in value['header']]
+                rows = [display_header, underlines]
+                for row in value['data_rows']:
+                    this_row = []
+                    for field in value['header']:
+                        this_row.append(row[field])
+                    rows.append(this_row)
+
+                widths = []
+                for column in range(len(value['header'])):
+                    this_column = [len(row[column]) for row in rows]
+                    widths.append(max(this_column) + 2)
+
+                format_str = '    '
+                for width in widths:
+                    format_str += "{:<" + str(width) + "}"
+
+                for row in rows:
+                    log(format_str.format(*row))
+
+            else:
+                # just a list of strings
+                for row in value['data_rows']:
+                    log("    %s" % row)
 
     if not summary_results:
         log("\nNothing downloaded, packaged or imported.")
 
     # save report plist with the summary data
     if options.report_plist:
-        for event_type in [
-                "failures", "new_downloads", "new_packages", "new_imports"]:
-            results_report[event_type] = locals()[event_type]
+        if summary_results:
+            results_report['summary_results'] = summary_results
         write_plist_exit_on_fail(results_report, options.report_plist)
         log("\nReport plist saved to %s." % options.report_plist)
 

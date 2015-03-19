@@ -94,6 +94,7 @@ class URLDownloader(Processor):
             "description": "Description of interesting results."
         },
     }
+
     def main(self):
         self.env["last_modified"] = ""
         self.env["etag"] = ""
@@ -206,8 +207,7 @@ class URLDownloader(Processor):
             self.output("Downloaded %s" % pathname)
             self.env['url_downloader_summary_result'] = {
                 'summary_text': 'The following new items were downloaded:',
-                'header': '',
-                'row': pathname
+                'data': pathname
             }
 
         except BaseException as err:

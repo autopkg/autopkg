@@ -188,12 +188,12 @@ class PkgCreator(Processor):
         self.env["pkg_path"] = pkg_path
         self.env["pkg_creator_summary_result"] = {
             'summary_text': 'The following packages were built:',
-            'header': ("%-24s %-16s %-32s\n"
-                       % ("Identifier", "Version", "Pkg path") +
-                       "%-24s %-16s %-32s"
-                       % ("----------", "-------", "--------")),
-            'row': ("%-24s %-16s %-32s"
-                    % (request['id'], request['version'], pkg_path))
+            'report_fields': ['identifier', 'version', 'pkg_path'],
+            'data': {
+                'identifier': request['id'],
+                'version': request['version'],
+                'pkg_path': pkg_path
+            }
         }
 
     def connect(self):

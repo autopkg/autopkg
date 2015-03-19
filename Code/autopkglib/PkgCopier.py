@@ -88,8 +88,7 @@ class PkgCopier(Copier):
             self.env["pkg_path"] = pkg_path
             self.env["pkg_copier_summary_result"] = {
                 'summary_text': 'The following packages were copied:',
-                'header': '',
-                'row': pkg_path
+                'data': pkg_path
             }
             
         finally:

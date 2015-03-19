@@ -128,8 +128,7 @@ class Installer(DmgMounter):
                 self.env['installer_summary_result'] = {
                     'summary_text': ('The following pkgs '
                                      'were successfully installed:'),
-                    'header': '',
-                    'row': matched_pkg_path
+                    'data': matched_pkg_path
                 }
 
         finally:
