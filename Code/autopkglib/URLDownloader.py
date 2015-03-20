@@ -211,7 +211,9 @@ class URLDownloader(Processor):
             self.output("Downloaded %s" % pathname)
             self.env['url_downloader_summary_result'] = {
                 'summary_text': 'The following new items were downloaded:',
-                'data': pathname
+                'data': {
+                    'download_path': pathname,
+                }
             }
 
         except BaseException as err:
