@@ -1517,7 +1517,6 @@ def run_recipes(argv):
                     if key not in summary_results:
                         summary_results[key] = {}
                         summary_results[key]['summary_text'] = summary_text
-                        summary_results[key]['header'] = None
                         if type(data).__name__ in ['dict', '__NSCFDictionary']:
                             summary_results[key]['header'] = (
                                 result.get('report_fields') or data.keys())
@@ -1584,8 +1583,8 @@ def run_recipes(argv):
 
     # save report plist with the summary data
     if options.report_plist:
-        if summary_results:
-            results_report['summary_results'] = summary_results
+        results_report['failures'] = failures
+        results_report['summary_results'] = summary_results
         write_plist_exit_on_fail(results_report, options.report_plist)
         log("\nReport plist saved to %s." % options.report_plist)
 
