@@ -1518,7 +1518,7 @@ def run_recipes(argv):
             log("\n%s" % value['summary_text'])
 
             # make our table header
-            display_header = [item.replace('_', ' ').title() 
+            display_header = [item.replace('_', ' ').title()
                               for item in value['header']]
             underlines = ['-'*len(item) for item in value['header']]
             rows = [display_header, underlines]

@@ -55,7 +55,7 @@ class PkgCopier(Copier):
         # clear any pre-exising summary result
         if 'pkg_copier_summary_result' in self.env:
             del self.env['pkg_copier_summary_result']
-        
+
         # Check if we're trying to copy something inside a dmg.
         (dmg_path, dmg,
          dmg_source_path) = self.env['source_pkg'].partition(".dmg/")
@@ -96,7 +96,7 @@ class PkgCopier(Copier):
                     'pkg_path': pkg_path,
                 }
             }
-            
+
         finally:
             if dmg:
                 self.unmount(dmg_path)
