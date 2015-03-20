@@ -500,34 +500,6 @@ def get_recipe_repo(git_path):
     return None
 
 
-def print_new_imports(new_imports):
-    '''Print new Munki imports in a table format'''
-    log("    %-24s %-16s %-32s %s" % (
-        "Name", "Version", "Catalogs", "Pkginfo Path"))
-    log("    %-24s %-16s %-32s %s" % (
-        "----", "-------", "--------", "------------"))
-    for item in new_imports:
-        log("    %-24s %-16s %-32s %s" % (
-            item["name"], item["version"], ", ".join(item["catalogs"]),
-            item["pkginfo_path"].partition("pkgsinfo/")[2]))
-
-
-def print_new_packages(new_packages):
-    '''Print new pkg builds in a table format'''
-    log("    %-24s %-16s %-32s" % (
-        "Identifier", "Version", "Pkg path"))
-    log("    %-24s %-16s %-32s" % (
-        "----------", "-------", "--------"))
-    for item in new_packages:
-        identifier, version = "N/A", "N/A"
-        if "id" in item.keys():
-            identifier = item["id"]
-        if "version" in item.keys():
-            version = item["version"]
-        log("    %-24s %-16s %-32s" % (
-            identifier, version, item["pkg_path"]))
-
-
 def write_plist_exit_on_fail(plist_dict, path):
     '''Writes a dict to a new plist at path, exits the program
     if the write fails.'''
