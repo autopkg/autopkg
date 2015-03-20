@@ -399,7 +399,9 @@ class MunkiImporter(Processor):
         return pkginfo_path
 
     def main(self):
-
+        # clear any pre-exising summary result
+        if 'munki_importer_summary_result' in self.env:
+            del self.env['munki_importer_summary_result']
         # Generate arguments for makepkginfo.
         args = ["/usr/local/munki/makepkginfo", self.env["pkg_path"]]
         if self.env.get("munkiimport_pkgname"):

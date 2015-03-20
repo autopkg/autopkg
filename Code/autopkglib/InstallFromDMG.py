@@ -67,7 +67,10 @@ class InstallFromDMG(DmgMounter):
 
     def install(self):
         '''Build an ItemCopier request, send it to autopkginstalld'''
-
+        # clear any pre-exising summary result
+        if 'install_from_dmg_summary_result' in self.env:
+            del self.env['install_from_dmg_summary_result']
+        
         if "download_changed" in self.env:
             if not self.env["download_changed"]:
                 # URLDownloader did not download something new, 

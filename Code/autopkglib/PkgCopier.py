@@ -52,6 +52,10 @@ class PkgCopier(Copier):
     }
 
     def main(self):
+        # clear any pre-exising summary result
+        if 'pkg_copier_summary_result' in self.env:
+            del self.env['pkg_copier_summary_result']
+        
         # Check if we're trying to copy something inside a dmg.
         (dmg_path, dmg,
          dmg_source_path) = self.env['source_pkg'].partition(".dmg/")

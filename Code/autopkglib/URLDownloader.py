@@ -96,6 +96,10 @@ class URLDownloader(Processor):
     }
 
     def main(self):
+        # clear any pre-exising summary result
+        if 'url_downloader_summary_result' in self.env:
+            del self.env['url_downloader_summary_result']
+        
         self.env["last_modified"] = ""
         self.env["etag"] = ""
         existing_file_length = None

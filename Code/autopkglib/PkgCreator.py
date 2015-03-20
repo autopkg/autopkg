@@ -109,6 +109,10 @@ class PkgCreator(Processor):
         '''Build a packaging request, send it to the autopkgserver and get the
         constructed package.'''
 
+        # clear any pre-exising summary result
+        if 'pkg_creator_summary_result' in self.env:
+            del self.env['pkg_creator_summary_result']
+
         request = self.env["pkg_request"]
         if not 'pkgdir' in request:
             request['pkgdir'] = self.env['RECIPE_CACHE_DIR']

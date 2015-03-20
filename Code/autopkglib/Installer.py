@@ -67,7 +67,10 @@ class Installer(DmgMounter):
 
     def install(self):
         '''Build an installation request, send it to autopkginstalld'''
-
+        # clear any pre-exising summary result
+        if 'installer_summary_result' in self.env:
+            del self.env['installer_summary_result']
+        
         if "new_package_request" in self.env:
             if not self.env["new_package_request"]:
                 # PkgCreator did not build a new package, so skip the install
