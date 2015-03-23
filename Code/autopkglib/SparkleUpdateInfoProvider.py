@@ -76,6 +76,12 @@ class SparkleUpdateInfoProvider(Processor):
         "url": {
             "description": "URL for a download.",
         },
+        "version": {
+            "description": ("Version for the download extracted from the feed. "
+                            "This is a human-readable version if the feed has it "
+                            "(e.g., 2.3.4-pre4), and the basic machine-readable "
+                            "version (e.g., 823a) otherwise.")
+        },
         "additional_pkginfo": {
             "description": ("A pkginfo containing additional keys extracted "
                             "from the appcast feed. Currently this is "
@@ -234,6 +240,10 @@ class SparkleUpdateInfoProvider(Processor):
                             "pkginfo." % copied_key)
 
         self.env["url"] = latest["url"]
+        if latest.get("human_version"):
+            self.env["version"] = latest["human_version"]
+        else:
+            self.env["version"] = latest["version"]
         self.output("Found URL %s" % self.env["url"])
         self.env["additional_pkginfo"] = pkginfo
 
