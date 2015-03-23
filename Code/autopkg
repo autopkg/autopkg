@@ -227,8 +227,12 @@ def locate_recipe(name, override_dirs, recipe_dirs,
         make_suggestions_for(name)
 
     if not recipe_file and search_github:
+        indef_article = "a"
+        if name[0] in ["a", "e", "i", "o", "u"]:
+            indef_article = "an"
         answer = raw_input(
-            "Search GitHub AutoPkg repos for %s recipe? [y/n]: " % name)
+                "Search GitHub AutoPkg repos for %s %s recipe? [y/n]: " % (
+                indef_article, name))
         if answer.lower().startswith('y'):
             results_limit = 100
             query = "q=%s+extension:recipe+user:autopkg+in:file,path" % name
