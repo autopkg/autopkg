@@ -176,7 +176,7 @@ class SparkleUpdateInfoProvider(Processor):
                     raise ProcessorError(
                         "Can't extract version info from item in feed!")
 
-                human_version = item_elem.find("{%s}shortVersionString")
+                human_version = enclosure.get("{%s}shortVersionString" % xmlns)
                 if human_version is not None:
                     item["human_version"] = human_version
                 min_version = item_elem.find("{%s}minimumSystemVersion" % xmlns)
