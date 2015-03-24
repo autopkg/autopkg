@@ -62,6 +62,10 @@ class Versioner(DmgMounter):
             else:
                 # just use the given path
                 input_plist_path = self.env['input_plist_path']
+            if not os.path.exists(input_plist_path):
+                raise ProcessorError(
+                    "File '%s' does not exist or could not be read." %
+                    input_plist_path)
             try:
                 plist = FoundationPlist.readPlist(input_plist_path)
                 version_key = self.env.get("plist_version_key")
