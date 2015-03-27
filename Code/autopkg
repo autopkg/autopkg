@@ -661,11 +661,8 @@ def repo_update(argv):
                      "You may also use 'all' to update all installed recipe "
                      "repos." % ("%prog", verb))
 
-    parser.add_option("--check", action="store_true", default=False,
-                      help=("Check for new commits to the specified recipe repo."))
-
     # Parse arguments
-    options, arguments = parser.parse_args(argv[2:])
+    arguments = parser.parse_args(argv[2:])[1]
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
@@ -686,23 +683,9 @@ def repo_update(argv):
                 repo_dirs.append(repo_path)
 
     for repo_dir in repo_dirs:
+        log("Attempting git pull for %s..." % (message, repo_dir))
         try:
-            if options.check:
-                git_rem_sha1 = ['ls-remote', '--heads', 'origin', './.', 'master']
-                git_local_sha1 = ['rev-parse', 'master']
-                rem_sha1 = run_git(git_rem_sha1, git_directory=repo_dir)
-                loc_sha1 = run_git(git_local_sha1, git_directory=repo_dir)
-                if not rem_sha1.split()[0].strip() == loc_sha1.strip():
-                    print 'Repo updates available for %s' % os.path.basename(repo_dir)
-                    print 'To see changes run "%s repo-log --new %s"' % \
-                                (os.path.realpath(sys.argv[0]), repo_dir)
-            else:
-                log("Attempting git pull for %s..." % (message, repo_dir))
-                output = run_git('pull', git_directory=repo_dir)
-                if output:
-                    log(output)
-                else:
-                    log("%s is up-to-date..." % (repo_dir))
+            log(run_git(['pull'], git_directory=repo_dir))
         except GitError, err:
             log_err(err)
 
@@ -721,17 +704,19 @@ def repo_log(argv):
     parser.add_option("--diff", action="store_true", default=False,
                       help=("Include file diffs for commits."))
 
-    parser.add_option("--number", action="store",type="int", default=0,
-                      help="Number of commits to show.")
+    parser.add_option("--last", action="store",type="int", default=0,
+                      help="Show the last X number of commits.")
 
     # Parse arguments
     options, arguments = parser.parse_args(argv[2:])
-
+    
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
 
-    if 'all' in arguments:
+    show_all = 'all' in arguments
+
+    if show_all:
         # just get all repos
         recipe_repos = get_pref("RECIPE_REPOS") or {}
         repo_dirs = [key for key in recipe_repos.keys()]
@@ -754,23 +739,30 @@ def repo_log(argv):
         message = "Showing commits for: {0}"
 
 
+    git_command.append('--color')
     if options.diff:
         git_command.append('--patch')
+    elif not show_all:
+        git_command.append('--name-status')
 
-    if options.number > 0:
-        git_command.append('-n%d' % options.number)
+
+    if options.last > 0:
+        git_command.append('-n%d' % options.last)
 
     for repo_dir in repo_dirs:
-        pretty_format = '--pretty=format:%CredChanges (%aD):%n  %Creset%s%n'
-        git_command.append(pretty_format)
+        if show_all:
+            git_command.append('--pretty=format:%Cred%aD:%Creset %s')
+        else:
+            pretty_format = '--pretty=format:%Cred%aD%n%Cblue%P:%Creset%n%Creset%s%n'
+            git_command.append(pretty_format)
         try:
             run_git(['fetch'], git_directory=repo_dir)
             results = run_git(git_command, git_directory=repo_dir)
             if results:
                 log(message.format(repo_dir))
-                log(results)
+                log("%s\n" % results)
             elif options.new:
-                log("%s is up-to-date" % os.path.basename(repo_dir))
+                log("%s is up-to-date\n" % os.path.basename(repo_dir))
         except GitError, err:
             log_err(err)
                      
