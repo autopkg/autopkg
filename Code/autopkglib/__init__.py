@@ -27,15 +27,20 @@ import subprocess
 import glob
 
 #pylint: disable=no-name-in-module
-from Foundation import NSArray, NSDictionary
-from CoreFoundation import CFPreferencesAppSynchronize, \
-                           CFPreferencesCopyAppValue, \
-                           CFPreferencesCopyKeyList, \
-                           CFPreferencesSetAppValue, \
-                           kCFPreferencesAnyHost, \
-                           kCFPreferencesAnyUser, \
-                           kCFPreferencesCurrentUser, \
-                           kCFPreferencesCurrentHost
+try:
+    from Foundation import NSArray, NSDictionary
+    from CoreFoundation import CFPreferencesAppSynchronize, \
+                               CFPreferencesCopyAppValue, \
+                               CFPreferencesCopyKeyList, \
+                               CFPreferencesSetAppValue, \
+                               kCFPreferencesAnyHost, \
+                               kCFPreferencesAnyUser, \
+                               kCFPreferencesCurrentUser, \
+                               kCFPreferencesCurrentHost
+except:
+    print "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
+    print "WARNING: Failed 'from CoreFoundation import CFPreferencesAppSynchronize, ...' in " + __name__
+    pass
 #pylint: enable=no-name-in-module
 
 from distutils.version import LooseVersion
@@ -67,7 +72,7 @@ def set_pref(key, value, domain=BUNDLE_ID):
     """Sets a preference for domain"""
     try:
         CFPreferencesSetAppValue(key, value, domain)
-        if not CFPreferencesAppSynchronize(domain):
+        if not (domain):
             raise PreferenceError(
                 "Could not synchronize %s preference: %s" % key)
     except Exception, err:

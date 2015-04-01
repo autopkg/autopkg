@@ -22,7 +22,13 @@ import sys
 import os
 import operator
 import optparse
-import FoundationPlist
+
+try:
+    import FoundationPlist
+except:
+    print 'WARNING: importing plistlib as FoundationPlist'
+    import plistlib as FoundationPlist
+
 import pprint
 import re
 import shutil

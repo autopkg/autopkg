@@ -20,7 +20,11 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 #pylint: disable=no-name-in-module
-from Foundation import NSDictionary
+try:
+    from Foundation import NSDictionary
+except:
+    print "WARNING: Failed 'from Foundation import NSDictionary' in " + __name__
+    pass
 #pylint: enable=no-name-in-module
 
 __all__ = ["MunkiInstallsItemsCreator"]
