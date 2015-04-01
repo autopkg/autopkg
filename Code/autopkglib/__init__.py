@@ -72,7 +72,7 @@ def set_pref(key, value, domain=BUNDLE_ID):
     """Sets a preference for domain"""
     try:
         CFPreferencesSetAppValue(key, value, domain)
-        if not (domain):
+        if not CFPreferencesAppSynchronize(domain):
             raise PreferenceError(
                 "Could not synchronize %s preference: %s" % key)
     except Exception, err:
