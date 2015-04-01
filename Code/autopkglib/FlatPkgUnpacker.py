@@ -153,7 +153,17 @@ class FlatPkgUnpacker(DmgMounter):
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
                 self.source_path = (
-                    glob(os.path.join(mount_point, dmg_source_path))[0])
+                    glob(os.path.join(mount_point, dmg_source_path)))
+                if not self.source_path:
+                    raise ProcessorError(
+                        ("No valid path found as given by 'flat_pkg_path': %s"
+                         % self.env['flat_pkg_path']))
+                if len(self.source_path) > 1:
+                    raise ProcessorError(
+                        ("Multiple source paths found in globbed path in "
+                         "'flat_pkg_path'. There must be only one. Found: %s"
+                         % ", ".join(self.source_path)))
+                self.source_path = self.source_path[0]
             else:
                 # Straight copy from file system.
                 self.source_path = self.env['flat_pkg_path']
