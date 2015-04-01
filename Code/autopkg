@@ -1611,6 +1611,11 @@ def main(argv):
             "help": "Print the current version of autopkg"}
     }
 
+    # Warn against running as root
+    if os.getuid() == 0:
+        log_err("WARNING: Running AutoPkg as root or using `sudo` is not "
+                "recommended! Please run as a regular user.\n")
+
     try:
         verb = argv[1]
     except IndexError:
