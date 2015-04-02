@@ -24,7 +24,6 @@ try:
 except:
     print "WARNING: Failed 'from Foundation import NSData, NSPropertyListSerialization' in " + __name__
     print "WARNING: Failed 'from Foundation import NSPropertyListMutableContainers' in " + __name__
-    pass
 #pylint: enable=no-name-in-module
 
 from autopkglib.DmgMounter import DmgMounter

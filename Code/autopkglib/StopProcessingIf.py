@@ -22,7 +22,6 @@ try:
     from Foundation import NSPredicate
 except:
     print "WARNING: Failed 'from Foundation import NSPredicate' in " + __name__
-    pass
 #pylint: disable=no-name-in-module
 
 __all__ = ["StopProcessingIf"]

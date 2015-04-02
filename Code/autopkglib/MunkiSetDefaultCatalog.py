@@ -22,7 +22,6 @@ try:
     from Foundation import CFPreferencesCopyAppValue
 except:
     print "WARNING: Failed 'from Foundation import CFPreferencesCopyAppValue' in " + __name__
-    pass
 #pylint: enable=no-name-in-module
 
 __all__ = ["MunkiSetDefaultCatalog"]

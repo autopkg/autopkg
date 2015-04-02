@@ -24,7 +24,6 @@ try:
     from Foundation import NSDictionary
 except:
     print "WARNING: Failed 'from Foundation import NSDictionary' in " + __name__
-    pass
 #pylint: enable=no-name-in-module
 
 __all__ = ["MunkiInstallsItemsCreator"]

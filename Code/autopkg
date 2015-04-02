@@ -16,9 +16,15 @@
 """autopkg tool. Runs autopkg recipes and also handles other
 related tasks"""
 
+import sys
+
+if 'darwin' != sys.platform:
+    print "----------------------------------------------------------------------------------"
+    print "--  WARNING: AutoPkg is not completely functional on platforms other than OS X  --"
+    print "----------------------------------------------------------------------------------"
+
 import difflib
 import glob
-import sys
 import os
 import operator
 import optparse
