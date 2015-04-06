@@ -1204,6 +1204,8 @@ def make_override(argv):
     add_search_and_override_dir_options(parser)
     parser.add_option("-n", "--name", metavar="FILENAME",
                       help="Name for override file.")
+    parser.add_option("-o", "--open", metavar="EDITOR",
+                      help="Open override with EDITOR after creation.")
     options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
@@ -1271,6 +1273,18 @@ def make_override(argv):
     else:
         FoundationPlist.writePlist(override_plist, override_file)
         log("Override file saved to %s." % override_file)
+        #Borrowed from munkiimport
+        editor = options.open
+        if editor:
+            if editor.endswith('.app'):
+                cmd = ['/usr/bin/open', '-a', editor, override_file]
+            else:
+                cmd = [editor, override_file]
+            try:
+                dummy_returncode = subprocess.check_call(cmd)
+            except (OSError, subprocess.CalledProcessError), err:
+                print >> sys.stderr, 'Problem running editor %s: %s.' % (
+                                        editor, err)
         return 0
 
 
