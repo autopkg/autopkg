@@ -208,7 +208,7 @@ class AutoPkgInstallDaemon(SocketServer.UnixStreamServer):
 def main(argv):
     # Make sure we're launched as root
     if os.geteuid() != 0:
-        print >>sys.stderr, "%s must be run as root." % APPNAME
+        print >> sys.stderr, "%s must be run as root." % APPNAME
         # Sleep to avoid respawn.
         time.sleep(10)
         return 1
