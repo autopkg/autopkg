@@ -98,7 +98,7 @@ def _plistToData(plistObject):
         (data, error) = (
             NSPropertyListSerialization.dataFromPropertyList_format_errorDescription_(
                 plistObject, NSPropertyListXMLFormat_v1_0, None))
-    if error:
+    if error or data is None:
         raise NSPropertyListSerializationException(error)
     return data
 
