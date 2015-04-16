@@ -99,6 +99,8 @@ def _plistToData(plistObject):
             NSPropertyListSerialization.dataFromPropertyList_format_errorDescription_(
                 plistObject, NSPropertyListXMLFormat_v1_0, None))
     if data is None:
+        if error is None:
+            error = "Property list invalid for format."
         raise NSPropertyListSerializationException(error)
     return data
 
