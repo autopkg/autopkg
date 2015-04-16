@@ -80,7 +80,9 @@ def _dataToPlist(data):
         (plistObject, plistFormat, error) = (
             NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
                          data, NSPropertyListMutableContainersAndLeaves, None, None))
-    if error:
+    if plistObject is None:
+        if error is None:
+            error = "Plist data is invalid and could not be deserialized."
         raise NSPropertyListSerializationException(error)
     else:
         return plistObject
