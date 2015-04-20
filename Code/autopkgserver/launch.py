@@ -202,7 +202,7 @@ class LaunchDCheckInError(Exception):
 def get_launchd_socket_fds():
     """Check in with launchd to get socket file descriptors."""
 
-    # Returna dictionary with lists of file descriptors.
+    # Return a dictionary with keys pointing to lists of file descriptors.
     launchd_socket_fds = dict()
 
     # Callback for dict iterator.

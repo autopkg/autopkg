@@ -82,9 +82,9 @@ import socket
 import plistlib
 import re
 import struct
+import platform
 
 from packager import Packager, PackagerError
-import launch
 
 
 ###############
@@ -365,20 +365,35 @@ def main(argv):
     start_time = time.time()
 
     # Get socket file descriptors from launchd.
-    try:
-        sockets = launch.get_launchd_socket_fds()
-    except launch.LaunchDCheckInError as e:
-        print >>sys.stderr, "launchd check-in failed: %s" % e
-        time.sleep(10)
-        return 1
-
-    if not "AutoPkgServer" in sockets:
-        print >>sys.stderr, "No AutoPkgServer in launchd sockets"
-        time.sleep(10)
-        return 1
+    if int(platform.mac_ver()[0].split(u".")[1]) >= 10:
+        import launch2
+        try:
+            sockets = launch2.launch_activate_socket("AutoPkgServer")
+        except launch2.LaunchDError as e:
+            print >>sys.stderr, "launchd check-in failed: %s" % e
+            time.sleep(10)
+            return 1
+        
+        sock_fd = sockets[0]
+    
+    else:
+        import launch
+        try:
+            sockets = launch.get_launchd_socket_fds()
+        except launch.LaunchDCheckInError as e:
+            print >>sys.stderr, "launchd check-in failed: %s" % e
+            time.sleep(10)
+            return 1
+        
+        if not "AutoPkgServer" in sockets:
+            print >>sys.stderr, "No AutoPkgServer in launchd sockets"
+            time.sleep(10)
+            return 1
+        
+        sock_fd = sockets["AutoPkgServer"][0]
 
     # Create the server object.
-    server = AutoPkgServer(sockets["AutoPkgServer"][0], PkgHandler)
+    server = AutoPkgServer(sock_fd, PkgHandler)
     server.setup_logging()
 
     # Wrap main loop in try/finally to unlink the socket when we exit.
