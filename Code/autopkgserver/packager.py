@@ -378,8 +378,8 @@ class Packager(object):
                         os.lchown(dirpath, uid, gid)
                     except OSError as e:
                         raise PackagerError("Can't lchown %s: %s" % (dirpath, e))
-                    for entry in dirnames + filenames:
-                        path = os.path.join(dirpath, entry)
+                    for path_entry in dirnames + filenames:
+                        path = os.path.join(dirpath, path_entry)
                         try:
                             os.lchown(path, uid, gid)
                             if chmod_present:
