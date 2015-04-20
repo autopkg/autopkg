@@ -1,5 +1,36 @@
 ### 0.4.3 (Unreleased)
 
+ADDITIONS:
+
+- New processor, GitHubReleasesInfoProvider. Used to fetch download URLs and metadata about
+  releases posted on GitHub.
+- `autopkg run` interactively offers suggestions for similar recipe names when a recipe can't
+  be found, and also offers to search for the desired recipe on GitHub.
+- Processors may now define their own summary reporting data. Previously AutoPkg provided
+  summary data only for several known, core processors like URLDownloader, PkgCreator, etc.
+  Now AutoPkg will print out data provided within a dict value of an env key ending in
+  `_summary_result` (see code used in [PkgCreator.py](https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PkgCreator.py) as an example). (GH-163)
+
+IMPROVEMENTS:
+
+- SparkleUpdateInfoProvider now sets the `version` key based on what feed item it has
+  processed. This key can be used in later steps of the recipe. (GH-166)
+- AutoPkg now warns against being run as root.
+- Use of new launchd 2.0 socket API is used by autopkgserver if running on Yosemite or
+  higher. (GH-176)
+
+FIXES:
+
+- Fixes in MunkiImporter's logic when attempting to locate a matching item in a repo.
+- PkgCreator: fix an exception when setting `mode` on a direcotry (in `chown`, in
+  `pkg_request`). (GH-177)
+
+CHANGES:
+
+- The structure of a plist output by `--report-plist` has changed to reflect the
+  structure of the summary results described above in ADDITIONS. (GH-163)
+
+
 ### 0.4.2 (December 12, 2014)
 
 ADDITIONS:
