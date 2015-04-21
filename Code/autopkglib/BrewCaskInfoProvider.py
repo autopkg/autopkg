@@ -68,6 +68,22 @@ class BrewCaskInfoProvider(Processor):
             raise ProcessorError("Could not parse formula!")
         return attrs
 
+    def interpolate_vars(self, attrs):
+        """Return a copy of the dictionary of attributes parsed from the
+        Cask, with variables substituted. Currently we only expect this
+        to be used in 'url', which may contain Ruby-style substitutions
+        of '#{version}' within."""
+        newattrs = attrs.copy()
+        for key, value in newattrs.items():
+            match = re.search("#{(.+?)}", value)
+            if match:
+                subbed_key = match.groups()[0]
+                self.output("Substituting value '%s' in %s: '%s'" % (
+                    subbed_key, key, value))
+                newattrs[key] = re.sub("#{%s}" % subbed_key,
+                                       newattrs[subbed_key],
+                                       newattrs[key])
+        return newattrs
 
     def main(self):
         github_raw_baseurl = (
@@ -81,6 +97,7 @@ class BrewCaskInfoProvider(Processor):
 
         formula_data = urlobj.read()
         parsed = self.parse_formula(formula_data)
+        parsed = self.interpolate_vars(parsed)
 
         if not "url" in parsed.keys():
             raise ProcessorError("No 'url' parsed from Formula!")
