@@ -59,7 +59,7 @@ class BrewCaskInfoProvider(Processor):
         'version', etc. parsed from the formula .rb file."""
         #pylint: disable=no-self-use
         attrs = {}
-        regex = r"  (?P<attr>.+) '(?P<value>.+)'"
+        regex = r"^\s+(?P<attr>.+) [\'\"](?P<value>.+)[\'\"].*$"
         for line in formula.splitlines():
             match = re.match(regex, line)
             if match:
