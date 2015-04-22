@@ -38,7 +38,7 @@ def launch_activate_socket(name):
         if err:
             raise LaunchDError("Failed to retrieve sockets from launchd: %s" % os.strerror(err))
         
-        # Return a lists of file descriptors.
+        # Return a list of file descriptors.
         return list(fds[x] for x in xrange(cnt.value))
 
     finally:
