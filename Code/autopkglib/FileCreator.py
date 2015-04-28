@@ -15,6 +15,7 @@
 # limitations under the License.
 """Processor that creates a file"""
 
+import os
 from autopkglib import Processor, ProcessorError
 
 
@@ -24,7 +25,6 @@ __all__ = ["FileCreator"]
 class FileCreator(Processor):
     """Create a file."""
     description = __doc__
-    # TODO: add mode, owner
     input_variables = {
         "file_path": {
             "required": True,
@@ -34,6 +34,10 @@ class FileCreator(Processor):
             "required": True,
             "description": "Contents to put in file.",
         },
+        "file_mode": {
+            "required": False,
+            "description": "String. Numeric mode for file in octal format."
+        }
     }
     output_variables = {
     }
@@ -43,10 +47,16 @@ class FileCreator(Processor):
             with open(self.env['file_path'], "w") as fileref:
                 fileref.write(self.env['file_content'])
             self.output("Created file at %s" % self.env['file_path'])
-        except BaseException as err:
+        except BaseException, err:
             raise ProcessorError("Can't create file at %s: %s"
                                  % (self.env['file_path'], err))
-
+        if 'file_mode' in self.env:
+            try:
+                os.chmod(self.env['file_path'], int(self.env['file_mode'], 8))
+            except BaseException, err:
+                raise ProcessorError(
+                    "Can't set mode of %s to %s: %s"
+                    % (self.env['file_path'], self.env['file_mode'], err))
 
 if __name__ == '__main__':
     PROCESSOR = FileCreator()
