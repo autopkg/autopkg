@@ -1270,7 +1270,7 @@ def make_override(argv):
         return -1
     else:
         FoundationPlist.writePlist(override_plist, override_file)
-        log("Override file saved to %s." % override_file)
+        log("Override file saved to %s" % override_file)
         return 0
 
 
