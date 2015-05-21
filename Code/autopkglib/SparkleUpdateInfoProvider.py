@@ -70,6 +70,13 @@ class SparkleUpdateInfoProvider(Processor):
                             "['minimum_os_version']. "
                             "Currently supported keys: %s." %
                             ", ".join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS))
+        },
+        "PKG" : {
+            "required": False,
+            "description":
+                ("Local path to the pkg/dmg we'd otherwise download. "
+                 "If provided, the download is skipped and we just use "
+                 "this package or disk image."),
         }
     }
     output_variables = {
@@ -198,6 +205,12 @@ class SparkleUpdateInfoProvider(Processor):
         def compare_version(this, that):
             """Compare loose versions"""
             return cmp(LooseVersion(this), LooseVersion(that))
+
+        if "PKG" in self.env:
+            self.output("Local PKG provided, no downloaded needed.")
+            self.env["url"] = self.env.get("PKG")
+            self.env["additional_pkginfo"] = {}
+            return
 
         items = self.get_feed_data(self.env.get("appcast_url"))
         sorted_items = sorted(items,
