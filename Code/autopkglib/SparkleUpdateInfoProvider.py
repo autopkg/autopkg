@@ -208,8 +208,14 @@ class SparkleUpdateInfoProvider(Processor):
 
         if "PKG" in self.env:
             self.output("Local PKG provided, no downloaded needed.")
+            self.output("WARNING: Skipping this processor means output "
+                        "variables 'version', 'additional_pkginfo' will "
+                        "not contain useful info. If these are needed "
+                        "in other recipe steps, this may give unexpected "
+                        "results.")
             self.env["url"] = self.env.get("PKG")
             self.env["additional_pkginfo"] = {}
+            self.env["version"] = "NotSetBySparkleUpdateInfoProvider"
             return
 
         items = self.get_feed_data(self.env.get("appcast_url"))
