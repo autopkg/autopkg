@@ -166,8 +166,9 @@ class SparkleUpdateInfoProvider(Processor):
                     # Sparkle tries to guess a version from the download URL for
                     # rare cases where there is no sparkle:version enclosure
                     # attribute, for the format: AppnameOrAnything_1.2.3.zip
-                    # https://github.com/andymatuschak/Sparkle/blob/master/
-                    #                                  SUAppcastItem.m#L153-L167
+                    # https://github.com/sparkle-project/Sparkle/blob/
+                    # 89081ca030c0de218400f7c0f97530df524d687d/Sparkle/
+                    # SUAppcastItem.m#L69-L76
                     #
                     # We can even support OmniGroup's alternate appcast format
                     # by cheating and using the '-' as a delimiter to derive
