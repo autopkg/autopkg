@@ -184,7 +184,7 @@ class URLDownloader(Processor):
             if content_encoding == 'gzip':
                 gzip_handle = zlib.decompressobj(16 + zlib.MAX_WBITS)
             elif content_encoding and content_encoding != 'identity':
-                self.output("WARNING: Content-Encoding of %s may not be supported")
+                self.output("WARNING: Content-Encoding of %s may not be supported" % content_encoding)
 
             # Download file.
             self.env["download_changed"] = True
