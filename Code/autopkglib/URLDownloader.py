@@ -18,6 +18,7 @@
 import os.path
 import urllib2
 import xattr
+import zlib
 
 from autopkglib import Processor, ProcessorError
 try:
@@ -179,6 +180,12 @@ class URLDownloader(Processor):
                     self.output("Using existing %s" % pathname)
                     return
 
+            content_encoding = url_handle.info().get('Content-Encoding', '').lower() or None
+            if content_encoding == 'gzip':
+                gzip_handle = zlib.decompressobj(16 + zlib.MAX_WBITS)
+            elif content_encoding and content_encoding != 'identity':
+                self.output("WARNING: Content-Encoding of %s may not be supported")
+
             # Download file.
             self.env["download_changed"] = True
             with open(pathname, "wb") as file_handle:
@@ -186,6 +193,8 @@ class URLDownloader(Processor):
                     data = url_handle.read(CHUNK_SIZE)
                     if len(data) == 0:
                         break
+                    if content_encoding == 'gzip':
+                        data = gzip_handle.decompress(data)
                     file_handle.write(data)
 
             # save last-modified header if it exists
