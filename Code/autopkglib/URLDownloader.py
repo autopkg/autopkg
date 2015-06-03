@@ -180,11 +180,16 @@ class URLDownloader(Processor):
                     self.output("Using existing %s" % pathname)
                     return
 
-            content_encoding = url_handle.info().get('Content-Encoding', '').lower()
+            # Handle edge case where server responds with a
+            # 'Content-Encoding: gzip' header, even though we've requested the
+            # default 'Accept-Encoding: identity'
+            content_encoding = url_handle.info().get('Content-Encoding', '')\
+                                    .lower()
             if content_encoding == 'gzip':
                 gzip_handle = zlib.decompressobj(16 + zlib.MAX_WBITS)
             elif content_encoding and content_encoding != 'identity':
-                self.output("WARNING: Content-Encoding of %s may not be supported" % content_encoding)
+                self.output("WARNING: Content-Encoding of %s may not be "
+                            "supported" % content_encoding)
 
             # Download file.
             self.env["download_changed"] = True
