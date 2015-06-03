@@ -180,7 +180,7 @@ class URLDownloader(Processor):
                     self.output("Using existing %s" % pathname)
                     return
 
-            content_encoding = url_handle.info().get('Content-Encoding', '').lower() or None
+            content_encoding = url_handle.info().get('Content-Encoding', '').lower()
             if content_encoding == 'gzip':
                 gzip_handle = zlib.decompressobj(16 + zlib.MAX_WBITS)
             elif content_encoding and content_encoding != 'identity':
