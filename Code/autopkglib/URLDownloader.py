@@ -186,6 +186,16 @@ class URLDownloader(Processor):
             content_encoding = url_handle.info().get('Content-Encoding', '')\
                                     .lower()
             if content_encoding == 'gzip':
+                # notes on window bit size from http://www.zlib.net/manual.html
+                # "windowBits can also be greater than 15 for optional gzip
+                # decoding. Add 32 to windowBits to enable zlib and gzip
+                # decoding with automatic header detection, or add 16 to decode
+                # only the gzip format (the zlib format will return a
+                # Z_DATA_ERROR)."
+                #
+                # Therefore, we explicitly set the window buffer size to
+                # the width for decoding only gzip. zlib.MAX_WBITS is the 15
+                # mentioned above.
                 gzip_handle = zlib.decompressobj(16 + zlib.MAX_WBITS)
             elif content_encoding and content_encoding != 'identity':
                 self.output("WARNING: Content-Encoding of %s may not be "
