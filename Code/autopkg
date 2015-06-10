@@ -1587,7 +1587,7 @@ def main(argv):
             "help": "Make a recipe override"},
         "processor-info": {
             "function": processor_info,
-            "help": "Get informatation about a specific processor"},
+            "help": "Get information about a specific processor"},
         "repo-add": {
             "function": repo_add,
             "help": "Add one or more recipe repo from a URL"},
