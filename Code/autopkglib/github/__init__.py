@@ -59,7 +59,7 @@ account in order to create an API token. This token has only
 a 'public' scope, meaning it cannot be used to retrieve
 personal information from your account, or push to any repos
 you may have access to. You can verify this token within your
-profile page at https://github.com/settings/applications and
+profile page at https://github.com/settings/tokens and
 revoke it at any time. This token will be stored in your user's
 home folder at %s.""" % TOKEN_LOCATION
             username = raw_input("Username: ")
