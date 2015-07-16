@@ -23,8 +23,11 @@ import urllib2
 from base64 import b64encode
 from getpass import getpass
 from pprint import pprint
+from urlparse import urlparse, urlunparse
 
 BASE_URL = "https://api.github.com"
+RAW_USER_CONTENT_HOST = 'raw.githubusercontent.com'
+
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 
 
@@ -39,6 +42,70 @@ class RequestWithMethod(urllib2.Request):
 
     def get_method(self):
         return self._method
+
+class GitHubRawUserContentSession(object):
+    """Perform GET requests for raw use content. This is usefull in situations
+    Where API query parameters are not required since it doesn't count against
+    the API rate limit
+
+    fail_silently: Do not send output  to stderr should an HTTPError or URLError
+                   occur
+    """
+    def __init__(self, fail_silently=False):
+        self.fail_silently = fail_silently
+
+    #private methods
+    def _paser_gh_raw_content_url(self, url):
+        """ Analyze the supplied url. If needed convert it to an equevelant raw
+        user content url.
+
+        Example:
+            https://github.com/autopkg/recipes/blob/e06bcef/Gen/gen.recipe ->
+            https://raw.githubusercontent.com/autopkg/recipes/e06bcef/Gen/gen.recipe"
+
+        url: Request url. The host must be either github.com, www.github.com or
+             raw.githubusercontent.com, request to any other host will fail.
+        """
+
+        scheme, host, path = urlparse(url)[:3]
+        if host == RAW_USER_CONTENT_HOST:
+            # The url is already formatted
+            pass
+        elif host == 'github.com' or host == 'www.github.com':
+            host = RAW_USER_CONTENT_HOST
+            path = path.replace('/blob/','/')
+        else:
+            raise urllib2.HTTPError('''The supplied URL is not appropriate for
+            a GitHub raw data request.''')
+
+        return urlunparse((scheme, host, path, '', '', ''))
+
+    # Public methods
+    def read(self, url):
+        """Return a tuple of a data response from from urllib2's read() method
+        and and HTTP status code. The data returned on error will be None.
+        """
+        try:
+            raw_content_url = self._paser_gh_raw_content_url(url)
+            req = RequestWithMethod('GET', raw_content_url)
+            data = None
+
+            response = urllib2.urlopen(req)
+            status = response.getcode()
+            data = response.read()
+        except urllib2.HTTPError as err:
+            if not self.fail_silently:
+                status = err.code
+                print >> sys.stderr, "Raw content request error: %s" % err
+
+        except urllib2.URLError as err:
+            if not self.fail_silently:
+                print >> sys.stderr, "Error opening URL: %s" % url
+                print >> sys.stderr, err.reason
+            (data, status) = (None, None)
+
+
+        return (data, status)
 
 
 class GitHubSession(object):

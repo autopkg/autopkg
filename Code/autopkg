@@ -247,7 +247,8 @@ def locate_recipe(name, override_dirs, recipe_dirs,
             % (indef_article, name))
         if answer.lower().startswith('y'):
             results_limit = 100
-            query = "q=%s+extension:recipe+user:autopkg+in:file,path" % name
+            query = 'q="%s"+extension:recipe+user:autopkg+in:file,path' % name
+
             query += "&per_page=%s" % results_limit
 
             results = do_gh_code_search(query, use_token=False)
@@ -286,14 +287,63 @@ def locate_recipe(name, override_dirs, recipe_dirs,
 
             # make a list of unique repo names
             repo_names = []
-            for item in results_items:
-                repo_name = item["repository"]['name']
-                if repo_name not in repo_names:
-                    repo_names.append(repo_name)
 
-            if len(repo_names) == 1:
-                # we found results in a single repo, so offer to add it
-                repo = results_items[0]["repository"]
+            # make an exact match
+            exact_match_idx = -1
+
+            # First iterate through the list looking for an exact match based
+            # on the file name of the recipe. If an exact match is found here
+            # There's no need to do any subsequent HTTP requests.
+            for idx, item in enumerate(results_items):
+                file_name = item.get('name')
+                if name + '.recipe' == file_name:
+                    exact_match_idx = idx
+                    break
+
+            if exact_match_idx == -1:
+                # If an exact match was not detected based on the file name
+                # start doing http requests up to the max_request value trying
+                # to detect a matching Identifier from the returned plist data.
+
+                # Set a sensible max number of http requests to
+                # make when searching for an exact match. The initial
+                # results are ordered by 'score', there's a good chance
+                # it's in the top 5.
+                max_requests = 5
+                gh_raw_data_session =  \
+                    autopkglib.github.GitHubRawUserContentSession(
+                                                             fail_silently=True)
+                for idx, item in enumerate(results_items):
+                    repo_name = item["repository"]['name']
+                    if repo_name not in repo_names:
+                        if idx < max_requests:
+                            # If less than the set number of max_requests
+                            # try to retrieve the recipe plist data from GitHub.
+                            url = item.get('html_url')
+                            data, status = gh_raw_data_session.read(url)
+                            plist = None
+                            if status == 200:
+                                try:
+                                    plist = FoundationPlist.readPlistFromString(
+                                                                           data)
+                                    identifier = plist.get(
+                                        'Identifier', plist.get('IDENTIFIER'))
+
+                                    if name == identifier:
+                                        print
+                                        print "A recipe was found with an " \
+                                         "identifier matching '%s' in the " \
+                                         "recipe repo '%s'" % (name, repo_name)
+                                        exact_match_idx = idx
+                                        break
+                                except FoundationPlist.FoundationPlistException:
+                                    pass
+
+                        repo_names.append(repo_name)
+
+            if exact_match_idx > -1 or len(repo_names) == 1:
+                # We found an exact match or single result, offer to add it.
+                repo = results_items[exact_match_idx]["repository"]
                 print
                 answer = raw_input(
                     "Add recipe repo '%s'? [y/n]: " % repo['name'])
@@ -1066,7 +1116,7 @@ def get_recipe_list(override_dirs=None, search_dirs=None,
                 recipe["Name"] = os.path.splitext(recipe_name)[0]
                 recipe["Path"] = match
 
-                # If a top level "Identifer" keys is not discovered,
+                # If a top level "Identifier" keys is not discovered,
                 # this will copy an IDENTIFIER key in the "Input"
                 # entry to the top level of the recipe dictionary.
                 if not "Identifier" in recipe:
