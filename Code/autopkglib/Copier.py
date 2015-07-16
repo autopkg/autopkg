@@ -73,6 +73,7 @@ class Copier(DmgMounter):
                 shutil.copytree(source_item, dest_item, symlinks=True)
             elif not os.path.isdir(dest_item):
                 shutil.copyfile(source_item, dest_item)
+                shutil.copymode(source_item, dest_item)
             else:
                 shutil.copy(source_item, dest_item)
             self.output("Copied %s to %s" % (source_item, dest_item))
