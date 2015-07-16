@@ -11,7 +11,7 @@ ADDITIONS:
   releases posted on GitHub.
 - `autopkg run` interactively offers suggestions for similar recipe names when a recipe can't
   be found, and also offers to search for the desired recipe on GitHub.
-- New 'install' verb. `autopkg install Firefox` is equivilent to `autopkg run Firefox.install`
+- New `install` verb. `autopkg install Firefox` is equivilent to `autopkg run Firefox.install`
 - Processors may now define their own summary reporting data. Previously AutoPkg provided
   summary data only for several known, core processors like URLDownloader, PkgCreator, etc.
   Now AutoPkg will print out data provided within a dict value of an env key ending in
