@@ -1553,8 +1553,9 @@ def run_recipes(argv):
             # build a format string for each row based on our
             # column widths
             format_str = '    '
-            for width in widths:
-                format_str += "{:<" + str(width) + "}"
+            for count, width in enumerate(widths):
+                # adding format strings with 'count' for 2.6 compatibility
+                format_str += "{" + str(count) + ":<" + str(width) + "}"
 
             # print each row (which includes the header rows)
             for row in rows:
