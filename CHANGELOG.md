@@ -1,4 +1,9 @@
-### 0.4.3 (Unreleased)
+### 0.5.0 (Unreleased)
+
+BREAKING CHANGES:
+
+- The structure of a plist output by `--report-plist` has changed to reflect the
+  structure of the summary results described below in ADDITIONS. (GH-163)
 
 ADDITIONS:
 
@@ -18,18 +23,17 @@ IMPROVEMENTS:
 - AutoPkg now warns against being run as root.
 - Use of new launchd 2.0 socket API is used by autopkgserver if running on Yosemite or
   higher. (GH-176)
+- URLDownloader is now able to decompress gzip-encoded content. (GH-184)
+- FileCreator now supports optional `file_mode` input variable.
+- SparkleUpdateInfoProvider processor is now skipped early if `--pkg` argument is given
+  to `autopkg run`, similar to URLDownloader.
 
 FIXES:
 
 - Fixes in MunkiImporter's logic when attempting to locate a matching item in a repo.
 - PkgCreator: fix an exception when setting `mode` on a direcotry (in `chown`, in
   `pkg_request`). (GH-177)
-
-CHANGES:
-
-- The structure of a plist output by `--report-plist` has changed to reflect the
-  structure of the summary results described above in ADDITIONS. (GH-163)
-
+- BrewCaskInfoProvider now properly interpolates '#{version}' within 'url' strings.
 
 ### 0.4.2 (December 12, 2014)
 
