@@ -15,7 +15,7 @@ ADDITIONS:
 - Processors may now define their own summary reporting data. Previously AutoPkg provided
   summary data only for several known, core processors like URLDownloader, PkgCreator, etc.
   Now AutoPkg will print out data provided within a dict value of an env key ending in
-  `_summary_result` (see code used in [PkgCreator.py](https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PkgCreator.py) as an example). (GH-163)
+  `_summary_result` (see [Processor Summary Reporting](https://github.com/autopkg/autopkg/wiki/Processor-Summary-Reporting) on the AutoPkg wiki). (GH-163)
 
 IMPROVEMENTS:
 
