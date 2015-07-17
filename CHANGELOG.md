@@ -1,4 +1,4 @@
-### 0.5.0 (Unreleased)
+### 0.5.0 (July 17, 2015)
 
 BREAKING CHANGES:
 
