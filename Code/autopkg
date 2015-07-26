@@ -1502,12 +1502,14 @@ def run_recipes(argv):
                     result = item["Output"][key]
                     summary_text = result.get('summary_text', '')
                     data = result.get('data')
+                    data['recipe_name'] = recipe_path
                     if key not in summary_results:
                         summary_results[key] = {}
                         summary_results[key]['summary_text'] = summary_text
                         if type(data).__name__ in ['dict', '__NSCFDictionary']:
                             summary_results[key]['header'] = (
                                 result.get('report_fields') or data.keys())
+                            summary_results[key]['header'].append('recipe_name')
                         summary_results[key]['data_rows'] = []
                     summary_results[key]['data_rows'].append(data)
 
