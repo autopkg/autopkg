@@ -153,8 +153,9 @@ be done as root, so it's best done as a separate process.
     # write today's date in the changelog
     with open(changelog_path, 'r') as fdesc:
         changelog = fdesc.read()
-    release_date = strftime("%B %d, %Y")
-    new_changelog = re.sub('Unreleased', release_date, changelog)
+    release_date = strftime('(%B %d, %Y)')
+    new_changelog = re.sub('\(Unreleased\)', release_date, changelog)
+    new_changelog = re.sub('...HEAD', '...v%s' % current_version, new_changelog)
     with open(changelog_path, 'w') as fdesc:
         fdesc.write(new_changelog)
 
@@ -168,8 +169,8 @@ be done as root, so it's best done as a separate process.
         subprocess.check_call(['git', 'push', '--tags', 'origin', 'master'])
 
     # extract release notes for this new version
-    match = re.search(r"(?P<current_ver_notes>\#\#\# %s.+?)\#\#\#"
-                      % current_version, new_changelog, re.DOTALL)
+    notes_rex = r"(?P<current_ver_notes>\#\#\# \[%s\].+?)\#\#\#" % current_version
+    match = re.search(notes_rex, new_changelog, re.DOTALL)
     if not match:
         sys.exit("Couldn't extract release notes for this version!")
     release_notes = match.group('current_ver_notes')
@@ -252,7 +253,7 @@ be done as root, so it's best done as a separate process.
     plistlib.writePlist(plist, version_plist_path)
 
     # increment changelog
-    new_changelog = "### %s (Unreleased)\n\n" % next_version + new_changelog
+    new_changelog = "### [{0}](https://github.com/autopkg/autopkg/compare/v{1}...HEAD) (Unreleased)\n\n".format(next_version, current_version) + new_changelog
     with open(changelog_path, 'w') as fdesc:
         fdesc.write(new_changelog)
 
