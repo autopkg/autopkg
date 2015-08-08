@@ -1,5 +1,10 @@
 ### [0.5.1](https://github.com/autopkg/autopkg/compare/v0.5.0...HEAD) (Unreleased)
 
+ADDITIONS:
+
+- New processor, PackageRequired. Can be added to recipes that require a --pkg
+  argument (or `PKG` variable), where a public .download recipe is not feasible. (GH-207)
+
 ### [0.5.0](https://github.com/autopkg/autopkg/compare/v0.4.2...v0.5.0) (July 17, 2015)
 
 BREAKING CHANGES:
