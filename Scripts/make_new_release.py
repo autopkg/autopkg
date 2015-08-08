@@ -204,7 +204,8 @@ be done as root, so it's best done as a separate process.
         sys.exit("Recipe run error: %s" % report['failures'][0]['message'])
 
     # collect pkg file data
-    built_pkg_path = report['new_packages'][0]['pkg_path']
+    pkg_result = report['pkg_creator_summary_result']
+    built_pkg_path = pkg_result['data_rows'][0]['pkg_path']
     pkg_filename = os.path.basename(built_pkg_path)
     with open(built_pkg_path, 'rb') as fdesc:
         pkg_data = fdesc.read()
