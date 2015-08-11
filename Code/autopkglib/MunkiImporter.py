@@ -377,17 +377,17 @@ class MunkiImporter(Processor):
                 raise ProcessorError("Could not create %s: %s"
                                      % (destination_path, err.strerror))
 
-        extension = "plist"
-        if self.env.get("MUNKI_PKGINFO_FILE_EXTENSION"):
-            extension = self.env["MUNKI_PKGINFO_FILE_EXTENSION"].strip(".")
-        pkginfo_name = "%s-%s.%s" % (pkginfo["name"],
+        extension = self.env.get("MUNKI_PKGINFO_FILE_EXTENSION", "plist")
+        if len(extension) > 0:
+            extension = '.' + extension.strip(".")
+        pkginfo_name = "%s-%s%s" % (pkginfo["name"],
                                      pkginfo["version"].strip(),
                                      extension)
         pkginfo_path = os.path.join(destination_path, pkginfo_name)
         index = 0
         while os.path.exists(pkginfo_path):
             index += 1
-            pkginfo_name = "%s-%s__%s.%s" % (
+            pkginfo_name = "%s-%s__%s%s" % (
                 pkginfo["name"], pkginfo["version"], index, extension)
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
