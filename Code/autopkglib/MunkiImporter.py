@@ -160,7 +160,7 @@ class MunkiImporter(Processor):
                         pkgvers = receipt['version']
                         if not pkgid in pkgid_table:
                             pkgid_table[pkgid] = {}
-                        if (not pkgvers in pkgid_table[pkgid]):
+                        if not pkgvers in pkgid_table[pkgid]:
                             pkgid_table[pkgid][pkgvers] = []
                         pkgid_table[pkgid][pkgvers].append(itemindex)
                 except TypeError:
