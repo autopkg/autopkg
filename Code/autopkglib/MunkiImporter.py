@@ -156,12 +156,13 @@ class MunkiImporter(Processor):
             for receipt in item.get('receipts', []):
                 try:
                     if 'packageid' in receipt and 'version' in receipt:
-                        if not receipt['packageid'] in pkgid_table:
-                            pkgid_table[receipt['packageid']] = {}
-                        if not vers in pkgid_table[receipt['packageid']]:
-                            pkgid_table[receipt['packageid']][vers] = []
-                        pkgid_table[
-                            receipt['packageid']][vers].append(itemindex)
+                        pkgid = receipt['packageid']
+                        pkgvers = receipt['version']
+                        if not pkgid in pkgid_table:
+                            pkgid_table[pkgid] = {}
+                        if (not pkgvers in pkgid_table[pkgid]):
+                            pkgid_table[pkgid][pkgvers] = []
+                        pkgid_table[pkgid][pkgvers].append(itemindex)
                 except TypeError:
                     # skip this receipt
                     continue
