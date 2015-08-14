@@ -242,7 +242,7 @@ class URLDownloader(Processor):
 
         except BaseException as err:
             raise ProcessorError(
-                "Couldn't download %s: %s" % (self.env["url"], err))
+                "Couldn't download %s (%s)" % (self.env["url"], err))
         finally:
             if url_handle is not None:
                 url_handle.close()
