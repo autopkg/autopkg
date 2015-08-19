@@ -232,7 +232,7 @@ class MunkiImporter(Processor):
 
         # try to match against installed applications
         applist = [item for item in pkginfo.get('installs', [])
-                   if item.get('type') == 'application' and 'path' in item]
+                   if item.get('type') in ('application', 'bundle') and 'path' in item]
         if applist:
             matching_indexes = []
             for app in applist:
