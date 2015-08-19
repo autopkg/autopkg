@@ -4,6 +4,19 @@ ADDITIONS:
 
 - New processor, PackageRequired. Can be added to recipes that require a --pkg
   argument (or `PKG` variable), where a public .download recipe is not feasible. (GH-207)
+- New proof-of-concept processors CURLDownloader and CURLTextSearcher, drop-in
+  replacements for URLDownloader and URLTextSearcher which use cURL instead of
+  Python urllib2. Can be used to mitigate issues with SSL and the system Python.
+
+IMPROVEMENTS:
+
+- PathDeleter: Guard against the mistake of `path_list` being a single string instead
+  of a list of strings. (GH-200)
+- Compatibility fixes in packaging and install daemons for future OS X releases.
+- `MUNKI_PKGINFO_FILE_EXTENSION` default variable can now be an empty string to
+  eliminate a pkginfo file extension altogether. (GH-212)
+- MunkiImporter: When attempting to match previous versions of existing items, check bundle
+  `installs` types in addition to well as application types. (GH-216)
 
 ### [0.5.0](https://github.com/autopkg/autopkg/compare/v0.4.2...v0.5.0) (July 17, 2015)
 
