@@ -15,8 +15,13 @@ IMPROVEMENTS:
 - Compatibility fixes in packaging and install daemons for future OS X releases.
 - `MUNKI_PKGINFO_FILE_EXTENSION` default variable can now be an empty string to
   eliminate a pkginfo file extension altogether. (GH-212)
-- MunkiImporter: When attempting to match previous versions of existing items, check bundle
-  `installs` types in addition to well as application types. (GH-216)
+- MunkiImporter: When attempting to match previous versions of existing items, check `bundle`
+  `installs` types in addition to well as `application` types. (GH-216)
+
+FIXES:
+
+- URLDownloader: Fix issue where URL has updated ETag/Last-Modified but a matching
+  filesize, and would not continue downloading the new file. (GH-219)
 
 ### [0.5.0](https://github.com/autopkg/autopkg/compare/v0.4.2...v0.5.0) (July 17, 2015)
 
