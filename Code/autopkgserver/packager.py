@@ -358,7 +358,11 @@ class Packager(object):
                      str(entry.user),
                      str(entry.group)))
 
-            chownpath = os.path.join(self.tmp_pkgroot, entry.path)
+            if entry.path.startswith('/'):
+                chownpath = os.path.join(self.tmp_pkgroot,
+                    entry.path.lstrip('/'))
+            else:
+                chownpath = os.path.join(self.tmp_pkgroot, entry.path)
             if "mode" in entry.keys():
                 chmod_present = True
             else:
