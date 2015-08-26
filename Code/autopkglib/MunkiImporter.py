@@ -156,12 +156,13 @@ class MunkiImporter(Processor):
             for receipt in item.get('receipts', []):
                 try:
                     if 'packageid' in receipt and 'version' in receipt:
-                        if not receipt['packageid'] in pkgid_table:
-                            pkgid_table[receipt['packageid']] = {}
-                        if not vers in pkgid_table[receipt['packageid']]:
-                            pkgid_table[receipt['packageid']][vers] = []
-                        pkgid_table[
-                            receipt['packageid']][vers].append(itemindex)
+                        pkgid = receipt['packageid']
+                        pkgvers = receipt['version']
+                        if not pkgid in pkgid_table:
+                            pkgid_table[pkgid] = {}
+                        if not pkgvers in pkgid_table[pkgid]:
+                            pkgid_table[pkgid][pkgvers] = []
+                        pkgid_table[pkgid][pkgvers].append(itemindex)
                 except TypeError:
                     # skip this receipt
                     continue
@@ -231,7 +232,7 @@ class MunkiImporter(Processor):
 
         # try to match against installed applications
         applist = [item for item in pkginfo.get('installs', [])
-                   if item.get('type') == 'application' and 'path' in item]
+                   if item.get('type') in ('application', 'bundle') and 'path' in item]
         if applist:
             matching_indexes = []
             for app in applist:
@@ -377,17 +378,17 @@ class MunkiImporter(Processor):
                 raise ProcessorError("Could not create %s: %s"
                                      % (destination_path, err.strerror))
 
-        extension = "plist"
-        if self.env.get("MUNKI_PKGINFO_FILE_EXTENSION"):
-            extension = self.env["MUNKI_PKGINFO_FILE_EXTENSION"].strip(".")
-        pkginfo_name = "%s-%s.%s" % (pkginfo["name"],
+        extension = self.env.get("MUNKI_PKGINFO_FILE_EXTENSION", "plist")
+        if len(extension) > 0:
+            extension = '.' + extension.strip(".")
+        pkginfo_name = "%s-%s%s" % (pkginfo["name"],
                                      pkginfo["version"].strip(),
                                      extension)
         pkginfo_path = os.path.join(destination_path, pkginfo_name)
         index = 0
         while os.path.exists(pkginfo_path):
             index += 1
-            pkginfo_name = "%s-%s__%s.%s" % (
+            pkginfo_name = "%s-%s__%s%s" % (
                 pkginfo["name"], pkginfo["version"], index, extension)
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 

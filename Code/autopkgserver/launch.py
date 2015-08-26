@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from ctypes import *
-libc = CDLL("libc.dylib")
+libc = CDLL("/usr/lib/libc.dylib")
 
 
 c_launch_data_t = c_void_p

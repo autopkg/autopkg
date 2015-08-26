@@ -16,7 +16,7 @@
 
 import os
 from ctypes import *
-libc = CDLL("libc.dylib")
+libc = CDLL("/usr/lib/libc.dylib")
 
 
 # int launch_activate_socket(const char *name, int **fds, size_t *cnt)

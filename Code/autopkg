@@ -1626,8 +1626,15 @@ def main(argv):
 
     # Warn against running as root
     if os.getuid() == 0:
-        log_err("WARNING: Running AutoPkg as root or using `sudo` is not "
-                "recommended! Please run as a regular user.\n")
+        log_err("\n" + "WARNING! " * 8 + "\n")
+        log_err(
+            "    Running AutoPkg as root or using `sudo` is not recommended!\n"
+            "    A mistake in a recipe or processor could modify or delete\n"
+            "    important system files.\n"
+            "    Please run autopkg as an unprivileged user.\n"
+            "    A future release of autopkg may fail with an error if run as\n"
+            "    root.\n")
+        log_err("WARNING! " * 8 + "\n")
 
     try:
         verb = argv[1]

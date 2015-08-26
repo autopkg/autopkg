@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2014 Greg Neagle
+# Copyright 2014-2015 Greg Neagle
 # Based heavily on Per Olofsson's autopkgserver
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,13 +25,13 @@ import SocketServer
 import socket
 import plistlib
 import struct
+import platform
 
 from itemcopier import ItemCopier, ItemCopierError
 from installer import Installer, InstallerError
-import launch
 
 APPNAME = "autopkginstalld"
-VERSION = "0.1"
+VERSION = "0.2"
 
 class RunHandler(SocketServer.StreamRequestHandler):
     '''Handler for autopkginstalld run requests'''
@@ -122,7 +122,7 @@ class RunHandler(SocketServer.StreamRequestHandler):
                     "user %d" % uid)
                 try:
                     installer = Installer(self.log, self.request, plist)
-                    result = installer.install()
+                    installer.install()
                     self.request.send("OK:DONE\n")
                 except InstallerError as err:
                     self.log.error("Installing failed: %s" % err)
@@ -133,7 +133,7 @@ class RunHandler(SocketServer.StreamRequestHandler):
                     "user %d" % uid)
                 try:
                     copier = ItemCopier(self.log, self.request, plist)
-                    result = copier.copy()
+                    copier.copy()
                     self.request.send("OK:DONE\n")
                 except ItemCopierError as err:
                     self.log.error("Copying failed: %s" % err)
@@ -245,20 +245,35 @@ def main(argv):
     start_time = time.time()
 
     # Get socket file descriptors from launchd.
-    try:
-        sockets = launch.get_launchd_socket_fds()
-    except launch.LaunchDCheckInError as err:
-        print >> sys.stderr, "launchd check-in failed: %s" % err
-        time.sleep(10)
-        return 1
+    if int(platform.mac_ver()[0].split(u".")[1]) >= 10:
+        import launch2
+        try:
+            sockets = launch2.launch_activate_socket("autopkginstalld")
+        except launch2.LaunchDError as err:
+            print >>sys.stderr, "launchd check-in failed: %s" % err
+            time.sleep(10)
+            return 1
 
-    if not "autopkginstalld" in sockets:
-        print >> sys.stderr, "No autopkginstalld in launchd sockets"
-        time.sleep(10)
-        return 1
+        sock_fd = sockets[0]
+
+    else:
+        import launch
+        try:
+            sockets = launch.get_launchd_socket_fds()
+        except launch.LaunchDCheckInError as err:
+            print >>sys.stderr, "launchd check-in failed: %s" % err
+            time.sleep(10)
+            return 1
+
+        if not "AutoPkgServer" in sockets:
+            print >>sys.stderr, "No autopkginstalld in launchd sockets"
+            time.sleep(10)
+            return 1
+
+        sock_fd = sockets["autopkginstalld"][0]
 
     # Create the daemon object.
-    daemon = AutoPkgInstallDaemon(sockets["autopkginstalld"][0], RunHandler)
+    daemon = AutoPkgInstallDaemon(sock_fd, RunHandler)
     daemon.setup_logging()
     daemon.log.info("%s v%s starting" % (APPNAME, VERSION))
 

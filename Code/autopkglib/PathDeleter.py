@@ -29,7 +29,8 @@ class PathDeleter(Processor):
         "path_list": {
             "required": True,
             "description":
-                "List of pathnames to be deleted",
+                ("An array or list of pathnames to be deleted, "
+                 "even if that list contains a single item."),
         },
     }
     output_variables = {
@@ -37,6 +38,11 @@ class PathDeleter(Processor):
     description = __doc__
 
     def main(self):
+        # if recipe writer gave us a single string instead of a list of strings,
+        # convert it to a list of strings
+        if isinstance(self.env["path_list"], basestring):
+            self.env["path_list"] = [self.env["path_list"]]
+
         for path in self.env["path_list"]:
             try:
                 if os.path.isfile(path) or os.path.islink(path):

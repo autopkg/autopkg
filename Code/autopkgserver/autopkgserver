@@ -131,10 +131,15 @@ chown_structure = {
 #signal.signal(signal.SIGTERM, sig_handler)
 
 
+class AutoPkgServerError(Exception):
+    """Exception class for AutoPkgServer errors"""
+    pass
+
 class PkgHandler(SocketServer.StreamRequestHandler):
     """Handler for packaging requests."""
 
-    re_uid_gid = re.compile(r'^AUTH:AUTHENTICATE (?P<uid>\d{1,10}):(?P<gid>\d{1,10})$')
+    re_uid_gid = re.compile(
+        r'^AUTH:AUTHENTICATE (?P<uid>\d{1,10}):(?P<gid>\d{1,10})$')
 
     def verify_request_syntax(self, plist):
         """Verify the basic syntax of request plist."""
@@ -146,7 +151,7 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         if not isinstance(plist, dict):
             errors.append("Request root is not a dictionary")
             # Bail out early if it's not.
-            return False
+            return (False, errors)
 
         syntax_ok = True
 
@@ -196,10 +201,10 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         # /usr/include/sys/ucred.h
         #
         # struct xucred {
-        #         u_int   cr_version;             /* structure layout version */
-        #         uid_t   cr_uid;                 /* effective user id */
-        #         short   cr_ngroups;             /* number of advisory groups */
-        #         gid_t   cr_groups[NGROUPS];     /* advisory group list */
+        #         u_int   cr_version;            /* structure layout version */
+        #         uid_t   cr_uid;                /* effective user id */
+        #         short   cr_ngroups;            /* number of advisory groups */
+        #         gid_t   cr_groups[NGROUPS];    /* advisory group list */
         # };
 
         LOCAL_PEERCRED = 0x001
@@ -211,7 +216,10 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         cr_groups = 3
 
         xucred_fmt = "IIh%dI" % NGROUPS
-        res = struct.unpack(xucred_fmt, self.request.getsockopt(0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)))
+        res = struct.unpack(
+            xucred_fmt,
+            self.request.getsockopt(
+                0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)))
 
         if res[cr_version] != XUCRED_VERSION:
             raise OSError("Incompatible struct xucred version")
@@ -229,7 +237,8 @@ class PkgHandler(SocketServer.StreamRequestHandler):
             # Get uid and primary gid of connecting peer.
             uid, gids = self.getpeerid()
             gid = gids[0]
-            self.log.debug("Got packaging request from uid %d gid %d" % (uid, gid))
+            self.log.debug(
+                "Got packaging request from uid %d gid %d" % (uid, gid))
 
             # Receive a plist.
             plist_string = self.request.recv(8192)
@@ -237,7 +246,7 @@ class PkgHandler(SocketServer.StreamRequestHandler):
             # Try to parse it.
             try:
                 plist = plistlib.readPlistFromString(plist_string)
-            except BaseException as e:
+            except BaseException as err:
                 self.log.error("Malformed request")
                 self.request.send("ERROR:Malformed request\n")
                 return
@@ -256,24 +265,26 @@ class PkgHandler(SocketServer.StreamRequestHandler):
                 self.request.send("ERROR:Can't find pkgroot")
                 return
 
-            self.log.info("Dispatching worker to process request for user %d" % (uid))
+            self.log.info(
+                "Dispatching worker to process request for user %d" % (uid))
             try:
-                p = Packager(self.log, plist, name, uid, gid)
-                pkgpath = p.package()
+                pkgr = Packager(self.log, plist, name, uid, gid)
+                pkgpath = pkgr.package()
                 self.log.info("Package built at %s" % pkgpath)
                 self.request.send("OK:%s\n" % pkgpath)
-            except PackagerError as e:
-                self.log.error("Packaging failed: %s" % (e))
-                self.request.send(str(e) + "\n")
+            except PackagerError as err:
+                self.log.error("Packaging failed: %s" % (err))
+                self.request.send(str(err) + "\n")
 
-        except BaseException as e:
-            self.log.error("Caught exception: %s" % repr(e))
-            self.request.send("ERROR:Caught exception: %s" % repr(e))
+        except BaseException as err:
+            self.log.error("Caught exception: %s" % repr(err))
+            self.request.send("ERROR:Caught exception: %s" % repr(err))
             return
 
 
 class AutoPkgServer(SocketServer.UnixStreamServer):
-    """Daemon that runs as root, receiving requests to create installer packages."""
+    """Daemon that runs as root, receiving requests to create installer
+    packages."""
 
     allow_reuse_address = True
     request_queue_size = 10
@@ -282,7 +293,8 @@ class AutoPkgServer(SocketServer.UnixStreamServer):
     def __init__(self, socket_fd, RequestHandlerClass):
         # Avoid initialization of UnixStreamServer as we need to open the
         # socket from a file descriptor instead of creating our own.
-        self.socket = socket.fromfd(socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
+        self.socket = socket.fromfd(
+            socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
         self.socket.listen(self.request_queue_size)
         SocketServer.BaseServer.__init__(self,
                                          self.socket.getsockname(),
@@ -318,8 +330,8 @@ class AutoPkgServer(SocketServer.UnixStreamServer):
 
             self.log.addHandler(log_console)
             self.log.addHandler(log_file)
-        except (OSError, IOError) as e:
-            raise AutoPkgServerError("Can't open log: %s" % (e.strerror))
+        except (OSError, IOError) as err:
+            raise AutoPkgServerError("Can't open log: %s" % (err.strerror))
 
     def handle_timeout(self):
         self.timed_out = True
@@ -369,27 +381,27 @@ def main(argv):
         import launch2
         try:
             sockets = launch2.launch_activate_socket("AutoPkgServer")
-        except launch2.LaunchDError as e:
-            print >>sys.stderr, "launchd check-in failed: %s" % e
+        except launch2.LaunchDError as err:
+            print >>sys.stderr, "launchd check-in failed: %s" % err
             time.sleep(10)
             return 1
-        
+
         sock_fd = sockets[0]
-    
+
     else:
         import launch
         try:
             sockets = launch.get_launchd_socket_fds()
-        except launch.LaunchDCheckInError as e:
-            print >>sys.stderr, "launchd check-in failed: %s" % e
+        except launch.LaunchDCheckInError as err:
+            print >>sys.stderr, "launchd check-in failed: %s" % err
             time.sleep(10)
             return 1
-        
+
         if not "AutoPkgServer" in sockets:
             print >>sys.stderr, "No AutoPkgServer in launchd sockets"
             time.sleep(10)
             return 1
-        
+
         sock_fd = sockets["AutoPkgServer"][0]
 
     # Create the server object.
@@ -412,8 +424,9 @@ def main(argv):
             if run_time < 10.0:
                 # Only sleep for a short while in case new requests pop up.
                 sleep_time = min(1.0, 10.0 - run_time)
-                server.log.debug( \
-                    "sleeping for %f seconds to make launchd happy" % sleep_time)
+                server.log.debug(
+                    "sleeping for %f seconds to make launchd happy"
+                    % sleep_time)
                 time.sleep(sleep_time)
             else:
                 break

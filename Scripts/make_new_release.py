@@ -97,6 +97,12 @@ be done as root, so it's best done as a separate process.
     parser.add_option('-v', '--next-version',
                       help=("Next version to which AutoPkg will be "
                             "incremented. Required."))
+    parser.add_option('--dry-run', action='store_true',
+                      help=("Don't actually push any changes to "
+                            "Git remotes, and skip the actual release "
+                            "creation. Useful for testing changes "
+                            "to this script. Any GitHub API calls made "
+                            "are read-only."))
 
     opts = parser.parse_args()[0]
     if not opts.next_version:
@@ -104,6 +110,8 @@ be done as root, so it's best done as a separate process.
     if not opts.token:
         sys.exit("Option --token is required!")
     next_version = opts.next_version
+    if opts.dry_run:
+        print "Running in 'dry-run' mode.."
     token = opts.token
     # ensure our OAuth token works before we go any further
     api_call('/users/autopkg', token)
@@ -145,8 +153,9 @@ be done as root, so it's best done as a separate process.
     # write today's date in the changelog
     with open(changelog_path, 'r') as fdesc:
         changelog = fdesc.read()
-    release_date = strftime("%B %d, %Y")
-    new_changelog = re.sub('Unreleased', release_date, changelog)
+    release_date = strftime('(%B %d, %Y)')
+    new_changelog = re.sub('\(Unreleased\)', release_date, changelog)
+    new_changelog = re.sub('...HEAD', '...v%s' % current_version, new_changelog)
     with open(changelog_path, 'w') as fdesc:
         fdesc.write(new_changelog)
 
@@ -155,12 +164,13 @@ be done as root, so it's best done as a separate process.
     subprocess.check_call(
         ['git', 'commit', '-m', 'Release version %s.' % current_version])
     subprocess.check_call(['git', 'tag', tag_name])
-    subprocess.check_call(['git', 'push', 'origin', 'master'])
-    subprocess.check_call(['git', 'push', '--tags', 'origin', 'master'])
+    if not opts.dry_run:
+        subprocess.check_call(['git', 'push', 'origin', 'master'])
+        subprocess.check_call(['git', 'push', '--tags', 'origin', 'master'])
 
     # extract release notes for this new version
-    match = re.search(r"(?P<current_ver_notes>\#\#\# %s.+?)\#\#\#"
-                      % current_version, new_changelog, re.DOTALL)
+    notes_rex = r"(?P<current_ver_notes>\#\#\# \[%s\].+?)\#\#\#" % current_version
+    match = re.search(notes_rex, new_changelog, re.DOTALL)
     if not match:
         sys.exit("Couldn't extract release notes for this version!")
     release_notes = match.group('current_ver_notes')
@@ -195,7 +205,8 @@ be done as root, so it's best done as a separate process.
         sys.exit("Recipe run error: %s" % report['failures'][0]['message'])
 
     # collect pkg file data
-    built_pkg_path = report['new_packages'][0]['pkg_path']
+    pkg_result = report['summary_results']['pkg_creator_summary_result']
+    built_pkg_path = pkg_result['data_rows'][0]['pkg_path']
     pkg_filename = os.path.basename(built_pkg_path)
     with open(built_pkg_path, 'rb') as fdesc:
         pkg_data = fdesc.read()
@@ -209,30 +220,32 @@ be done as root, so it's best done as a separate process.
     release_data['draft'] = False
 
     # create the release
-    create_release = api_call(
-        '/repos/%s/releases' % GITHUB_REPO,
-        token,
-        data=release_data)
-    if create_release:
-        print "Release successfully created. Server response:"
-        pprint(create_release)
-        print
-
-        # upload the pkg as a release asset
-        new_release_id = create_release['id']
-        endpoint = ('/repos/%s/releases/%s/assets?name=%s'
-                    % (GITHUB_REPO, new_release_id, pkg_filename))
-        upload_asset = api_call(
-            endpoint,
+    if not opts.dry_run:
+        create_release = api_call(
+            '/repos/%s/releasesA' % GITHUB_REPO,
             token,
-            baseurl='https://uploads.github.com',
-            data=pkg_data,
-            json_data=False,
-            additional_headers={'Content-Type': 'application/octet-stream'})
-        if upload_asset:
-            print "Successfully attached .pkg release asset. Server response:"
-            pprint(upload_asset)
+            data=release_data)
+        if create_release:
+            print "Release successfully created. Server response:"
+            pprint(create_release)
             print
+
+            # upload the pkg as a release asset
+            new_release_id = create_release['id']
+            endpoint = ('/repos/%s/releases/%s/assets?name=%s'
+                        % (GITHUB_REPO, new_release_id, pkg_filename))
+            upload_asset = api_call(
+                endpoint,
+                token,
+                baseurl='https://uploads.github.com',
+                data=pkg_data,
+                json_data=False,
+                additional_headers={'Content-Type': 'application/octet-stream'})
+            if upload_asset:
+                print ("Successfully attached .pkg release asset. Server "
+                       "response:")
+                pprint(upload_asset)
+                print
 
     # increment version
     print "Incrementing version to %s.." % next_version
@@ -240,7 +253,7 @@ be done as root, so it's best done as a separate process.
     plistlib.writePlist(plist, version_plist_path)
 
     # increment changelog
-    new_changelog = "### %s (Unreleased)\n\n" % next_version + new_changelog
+    new_changelog = "### [{0}](https://github.com/autopkg/autopkg/compare/v{1}...HEAD) (Unreleased)\n\n".format(next_version, current_version) + new_changelog
     with open(changelog_path, 'w') as fdesc:
         fdesc.write(new_changelog)
 
@@ -249,8 +262,11 @@ be done as root, so it's best done as a separate process.
     subprocess.check_call(
         ['git', 'commit', '-m',
          'Bumping to v%s for development.' % next_version])
-    subprocess.check_call(['git', 'push', 'origin', 'master'])
-
+    if not opts.dry_run:
+        subprocess.check_call(['git', 'push', 'origin', 'master'])
+    else:
+        print ("Ended dry-run mode. Final state of the AutoPkg repo can be "
+               "found at: %s" % autopkg_root)
     # clean up
     rmtree(recipes_dir)
 
