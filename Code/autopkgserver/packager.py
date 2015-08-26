@@ -358,11 +358,10 @@ class Packager(object):
                      str(entry.user),
                      str(entry.group)))
 
-            if entry.path.startswith('/'):
-                chownpath = os.path.join(self.tmp_pkgroot,
-                    entry.path.lstrip('/'))
-            else:
-                chownpath = os.path.join(self.tmp_pkgroot, entry.path)
+            # If an absolute path is passed in entry.path, os.path.join
+            # will not join it to the tmp_pkgroot. We need to strip out
+            # the leading / to make sure we only touch the pkgroot.
+            chownpath = os.path.join(self.tmp_pkgroot, entry.path.lstrip('/'))
             if "mode" in entry.keys():
                 chmod_present = True
             else:
