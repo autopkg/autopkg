@@ -18,7 +18,6 @@
 
 import os
 import sys
-
 import imp
 import FoundationPlist
 import pprint
@@ -290,7 +289,7 @@ class Processor(object):
                 self.env[variable] = flags["default"]
                 self.output("No value supplied for %s, setting default value "
                             "of: %s" % (variable, self.env[variable]),
-                           verbose_level=2)
+                            verbose_level=2)
             # Make sure all required arguments have been supplied.
             if flags.get("required") and (variable not in self.env):
                 raise ProcessorError(
@@ -468,19 +467,24 @@ class AutoPackager(object):
 
             try:
                 self.env = processor.process()
-            except ProcessorError as err:
+            except Exception as err:
+                # Well-behaved processors should handle exceptions and
+                # raise ProcessorError. However, we catch Exception
+                # here to ensure that unexpected/unhandled exceptions
+                # from one processor do not prevent execution of
+                # subsequent recipes.
                 print >> sys.stderr, unicode(err)
                 raise AutoPackagerError(
                     "Error in %s: Processor: %s: Error: %s"
-                    %(identifier, step["Processor"], unicode(err)))
+                    % (identifier, step["Processor"], unicode(err)))
 
             output_dict = {}
             for key in processor.output_variables.keys():
                 # Safety workaround for Processors that may output
-                # differently-named output variables than are given in their
-                # output_variables
-                # TODO: develop a generic solution for processors that can
-                #       dynamically set their output_variables
+                # differently-named output variables than are given in
+                # their output_variables
+                # TODO: develop a generic solution for processors that
+                #       can dynamically set their output_variables
                 if processor.env.get(key):
                     output_dict[key] = self.env[key]
             if self.verbose > 1:
@@ -538,17 +542,17 @@ def add_processor(name, processor_object):
 
 #pylint: disable=invalid-name
 def extract_processor_name_with_recipe_identifier(processor_name):
-    '''Returns a tuple of (processor_name, identifier), given a Processor name.
-    This is to handle a processor name that may include a recipe identifier, in
-    the format:
+    '''Returns a tuple of (processor_name, identifier), given a Processor
+    name.  This is to handle a processor name that may include a recipe
+    identifier, in the format:
 
     com.github.autopkg.recipes.somerecipe/ProcessorName
 
     identifier will be None if one was not extracted.'''
     identifier, delim, processor_name = processor_name.partition('/')
     if not delim:
-        # if no '/' was found, the first item in the tuple will be the full
-        # string, the processor name
+        # if no '/' was found, the first item in the tuple will be the
+        # full string, the processor name
         processor_name = identifier
         identifier = None
     return (processor_name, identifier)
@@ -600,8 +604,8 @@ def get_processor(processor_name, recipe=None, env=None):
                     # we've added a Processor, so stop searching
                     break
                 except (ImportError, AttributeError), err:
-                    # if we aren't successful, that might be OK, we're going
-                    # see if the processor was already imported
+                    # if we aren't successful, that might be OK, we're
+                    # going see if the processor was already imported
                     print >> sys.stderr, (
                         "WARNING: %s: %s" % (processor_filename, err))
 
