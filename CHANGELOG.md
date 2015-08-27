@@ -17,6 +17,13 @@ IMPROVEMENTS:
   eliminate a pkginfo file extension altogether. (GH-212)
 - MunkiImporter: When attempting to match previous versions of existing items, check `bundle`
   `installs` types in addition to well as `application` types. (GH-216)
+- PkgCreator: Previously, in `pkg_request`'s `chown` dict, if an absolute path was
+  given in `path`, that literal path would be used rather than relative to the pkg
+  root. Now, if an absolute path is given, it will still be properly joined to the
+  pkg root. (GH-220)
+- Fix issue where an unhandled exception in any recipe processor would halt the entire
+  AutoPkg run and Python would abort with a traceback. The output of `--report-plist`
+  now stores the relevant traceback within `failures` item dicts. (GH-147)
 
 FIXES:
 
