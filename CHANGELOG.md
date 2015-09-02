@@ -1,3 +1,5 @@
+### [0.5.2](https://github.com/autopkg/autopkg/compare/v0.5.1...HEAD) (Unreleased)
+
 ### [0.5.1](https://github.com/autopkg/autopkg/compare/v0.5.0...v0.5.1) (September 02, 2015)
 
 ADDITIONS:
