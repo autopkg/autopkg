@@ -113,7 +113,7 @@ def get_identifier(recipe):
             return None
 
 
-def get_identifer_from_recipe_file(filename):
+def get_identifier_from_recipe_file(filename):
     '''Attempts to read plist file filename and get the
     identifier. Otherwise, returns None.'''
     try:
@@ -138,7 +138,7 @@ def find_recipe_by_identifier(identifier, search_dirs):
         for pattern in patterns:
             matches = glob.glob(pattern)
             for match in matches:
-                if get_identifer_from_recipe_file(match) == identifier:
+                if get_identifier_from_recipe_file(match) == identifier:
                     return match
 
     return None
