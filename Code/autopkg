@@ -343,7 +343,9 @@ def load_recipe(name, override_dirs, recipe_dirs,
             # so that we'll be able to locate the parent
             recipe_dirs.append(os.path.dirname(recipe_file))
             # load its parent, this time not looking in override directories
-            recipe = load_recipe(parent_id, [], recipe_dirs)
+            recipe = load_recipe(parent_id, [], recipe_dirs,
+                                 make_suggestions=make_suggestions,
+                                 search_github=search_github)
             if recipe:
                 # merge child_recipe
                 recipe["Identifier"] = get_identifier(child_recipe)
