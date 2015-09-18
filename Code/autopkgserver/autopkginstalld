@@ -265,7 +265,7 @@ def main(argv):
             time.sleep(10)
             return 1
 
-        if not "AutoPkgServer" in sockets:
+        if not "autopkginstalld" in sockets:
             print >>sys.stderr, "No autopkginstalld in launchd sockets"
             time.sleep(10)
             return 1
