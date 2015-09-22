@@ -144,10 +144,8 @@ class SparkleUpdateInfoProvider(Processor):
         except:
             raise ProcessorError("Error parsing XML from appcast feed.")
 
-        try:
-            items = xmldata.findall("channel/item")
-            assert len(items) > 0
-        except:
+        items = xmldata.findall("channel/item")
+        if not items:
             raise ProcessorError("No channel items were found in appcast feed.")
 
         versions = []
