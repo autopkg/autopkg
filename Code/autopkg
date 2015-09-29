@@ -40,7 +40,6 @@ import re
 import shutil
 import subprocess
 import time
-import traceback
 import autopkglib.github
 
 from urlparse import urlparse
@@ -1465,7 +1464,7 @@ def run_recipes(argv):
             log_err("Failed.")
             failure["recipe"] = recipe_path
             failure["message"] = unicode(err)
-            failure["traceback"] = traceback.format_exc()
+            failure["traceback"] = err.traceback
             failures.append(failure)
             autopackager.results.append({'RecipeError': unicode(err).rstrip()})
 
@@ -1530,8 +1529,12 @@ def run_recipes(argv):
     if failures:
         log("\nThe following recipes failed:")
         for item in failures:
-            log("    %s" % item["recipe"])
-            log("        %s" % item["message"])
+            log("\n" + 4 * " " + item["recipe"])
+            for line in item["message"].splitlines():
+                log(8 * " " + line)
+            if options.verbose > 1:
+                for line in item["traceback"].splitlines():
+                    log(8 * " " + line)
 
     if summary_results:
         for key, value in summary_results.items():

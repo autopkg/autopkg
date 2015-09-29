@@ -24,6 +24,7 @@ import pprint
 import re
 import subprocess
 import glob
+import traceback
 
 #pylint: disable=no-name-in-module
 try:
@@ -474,9 +475,11 @@ class AutoPackager(object):
                 # from one processor do not prevent execution of
                 # subsequent recipes.
                 print >> sys.stderr, unicode(err)
-                raise AutoPackagerError(
-                    "Error in %s: Processor: %s: Error: %s"
+                error = AutoPackagerError(
+                    "Recipe Identifier: %s\nProcessor: %s\nError: %s"
                     % (identifier, step["Processor"], unicode(err)))
+                error.__setattr__("traceback", traceback.format_exc())
+                raise error
 
             output_dict = {}
             for key in processor.output_variables.keys():
