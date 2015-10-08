@@ -76,14 +76,13 @@ def call_api(endpoint, method="GET", query=None, data=None, headers=None,
         for key, value in headers.items():
             req.add_header(key, value)
 
+    resp_data = None
     try:
         urlfd = urllib2.urlopen(req, data=data)
         status = urlfd.getcode()
         response = urlfd.read()
         if response:
             resp_data = json.loads(response)
-        else:
-            resp_data = None
     except urllib2.HTTPError as err:
         status = err.code
         print >> sys.stderr, "API error: %s" % err
