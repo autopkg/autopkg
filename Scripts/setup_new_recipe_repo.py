@@ -143,7 +143,9 @@ def main():
         sys.exit("You must provide a token with '-t', and it must have admin "
                  "access for the org.")
 
-    repo_components = args[0].split("/")
+    repo_arg = args[0]
+    repo_arg = repo_arg.strip('/')
+    repo_components = repo_arg.split("/")
     source_repo_user = repo_components[-2]
     source_repo_name = repo_components[-1]
     print ("Using source repo: user %s, repo %s"
