@@ -33,18 +33,26 @@ class Versioner(DmgMounter):
         "input_plist_path": {
             "required": True,
             "description":
-                ("File path to a plist. Can point to a path inside a .dmg "
-                 "which will be mounted."),
+                "File path to a plist or a .dmg containing an app. If the "
+                "path points to a plist inside a .dmg, the image will be "
+                "mounted. If the path is to a disk image, Versioner will use "
+                "the first app found's Contents/Info.plist.",
         },
         "plist_version_key": {
             "required": False,
             "default": "CFBundleShortVersionString",
             "description":
-                ("Which plist key to use; defaults to "
-                 "CFBundleShortVersionString"),
+                "Which plist key to use; defaults to "
+                 "CFBundleShortVersionString",
         },
     }
     output_variables = {
+        "app_name": {
+            "description": "Name of the app."
+        },
+        "bundleid": {
+            "description": "Bundle identifier of the app.",
+        },
         "version": {
             "description": "Version of the item.",
         },
