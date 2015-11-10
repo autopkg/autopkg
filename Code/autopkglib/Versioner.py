@@ -66,25 +66,37 @@ class Versioner(DmgMounter):
         """Return an app name, bundleid, and version for file."""
         input_plist_path = self.env["input_plist_path"]
 
-        # Is there an image extension anywhere in the path?
-        if any(ext in input_plist_path for ext in self.DMG_EXTENSIONS):
-            (dmg_path, dmg, _) = (
-                self.parsePathForDMG(input_plist_path))
-
-            if dmg or dmg_path.endswith(tuple(self.DMG_EXTENSIONS)):
-                try:
-                    mount_point = self.mount(dmg_path)
-                    plist_path = self.parse_input_path(mount_point)
-                    plist = self.get_plist(plist_path)
-                finally:
-                    self.unmount(dmg_path)
-
-        # No disk images involved.
+        if self.is_image(input_plist_path):
+            results = self.get_plist_from_dmg(input_plist_path)
         else:
-            plist_path = self.parse_input_path(input_plist_path)
-            plist = self.get_plist(plist_path)
+            results = self.get_plist_from_path(input_plist_path)
 
-        self.set_output_variables(plist, plist_path)
+        self.set_output_variables(*results)
+
+    def is_image(self, path):
+        """Return bool whether path includes an image component."""
+        return any(ext in path for ext in self.DMG_EXTENSIONS)
+
+    def get_plist_from_dmg(self, input_plist_path):
+        """Get a plist and its path if found in a dmg
+
+        Searches for bundles if none are included.
+        """
+        (dmg_path, dmg, _) = (
+            self.parsePathForDMG(input_plist_path))
+
+        if dmg or dmg_path.endswith(tuple(self.DMG_EXTENSIONS)):
+            try:
+                mount_point = self.mount(dmg_path)
+                plist, plist_path = self.get_plist_from_path(mount_point)
+            finally:
+                self.unmount(dmg_path)
+        return (plist, plist_path)
+
+    def get_plist_from_path(self, input_plist_path):
+        """Get a plist and its path if found in a bundle."""
+        plist_path = self.parse_input_path(input_plist_path)
+        return (self.get_plist(plist_path), plist_path)
 
     def parse_input_path(self, plist_path):
         """Ensure a path includes a valid bundle Info.plist.
