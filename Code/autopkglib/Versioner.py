@@ -37,10 +37,10 @@ class Versioner(DmgMounter):
         "input_plist_path": {
             "required": True,
             "description":
-                "File path to a plist or a .dmg containing an app. If the "
-                "path points to a plist inside a .dmg, the image will be "
-                "mounted. If the path is to a disk image, Versioner will use "
-                "the first app found's Contents/Info.plist.",
+                "File path to a plist or a bundle. If the path is relative to "
+                "a disk image, that disk image is mounted before parsing the "
+                "plist.  If no bundle is specified, Versioner will find the "
+                "first bundle at the path, prioritizing apps.",
         },
         "plist_version_key": {
             "required": False,
