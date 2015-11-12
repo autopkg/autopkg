@@ -239,7 +239,9 @@ class CURLDownloader(Processor):
         # to the pathname
         if os.path.exists(pathname):
             os.remove(pathname)
-        if not os.rename(pathname_temporary, pathname):
+        try:
+            os.rename(pathname_temporary, pathname)
+        except OSError:
             raise ProcessorError(
                     "Can't move %s to %s" % (pathname_temporary, pathname))
 
