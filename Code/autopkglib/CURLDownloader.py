@@ -154,6 +154,10 @@ class CURLDownloader(Processor):
             for header, value in headers.items():
                 curl_cmd.extend(['--header', '%s: %s' % (header, value)])
 
+        # if file already exists and the size is 0, discard it and download again
+        if os.path.exists(pathname) and os.path.getsize(pathname) == 0:
+            os.remove(pathname)
+
         # if file already exists, add some headers to the request
         # so we don't retrieve the content if it hasn't changed
         if os.path.exists(pathname):
