@@ -41,6 +41,7 @@ class Versioner(DmgMounter):
                 "a disk image, that disk image is mounted before parsing the "
                 "plist.  If no bundle is specified, Versioner will find the "
                 "first bundle at the path, prioritizing apps.",
+            "default": "",
         },
         "plist_version_key": {
             "required": False,
