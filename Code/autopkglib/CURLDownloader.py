@@ -21,6 +21,7 @@ import subprocess
 import time
 #import urllib2
 import xattr
+import tempfile
 #import zlib
 
 from autopkglib import Processor, ProcessorError
@@ -135,6 +136,10 @@ class CURLDownloader(Processor):
                 raise ProcessorError(
                     "Can't create %s: %s" % (download_dir, err.strerror))
 
+        # Create a temp file
+        temporary_file = tempfile.NamedTemporaryFile(dir=download_dir, delete=False)
+        pathname_temporary = temporary_file.name
+
         # construct curl command.
         curl_cmd = [self.env['CURL_PATH'],
                     '--silent', '--show-error', '--no-buffer',
@@ -142,12 +147,16 @@ class CURLDownloader(Processor):
                     '--speed-time', '30',
                     '--location',
                     '--url', self.env["url"],
-                    '--output', pathname]
+                    '--output', pathname_temporary]
 
         if "request_headers" in self.env:
             headers = self.env["request_headers"]
             for header, value in headers.items():
                 curl_cmd.extend(['--header', '%s: %s' % (header, value)])
+
+        # if file already exists and the size is 0, discard it and download again
+        if os.path.exists(pathname) and os.path.getsize(pathname) == 0:
+            os.remove(pathname)
 
         # if file already exists, add some headers to the request
         # so we don't retrieve the content if it hasn't changed
@@ -222,9 +231,23 @@ class CURLDownloader(Processor):
             self.env["download_changed"] = False
             self.output("Item at URL is unchanged.")
             self.output("Using existing %s" % pathname)
+
+            # Discard the temp file
+            os.remove(pathname_temporary)
+
             return
 
         self.env["download_changed"] = True
+
+        # New resource was downloaded. Move the temporary download file
+        # to the pathname
+        if os.path.exists(pathname):
+            os.remove(pathname)
+        try:
+            os.rename(pathname_temporary, pathname)
+        except OSError:
+            raise ProcessorError(
+                    "Can't move %s to %s" % (pathname_temporary, pathname))
 
         # save last-modified header if it exists
         if header.get("last-modified"):
