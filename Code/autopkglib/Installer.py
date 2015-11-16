@@ -44,8 +44,8 @@ class Installer(DmgMounter):
             "description": (
                 "new_package_request is set by the PkgCreator processor to "
                 "indicate that a new package was built. If this key is set in "
-                "the environment and is False or empty the installation will be"
-                "skipped.")
+                "the environment and is False or empty the installation will "
+                "be skipped.")
         },
         "download_changed": {
             "required": False,
