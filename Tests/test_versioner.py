@@ -31,7 +31,10 @@ class TestVersioner(unittest.TestCase):
         resources = os.path.join(os.getcwd(), "resources")
         # TODO: Replace all of these files with a mock.
         cls.test_app_name = "Test.app"
+        cls.test_empty_app_name = "TestEmpty.app"
         cls.test_plugin_name = "Test.plugin"
+        cls.test_empty_bundle = os.path.join(resources, "EmptyInfo.plist")
+        cls.test_empty_app = os.path.join(resources, cls.test_empty_app_name)
         cls.test_app = os.path.join(resources, cls.test_app_name)
         cls.test_dmg = os.path.join(resources, "Test.dmg")
         cls.test_dmg_multiple = os.path.join(resources, "TestMultiple.dmg")
@@ -71,13 +74,16 @@ class TestVersioner(unittest.TestCase):
     def test_get_cfbundleversion(self):
         cfbundleversion = "CFBundleVersion"
         results = self.process(self.test_app, cfbundleversion)
-        self.assertEqual(
-            results["version"], self.expected[cfbundleversion])
+        self.assertEqual(results["version"], self.expected[cfbundleversion])
+        results = self.process(self.test_empty_app)
+        self.assertEqual(results["version"], "UNKNOWN_VERSION")
 
-    def test__get_bundle_id(self):
+    def test_get_bundle_id(self):
         results = self.process(self.test_app)
         self.assertEqual(
             results["bundleid"], self.expected["CFBundleIdentifier"])
+        results = self.process(self.test_empty_app)
+        self.assertEqual(results["bundleid"], "UNKNOWN_BUNDLE_ID")
 
     def test_get_app_name(self):
         # Test with an app as input
@@ -97,6 +103,10 @@ class TestVersioner(unittest.TestCase):
         results = self.process(
             os.path.join(self.test_dmg, "Contents/Info.plist"))
         self.assertEqual(results["app_name"], self.test_app_name)
+
+        # Test that no bundle results in exception.
+        self.assertRaises(autopkglib.ProcessorError, self.process,
+                          self.test_empty_bundle)
 
     def test_find_app_in_dmg_with_others(self):
         results = self.process(self.test_dmg_multiple)

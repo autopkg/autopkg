@@ -108,7 +108,8 @@ class Versioner(DmgMounter):
         If a path does not include the suffix Contents/Info.plist, add
         it.
         """
-        if not plist_path.endswith(BUNDLE_SUFFIX):
+        if (not plist_path.endswith(os.path.basename(BUNDLE_SUFFIX)) or
+                not plist_path.endswith(BUNDLE_SUFFIX)):
             if not plist_path.endswith(BUNDLE_TYPES):
                 plist_path = self.find_bundle(plist_path)
 
@@ -126,13 +127,18 @@ class Versioner(DmgMounter):
         Returns:
             String path to found bundle, or None.
         """
+        result = None
         #pylint: disable=no-self-use
         for bundle_type in BUNDLE_TYPES:
             bundle = glob.glob(os.path.join(path, "*%s" % bundle_type))
             if len(bundle):
                 result = bundle[0]
                 self.output("Found bundle %s" % result)
-                return result
+                break
+        if not result:
+            raise ProcessorError("No bundle found at %s" % path)
+        else:
+            return result
 
     def get_plist(self, plist_path):
         """Return a plist object from file at plist_path."""
