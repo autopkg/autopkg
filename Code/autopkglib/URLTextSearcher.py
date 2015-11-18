@@ -16,6 +16,7 @@
 """See docstring for URLTextSearcher class"""
 
 import re
+import urllib
 import urllib2
 
 from autopkglib import Processor, ProcessorError
@@ -49,6 +50,11 @@ class URLTextSearcher(Processor):
         're_flags': {
             'description': ('Optional array of strings of Python regular '
                             'expression flags. E.g. IGNORECASE.'),
+            'required': False,
+        },
+        'url_quote': {
+            'description': ('If True, causes the matched string to be '
+                            'encoded. Equal to urllib.quote(url)'),
             'required': False,
         },
     }
@@ -108,6 +114,8 @@ class URLTextSearcher(Processor):
         self.output_variables = {}
         for key in groupdict.keys():
             self.env[key] = groupdict[key]
+            if self.env.get('url_quote', False):
+                self.env[key] = urllib.quote(self.env[key], 'http://')
             self.output('Found matching text (%s): %s' % (key, self.env[key], ))
             self.output_variables[key] = {
                 'description': 'Matched regular expression group'}
