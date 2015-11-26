@@ -24,6 +24,7 @@ import pprint
 import re
 import subprocess
 import glob
+from urlparse import urlsplit
 
 #pylint: disable=no-name-in-module
 try:
@@ -143,6 +144,62 @@ def find_recipe_by_identifier(identifier, search_dirs):
 
     return None
 
+def reverse_domain_for_repo(clone_url):
+    '''Construct a reverse domain name for a given repo.
+    This should handle any form in the GIT URLS section of `git clone --help`
+
+    All of the following examples return "com.github.autopkg.recipes"
+        git@github.com:/autopkg/recipes/
+        github.com:autopkg/recipes/
+        https://user:pass@github.com:80/autopkg/recipes/
+        ftp://github.com:21/autopkg/recipes
+
+    Local repos return this
+        /User/myname/repos -> localhost.repos
+    '''
+
+    def normalize(path):
+        '''Strip unwanted characters from the string'''
+        path = path.replace('/', '.')
+        while path.find('..') != -1:
+            path = path.replace('..', '.')
+        return path.lower().strip('.')
+
+    # check if the path is local and a git repo
+    if os.path.exists(os.path.join(clone_url, '.git')):
+        name = os.path.basename(os.path.normpath(clone_url))
+        return normalize('localhost.' + name)
+
+    parts = urlsplit(clone_url)
+
+    # check for scp like syntax i.e git@github.com:/repo/path
+    # Note: checking both : and :/ their position eliminates false positives.
+    sep1_idx = clone_url.find(':/')
+    sep2_idx = clone_url.find(':')
+    sep3_idx = clone_url.find('.')
+
+    if (sep2_idx != -1 and sep1_idx == -1) or (sep1_idx > sep2_idx) \
+                                           or (sep2_idx > sep3_idx):
+        # Find and clip commercial at sign that occurs before the seperator
+        # This check is to handle the unlikely, but possible situation
+        # of an @ in the path component
+        if clone_url.find('@') < sep2_idx:
+            clone_url = clone_url.split('@', 1)[-1]
+        parts = urlsplit(clone_url)
+        domain = parts.scheme
+    else:
+        domain = urlsplit(clone_url).hostname
+
+    # Bail out if there's not domain or no path
+    if not domain or not parts.path:
+        return None
+
+    reverse_domain = '.'.join(reversed(domain.split('.')))
+    # discard file extension if any
+    path = os.path.splitext(parts.path)[0]
+
+    # put everything back together domain + path
+    return normalize('.'.join([reverse_domain, path]))
 
 def get_autopkg_version():
     '''Gets the version number of autopkg'''

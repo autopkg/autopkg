@@ -50,6 +50,7 @@ from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
 from autopkglib import get_autopkg_version, version_equal_or_greater
+from autopkglib import reverse_domain_for_repo
 from autopkglib import find_recipe_by_identifier, \
                        get_identifier
 
@@ -163,8 +164,10 @@ def valid_override_file(filename):
     return valid_override_plist(override_plist)
 
 def valid_repo_url(url):
-    '''Returns True if the url is a git clone url, otherwise False'''
-    return True if url.startswith('git@') or urlparse(url).netloc else False
+    '''Check if the specified repo is a valid git repo conforming to any syntax
+    listed in GIT URLS section of `git clone --help`
+    '''
+    return True if reverse_domain_for_repo(url) else False
 
 def find_recipe_by_name(name, search_dirs):
     '''Search search_dirs for a recipe by file/directory naming rules'''
@@ -475,19 +478,14 @@ def run_git(git_options_and_arguments, git_directory=None):
     else:
         return cmd_out
 
-
 def get_recipe_repo(git_path):
     """git clone git_path to local disk and return local path"""
 
-    # figure out a local directory name to clone to
-    parts = urlparse(git_path)
-    domain_and_port = parts.netloc
-    # discard port if any
-    domain = domain_and_port.split(':')[0]
-    reverse_domain = '.'.join(reversed(domain.split('.')))
-    # discard file extension if any
-    url_path = os.path.splitext(parts.path)[0]
-    dest_name = reverse_domain + url_path.replace('/', '.')
+    dest_name = reverse_domain_for_repo(git_path)
+    if not dest_name:
+        log_err("%s is not a valid git repo format!" % git_path)
+        return None
+
     recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or
                        "~/Library/AutoPkg/RecipeRepos")
     recipe_repo_dir = os.path.expanduser(recipe_repo_dir)
