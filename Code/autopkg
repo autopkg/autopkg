@@ -771,9 +771,10 @@ def repo_update(argv):
                 repo_dirs.append(repo_path)
 
     for repo_dir in repo_dirs:
-        log("Attempting git pull for %s..." % repo_dir)
+        log("Attempting git fetch and update for %s..." % repo_dir)
         try:
-            log(run_git(['pull'], git_directory=repo_dir))
+            log(run_git(['fetch', '--all'], git_directory=repo_dir))
+            log(run_git(['reset', '--hard', 'origin/HEAD'], git_directory=repo_dir))
         except GitError, err:
             log_err(err)
 
