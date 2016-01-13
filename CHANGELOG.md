@@ -1,5 +1,11 @@
 ### [0.5.2](https://github.com/autopkg/autopkg/compare/v0.5.1...HEAD) (Unreleased)
 
+FIXES:
+- Fix for curl/CURLDownloader saving zero-byte files. (GH-237)
+- Don't prompt to search recipes when running `autopkg run --recipe-list`. (GH-223)
+- Fix a regression in 0.5.1 in running .install recipes on OS X 10.9 and earlier.
+- Properly handle the case of SparkleUpdateInfoProvider finding no items in an appcast feed. (GH-208)
+
 ### [0.5.1](https://github.com/autopkg/autopkg/compare/v0.5.0...v0.5.1) (September 02, 2015)
 
 ADDITIONS:
