@@ -1,4 +1,4 @@
-### [0.5.2](https://github.com/autopkg/autopkg/compare/v0.5.1...HEAD) (Unreleased)
+### [0.5.2](https://github.com/autopkg/autopkg/compare/v0.5.1...v0.5.2) (January 13, 2016)
 
 FIXES:
 - Fix for curl/CURLDownloader saving zero-byte files. (GH-237)
