@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2013 Timothy Sutton
+# Copyright 2013-2016 Timothy Sutton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -90,9 +90,9 @@ class SparkleUpdateInfoProvider(Processor):
         },
         "version": {
             "description": ("Version for the download extracted from the feed. "
-                            "This is a human-readable version if the feed has it "
-                            "(e.g., 2.3.4-pre4), and the basic machine-readable "
-                            "version (e.g., 823a) otherwise.")
+                            "This is a human-readable version if the feed has "
+                            "it (e.g., 2.3.4-pre4), and the basic machine-"
+                            "readable version (e.g., 823a) otherwise.")
         },
         "additional_pkginfo": {
             "description": ("A pkginfo containing additional keys extracted "
