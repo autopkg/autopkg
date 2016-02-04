@@ -108,6 +108,7 @@ class URLDownloader(Processor):
 
         self.env["last_modified"] = ""
         self.env["etag"] = ""
+        existing_file_size = None
 
         if "PKG" in self.env:
             self.env["pathname"] = os.path.expanduser(self.env["PKG"])
@@ -159,6 +160,7 @@ class URLDownloader(Processor):
         # if file already exists, add some headers to the request
         # so we don't retrieve the content if it hasn't changed
         if os.path.exists(pathname):
+            existing_file_size = os.path.getsize(pathname)
             etag = getxattr(pathname, XATTR_ETAG)
             last_modified = getxattr(pathname, XATTR_LAST_MODIFIED)
             if etag:
@@ -166,7 +168,6 @@ class URLDownloader(Processor):
             if last_modified:
                 curl_cmd.extend(
                     ['--header', 'If-Modified-Since: %s' % last_modified])
-            existing_file_length = os.path.getsize(pathname)
 
         # Open URL.
         proc = subprocess.Popen(curl_cmd, shell=False, bufsize=1,
@@ -243,6 +244,23 @@ class URLDownloader(Processor):
             os.remove(pathname_temporary)
 
             return
+
+        # If Content-Length header is present and we had a cached
+        # file, see if it matches the size of the cached file.
+        # Useful for webservers that don't provide Last-Modified
+        # and ETag headers.
+        if not header.get("etag") and \
+           not header.get("last-modified"):
+            size_header = header.get("content-length")
+            if size_header and int(size_header) == existing_file_size:
+                self.env["download_changed"] = False
+                self.output("File size returned by webserver matches that "
+                            "of the cached file: %s bytes" % size_header)
+                self.output("WARNING: Matching a download by filesize is a "
+                            "fallback mechanism that does not guarantee "
+                            "that a build is unchanged.")
+                self.output("Using existing %s" % pathname)
+                return
 
         self.env["download_changed"] = True
 
