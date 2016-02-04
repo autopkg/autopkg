@@ -68,6 +68,18 @@ class URLDownloader(Processor):
             "required": False,
             "description": "Filename to override the URL's tail.",
         },
+        "check_content_length_only": {
+            "default": False,
+            "required": False,
+            "description": ("If True, a server's ETag and Last-Modified "
+                            "headers will not be checked to verify whether "
+                            "a download is newer than a cached item, and only "
+                            "Content-Length (filesize) will be used. This "
+                            "is useful for cases where a download always "
+                            "redirects to different mirrors, which could "
+                            "cause items to be needlessly re-downloaded. "
+                            "Defaults to False."),
+        },
         "PKG": {
             "required": False,
             "description":
@@ -234,23 +246,13 @@ class URLDownloader(Processor):
                 if re.search(r'URL returned error: [0-9]+$', curlerr):
                     header['http_result_code'] = curlerr[curlerr.rfind(' ')+1:]
 
-        if header['http_result_code'] == '304':
-            # resource not modified
-            self.env["download_changed"] = False
-            self.output("Item at URL is unchanged.")
-            self.output("Using existing %s" % pathname)
-
-            # Discard the temp file
-            os.remove(pathname_temporary)
-
-            return
-
         # If Content-Length header is present and we had a cached
         # file, see if it matches the size of the cached file.
         # Useful for webservers that don't provide Last-Modified
         # and ETag headers.
-        if not header.get("etag") and \
-           not header.get("last-modified"):
+        if (not header.get("etag") and \
+           not header.get("last-modified")) or \
+            self.env["check_content_length_only"]:
             size_header = header.get("content-length")
             if size_header and int(size_header) == existing_file_size:
                 self.env["download_changed"] = False
@@ -261,6 +263,17 @@ class URLDownloader(Processor):
                             "that a build is unchanged.")
                 self.output("Using existing %s" % pathname)
                 return
+
+        if header['http_result_code'] == '304':
+            # resource not modified
+            self.env["download_changed"] = False
+            self.output("Item at URL is unchanged.")
+            self.output("Using existing %s" % pathname)
+
+            # Discard the temp file
+            os.remove(pathname_temporary)
+
+            return
 
         self.env["download_changed"] = True
 
