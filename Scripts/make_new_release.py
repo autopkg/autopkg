@@ -222,7 +222,7 @@ be done as root, so it's best done as a separate process.
     # create the release
     if not opts.dry_run:
         create_release = api_call(
-            '/repos/%s/releasesA' % GITHUB_REPO,
+            '/repos/%s/releases' % GITHUB_REPO,
             token,
             data=release_data)
         if create_release:

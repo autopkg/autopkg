@@ -76,14 +76,13 @@ def call_api(endpoint, method="GET", query=None, data=None, headers=None,
         for key, value in headers.items():
             req.add_header(key, value)
 
+    resp_data = None
     try:
         urlfd = urllib2.urlopen(req, data=data)
         status = urlfd.getcode()
         response = urlfd.read()
         if response:
             resp_data = json.loads(response)
-        else:
-            resp_data = None
     except urllib2.HTTPError as err:
         status = err.code
         print >> sys.stderr, "API error: %s" % err
@@ -125,14 +124,21 @@ def main():
                             % default_org))
     parser.add_option("-r", "--destination-repo-name",
                       help=("Destination repo-name. Defaults to "
-                            "'username-recipes'"))
+                            "'username-recipes' (or 'orgname-recipes' if an "
+                            "organization.)"))
     parser.add_option("-p", "--permission-level",
                       default=default_permission_level,
                       help=("Permission level to use for new team. Must be one "
                             "of: %s. Defaults to %s."
                             % (", ".join(permisison_levels),
                                default_permission_level)))
+    parser.add_option("-m", "--org-team-member",
+                      help=("If the source repo is an organization and not a "
+                            "user, a valid GitHub user must be specified "
+                            "with this option. This user will be added to "
+                            "newly-created team."))
     opts, args = parser.parse_args()
+
     if len(args) == 0:
         sys.exit("You must provide a repo in the form of 'user/repo' as the "
                  "only argument!")
@@ -143,7 +149,9 @@ def main():
         sys.exit("You must provide a token with '-t', and it must have admin "
                  "access for the org.")
 
-    repo_components = args[0].split("/")
+    repo_arg = args[0]
+    repo_arg = repo_arg.strip('/')
+    repo_components = repo_arg.split("/")
     source_repo_user = repo_components[-2]
     source_repo_name = repo_components[-1]
     print ("Using source repo: user %s, repo %s"
@@ -164,6 +172,20 @@ def main():
     src_repo, code = call_api(
         "/repos/%s/%s" % (source_repo_user, source_repo_name))
 
+    # Pick who's going to be the new team member
+    new_team_member = source_repo_user
+    if src_repo["owner"]["type"] == "Organization":
+        print "The source repo '%s' is owned by an organization." % source_repo_name
+        if not opts.org_team_member:
+            sys.exit("You must also specify the '--org-team-member' option to "
+                     "specify the user that will be added to the new team.")
+        new_team_member = opts.org_team_member
+
+    _, code = call_api("/users/%s" % new_team_member)
+    if code != 200:
+        sys.exit("New team member '%s' doesn't seem to be a valid GitHub "
+                 "user account." % new_team_member)
+
     # Get the existing repos of the destination user or org
     dest_repos = []
     print "Fetching %s's public repos.." % dest_org
@@ -179,6 +201,22 @@ def main():
     teams, code = call_api("/orgs/%s/teams" % dest_org)
     if new_team_name in [t["name"] for t in teams]:
         sys.exit("Team %s already exists." % new_team_name)
+
+    # Let the user confirm what's going to happen
+    prompt = """\n\nHere's what's going to happen: the repo at '%s'
+will be be cloned and pushed to a new repo at '%s/%s'.
+A new team, '%s', will be created with access to this repo,
+and the GitHub user '%s' will be added to it with '%s' rights.
+
+Type 'yes' to proceed: """ % (repo_arg,
+                               dest_org,
+                               destination_repo_name,
+                               new_team_name,
+                               new_team_member,
+                               opts.permission_level)
+    response = raw_input(prompt)
+    if response != 'yes':
+        sys.exit("Aborted.")
 
     # Create the new bare repo
     new_repo_data = {"name": destination_repo_name,
@@ -211,9 +249,9 @@ def main():
 
     # Add the user to the new team
     # https://developer.github.com/v3/orgs/teams/#add-team-membership
-    print "Adding %s to new team.." % source_repo_user
+    print "Adding %s to new team.." % new_team_member
     user_add_team_endpoint = ("/teams/%s/memberships/%s"
-                              % (new_team["id"], source_repo_user))
+                              % (new_team["id"], new_team_member))
     # We need to explicitly set a Content-Length of 0, otherwise
     # the API server is expecting us to send data because of PUT
     response, code = call_api(user_add_team_endpoint,
@@ -223,7 +261,7 @@ def main():
         print "User membership of team is now %s" % response["state"]
     else:
         sys.exit("Error adding team member %s to new team, "
-                 "HTTP status code %s." % (source_repo_user, code))
+                 "HTTP status code %s." % (new_team_member, code))
 
     # Duplicate the repo using Git
     # https://help.github.com/articles/duplicating-a-repository

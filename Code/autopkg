@@ -40,6 +40,7 @@ import re
 import shutil
 import subprocess
 import time
+import traceback
 import autopkglib.github
 
 from urlparse import urlparse
@@ -342,7 +343,9 @@ def load_recipe(name, override_dirs, recipe_dirs,
             # so that we'll be able to locate the parent
             recipe_dirs.append(os.path.dirname(recipe_file))
             # load its parent, this time not looking in override directories
-            recipe = load_recipe(parent_id, [], recipe_dirs)
+            recipe = load_recipe(parent_id, [], recipe_dirs,
+                                 make_suggestions=make_suggestions,
+                                 search_github=search_github)
             if recipe:
                 # merge child_recipe
                 recipe["Identifier"] = get_identifier(child_recipe)
@@ -1066,7 +1069,7 @@ def get_recipe_list(override_dirs=None, search_dirs=None,
                 recipe["Name"] = os.path.splitext(recipe_name)[0]
                 recipe["Path"] = match
 
-                # If a top level "Identifer" keys is not discovered,
+                # If a top level "Identifier" key is not discovered,
                 # this will copy an IDENTIFIER key in the "Input"
                 # entry to the top level of the recipe dictionary.
                 if not "Identifier" in recipe:
@@ -1462,6 +1465,7 @@ def run_recipes(argv):
             log_err("Failed.")
             failure["recipe"] = recipe_path
             failure["message"] = unicode(err)
+            failure["traceback"] = traceback.format_exc()
             failures.append(failure)
             autopackager.results.append({'RecipeError': unicode(err).rstrip()})
 

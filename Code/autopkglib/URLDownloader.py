@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2010 Per Olofsson
+# Copyright 2015 Greg Neagle
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,9 +16,11 @@
 """See docstring for URLDownloader class"""
 
 import os.path
-import urllib2
+import re
+import subprocess
+import time
 import xattr
-import zlib
+import tempfile
 
 from autopkglib import Processor, ProcessorError
 try:
@@ -33,8 +35,6 @@ __all__ = ["URLDownloader"]
 XATTR_ETAG = "%s.etag" % BUNDLE_ID
 XATTR_LAST_MODIFIED = "%s.last-modified" % BUNDLE_ID
 
-# Download URLs in chunks of 256 kB.
-CHUNK_SIZE = 256 * 1024
 
 def getxattr(pathname, attr):
     """Get a named xattr from a file. Return None if not present"""
@@ -45,7 +45,7 @@ def getxattr(pathname, attr):
 
 
 class URLDownloader(Processor):
-    """Downloads a URL to the specified download_dir."""
+    """Downloads a URL to the specified download_dir using curl."""
     description = __doc__
     input_variables = {
         "url": {
@@ -68,12 +68,29 @@ class URLDownloader(Processor):
             "required": False,
             "description": "Filename to override the URL's tail.",
         },
+        "check_content_length_only": {
+            "default": False,
+            "required": False,
+            "description": ("If True, a server's ETag and Last-Modified "
+                            "headers will not be checked to verify whether "
+                            "a download is newer than a cached item, and only "
+                            "Content-Length (filesize) will be used. This "
+                            "is useful for cases where a download always "
+                            "redirects to different mirrors, which could "
+                            "cause items to be needlessly re-downloaded. "
+                            "Defaults to False."),
+        },
         "PKG": {
             "required": False,
             "description":
                 ("Local path to the pkg/dmg we'd otherwise download. "
                  "If provided, the download is skipped and we just use "
                  "this package or disk image."),
+        },
+        "CURL_PATH": {
+            "required": False,
+            "default": "/usr/bin/curl",
+            "description": "Path to curl binary. Defaults to /usr/bin/curl.",
         },
     }
     output_variables = {
@@ -130,123 +147,173 @@ class URLDownloader(Processor):
                 raise ProcessorError(
                     "Can't create %s: %s" % (download_dir, err.strerror))
 
-        # Download URL.
-        url_handle = None
-        try:
-            request = urllib2.Request(url=self.env["url"])
+        # Create a temp file
+        temporary_file = tempfile.NamedTemporaryFile(dir=download_dir, delete=False)
+        pathname_temporary = temporary_file.name
 
-            if "request_headers" in self.env:
-                headers = self.env["request_headers"]
-                for header, value in headers.items():
-                    request.add_header(header, value)
+        # construct curl command.
+        curl_cmd = [self.env['CURL_PATH'],
+                    '--silent', '--show-error', '--no-buffer',
+                    '--dump-header', '-',
+                    '--speed-time', '30',
+                    '--location',
+                    '--url', self.env["url"],
+                    '--output', pathname_temporary]
 
-            # if file already exists, add some headers to the request
-            # so we don't retrieve the content if it hasn't changed
-            if os.path.exists(pathname):
-                etag = getxattr(pathname, XATTR_ETAG)
-                last_modified = getxattr(pathname, XATTR_LAST_MODIFIED)
-                if etag:
-                    request.add_header("If-None-Match", etag)
-                if last_modified:
-                    request.add_header("If-Modified-Since", last_modified)
-                existing_file_size = os.path.getsize(pathname)
+        if "request_headers" in self.env:
+            headers = self.env["request_headers"]
+            for header, value in headers.items():
+                curl_cmd.extend(['--header', '%s: %s' % (header, value)])
 
-            # Open URL.
+        # if file already exists and the size is 0, discard it and download again
+        if os.path.exists(pathname) and os.path.getsize(pathname) == 0:
+            os.remove(pathname)
+
+        # if file already exists, add some headers to the request
+        # so we don't retrieve the content if it hasn't changed
+        if os.path.exists(pathname):
+            existing_file_size = os.path.getsize(pathname)
+            etag = getxattr(pathname, XATTR_ETAG)
+            last_modified = getxattr(pathname, XATTR_LAST_MODIFIED)
+            if etag:
+                curl_cmd.extend(['--header', 'If-None-Match: %s' % etag])
+            if last_modified:
+                curl_cmd.extend(
+                    ['--header', 'If-Modified-Since: %s' % last_modified])
+
+        # Open URL.
+        proc = subprocess.Popen(curl_cmd, shell=False, bufsize=1,
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+
+        donewithheaders = False
+        maxheaders = 15
+        header = {}
+        header['http_result_code'] = '000'
+        header['http_result_description'] = ''
+        while True:
+            if not donewithheaders:
+                info = proc.stdout.readline().strip('\r\n')
+                if info.startswith('HTTP/'):
+                    try:
+                        header['http_result_code'] = info.split(None, 2)[1]
+                        header['http_result_description'] = (
+                            info.split(None, 2)[2])
+                    except IndexError:
+                        pass
+                elif ': ' in info:
+                    # got a header line
+                    part = info.split(None, 1)
+                    fieldname = part[0].rstrip(':').lower()
+                    try:
+                        header[fieldname] = part[1]
+                    except IndexError:
+                        header[fieldname] = ''
+                elif info == '':
+                    # we got an empty line; end of headers (or curl exited)
+                    if header.get('http_result_code') in [
+                            '301', '302', '303']:
+                        # redirect, so more headers are coming.
+                        # Throw away the headers we've received so far
+                        header = {}
+                        header['http_result_code'] = '000'
+                        header['http_result_description'] = ''
+                    else:
+                        donewithheaders = True
+            else:
+                time.sleep(0.1)
+
+            if proc.poll() != None:
+                # For small download files curl may exit before all headers
+                # have been parsed, don't immediately exit.
+                maxheaders -= 1
+                if donewithheaders or maxheaders <= 0:
+                    break
+
+        retcode = proc.poll()
+        if retcode:
+            curlerr = ''
             try:
-                url_handle = urllib2.urlopen(request)
-            except urllib2.HTTPError, http_err:
-                if http_err.code == 304:
-                    # resource not modified
-                    self.env["download_changed"] = False
-                    self.output("Item at URL is unchanged.")
-                    self.output("Using existing %s" % pathname)
-                    return
-                else:
-                    raise
+                curlerr = proc.stderr.read().rstrip('\n')
+                curlerr = curlerr.split(None, 2)[2]
+            except IndexError:
+                pass
+            if retcode == 22:
+                # 22 means any 400 series return code. Note: header seems not to
+                # be dumped to STDOUT for immediate failures. Hence
+                # http_result_code is likely blank/000. Read it from stderr.
+                if re.search(r'URL returned error: [0-9]+$', curlerr):
+                    header['http_result_code'] = curlerr[curlerr.rfind(' ')+1:]
 
-            # If Content-Length header is present and we had a cached
-            # file, see if it matches the size of the cached file.
-            # Useful for webservers that don't provide Last-Modified
-            # and ETag headers.
-            if not url_handle.info().get("ETag") and \
-               not url_handle.info().get("Last-Modified"):
-                size_header = url_handle.info().get("Content-Length")
-                if size_header and int(size_header) == existing_file_size:
-                    self.env["download_changed"] = False
-                    self.output("File size returned by webserver matches that "
-                                "of the cached file: %s bytes" % size_header)
-                    self.output("WARNING: Matching a download by filesize is a "
-                                "fallback mechanism that does not guarantee "
-                                "that a build is unchanged.")
-                    self.output("Using existing %s" % pathname)
-                    return
+        # If Content-Length header is present and we had a cached
+        # file, see if it matches the size of the cached file.
+        # Useful for webservers that don't provide Last-Modified
+        # and ETag headers.
+        if (not header.get("etag") and \
+           not header.get("last-modified")) or \
+            self.env["check_content_length_only"]:
+            size_header = header.get("content-length")
+            if size_header and int(size_header) == existing_file_size:
+                self.env["download_changed"] = False
+                self.output("File size returned by webserver matches that "
+                            "of the cached file: %s bytes" % size_header)
+                self.output("WARNING: Matching a download by filesize is a "
+                            "fallback mechanism that does not guarantee "
+                            "that a build is unchanged.")
+                self.output("Using existing %s" % pathname)
+                return
 
-            # Handle edge case where server responds with a
-            # 'Content-Encoding: gzip' header, even though we've requested the
-            # default 'Accept-Encoding: identity'
-            content_encoding = url_handle.info().get('Content-Encoding', '')\
-                                    .lower()
-            if content_encoding == 'gzip':
-                # notes on window bit size from http://www.zlib.net/manual.html
-                # "windowBits can also be greater than 15 for optional gzip
-                # decoding. Add 32 to windowBits to enable zlib and gzip
-                # decoding with automatic header detection, or add 16 to decode
-                # only the gzip format (the zlib format will return a
-                # Z_DATA_ERROR)."
-                #
-                # Therefore, we explicitly set the window buffer size to
-                # the width for decoding only gzip. zlib.MAX_WBITS is the 15
-                # mentioned above.
-                gzip_handle = zlib.decompressobj(16 + zlib.MAX_WBITS)
-            elif content_encoding and content_encoding != 'identity':
-                self.output("WARNING: Content-Encoding of %s may not be "
-                            "supported" % content_encoding)
+        if header['http_result_code'] == '304':
+            # resource not modified
+            self.env["download_changed"] = False
+            self.output("Item at URL is unchanged.")
+            self.output("Using existing %s" % pathname)
 
-            # Download file.
-            self.env["download_changed"] = True
-            with open(pathname, "wb") as file_handle:
-                while True:
-                    data = url_handle.read(CHUNK_SIZE)
-                    if len(data) == 0:
-                        break
-                    if content_encoding == 'gzip':
-                        data = gzip_handle.decompress(data)
-                    file_handle.write(data)
+            # Discard the temp file
+            os.remove(pathname_temporary)
 
-            # save last-modified header if it exists
-            if url_handle.info().get("last-modified"):
-                self.env["last_modified"] = (
-                    url_handle.info().get("last-modified"))
-                xattr.setxattr(
-                    pathname, XATTR_LAST_MODIFIED,
-                    url_handle.info().get("last-modified"))
-                self.output(
-                    "Storing new Last-Modified header: %s"
-                    % url_handle.info().get("last-modified"))
+            return
 
-            # save etag if it exists
-            self.env["etag"] = ""
-            if url_handle.info().get("etag"):
-                self.env["etag"] = url_handle.info().get("etag")
-                xattr.setxattr(
-                    pathname, XATTR_ETAG, url_handle.info().get("etag"))
-                self.output("Storing new ETag header: %s"
-                            % url_handle.info().get("etag"))
+        self.env["download_changed"] = True
 
-            self.output("Downloaded %s" % pathname)
-            self.env['url_downloader_summary_result'] = {
-                'summary_text': 'The following new items were downloaded:',
-                'data': {
-                    'download_path': pathname,
-                }
-            }
-
-        except BaseException as err:
+        # New resource was downloaded. Move the temporary download file
+        # to the pathname
+        if os.path.exists(pathname):
+            os.remove(pathname)
+        try:
+            os.rename(pathname_temporary, pathname)
+        except OSError:
             raise ProcessorError(
-                "Couldn't download %s (%s)" % (self.env["url"], err))
-        finally:
-            if url_handle is not None:
-                url_handle.close()
+                    "Can't move %s to %s" % (pathname_temporary, pathname))
+
+        # save last-modified header if it exists
+        if header.get("last-modified"):
+            self.env["last_modified"] = (
+                header.get("last-modified"))
+            xattr.setxattr(
+                pathname, XATTR_LAST_MODIFIED,
+                header.get("last-modified"))
+            self.output(
+                "Storing new Last-Modified header: %s"
+                % header.get("last-modified"))
+
+        # save etag if it exists
+        self.env["etag"] = ""
+        if header.get("etag"):
+            self.env["etag"] = header.get("etag")
+            xattr.setxattr(
+                pathname, XATTR_ETAG, header.get("etag"))
+            self.output("Storing new ETag header: %s"
+                        % header.get("etag"))
+
+        self.output("Downloaded %s" % pathname)
+        self.env['url_downloader_summary_result'] = {
+            'summary_text': 'The following new items were downloaded:',
+            'data': {
+                'download_path': pathname,
+            }
+        }
 
 
 if __name__ == "__main__":

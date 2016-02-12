@@ -1,6 +1,7 @@
 #!/usr/bin/python
 #
-# Copyright 2014 Jesse Peterson
+# Copyright 2015 Greg Neagle
+# Based on URLTextSearcher.py, Copyright 2014 Jesse Peterson
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,14 +17,15 @@
 """See docstring for URLTextSearcher class"""
 
 import re
-import urllib2
+import subprocess
 
 from autopkglib import Processor, ProcessorError
 
 __all__ = ["URLTextSearcher"]
 
 class URLTextSearcher(Processor):
-    '''Downloads a URL and performs a regular expression match on the text.'''
+    '''Downloads a URL using curl and performs a regular expression match
+    on the text.'''
 
     input_variables = {
         're_pattern': {
@@ -51,6 +53,11 @@ class URLTextSearcher(Processor):
                             'expression flags. E.g. IGNORECASE.'),
             'required': False,
         },
+        "CURL_PATH": {
+            "required": False,
+            "default": "/usr/bin/curl",
+            "description": "Path to curl binary. Defaults to /usr/bin/curl.",
+        },
     }
     output_variables = {
         'result_output_var_name': {
@@ -76,11 +83,18 @@ class URLTextSearcher(Processor):
         re_pattern = re.compile(re_pattern, flags=flag_accumulator)
 
         try:
-            req = urllib2.Request(url, headers=headers)
-            file_ref = urllib2.urlopen(req)
-            content = file_ref.read()
-            file_ref.close()
-        except (urllib2.HTTPError, urllib2.URLError, IOError):
+            cmd = [self.env['CURL_PATH'], '--location']
+            if headers:
+                for header, value in headers.items():
+                    cmd.extend(['--header', '%s: %s' % (header, value)])
+            cmd.append(url)
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            (content, stderr) = proc.communicate()
+            if proc.returncode:
+                raise ProcessorError(
+                    'Could not retrieve URL %s: %s' % (url, stderr))
+        except OSError:
             raise ProcessorError('Could not retrieve URL: %s' % url)
 
         match = re_pattern.search(content)
@@ -111,6 +125,7 @@ class URLTextSearcher(Processor):
             self.output('Found matching text (%s): %s' % (key, self.env[key], ))
             self.output_variables[key] = {
                 'description': 'Matched regular expression group'}
+
 
 if __name__ == '__main__':
     PROCESSOR = URLTextSearcher()
