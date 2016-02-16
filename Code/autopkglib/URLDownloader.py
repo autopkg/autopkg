@@ -68,7 +68,7 @@ class URLDownloader(Processor):
             "required": False,
             "description": "Filename to override the URL's tail.",
         },
-        "check_content_length_only": {
+        "DISABLE_LAST_MODIFIED_ETAG_CHECKS": {
             "default": False,
             "required": False,
             "description": ("If True, a server's ETag and Last-Modified "
@@ -252,7 +252,7 @@ class URLDownloader(Processor):
         # and ETag headers.
         if (not header.get("etag") and \
            not header.get("last-modified")) or \
-            self.env["check_content_length_only"]:
+            self.env["DISABLE_LAST_MODIFIED_ETAG_CHECKS"]:
             size_header = header.get("content-length")
             if size_header and int(size_header) == existing_file_size:
                 self.env["download_changed"] = False
