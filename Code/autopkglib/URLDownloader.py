@@ -148,7 +148,8 @@ class URLDownloader(Processor):
                     "Can't create %s: %s" % (download_dir, err.strerror))
 
         # Create a temp file
-        temporary_file = tempfile.NamedTemporaryFile(dir=download_dir, delete=False)
+        temporary_file = tempfile.NamedTemporaryFile(dir=download_dir,
+                                                     delete=False)
         pathname_temporary = temporary_file.name
 
         # construct curl command.
@@ -165,7 +166,8 @@ class URLDownloader(Processor):
             for header, value in headers.items():
                 curl_cmd.extend(['--header', '%s: %s' % (header, value)])
 
-        # if file already exists and the size is 0, discard it and download again
+        # if file already exists and the size is 0, discard it and download
+        # again
         if os.path.exists(pathname) and os.path.getsize(pathname) == 0:
             os.remove(pathname)
 
@@ -285,7 +287,7 @@ class URLDownloader(Processor):
             os.rename(pathname_temporary, pathname)
         except OSError:
             raise ProcessorError(
-                    "Can't move %s to %s" % (pathname_temporary, pathname))
+                "Can't move %s to %s" % (pathname_temporary, pathname))
 
         # save last-modified header if it exists
         if header.get("last-modified"):
