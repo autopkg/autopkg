@@ -127,11 +127,8 @@ class CodeSignatureVerifier(DmgMounter):
             for line in output.splitlines():
                 self.output("%s" % line)
 
-        # Return true only if codesign exited with 0
-        if proc.returncode == 0:
-            return True
-        else:
-            return False
+        # Return True if codesign exited with 0
+        return proc.returncode == 0
 
     def pkgutil_check_signature(self, path):
         """
@@ -158,15 +155,9 @@ class CodeSignatureVerifier(DmgMounter):
         for match in re.finditer(RE_AUTHORITY_PKGUTIL, output):
             authority_name_chain.append(match.group('authority'))
 
-        # Check the pkgutil exit code
-        if proc.returncode == 0:
-            succeeded = True
-        else:
-            succeeded = False
-
         # Return a tuple with boolean status and
         # a list with certificate authority names
-        return succeeded, authority_name_chain
+        return proc.returncode == 0, authority_name_chain
 
     def process_app_bundle(self, path):
         '''Verifies the signature for an application bundle'''
