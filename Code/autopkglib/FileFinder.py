@@ -41,7 +41,7 @@ Currently only supports glob filename patterns.
     }
     output_variables = {
         'found_filename': {
-            'description': 'Found filename',
+            'description': 'Full path of found filename',
         }
     }
 
