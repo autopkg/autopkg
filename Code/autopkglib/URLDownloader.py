@@ -22,6 +22,8 @@ import time
 import xattr
 import tempfile
 
+from urllib2 import unquote
+
 from autopkglib import Processor, ProcessorError
 try:
     from autopkglib import BUNDLE_ID
@@ -113,6 +115,36 @@ class URLDownloader(Processor):
         },
     }
 
+    def _curl_filename(self, curl_args, curl_path=None):
+        if curl_path is None:
+            curl_path = [self.env['CURL_PATH']]
+        curl_cmd = curl_path + curl_args
+        self.output(' '.join(curl_cmd), verbose_level=2)
+        proc = subprocess.Popen(curl_cmd, shell=False, bufsize=1,
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+
+        file_url = proc.stdout.readline()
+        filename = file_url.rpartition("/")[2]
+        return file_url, filename
+
+    def _remote_filename(self, url):
+        curl_args = ['--silent',
+                     '--location',
+                     '--head',
+                     '--write-out', '%{url_effective}',
+                     '--url', url,
+                     '--output', '/dev/null']
+
+        (file_url, filename) = self._curl_filename(curl_args)
+
+        # Decode any special characters in the filename, like %20 to a space.
+        filename = unquote(filename)
+        self.output("Found filename '%s' at '%s'" % (filename, file_url),
+                    verbose_level=2)
+        return filename
+
     def main(self):
         # clear any pre-exising summary result
         if 'url_downloader_summary_result' in self.env:
@@ -128,9 +160,9 @@ class URLDownloader(Processor):
             self.output("Given %s, no download needed." % self.env["pathname"])
             return
 
-        if not "filename" in self.env:
-            # Generate filename.
-            filename = self.env["url"].rpartition("/")[2]
+        if "filename" not in self.env:
+            # Find the effective filename of the url after following redirects.
+            filename = self._remote_filename(self.env["url"])
         else:
             filename = self.env["filename"]
         download_dir = (self.env.get("download_dir") or
