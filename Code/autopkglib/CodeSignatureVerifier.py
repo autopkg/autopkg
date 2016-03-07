@@ -171,6 +171,12 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
 
         if self.env.get('expected_authority_names', None):
+            self.output("WARNING: Using 'expected_authority_names' to verify .app "
+                        "bundles is deprecated and may be removed in a future "
+                        "AutoPkg release. Verifying .app bundles should use the "
+                        "'requirement' argument instead.")
+            self.output("See https://github.com/autopkg/autopkg/wiki/Using-"
+                        "CodeSignatureVerification for more information.")
             authority_names = self.codesign_get_authority_names(path)
             expected_authority_names = self.env['expected_authority_names']
             if authority_names != expected_authority_names:
