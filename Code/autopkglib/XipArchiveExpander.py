@@ -20,12 +20,10 @@
 import os
 import FoundationPlist
 import shutil
-import subprocess
 import tempfile
 
 from autopkglib.DmgMounter import DmgMounter
 from autopkglib import Processor,ProcessorError
-
 
 __all__ = ["XipArchiveExpander"]
 
