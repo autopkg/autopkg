@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2016 Aaron Wilson
+# Copyright 2016 University of Oxford
 # Based on PkgExtractor.py, Copyright 2013 Greg Neagle
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
