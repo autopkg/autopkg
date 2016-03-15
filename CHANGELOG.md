@@ -13,6 +13,15 @@ CHANGES:
   over time logic for specifying URLs that requires the ability to actually invoke Ruby
   code, and this processor was never widely used. It will remain in AutoPkg for
   some time but will not function with all Cask files.
+- CodeSignatureVerifier: the use of `expected_authority_names` to verify .app
+  bundles is now deprecated, and will be removed in a future AutoPkg release. Use
+  [`requirement`](https://github.com/autopkg/autopkg/wiki/Using-CodeSignatureVerification) instead. (GH-256)
+
+
+FIXES:
+
+- CodeSignatureVerifier: globbing is performed on all paths, rather than only
+  within a disk image path. (GH-252)
 
 IMPROVEMENTS:
 
@@ -25,6 +34,8 @@ IMPROVEMENTS:
   the '--key/-k' option during any given run, for example:
   `autopkg run -k CHECK_FILESIZE_ONLY=true VLC.munki`
     - related issue: (GH-219)
+- CodeSignatureVerifier: support for xip archives
+- Unarchiver: support for gzip archives
 
 ### [0.5.2](https://github.com/autopkg/autopkg/compare/v0.5.1...v0.5.2) (January 13, 2016)
 
