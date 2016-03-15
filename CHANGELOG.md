@@ -16,14 +16,14 @@ CHANGES:
 
 IMPROVEMENTS:
 
-- URLDownloader: support for 'DISABLE_LAST_MODIFIED_ETAG_CHECKS' input variable,
+- URLDownloader: support for 'CHECK_FILESIZE_ONLY' input variable,
   which skips checks for Last-Modified and ETag headers when checking whether a
   download has changed on the server, and uses only the file size. This is useful
   for recipes that redirect to various mirrors for downloads, where these server
   header values differ, causing repeated downloads. This can be set in a recipe's
-  Input section, or like any other variable it can also be set using the
-  '--key/-k' option during any given run, for example:
-  `autopkg run -k DISABLE_LAST_MODIFIED_ETAG_CHECKS=true VLC.munki`
+  Input section, or like any other variable it can also be altered on the CLI using
+  the '--key/-k' option during any given run, for example:
+  `autopkg run -k CHECK_FILESIZE_ONLY=true VLC.munki`
     - related issue: (GH-219)
 
 ### [0.5.2](https://github.com/autopkg/autopkg/compare/v0.5.1...v0.5.2) (January 13, 2016)
