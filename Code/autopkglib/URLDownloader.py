@@ -151,6 +151,12 @@ class URLDownloader(Processor):
         temporary_file = tempfile.NamedTemporaryFile(dir=download_dir,
                                                      delete=False)
         pathname_temporary = temporary_file.name
+        # Set permissions on the temp file as curl would set for a newly-downloaded
+        # file. NamedTemporaryFile uses mkstemp(), which sets a mode of 0600, and
+        # this can cause issues if this item is eventually copied to a Munki repo
+        # with the same permissions and the file is inaccessible by (for example)
+        # the webserver.
+        os.chmod(pathname_temporary, 0644)
 
         # construct curl command.
         curl_cmd = [self.env['CURL_PATH'],
