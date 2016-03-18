@@ -1,5 +1,11 @@
 ### [0.6.1](https://github.com/autopkg/autopkg/compare/v0.6.0...HEAD) (Unreleased)
 
+FIXES:
+
+- Fix too-restrictive 600 permissions on files downloaded by curl. This caused an issue
+  where a file copied to either a local or remote Munki repo may not be readable by the
+  webserver. Modes of downloadeded files are now set to 644.
+
 ### [0.6.0](https://github.com/autopkg/autopkg/compare/v0.5.2...v0.6.0) (March 15, 2016)
 
 CHANGES:
