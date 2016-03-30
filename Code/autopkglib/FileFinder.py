@@ -18,10 +18,12 @@
 
 from glob import glob
 from autopkglib import Processor, ProcessorError
+from autopkglib.DmgMounter import DmgMounter
+import os.path
 
 __all__ = ["FileFinder"]
 
-class FileFinder(Processor):
+class FileFinder(DmgMounter):
     '''Finds a filename for use in other Processors.
 
 Currently only supports glob filename patterns.
@@ -42,6 +44,9 @@ Currently only supports glob filename patterns.
     output_variables = {
         'found_filename': {
             'description': 'Full path of found filename',
+        },
+        'dmg_found_filename': {
+            'description': 'DMG-relative path of found filename',
         }
     }
 
@@ -66,12 +71,30 @@ Currently only supports glob filename patterns.
 
         method = self.env.get('find_method')
 
-        if method == 'glob':
-            self.env['found_filename'] = self.globfind(pattern)
-        else:
+        if method != 'glob':
             raise ProcessorError('Unsupported find_method: %s' % method)
 
-        self.output('Found file match: %s' % self.env['found_filename'])
+        source_path = pattern
+
+        # Check if we're trying to copy something inside a dmg.
+        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(source_path)
+        try:
+            if dmg:
+                # Mount dmg and copy path inside.
+                mount_point = self.mount(dmg_path)
+                source_path = os.path.join(mount_point, dmg_source_path)
+            # process path with globbing
+            match = self.globfind(source_path)
+            self.env['found_filename'] = match
+            self.output("Found file match: '%s' from globbed '%s'" % (self.env['found_filename'], source_path))
+
+            if dmg and match.startswith(mount_point):
+                self.env['dmg_found_filename'] = match[len(mount_point):].lstrip('/')
+                self.output("DMG-relative file match: '%s'" % self.env['dmg_found_filename'])
+        finally:
+            if dmg:
+                self.unmount(dmg_path)
+
 
 if __name__ == '__main__':
     PROCESSOR = FileFinder()
