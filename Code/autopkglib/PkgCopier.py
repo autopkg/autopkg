@@ -19,7 +19,7 @@ import os.path
 import glob
 
 from autopkglib.Copier import Copier
-
+from autopkglib import ProcessorError
 
 __all__ = ["PkgCopier"]
 
@@ -72,6 +72,9 @@ class PkgCopier(Copier):
 
             # Prcess the path for globs
             matches = glob.glob(source_pkg)
+            if len(matches) < 1:
+				raise ProcessorError(
+                	"No glob matches for source_pkg: %s" % source_pkg)
             matched_source_path = matches[0]
             if len(matches) > 1:
                 self.output(
@@ -87,7 +90,7 @@ class PkgCopier(Copier):
             # do the copy
             pkg_path = (self.env.get("pkg_path") or
                         os.path.join(self.env['RECIPE_CACHE_DIR'],
-                                     os.path.basename(source_pkg)))
+                                     os.path.basename(matched_source_path)))
             self.copy(matched_source_path, pkg_path, overwrite=True)
             self.env["pkg_path"] = pkg_path
             self.env["pkg_copier_summary_result"] = {
