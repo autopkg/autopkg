@@ -54,6 +54,8 @@ class StopIfVersionUnchanged(Processor):
             with open(path, 'r') as file:
                 file_content = file.read()
                 return BundleInfo._make(re.search(p, file_content).group(1, 2, 3, 4))
+        except IOError:
+            return BundleInfo._make(['','','',''])
         except BaseException as err:
             raise ProcessorError(err)
 
