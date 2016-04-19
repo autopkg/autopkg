@@ -24,7 +24,12 @@ from autopkglib import Processor, ProcessorError
 
 __all__ = ["StopIfVersionUnchanged"]
 
-BundleInfo = collections.namedtuple('BundleInfo', ['bundle_path', 'bundle_id', 'bundle_short_version', 'bundle_version'])
+BundleInfo = collections.namedtuple('BundleInfo', [
+    'bundle_path',
+    'bundle_id',
+    'bundle_short_version',
+    'bundle_version'
+    ])
 
 class StopIfVersionUnchanged(Processor):
     # we dynamically set the docstring from the description (DRY), so:
@@ -49,13 +54,17 @@ class StopIfVersionUnchanged(Processor):
         Returns a tuple (bundle_path, bundle_id, bundle_short_version, bundle_version)"""
         #pylint: disable=no-self-use
 
-        p = re.compile(ur'<bundle path="(.*)" id="(.*)" CFBundleShortVersionString="(.*)" CFBundleVersion="(.*)"/>')
+        regex_definition = (ur'<bundle path="(.*)" id="(.*)" '
+                            'CFBundleShortVersionString="(.*)" '
+                            'CFBundleVersion="(.*)"/>')
+
+        regex = re.compile(regex_definition)
         try:
-            with open(path, 'r') as file:
-                file_content = file.read()
-                return BundleInfo._make(re.search(p, file_content).group(1, 2, 3, 4))
+            with open(path, 'r') as plist:
+                plist_content = plist.read()
+                return BundleInfo._make(re.search(regex, plist_content).group(1, 2, 3, 4))
         except IOError:
-            return BundleInfo._make(['','','',''])
+            return BundleInfo._make([''] * 4)
         except BaseException as err:
             raise ProcessorError(err)
 
@@ -68,14 +77,17 @@ class StopIfVersionUnchanged(Processor):
 
         bundle_info = self.read_bundle_info(xml_path)
 
-        if (new_version == bundle_info.bundle_version):
-            self.output("Version: %s has already been built. Aborting." % bundle_info.bundle_version)
+        #pylint: disable=no-member
+        if new_version == bundle_info.bundle_version:
+            self.output("Version: %s has already been built. Aborting."
+                        % bundle_info.bundle_version)
+        #pylint: enable=no-member
+
             self.env["stop_processing_recipe"] = True
         else:
             self.env["stop_processing_recipe"] = False
 
 
 if __name__ == '__main__':
-    PROCESSOR = AppDmgVersioner()
-    PROCESSOR.execute_shell()
+    raise NotImplementedError('This processor should only be executed within AutoPkg')
 
