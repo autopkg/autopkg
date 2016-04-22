@@ -22,7 +22,7 @@ import time
 import xattr
 import tempfile
 
-from types import StringType
+from types import IntType
 from string import atoi
 
 from autopkglib import Processor, ProcessorError
@@ -270,9 +270,9 @@ class URLDownloader(Processor):
         if self.env['HTTP_FAILURE_CODE_MIN']:
             failure_min = self.env['HTTP_FAILURE_CODE_MIN']
             http_status = header['http_result_code']
-            if type(failure_min) == StringType:
+            if type(failure_min) != IntType:
                 failure_min = atoi(failure_min)
-            if type(http_status) == StringType:
+            if type(http_status) != IntType:
                 http_status = atoi(http_status)
             if http_status >= failure_min:
                 raise ProcessorError( "Failed to download %s due to HTTP Status code %d being larger than %d" % (self.env['url'], http_status, failure_min)  )
