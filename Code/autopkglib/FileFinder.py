@@ -24,8 +24,10 @@ __all__ = ["FileFinder"]
 class FileFinder(Processor):
     '''Finds a filename for use in other Processors.
 
-Currently only supports glob filename patterns.
-'''
+    Currently only supports glob filename patterns.
+
+    Requires version 0.2.3.
+    '''
 
     input_variables = {
         'pattern': {
