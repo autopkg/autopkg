@@ -1,8 +1,56 @@
-### [0.5.3](https://github.com/autopkg/autopkg/compare/v0.5.2...HEAD) (Unreleased)
+### [0.6.2](https://github.com/autopkg/autopkg/compare/v0.6.1...HEAD) (Unreleased)
+
+### [0.6.1](https://github.com/autopkg/autopkg/compare/v0.6.0...v0.6.1) (March 18, 2016)
+
+FIXES:
+
+- Fix too-restrictive 600 permissions on files downloaded by curl. This caused an issue
+  where a file copied to either a local or remote Munki repo may not be readable by the
+  webserver. Modes of downloaded files are now set to 644.
+
+### [0.6.0](https://github.com/autopkg/autopkg/compare/v0.5.2...v0.6.0) (March 15, 2016)
+
+CHANGES:
+
+- URLDownloader, URLTextSearcher and SparkleUpdateInfoProvider now all use
+  the `/usr/bin/curl` binary for performing HTTP requests. This resolves
+  several ongoing issues with Apple's Python urllib2 module and SSL.
+  CURLDownloader and CURLTextSearcher processors refer internally to the same
+  processors, and recipes using them can be safely switched back to the
+  "standard" versions.
+  An alternate cURL binary can be specified using the `CURL_PATH` input variable.
+- The BrewCaskInfoProvider processor is now deprecated. The [Cask DSL](https://github.com/caskroom/homebrew-cask/tree/master/doc/cask_language_reference) has added
+  over time logic for specifying URLs that requires the ability to actually invoke Ruby
+  code, and this processor was never widely used. It will remain in AutoPkg for
+  some time but will not function with all Cask files.
+- CodeSignatureVerifier: the use of `expected_authority_names` to verify .app
+  bundles is now deprecated, and will be removed in a future AutoPkg release. Use
+  [`requirement`](https://github.com/autopkg/autopkg/wiki/Using-CodeSignatureVerification) instead. (GH-256)
+
+
+FIXES:
+
+- CodeSignatureVerifier: globbing is performed on all paths, rather than only
+  within a disk image path. (GH-252)
+
+IMPROVEMENTS:
+
+- URLDownloader: support for 'CHECK_FILESIZE_ONLY' input variable,
+  which skips checks for Last-Modified and ETag headers when checking whether a
+  download has changed on the server, and uses only the file size. This is useful
+  for recipes that redirect to various mirrors for downloads, where these server
+  header values differ, causing repeated downloads. This can be set in a recipe's
+  Input section, or like any other variable it can also be altered on the CLI using
+  the '--key/-k' option during any given run, for example:
+  `autopkg run -k CHECK_FILESIZE_ONLY=true VLC.munki`
+    - related issue: (GH-219)
+- CodeSignatureVerifier: support for xip archives
+- Unarchiver: support for gzip archives
 
 ### [0.5.2](https://github.com/autopkg/autopkg/compare/v0.5.1...v0.5.2) (January 13, 2016)
 
 FIXES:
+
 - Fix for curl/CURLDownloader saving zero-byte files. (GH-237)
 - Don't prompt to search recipes when running `autopkg run --recipe-list`. (GH-223)
 - Fix a regression in 0.5.1 in running .install recipes on OS X 10.9 and earlier.

@@ -42,7 +42,7 @@ class InstallFromDMG(DmgMounter):
             "required": True,
             "description": (
                 "Array of dictionaries describing what is to be copied. "
-                "Each item should contain 'source_path' and "
+                "Each item should contain 'source_item' and "
                 "'destination_path', and may optionally include: "
                 "'destination_item' to rename the item on copy, and "
                 "'user', 'group' and 'mode' to explictly set those items.")

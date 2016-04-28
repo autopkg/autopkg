@@ -45,7 +45,7 @@ class CodeSignatureVerifier(DmgMounter):
             "required": True,
             "description":
                 ("File path to an application bundle (.app) or installer "
-                 "package (.pkg or .mpkg). Can point to a globbed path inside "
+                 "package (.pkg or .mpkg). Can point to a path inside "
                  "a .dmg which will be mounted."),
         },
         "expected_authority_names": {
@@ -55,9 +55,7 @@ class CodeSignatureVerifier(DmgMounter):
                  "authority names. Complete list of the certificate name chain "
                  "is required and it needs to be in the correct order. These "
                  "can be determined by running: "
-                 "\n\t$ codesign --display -vvvv <path_to_app>"
-                 "\n\tor"
-                 "\n\t$ pkgutil --check-signature <path_to_pkg>"),
+                 "\n\tpkgutil --check-signature <path_to_pkg>"),
         },
         "requirement": {
             "required": False,
@@ -127,11 +125,8 @@ class CodeSignatureVerifier(DmgMounter):
             for line in output.splitlines():
                 self.output("%s" % line)
 
-        # Return true only if codesign exited with 0
-        if proc.returncode == 0:
-            return True
-        else:
-            return False
+        # Return True if codesign exited with 0
+        return proc.returncode == 0
 
     def pkgutil_check_signature(self, path):
         """
@@ -158,15 +153,9 @@ class CodeSignatureVerifier(DmgMounter):
         for match in re.finditer(RE_AUTHORITY_PKGUTIL, output):
             authority_name_chain.append(match.group('authority'))
 
-        # Check the pkgutil exit code
-        if proc.returncode == 0:
-            succeeded = True
-        else:
-            succeeded = False
-
         # Return a tuple with boolean status and
         # a list with certificate authority names
-        return succeeded, authority_name_chain
+        return proc.returncode == 0, authority_name_chain
 
     def process_app_bundle(self, path):
         '''Verifies the signature for an application bundle'''
@@ -182,6 +171,12 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
 
         if self.env.get('expected_authority_names', None):
+            self.output("WARNING: Using 'expected_authority_names' to verify .app "
+                        "bundles is deprecated and may be removed in a future "
+                        "AutoPkg release. Verifying .app bundles should use the "
+                        "'requirement' argument instead.")
+            self.output("See https://github.com/autopkg/autopkg/wiki/Using-"
+                        "CodeSignatureVerification for more information.")
             authority_names = self.codesign_get_authority_names(path)
             expected_authority_names = self.env['expected_authority_names']
             if authority_names != expected_authority_names:
@@ -230,31 +225,38 @@ class CodeSignatureVerifier(DmgMounter):
                         "run.")
             return
         # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
-            self.env['input_path'])
+        input_path = self.env['input_path']
+        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(input_path)
         try:
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                globbed_paths = glob(os.path.join(mount_point, dmg_source_path))
-                if len(globbed_paths) > 0:
-                    input_path = globbed_paths[0]
-                else:
-                    self.output(
-                        "Invalid input path: %s" % self.env['input_path'])
-                    raise ProcessorError("Invalid input path")
-            else:
-                # just use the given path
-                input_path = self.env['input_path']
+                input_path = os.path.join(mount_point, dmg_source_path)
+            # process path with glob.glob
+            matches = glob(input_path)
+            if len(matches) == 0:
+                raise ProcessorError(
+                    "Error processing path '%s' with glob. " % input_path)
+            matched_input_path = matches[0]
+            if len(matches) > 1:
+                self.output(
+                    "WARNING: Multiple paths match 'input_path' glob '%s':"
+                    % input_path)
+                for match in matches:
+                    self.output("  - %s" % match)
+
+            if [c for c in '*?[]!' if c in input_path]:
+                self.output("Using path '%s' matched from globbed '%s'."
+                            % (matched_input_path, input_path))
 
             # Get current Darwin kernel version
             darwin_version = os.uname()[2]
 
-            # Currently we support only .app, .pkg or .mpkg types
-            file_extension = os.path.splitext(input_path)[1]
+            # Currently we support only .app, .pkg, .mpkg or .xip types
+            file_extension = os.path.splitext(matched_input_path)[1]
             if file_extension == ".app":
-                self.process_app_bundle(input_path)
-            elif file_extension in [".pkg", ".mpkg"]:
+                self.process_app_bundle(matched_input_path)
+            elif file_extension in [".pkg", ".mpkg", ".xip"]:
                 # Check the kernel version to make sure we're running on
                 # Snow Leopard:
                 # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
@@ -262,7 +264,7 @@ class CodeSignatureVerifier(DmgMounter):
                     self.output("Warning: Installer package signature "
                                 "verification not supported on Mac OS X 10.6")
                 else:
-                    self.process_installer_package(input_path)
+                    self.process_installer_package(matched_input_path)
             else:
                 raise ProcessorError("Unsupported file type")
 

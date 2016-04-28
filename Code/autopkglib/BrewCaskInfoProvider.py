@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2013 Timothy Sutton
+# Copyright 2013-2016 Timothy Sutton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,10 @@ class BrewCaskInfoProvider(Processor):
     # we dynamically set the docstring from the description (DRY), so:
     #pylint: disable=missing-docstring
 
-    description = ("Provides crowd-sourced URL and version info from thousands "
+    description = ("ATTENTION: This processor is deprecated, may not work "
+                   "as expected with all known Casks, and may be removed "
+                   "in a future release of AutoPkg. Description follows: "
+                   "Provides crowd-sourced URL and version info from thousands "
                    "of applications listed in brew-cask: "
                    "https://github.com/caskroom/homebrew-cask. See available "
                    "apps: https://github.com/caskroom/homebrew-cask/tree/"
@@ -86,6 +89,8 @@ class BrewCaskInfoProvider(Processor):
         return newattrs
 
     def main(self):
+        self.output("WARNING: BrewCaskInfoProvider is deprecated and may be "
+                    "removed in a future AutoPkg release.")
         github_raw_baseurl = (
             "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/"
             "Casks")

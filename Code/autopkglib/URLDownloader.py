@@ -68,7 +68,7 @@ class URLDownloader(Processor):
             "required": False,
             "description": "Filename to override the URL's tail.",
         },
-        "check_content_length_only": {
+        "CHECK_FILESIZE_ONLY": {
             "default": False,
             "required": False,
             "description": ("If True, a server's ETag and Last-Modified "
@@ -148,8 +148,15 @@ class URLDownloader(Processor):
                     "Can't create %s: %s" % (download_dir, err.strerror))
 
         # Create a temp file
-        temporary_file = tempfile.NamedTemporaryFile(dir=download_dir, delete=False)
+        temporary_file = tempfile.NamedTemporaryFile(dir=download_dir,
+                                                     delete=False)
         pathname_temporary = temporary_file.name
+        # Set permissions on the temp file as curl would set for a newly-downloaded
+        # file. NamedTemporaryFile uses mkstemp(), which sets a mode of 0600, and
+        # this can cause issues if this item is eventually copied to a Munki repo
+        # with the same permissions and the file is inaccessible by (for example)
+        # the webserver.
+        os.chmod(pathname_temporary, 0644)
 
         # construct curl command.
         curl_cmd = [self.env['CURL_PATH'],
@@ -165,7 +172,8 @@ class URLDownloader(Processor):
             for header, value in headers.items():
                 curl_cmd.extend(['--header', '%s: %s' % (header, value)])
 
-        # if file already exists and the size is 0, discard it and download again
+        # if file already exists and the size is 0, discard it and download
+        # again
         if os.path.exists(pathname) and os.path.getsize(pathname) == 0:
             os.remove(pathname)
 
@@ -252,7 +260,7 @@ class URLDownloader(Processor):
         # and ETag headers.
         if (not header.get("etag") and \
            not header.get("last-modified")) or \
-            self.env["check_content_length_only"]:
+            self.env["CHECK_FILESIZE_ONLY"]:
             size_header = header.get("content-length")
             if size_header and int(size_header) == existing_file_size:
                 self.env["download_changed"] = False
@@ -285,7 +293,7 @@ class URLDownloader(Processor):
             os.rename(pathname_temporary, pathname)
         except OSError:
             raise ProcessorError(
-                    "Can't move %s to %s" % (pathname_temporary, pathname))
+                "Can't move %s to %s" % (pathname_temporary, pathname))
 
         # save last-modified header if it exists
         if header.get("last-modified"):
