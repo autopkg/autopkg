@@ -25,7 +25,9 @@ __all__ = ["URLTextSearcher"]
 
 class URLTextSearcher(Processor):
     '''Downloads a URL using curl and performs a regular expression match
-    on the text.'''
+    on the text.
+
+    Requires version 0.2.9.'''
 
     input_variables = {
         're_pattern': {
