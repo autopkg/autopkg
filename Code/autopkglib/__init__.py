@@ -388,8 +388,8 @@ class AutoPackager(object):
             if not version_equal_or_greater(self.env["AUTOPKG_VERSION"],
                                             recipe.get("MinimumVersion")):
                 raise AutoPackagerError(
-                    "Recipe (or a parent recipe) requires at least version "
-                    "%s, but we are version %s."
+                    "Recipe (or a parent recipe) requires at least autopkg "
+                    "version %s, but we are autopkg version %s."
                     % (recipe.get("MinimumVersion"),
                        self.env["AUTOPKG_VERSION"]))
 
