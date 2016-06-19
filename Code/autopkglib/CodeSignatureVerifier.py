@@ -255,9 +255,9 @@ class CodeSignatureVerifier(DmgMounter):
             # Get current Darwin kernel version
             darwin_version = os.uname()[2]
 
-            # Currently we support only .app, .pkg, .mpkg or .xip types
+            # Currently we support only .app, .saver, .pkg, .mpkg or .xip types
             file_extension = os.path.splitext(matched_input_path)[1]
-            if file_extension == ".app":
+            if file_extension in [".app", ".saver"]:
                 self.process_app_bundle(matched_input_path)
             elif file_extension in [".pkg", ".mpkg", ".xip"]:
                 # Check the kernel version to make sure we're running on
