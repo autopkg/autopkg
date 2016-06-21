@@ -160,7 +160,7 @@ class URLDownloader(Processor):
 
         # construct curl command.
         curl_cmd = [self.env['CURL_PATH'],
-                    '--silent', '--show-error', '--no-buffer',
+                    '--silent', '--show-error', '--no-buffer', '--fail',
                     '--dump-header', '-',
                     '--speed-time', '30',
                     '--location',
@@ -240,19 +240,15 @@ class URLDownloader(Processor):
                     break
 
         retcode = proc.poll()
-        if retcode:
+        if retcode: # Non-zero exit code from curl => problem with download
             curlerr = ''
             try:
                 curlerr = proc.stderr.read().rstrip('\n')
                 curlerr = curlerr.split(None, 2)[2]
             except IndexError:
                 pass
-            if retcode == 22:
-                # 22 means any 400 series return code. Note: header seems not to
-                # be dumped to STDOUT for immediate failures. Hence
-                # http_result_code is likely blank/000. Read it from stderr.
-                if re.search(r'URL returned error: [0-9]+$', curlerr):
-                    header['http_result_code'] = curlerr[curlerr.rfind(' ')+1:]
+
+            raise ProcessorError( "Curl failure: %s (exit code %s)" % (curlerr, retcode) )
 
         # If Content-Length header is present and we had a cached
         # file, see if it matches the size of the cached file.
