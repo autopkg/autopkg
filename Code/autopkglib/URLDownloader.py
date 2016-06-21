@@ -240,7 +240,7 @@ class URLDownloader(Processor):
                     break
 
         retcode = proc.poll()
-        if retcode: # Non-zero exit coudse from curl => problem with download
+        if retcode: # Non-zero exit code from curl => problem with download
             curlerr = ''
             try:
                 curlerr = proc.stderr.read().rstrip('\n')
