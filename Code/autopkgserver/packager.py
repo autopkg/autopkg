@@ -41,7 +41,7 @@ class Packager(object):
 
     Must be run as root."""
 
-    re_pkgname = re.compile(r'^[a-z0-9][a-z0-9 ._\+\-]*$', re.I)
+    re_pkgname = re.compile(r'^[a-z0-9][a-z0-9 ._\+\@\-]*$', re.I)
     re_id      = re.compile(r'^[a-z0-9]([a-z0-9 \-]*[a-z0-9])?$', re.I)
     re_version = re.compile(r'^[a-z0-9_ ]*[0-9][a-z0-9_ ]*$', re.I)
 
