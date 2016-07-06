@@ -57,9 +57,9 @@ from autopkglib import find_recipe_by_identifier, \
 def log(msg, error=False):
     '''Message logger, prints to stdout/stderr.'''
     if error:
-        print >> sys.stderr, msg
+        print >> sys.stderr, msg.encode('UTF-8')
     else:
-        print >> sys.stdout, msg
+        print >> sys.stdout, msg.encode('UTF-8')
 
 
 def log_err(msg):
@@ -236,7 +236,7 @@ def locate_recipe(name, override_dirs, recipe_dirs,
         recipe_file = find_recipe(name, override_dirs + recipe_dirs)
 
     if not recipe_file and make_suggestions:
-        print "Didn't find a recipe for %s." % name
+        print u"Didn't find a recipe for %s." % name.encode('UTF-8')
         make_suggestions_for(name)
 
     if not recipe_file and search_github:
@@ -734,7 +734,8 @@ def repo_list(argv):
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     if recipe_repos:
         for key in sorted(recipe_repos.keys()):
-            print "%s (%s)" % (key, recipe_repos[key]['URL'])
+            print u"%s (%s)" % (
+                key.encode('UTF-8'), recipe_repos[key]['URL'].encode('UTF-8'))
         print
     else:
         print "No recipe repos."
@@ -817,12 +818,13 @@ def print_gh_search_results(results_items):
     print format_str % ("----", "----", "----")
     results_items.sort(key=operator.itemgetter("repository"))
     for result in results_items:
-        repo = result["repository"]
-        name, path = result["name"], result["path"]
+        repo = result["repository"].encode('UTF-8')
+        name = result["name"].encode('UTF-8')
+        path = result["path"].encode('UTF-8')
         if repo["full_name"].startswith("autopkg"):
-            repo_name = repo["name"]
+            repo_name = repo["name"].encode('UTF-8')
         else:
-            repo_name = repo["full_name"]
+            repo_name = repo["full_name"].encode('UTF-8')
         print format_str % (name, repo_name, path)
 
 
@@ -942,7 +944,7 @@ def processor_info(argv):
                 print " " * indent, "%s:" % key
                 print_vars(value, indent=indent + 2)
             else:
-                print " " * indent, "%s: %s" % (key, value)
+                print " " * indent, "%s: %s" % (key, value.encode('UTF-8'))
 
     verb = argv[1]
     parser = optparse.OptionParser()
