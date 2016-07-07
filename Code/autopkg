@@ -49,6 +49,7 @@ from autopkglib import get_pref, get_all_prefs
 from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
+from autopkglib import extract_processor_name_with_recipe_identifier
 from autopkglib import get_autopkg_version, version_equal_or_greater
 from autopkglib import find_recipe_by_identifier, \
                        get_identifier
@@ -1580,6 +1581,211 @@ def run_recipes(argv):
     return error_count
 
 
+def printplistitem(label, value, indent=0):
+    """Prints a plist item in an 'attractive' way"""
+    indentspace = '    '
+    if type(value) == type(None):
+        log(indentspace*indent + '%s: !NONE!' % label)
+    elif type(value) == list or type(value).__name__ == 'NSCFArray':
+        if label:
+            log(indentspace*indent + '%s:' % label)
+        for item in value:
+            printplistitem('', item, indent+1)
+    elif type(value) == dict or type(value).__name__ == 'NSCFDictionary':
+        if label:
+            log(indentspace*indent + '%s:' % label)
+        for subkey in value.keys():
+            printplistitem(subkey, value[subkey], indent+1)
+    else:
+        if label:
+            log(indentspace*indent + '%s: %s' % (label, value))
+        else:
+            log(indentspace*indent + '%s' % value)
+
+
+def printplist(plistdict):
+    """Prints plist dictionary in a pretty(?) way"""
+    keys = list(plistdict.keys())
+    keys.sort()
+    for key in keys:
+        printplistitem(key, plistdict[key], indent=2)
+
+
+def processor_is_core(processor_name):
+    '''Returns True if processor_name refers to a "core" processor'''
+    (processor_name, processor_recipe_id) = (
+        extract_processor_name_with_recipe_identifier(processor_name))
+    if processor_recipe_id:
+        # refers to a Shared processor
+        return False
+    try:
+        # just try to find the processor
+        _ = get_processor(processor_name)
+        return True
+    except (KeyError, AttributeError):
+        # autopkglib.get_processor raises KeyError if the processor isn't found
+        # probably should make that nicer/more explicit
+        return False
+
+
+def find_http_urls_in_recipe(recipe):
+    '''Looks in the Input and Process sections of a recipe for any http URLs.
+    Returns a dict.'''
+    recipe_urls = {}
+    for key, value in recipe.get('Input', {}).items():
+        if isinstance(value, basestring) and value.startswith('http:'):
+            if 'Input' not in recipe_urls:
+                recipe_urls['Input'] = {}
+            recipe_urls['Input'][key] = value
+    for step in recipe.get('Process', []):
+        processor = step['Processor']
+        arguments = step.get('Arguments', {})
+        for key, value in arguments.items():
+            if isinstance(value, basestring) and value.startswith('http:'):
+                if 'Process' not in recipe_urls:
+                    recipe_urls['Process'] = {}
+                if processor not in recipe_urls['Process']:
+                    recipe_urls['Process'][processor] = {}
+                recipe_urls['Process'][processor][key] = value
+    return recipe_urls
+
+
+def audit(argv):
+    '''Audit one or more recipes.'''
+    verb = argv[1]
+    parser = optparse.OptionParser()
+
+    parser.set_usage("Usage: %s %s [options] recipe [..]\n"
+                     "Audit one or more recipes." % ("%prog", verb))
+
+    # Parse arguments
+    add_search_and_override_dir_options(parser)
+    parser.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
+                      help="Path to a text file with a list of recipes to "
+                           "audit.")
+    options, arguments = parser.parse_args(argv[2:])
+
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+
+    # these processors download items
+    DOWNLOAD_PROCESSORS = {'CURLDownloader', 'URLDownloader'}
+
+    # these processors build packages or dmgs
+    CREATOR_PROCESSORS = {'DmgCreator', 'FlatPkgPacker', 'PkgCreator'}
+
+    # these processors could be used to modify the contents of a vendor
+    # distribution (pkg, dmg, etc)
+    MODIFICATION_PROCESSORS = [
+        'Copier',
+        'FileCreator',
+        'FileMover',
+        'PathDeleter',
+        'PkgInfoCreator',
+        'PlistEditor',
+        'Symlinker',
+    ]
+
+    recipe_paths = []
+    recipe_paths.extend(arguments)
+    if options.recipe_list:
+        with open(options.recipe_list, "r") as file_desc:
+            data = file_desc.read()
+        recipes = [line for line in data.splitlines()
+                   if line and not line.startswith("#")]
+        recipe_paths.extend(recipes)
+
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+
+    if not recipe_paths:
+        log_err(parser.get_usage())
+        return -1
+
+    audit_results = {}
+    recipe_issue_count = 0
+    recipe_no_issue_count = 0
+    for recipe_path in recipe_paths:
+        recipe = load_recipe(recipe_path,
+                             override_dirs,
+                             search_dirs,
+                             None,
+                             None,
+                             make_suggestions=False,
+                             search_github=False)
+        if not recipe:
+            log_err("No valid recipe found for %s" % recipe_path)
+            continue
+
+        audit_results[recipe_path] = {}
+        http_urls = find_http_urls_in_recipe(recipe)
+        if http_urls:
+            audit_results[recipe_path]['http_urls'] = http_urls
+        recipe_processors = [step["Processor"] for step in recipe["Process"]]
+        if (set(recipe_processors).intersection(DOWNLOAD_PROCESSORS) and
+                'CodeSignatureVerifier' not in recipe_processors):
+            audit_results[recipe_path]['MissingCodeSignatureVerifier'] = True
+        creator_processors = set(recipe_processors).intersection(
+            CREATOR_PROCESSORS)
+        non_core_processors = [processor for processor in recipe_processors
+                               if not processor_is_core(processor)]
+        modification_processors = set()
+        # only flag modification processors if there is a creator or non-core
+        # processor afterwards
+        for index in range(len(recipe_processors)):
+            if recipe_processors[index] in MODIFICATION_PROCESSORS:
+                # are there any creator processors after this one?
+                if set(recipe_processors[index+1:]).intersection(
+                        CREATOR_PROCESSORS):
+                    modification_processors.add(recipe_processors[index])
+                # are there any non-core processors after this one?
+                elif set(recipe_processors[index+1:]).intersection(
+                        set(non_core_processors)):
+                    modification_processors.add(recipe_processors[index])
+        if creator_processors or non_core_processors:
+            audit_results[recipe_path]['audit_processors'] = (
+                list(creator_processors) + list(modification_processors))
+        if non_core_processors:
+            audit_results[recipe_path]['non_core_processors'] = (
+                non_core_processors)
+        if audit_results[recipe_path]:
+            recipe_issue_count += 1
+            log(recipe_path)
+            log("    File path:        %s" % recipe["RECIPE_PATH"])
+            if recipe.get("PARENT_RECIPES"):
+                log("    Parent recipe(s): %s"
+                    % "\n                      ".join(
+                        recipe["PARENT_RECIPES"]))
+            if audit_results[recipe_path].get('MissingCodeSignatureVerifier'):
+                log('    Missing CodeSignatureVerifier')
+            if audit_results[recipe_path].get('http_urls'):
+                log('    The following http URLs were found in the recipe:')
+                printplist(audit_results[recipe_path]['http_urls'])
+            if audit_results[recipe_path].get('non_core_processors'):
+                log('    The following processors are non-core and can execute '
+                    'arbitrary code, performing any action.')
+                log('    Be sure you understand what the processor does and/or '
+                    'you trust its source:')
+                for processor in audit_results[recipe_path].get('non_core_processors'):
+                    log('        %s' % processor)
+            if audit_results[recipe_path].get('audit_processors'):
+                log('    The following processors make modifications and their '
+                    'use in this recipe should be more closely inspected:')
+                for processor in audit_results[recipe_path].get(
+                        'audit_processors'):
+                    log('        %s' % processor)
+            log('')
+        else:
+            recipe_no_issue_count += 1
+            log('%s: no issues found.' % recipe_path)
+
+    if len(recipe_paths) > 1:
+        log('\nSummary:')
+        log('    %s recipes audited' % len(audit_results.keys()))
+        log('    %s recipes with audit issues' % recipe_issue_count)
+        log('    %s recipes with no issues to report' % recipe_no_issue_count)
+
+
 def main(argv):
     """Main routine"""
     # define our subcommands ('verbs')
@@ -1587,6 +1793,9 @@ def main(argv):
         "help": {
             "function": display_help,
             "help": "Display this help"},
+        "audit": {
+            "function": audit,
+            "help": "Audit one or more recipes."},
         "info": {
             "function": get_info,
             "help": "Get info about configuration or a recipe"},
