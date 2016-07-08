@@ -1753,6 +1753,7 @@ def audit(argv):
             audit_results[recipe_path]['non_core_processors'] = (
                 non_core_processors)
         if options.plist:
+            # skip all the printing; we'll print plist output later.
             continue
         if audit_results[recipe_path]:
             recipe_issue_count += 1
@@ -1772,7 +1773,8 @@ def audit(argv):
                     'arbitrary code, performing any action.')
                 log('    Be sure you understand what the processor does and/or '
                     'you trust its source:')
-                for processor in audit_results[recipe_path].get('non_core_processors'):
+                for processor in audit_results[recipe_path].get(
+                        'non_core_processors'):
                     log('        %s' % processor)
             if audit_results[recipe_path].get('audit_processors'):
                 log('    The following processors make modifications and their '
@@ -1783,14 +1785,14 @@ def audit(argv):
             log('')
         else:
             recipe_no_issue_count += 1
-            log('%s: no issues found.' % recipe_path)
+            log('%s: no audit flags triggered.' % recipe_path)
     if options.plist:
         print plistlib.writePlistToString(audit_results)
     elif len(recipe_paths) > 1:
         log('\nSummary:')
         log('    %s recipes audited' % len(audit_results.keys()))
         log('    %s recipes with audit issues' % recipe_issue_count)
-        log('    %s recipes with no issues to report' % recipe_no_issue_count)
+        log('    %s recipes triggered no audit flags' % recipe_no_issue_count)
 
 
 def main(argv):
