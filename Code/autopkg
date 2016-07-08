@@ -1663,6 +1663,9 @@ def audit(argv):
     parser.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
                       help="Path to a text file with a list of recipes to "
                            "audit.")
+    parser.add_option("-p", "--plist", action="store_true", default=False,
+                      help="Output in plist format.")
+
     options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
@@ -1748,6 +1751,8 @@ def audit(argv):
         if non_core_processors:
             audit_results[recipe_path]['non_core_processors'] = (
                 non_core_processors)
+        if options.plist:
+            continue
         if audit_results[recipe_path]:
             recipe_issue_count += 1
             log(recipe_path)
@@ -1778,8 +1783,9 @@ def audit(argv):
         else:
             recipe_no_issue_count += 1
             log('%s: no issues found.' % recipe_path)
-
-    if len(recipe_paths) > 1:
+    if options.plist:
+        log(str(audit_results))
+    elif len(recipe_paths) > 1:
         log('\nSummary:')
         log('    %s recipes audited' % len(audit_results.keys()))
         log('    %s recipes with audit issues' % recipe_issue_count)
