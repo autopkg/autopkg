@@ -946,7 +946,8 @@ def processor_info(argv):
                 print " " * indent, "%s:" % key
                 print_vars(value, indent=indent + 2)
             else:
-                print " " * indent, "%s: %s" % (key, value.encode('UTF-8'))
+                print " " * indent, "%s: %s" % (key,
+                                                unicode(value).encode('UTF-8'))
 
     verb = argv[1]
     parser = optparse.OptionParser()
