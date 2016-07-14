@@ -56,6 +56,10 @@ from autopkglib import find_recipe_by_identifier, \
                        get_identifier
 
 
+# If any recipe fails during 'autopkg run', return this exit code
+RECIPE_FAILED_CODE = 70
+
+
 def log(msg, error=False):
     '''Message logger, prints to stdout/stderr.'''
     if error:
@@ -1581,7 +1585,7 @@ def run_recipes(argv):
         log("\nReport plist saved to %s." % options.report_plist)
 
     if error_count:
-        return os.EX_SOFTWARE
+        return RECIPE_FAILED_CODE
 
 
 def printplistitem(label, value, indent=0):
