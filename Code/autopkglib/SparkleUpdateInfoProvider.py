@@ -152,7 +152,7 @@ class SparkleUpdateInfoProvider(Processor):
             scheme, netloc, path, _, frag = urlparse.urlsplit(url)
             url = urlparse.urlunsplit((scheme, netloc, path, new_query, frag))
 
-        data = self.fetch_content(url, self.env.get("appcast_query_pairs"))
+        data = self.fetch_content(url, headers=self.env.get("appcast_request_headers"))
         try:
             xmldata = ElementTree.fromstring(data)
         except:
