@@ -1580,7 +1580,7 @@ def run_recipes(argv):
         write_plist_exit_on_fail(results_report, options.report_plist)
         log("\nReport plist saved to %s." % options.report_plist)
 
-    return error_count
+    return error_count > 0
 
 
 def printplistitem(label, value, indent=0):
