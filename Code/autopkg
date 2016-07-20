@@ -820,7 +820,7 @@ def print_gh_search_results(results_items):
     print format_str % ("----", "----", "----")
     results_items.sort(key=operator.itemgetter("repository"))
     for result in results_items:
-        repo = result["repository"].encode('UTF-8')
+        repo = result["repository"]
         name = result["name"].encode('UTF-8')
         path = result["path"].encode('UTF-8')
         if repo["full_name"].startswith("autopkg"):
