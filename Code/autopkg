@@ -25,6 +25,7 @@ if 'darwin' != sys.platform:
 
 import difflib
 import glob
+import hashlib
 import os
 import operator
 import optparse
@@ -52,8 +53,7 @@ from autopkglib import AutoPackagerError, AutoPackager
 from autopkglib import get_processor, processor_names
 from autopkglib import extract_processor_name_with_recipe_identifier
 from autopkglib import get_autopkg_version, version_equal_or_greater
-from autopkglib import find_recipe_by_identifier, \
-                       get_identifier
+from autopkglib import find_recipe_by_identifier, get_identifier
 
 
 # If any recipe fails during 'autopkg run', return this exit code
@@ -332,6 +332,10 @@ def load_recipe(name, override_dirs, recipe_dirs,
     name, so that if recipe names shift with updated recipe repos, the
     override still applies to the recipe from which it was derived.'''
 
+    if override_dirs is None:
+        override_dirs = []
+    if recipe_dirs is None:
+        recipe_dirs = []
     recipe = None
     recipe_file = locate_recipe(name, override_dirs, recipe_dirs,
                                 make_suggestions=make_suggestions,
@@ -375,6 +379,11 @@ def load_recipe(name, override_dirs, recipe_dirs,
                     recipe["PARENT_RECIPES"] = (
                         [recipe["RECIPE_PATH"]] + recipe["PARENT_RECIPES"])
                 recipe["RECIPE_PATH"] = recipe_file
+                if 'ParentRecipeTrustInfo' in child_recipe:
+                    recipe['ParentRecipe'] = (child_recipe.get("ParentRecipe")
+                                              or child_recipe.get("Recipe"))
+                    recipe['ParentRecipeTrustInfo'] = child_recipe[
+                        'ParentRecipeTrustInfo']
             else:
                 # no parent recipe, so the current recipe is invalid
                 log_err('Could not find parent recipe for %s' % name)
@@ -1214,6 +1223,221 @@ def list_recipes(argv):
         print "\n".join(output)
 
 
+def get_git_commit_hash(filepath):
+    '''Get the current git commit hash if possible'''
+    try:
+        git_toplevel_dir = run_git(
+            ['rev-parse', '--show-toplevel'],
+            git_directory=os.path.dirname(filepath)).rstrip('\n')
+    except GitError:
+        return None
+    try:
+        relative_path = os.path.relpath(filepath, git_toplevel_dir)
+        git_hash = run_git(
+            ['rev-parse', ':' + relative_path],
+            git_directory=git_toplevel_dir).rstrip('\n')
+    except GitError:
+        return None
+    try:
+        diff_output = run_git(
+            ['diff', git_hash, relative_path],
+            git_directory=git_toplevel_dir).rstrip('\n')
+    except GitError:
+        return None
+    if diff_output:
+        return None
+    return git_hash
+
+
+def getsha256hash(filepath):
+    '''Generate a sha256 hash for the file at filepath'''
+    if not os.path.isfile(filepath):
+        return 'NOT A FILE'
+    hashfunction = hashlib.sha256()
+    fileref = open(filepath, 'rb')
+    while 1:
+        chunk = fileref.read(2**16)
+        if not chunk:
+            break
+        hashfunction.update(chunk)
+    fileref.close()
+    return hashfunction.hexdigest()
+
+
+def find_processor_path(processor_name, recipe, env=None):
+    '''Returns the pathname to a procesor given a name andv a recipe'''
+    if env is None:
+        env = {}
+    if recipe:
+        recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
+        processor_search_dirs = [recipe_dir]
+
+        # check if our processor_name includes a recipe identifier that
+        # should be used to locate the recipe.
+        # if so, search for the recipe by identifier in order to add
+        # its dirname to the processor search dirs
+        (processor_name, processor_recipe_id) = (
+            extract_processor_name_with_recipe_identifier(processor_name))
+        if processor_recipe_id:
+            shared_processor_recipe_path = (
+                find_recipe_by_identifier(processor_recipe_id,
+                                          env["RECIPE_SEARCH_DIRS"]))
+            if shared_processor_recipe_path:
+                processor_search_dirs.append(
+                    os.path.dirname(shared_processor_recipe_path))
+
+        # search recipe dirs for processor
+        if recipe.get("PARENT_RECIPES"):
+            # also look in the directories containing the parent recipes
+            parent_recipe_dirs = list(set([
+                os.path.dirname(item)
+                for item in recipe["PARENT_RECIPES"]]))
+            processor_search_dirs.extend(parent_recipe_dirs)
+
+        for directory in processor_search_dirs:
+            processor_filename = os.path.join(directory, processor_name + '.py')
+            if os.path.exists(processor_filename):
+                return processor_filename
+
+    return None
+
+
+def get_trust_info(recipe, search_dirs=None):
+    '''Gets information from a recipe we use to ensure parent recipes and
+    non-core processors have not changed'''
+    # generate hashes for each parent recipe
+    parent_recipe_paths = recipe['PARENT_RECIPES'] + [recipe["RECIPE_PATH"]]
+    parent_recipe_hashes = {}
+    for p_recipe_path in parent_recipe_paths:
+        p_recipe_hash = getsha256hash(p_recipe_path)
+        git_hash = get_git_commit_hash(p_recipe_path)
+        p_recipe = load_recipe(p_recipe_path, override_dirs=[],
+                               recipe_dirs=search_dirs)
+        identifier = get_identifier(p_recipe)
+        parent_recipe_hashes[identifier] = {
+            'sha256_hash': p_recipe_hash,
+        }
+        if git_hash:
+            parent_recipe_hashes[identifier]['git_hash'] = git_hash
+    # generate hashes for each non-core processor
+    recipe_processors = [step["Processor"] for step in recipe["Process"]]
+    non_core_processors = [processor for processor in recipe_processors
+                           if not processor_is_core(processor)]
+    non_core_processor_hashes = {}
+    for processor in non_core_processors:
+        processor_path = find_processor_path(processor, recipe)
+        if processor_path:
+            processor_hash = getsha256hash(processor_path)
+            git_hash = get_git_commit_hash(processor_path)
+        else:
+            processor_hash = "PROCESSOR FILEPATH NOT FOUND"
+            git_hash = None
+        non_core_processor_hashes[processor] = {
+            'sha256_hash': processor_hash,
+        }
+        if git_hash:
+            non_core_processor_hashes[processor]['git_hash'] = git_hash
+
+    # return a dictionary containing the hashes we generated
+    return {
+        'non_core_processors': non_core_processor_hashes,
+        'parent_recipes': parent_recipe_hashes
+    }
+
+
+def get_git_diff(filepath, git_hash):
+    '''Get a git diff of filepath from git_hash'''
+    try:
+        git_toplevel_dir = run_git(
+            ['rev-parse', '--show-toplevel'],
+            git_directory=os.path.dirname(filepath)).rstrip('\n')
+    except GitError:
+        return ''
+    relative_path = os.path.relpath(filepath, git_toplevel_dir)
+    try:
+        return run_git(
+            ['diff', git_hash, relative_path],
+            git_directory=git_toplevel_dir)
+    except GitError:
+        return ''
+
+
+def verify_parent_trust(recipe, override_dirs, search_dirs):
+    # verify trust of parent recipes
+    if recipe.get('ParentRecipe') and recipe.get('ParentRecipeTrustInfo'):
+        parent_recipe = load_recipe(recipe['ParentRecipe'],
+                                    override_dirs,
+                                    search_dirs)
+        expected_trust_info = recipe['ParentRecipeTrustInfo']
+        actual_trust_info = get_trust_info(parent_recipe, search_dirs)
+        if actual_trust_info != expected_trust_info:
+            trust_errors = ''
+            # get detail on non_core_processors
+            expected_processor_names = (
+                expected_trust_info['non_core_processors'].keys())
+            actual_processor_names = (
+                actual_trust_info['non_core_processors'].keys())
+            if set(expected_processor_names) != set(actual_processor_names):
+                trust_errors += ("Expected non-core processor list: %s\n"
+                                 % expected_processor_names)
+                trust_errors += ("Actual non-core processor list: %s\n"
+                                 % actual_processor_names)
+            for processor in expected_processor_names:
+                expected_hash = (
+                    expected_trust_info['non_core_processors'][
+                        processor]['sha256_hash'])
+                git_hash = expected_trust_info['non_core_processors'][
+                    processor].get('git_hash')
+                actual_hash = (
+                    actual_trust_info['non_core_processors'].get(
+                        processor, {}).get('sha256_hash'))
+                if expected_hash != actual_hash:
+                    #trust_errors += (
+                    #    'Expected hash %s for non-core processor %s, got %s\n'
+                    #    % (expected_hash, processor, actual_hash))
+                    trust_errors += (
+                        "Processor %s has been changed.\n" % processor)
+                    processor_path = find_processor_path(processor, recipe)
+                    trust_errors += 'Processor path: %s\n' % processor_path
+                    if git_hash:
+                        trust_errors += get_git_diff(processor_path, git_hash)
+            # get detail on parent_recipes
+            expected_parent_recipes = (
+                expected_trust_info['parent_recipes'].keys())
+            actual_parent_recipes = (
+                actual_trust_info['parent_recipes'].keys())
+            if set(expected_parent_recipes) != set(actual_parent_recipes):
+                trust_errors += ("Expected parent recipe list: %s\n"
+                                 % expected_parent_recipes)
+                trust_errors += ("Actual parent recipe list: %s\n"
+                                 % actual_parent_recipes)
+            for p_recipe_id in expected_parent_recipes:
+                expected_hash = (
+                    expected_trust_info['parent_recipes'][
+                        p_recipe_id]['sha256_hash'])
+                git_hash = expected_trust_info['parent_recipes'][
+                    p_recipe_id].get('git_hash')
+                actual_hash = (
+                    actual_trust_info['parent_recipes'].get(
+                        p_recipe_id, {}).get('sha256_hash'))
+                if expected_hash != actual_hash:
+                    #trust_errors += (
+                    #    'Expected hash %s for parent recipe %s, got %s\n'
+                    #    % (expected_hash, p_recipe_id, actual_hash))
+                    trust_errors += (
+                        "Parent recipe %s has been changed.\n" % p_recipe_id)
+                    p_recipe = load_recipe(
+                        p_recipe_id, override_dirs, search_dirs)
+                    trust_errors += (
+                        "Recipe path: %s\n" % p_recipe["RECIPE_PATH"])
+                    if git_hash:
+                        trust_errors += get_git_diff(
+                            p_recipe["RECIPE_PATH"], git_hash)
+            raise AutoPackagerError(
+                'Could not verify trust of parent recipes and custom '
+                'processors:\n%s' % trust_errors)
+
+
 def make_override(argv):
     '''Make a recipe override skeleton.'''
     verb = argv[1]
@@ -1269,8 +1493,11 @@ def make_override(argv):
 
     override_plist = {"Identifier": override_identifier,
                       "Input": recipe["Input"],
-                      "ParentRecipe": parent_identifier
-                     }
+                      "ParentRecipe": parent_identifier}
+
+    # add trust info
+    override_plist['ParentRecipeTrustInfo'] = get_trust_info(
+        recipe, search_dirs=search_dirs)
 
     if "IDENTIFIER" in override_plist["Input"]:
         del override_plist["Input"]["IDENTIFIER"]
@@ -1448,6 +1675,7 @@ def run_recipes(argv):
                 continue
 
         log("Processing %s..." % recipe_path)
+
         # Obtain prefs from the defaults domain
         prefs = get_all_prefs()
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
@@ -1466,6 +1694,7 @@ def run_recipes(argv):
 
         try:
             autopackager.process_cli_overrides(recipe, cli_values)
+            verify_parent_trust(recipe, override_dirs, search_dirs)
             autopackager.verify(recipe)
             autopackager.process(recipe)
         except AutoPackagerError as err:
