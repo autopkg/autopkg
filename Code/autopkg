@@ -1366,8 +1366,8 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
     # verify trust of parent recipes
     if recipe.get('ParentRecipe') and recipe.get('ParentRecipeTrustInfo'):
         parent_recipe = load_recipe(recipe['ParentRecipe'],
-                                    override_dirs,
-                                    search_dirs)
+                                    override_dirs, search_dirs,
+                                    make_suggestions=False, search_github=False)
         expected_trust_info = recipe['ParentRecipeTrustInfo']
         actual_trust_info = get_trust_info(parent_recipe, search_dirs)
         if actual_trust_info != expected_trust_info:
@@ -1379,9 +1379,9 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
                 actual_trust_info['non_core_processors'].keys())
             if set(expected_processor_names) != set(actual_processor_names):
                 trust_errors += ("Expected non-core processor list: %s\n"
-                                 % expected_processor_names)
+                                 % list(expected_processor_names))
                 trust_errors += ("Actual non-core processor list: %s\n"
-                                 % actual_processor_names)
+                                 % list(actual_processor_names))
             for processor in expected_processor_names:
                 expected_hash = (
                     expected_trust_info['non_core_processors'][
@@ -1392,11 +1392,11 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
                     actual_trust_info['non_core_processors'].get(
                         processor, {}).get('sha256_hash'))
                 if expected_hash != actual_hash:
-                    #trust_errors += (
-                    #    'Expected hash %s for non-core processor %s, got %s\n'
-                    #    % (expected_hash, processor, actual_hash))
                     trust_errors += (
-                        "Processor %s has been changed.\n" % processor)
+                        "Our stored checksum for processor %s does not match "
+                        "the current content of that processor.\n" % processor)
+                    trust_errors += (
+                        "Perhaps processor %s has been changed.\n" % processor)
                     processor_path = find_processor_path(processor, recipe)
                     trust_errors += 'Processor path: %s\n' % processor_path
                     if git_hash:
@@ -1408,9 +1408,9 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
                 actual_trust_info['parent_recipes'].keys())
             if set(expected_parent_recipes) != set(actual_parent_recipes):
                 trust_errors += ("Expected parent recipe list: %s\n"
-                                 % expected_parent_recipes)
+                                 % list(expected_parent_recipes))
                 trust_errors += ("Actual parent recipe list: %s\n"
-                                 % actual_parent_recipes)
+                                 % list(actual_parent_recipes))
             for p_recipe_id in expected_parent_recipes:
                 expected_hash = (
                     expected_trust_info['parent_recipes'][
@@ -1425,9 +1425,15 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
                     #    'Expected hash %s for parent recipe %s, got %s\n'
                     #    % (expected_hash, p_recipe_id, actual_hash))
                     trust_errors += (
-                        "Parent recipe %s has been changed.\n" % p_recipe_id)
+                        "Our stored checksum for parent recipe %s does not "
+                        "match the current content of that recipe.\n"
+                        % p_recipe_id)
+                    trust_errors += (
+                        "Perhaps parent recipe %s has been changed.\n"
+                        % p_recipe_id)
                     p_recipe = load_recipe(
-                        p_recipe_id, override_dirs, search_dirs)
+                        p_recipe_id, override_dirs, search_dirs,
+                        make_suggestions=False, search_github=False)
                     trust_errors += (
                         "Recipe path: %s\n" % p_recipe["RECIPE_PATH"])
                     if git_hash:
@@ -1436,6 +1442,88 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
             raise AutoPackagerError(
                 'Could not verify trust of parent recipes and custom '
                 'processors:\n%s' % trust_errors)
+
+
+def update_trust_info(argv):
+    '''Update the parent recipe trust information stored in a recipe override'''
+    verb = argv[1]
+    parser = optparse.OptionParser()
+
+    parser.set_usage("Usage: %s %s [options] recipe_override_name [...]\n"
+                     "Update or add parent recipe trust information for a "
+                     "recipe override." % ("%prog", verb))
+
+    # Parse arguments
+    add_search_and_override_dir_options(parser)
+    options, arguments = parser.parse_args(argv[2:])
+
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+
+    normalized_override_dirs = [os.path.abspath(os.path.expanduser(directory))
+                                for directory in override_dirs]
+
+    for recipe_name in arguments:
+        recipe_path = locate_recipe(recipe_name, override_dirs, search_dirs,
+                                    make_suggestions=True, search_github=False)
+        if not recipe_path:
+            log_err("Cannot find an override recipe for %s." % recipe_name)
+            continue
+        # normalize recipe path
+        recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
+        recipe_dir = os.path.dirname(recipe_path)
+        recipe = FoundationPlist.readPlist(recipe_path)
+        if 'ParentRecipe' not in recipe:
+            log_err("%s is not a recipe override and has no parent recipe."
+                    % recipe_name)
+            continue
+        if (recipe_dir not in normalized_override_dirs and
+                'ParentRecipeTrustInfo' not in recipe):
+            print "%s does not appear to be a recipe override." % recipe_name
+            answer = raw_input("Add parent trust info anyway? [y/n]: ")
+            if not answer.lower().startswith('y'):
+                continue
+        # add trust info
+        parent_recipe = load_recipe(
+            recipe["ParentRecipe"], override_dirs, search_dirs)
+        recipe['ParentRecipeTrustInfo'] = get_trust_info(
+            parent_recipe, search_dirs=search_dirs)
+        FoundationPlist.writePlist(recipe, recipe_path)
+        log("Wrote updated %s" % recipe_path)
+
+
+def verify_trust_info(argv):
+    '''Verify the parent recipe trust information stored in a recipe override'''
+    verb = argv[1]
+    parser = optparse.OptionParser()
+
+    parser.set_usage("Usage: %s %s [options] recipe_override_name [...]\n"
+                     "Verify parent recipe trust information for a "
+                     "recipe override." % ("%prog", verb))
+
+    # Parse arguments
+    add_search_and_override_dir_options(parser)
+    options, arguments = parser.parse_args(argv[2:])
+
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+
+    for recipe_name in arguments:
+        recipe = load_recipe(recipe_name, override_dirs, search_dirs,
+                             make_suggestions=True, search_github=False)
+        if not recipe:
+            continue
+        if not 'ParentRecipeTrustInfo' in recipe:
+            log('No parent trust info to verify in %s' % recipe_name)
+            continue
+        try:
+            verify_parent_trust(recipe, override_dirs, search_dirs)
+        except AutoPackagerError, err:
+            log_err('Parent trust info verification failed for %s'
+                    % recipe_name)
+            log_err(unicode(err))
+        else:
+            log('Parent trust info verified for %s' % recipe_name)
 
 
 def make_override(argv):
@@ -1471,7 +1559,8 @@ def make_override(argv):
 
     recipe = load_recipe(recipe_name,
                          override_dirs=[],
-                         recipe_dirs=search_dirs)
+                         recipe_dirs=search_dirs,
+                         make_suggestions=True, search_github=False)
     if not recipe:
         log_err("No valid recipe found for %s" % recipe_name)
         log_err("Dir(s) searched:\n\t%s" % "\n\t".join(search_dirs))
@@ -1549,6 +1638,10 @@ def run_recipes(argv):
                             "Can be repeated to run multiple postprocessors."))
     parser.add_option("-c", "--check", action="store_true",
                       help="Only check for new/changed downloads.")
+    parser.add_option("--ignore-parent-trust-verification-errors",
+                      action="store_true", default=False,
+                      help=("Run recipes even if they fail parent trust "
+                            "verification."))
     parser.add_option("-k", "--key", action="append", dest="variables",
                       default=[], metavar="KEY=VALUE",
                       help=("Provide key/value pairs for recipe input. "
@@ -1694,7 +1787,8 @@ def run_recipes(argv):
 
         try:
             autopackager.process_cli_overrides(recipe, cli_values)
-            verify_parent_trust(recipe, override_dirs, search_dirs)
+            if not options.ignore_parent_trust_verification_errors:
+                verify_parent_trust(recipe, override_dirs, search_dirs)
             autopackager.verify(recipe)
             autopackager.process(recipe)
         except AutoPackagerError as err:
@@ -2078,6 +2172,13 @@ def main(argv):
         "search": {
             "function": search_recipes,
             "help": "Search for recipes on GitHub."},
+        "update-trust-info": {
+            "function": update_trust_info,
+            "help": ("Update or add parent recipe trust info for a recipe "
+                     "override.")},
+        "verify-trust-info": {
+            "function": verify_trust_info,
+            "help": ("Verify parent recipe trust info for a recipe override.")},
         "version": {
             "function": print_version,
             "help": "Print the current version of autopkg"}
