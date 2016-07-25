@@ -1363,7 +1363,7 @@ def get_git_diff(filepath, git_hash):
         return ''
 
 
-def verify_parent_trust(recipe, override_dirs, search_dirs):
+def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
     # verify trust of parent recipes
     if recipe.get('ParentRecipe') and recipe.get('ParentRecipeTrustInfo'):
         parent_recipe = load_recipe(recipe['ParentRecipe'],
@@ -1379,9 +1379,9 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
             actual_processor_names = (
                 actual_trust_info['non_core_processors'].keys())
             if set(expected_processor_names) != set(actual_processor_names):
-                trust_errors += ("Expected non-core processor list: %s\n"
+                trust_errors += ("    Expected non-core processor list: %s\n"
                                  % list(expected_processor_names))
-                trust_errors += ("Actual non-core processor list: %s\n"
+                trust_errors += ("    Actual non-core processor list: %s\n"
                                  % list(actual_processor_names))
             for processor in expected_processor_names:
                 expected_hash = (
@@ -1394,13 +1394,20 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
                         processor, {}).get('sha256_hash'))
                 if expected_hash != actual_hash:
                     trust_errors += (
-                        "Our stored checksum for processor %s does not match "
-                        "the current content of that processor.\n" % processor)
-                    trust_errors += (
-                        "Perhaps processor %s has been changed.\n" % processor)
+                        "    Processor %s differs from expected.\n" % processor)
+                    if verbosity > 0:
+                        trust_errors += (
+                            "    Expected checksum: %s\n"
+                            "    Actual checksum: %s\n"
+                            % (expected_hash, actual_hash))
                     processor_path = find_processor_path(processor, recipe)
-                    trust_errors += 'Processor path: %s\n' % processor_path
-                    if processor_path and git_hash:
+                    if processor_path:
+                        trust_errors += (
+                            '    Processor path: %s\n' % processor_path)
+                    else:
+                        trust_errors += (
+                            '    Processor %s can\'t be found.\n' % processor)
+                    if verbosity > 1 and processor_path and git_hash:
                         trust_errors += get_git_diff(processor_path, git_hash)
             # get detail on parent_recipes
             expected_parent_recipes = (
@@ -1408,9 +1415,9 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
             actual_parent_recipes = (
                 actual_trust_info['parent_recipes'].keys())
             if set(expected_parent_recipes) != set(actual_parent_recipes):
-                trust_errors += ("Expected parent recipe list: %s\n"
+                trust_errors += ("    Expected parent recipe list: %s\n"
                                  % list(expected_parent_recipes))
-                trust_errors += ("Actual parent recipe list: %s\n"
+                trust_errors += ("    Actual parent recipe list: %s\n"
                                  % list(actual_parent_recipes))
             for p_recipe_id in expected_parent_recipes:
                 expected_hash = (
@@ -1422,25 +1429,27 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
                     actual_trust_info['parent_recipes'].get(
                         p_recipe_id, {}).get('sha256_hash'))
                 if expected_hash != actual_hash:
-                    #trust_errors += (
-                    #    'Expected hash %s for parent recipe %s, got %s\n'
-                    #    % (expected_hash, p_recipe_id, actual_hash))
                     trust_errors += (
-                        "Our stored checksum for parent recipe %s does not "
-                        "match the current content of that recipe.\n"
+                        "    Parent recipe %s differs from expected.\n"
                         % p_recipe_id)
-                    trust_errors += (
-                        "Perhaps parent recipe %s has been changed.\n"
-                        % p_recipe_id)
+                    if verbosity > 0:
+                        trust_errors += (
+                            "    Expected checksum: %s\n"
+                            "    Actual checksum: %s\n"
+                            % (expected_hash, actual_hash))
                     p_recipe = load_recipe(
                         p_recipe_id, override_dirs, search_dirs,
                         make_suggestions=False, search_github=False)
                     if p_recipe:
                         trust_errors += (
-                            "Recipe path: %s\n" % p_recipe["RECIPE_PATH"])
-                        if git_hash:
+                            "    Recipe path: %s\n" % p_recipe["RECIPE_PATH"])
+                        if verbosity > 1 and git_hash:
                             trust_errors += get_git_diff(
                                 p_recipe["RECIPE_PATH"], git_hash)
+                    else:
+                        trust_errors += (
+                            '    Parent recipe %s can\'t be found.\n'
+                            % p_recipe_id)
             raise AutoPackagerError(
                 'Could not verify trust of parent recipes and custom '
                 'processors:\n%s' % trust_errors)
@@ -1506,6 +1515,8 @@ def verify_trust_info(argv):
     parser.set_usage("Usage: %s %s [options] recipe_override_name [...]\n"
                      "Verify parent recipe trust information for a "
                      "recipe override." % ("%prog", verb))
+    parser.add_option("-v", "--verbose", action="count", default=0,
+                      help="Verbose output.")
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
@@ -1523,7 +1534,8 @@ def verify_trust_info(argv):
             log('No parent trust info to verify in %s' % recipe_name)
             continue
         try:
-            verify_parent_trust(recipe, override_dirs, search_dirs)
+            verify_parent_trust(
+                recipe, override_dirs, search_dirs, options.verbose)
         except AutoPackagerError, err:
             log_err('Parent trust info verification failed for %s'
                     % recipe_name)
@@ -1794,7 +1806,8 @@ def run_recipes(argv):
         try:
             autopackager.process_cli_overrides(recipe, cli_values)
             if not options.ignore_parent_trust_verification_errors:
-                verify_parent_trust(recipe, override_dirs, search_dirs)
+                verify_parent_trust(
+                    recipe, override_dirs, search_dirs, options.verbose)
             autopackager.verify(recipe)
             autopackager.process(recipe)
         except AutoPackagerError as err:
