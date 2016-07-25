@@ -1372,6 +1372,8 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         expected_trust_info = recipe['ParentRecipeTrustInfo']
         actual_trust_info = get_trust_info(parent_recipe, search_dirs)
         if actual_trust_info != expected_trust_info:
+            if verbosity == 0:
+                raise AutoPackagerError()
             trust_errors = ''
             # get detail on non_core_processors
             expected_processor_names = (
@@ -1395,11 +1397,6 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
                 if expected_hash != actual_hash:
                     trust_errors += (
                         "    Processor %s differs from expected.\n" % processor)
-                    if verbosity > 0:
-                        trust_errors += (
-                            "    Expected checksum: %s\n"
-                            "    Actual checksum: %s\n"
-                            % (expected_hash, actual_hash))
                     processor_path = find_processor_path(processor, recipe)
                     if processor_path:
                         trust_errors += (
@@ -1432,11 +1429,6 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
                     trust_errors += (
                         "    Parent recipe %s differs from expected.\n"
                         % p_recipe_id)
-                    if verbosity > 0:
-                        trust_errors += (
-                            "    Expected checksum: %s\n"
-                            "    Actual checksum: %s\n"
-                            % (expected_hash, actual_hash))
                     p_recipe = load_recipe(
                         p_recipe_id, override_dirs, search_dirs,
                         make_suggestions=False, search_github=False)
@@ -1450,9 +1442,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
                         trust_errors += (
                             '    Parent recipe %s can\'t be found.\n'
                             % p_recipe_id)
-            raise AutoPackagerError(
-                'Could not verify trust of parent recipes and custom '
-                'processors:\n%s' % trust_errors)
+            raise AutoPackagerError(trust_errors)
 
 
 def update_trust_info(argv):
@@ -1524,7 +1514,8 @@ def verify_trust_info(argv):
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
-
+    return_code = 0
+    
     for recipe_name in arguments:
         recipe = load_recipe(recipe_name, override_dirs, search_dirs,
                              make_suggestions=True, search_github=False)
@@ -1537,11 +1528,14 @@ def verify_trust_info(argv):
             verify_parent_trust(
                 recipe, override_dirs, search_dirs, options.verbose)
         except AutoPackagerError, err:
-            log_err('Parent trust info verification failed for %s'
-                    % recipe_name)
-            log_err(unicode(err))
+            log_err('Parent trust info verification FAILED for %s'
+                                % recipe_name)
+            if unicode(err):
+                log_err(unicode(err))
+            return_code = 1
         else:
             log('Parent trust info verified for %s' % recipe_name)
+    return return_code
 
 
 def make_override(argv):
