@@ -63,9 +63,9 @@ RECIPE_FAILED_CODE = 70
 def log(msg, error=False):
     '''Message logger, prints to stdout/stderr.'''
     if error:
-        print >> sys.stderr, msg.encode('UTF-8')
+        print >> sys.stderr, unicode(msg).encode('UTF-8')
     else:
-        print >> sys.stdout, msg.encode('UTF-8')
+        print >> sys.stdout, unicode(msg).encode('UTF-8')
 
 
 def log_err(msg):
@@ -1400,7 +1400,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
                         "Perhaps processor %s has been changed.\n" % processor)
                     processor_path = find_processor_path(processor, recipe)
                     trust_errors += 'Processor path: %s\n' % processor_path
-                    if git_hash:
+                    if processor_path and git_hash:
                         trust_errors += get_git_diff(processor_path, git_hash)
             # get detail on parent_recipes
             expected_parent_recipes = (
@@ -1435,11 +1435,12 @@ def verify_parent_trust(recipe, override_dirs, search_dirs):
                     p_recipe = load_recipe(
                         p_recipe_id, override_dirs, search_dirs,
                         make_suggestions=False, search_github=False)
-                    trust_errors += (
-                        "Recipe path: %s\n" % p_recipe["RECIPE_PATH"])
-                    if git_hash:
-                        trust_errors += get_git_diff(
-                            p_recipe["RECIPE_PATH"], git_hash)
+                    if p_recipe:
+                        trust_errors += (
+                            "Recipe path: %s\n" % p_recipe["RECIPE_PATH"])
+                        if git_hash:
+                            trust_errors += get_git_diff(
+                                p_recipe["RECIPE_PATH"], git_hash)
             raise AutoPackagerError(
                 'Could not verify trust of parent recipes and custom '
                 'processors:\n%s' % trust_errors)
