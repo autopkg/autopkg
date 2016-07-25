@@ -1306,7 +1306,8 @@ def get_trust_info(recipe, search_dirs=None):
     '''Gets information from a recipe we use to ensure parent recipes and
     non-core processors have not changed'''
     # generate hashes for each parent recipe
-    parent_recipe_paths = recipe['PARENT_RECIPES'] + [recipe["RECIPE_PATH"]]
+    parent_recipe_paths = recipe.get(
+        'PARENT_RECIPES', []) + [recipe["RECIPE_PATH"]]
     parent_recipe_hashes = {}
     for p_recipe_path in parent_recipe_paths:
         p_recipe_hash = getsha256hash(p_recipe_path)
@@ -1486,10 +1487,14 @@ def update_trust_info(argv):
         # add trust info
         parent_recipe = load_recipe(
             recipe["ParentRecipe"], override_dirs, search_dirs)
-        recipe['ParentRecipeTrustInfo'] = get_trust_info(
-            parent_recipe, search_dirs=search_dirs)
-        FoundationPlist.writePlist(recipe, recipe_path)
-        log("Wrote updated %s" % recipe_path)
+        if parent_recipe:
+            recipe['ParentRecipeTrustInfo'] = get_trust_info(
+                parent_recipe, search_dirs=search_dirs)
+            FoundationPlist.writePlist(recipe, recipe_path)
+            log("Wrote updated %s" % recipe_path)
+        else:
+            log_err("Could not find parent recipe %s for %s."
+                    % (recipe["ParentRecipe"], recipe_name))
 
 
 def verify_trust_info(argv):
