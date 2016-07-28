@@ -1323,8 +1323,6 @@ def get_trust_info(recipe, search_dirs=None):
     core_processors = core_processor_names()
     non_core_processors = [processor for processor in recipe_processors
                            if not processor in core_processors]
-    print "processors: ", recipe_processors
-    print "non_core_processors: ", non_core_processors
     non_core_processor_hashes = {}
     for processor in non_core_processors:
         processor_path = find_processor_path(processor, recipe)
