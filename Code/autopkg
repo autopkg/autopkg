@@ -1453,7 +1453,7 @@ def update_trust_info(argv):
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
-    options, arguments = parser.parse_args(argv[2:])
+    options, recipe_names = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -1461,7 +1461,7 @@ def update_trust_info(argv):
     normalized_override_dirs = [os.path.abspath(os.path.expanduser(directory))
                                 for directory in override_dirs]
 
-    for recipe_name in arguments:
+    for recipe_name in recipe_names:
         recipe_path = locate_recipe(recipe_name, override_dirs, search_dirs,
                                     make_suggestions=True, search_github=False)
         if not recipe_path:
@@ -1502,18 +1502,28 @@ def verify_trust_info(argv):
     parser.set_usage("Usage: %s %s [options] recipe_override_name [...]\n"
                      "Verify parent recipe trust information for a "
                      "recipe override." % ("%prog", verb))
+    parser.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
+                      help=("Path to a text file with a list of recipes to "
+                            "verify."))
     parser.add_option("-v", "--verbose", action="count", default=0,
                       help="Verbose output.")
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
-    options, arguments = parser.parse_args(argv[2:])
+    options, recipe_names = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
     return_code = 0
 
-    for recipe_name in arguments:
+    if options.recipe_list:
+        with open(options.recipe_list, "r") as file_desc:
+            data = file_desc.read()
+        recipes = [line for line in data.splitlines()
+                   if line and not line.startswith("#")]
+        recipe_names.extend(recipes)
+
+    for recipe_name in recipe_names:
         recipe = load_recipe(recipe_name, override_dirs, search_dirs,
                              make_suggestions=True, search_github=False)
         if not recipe:
