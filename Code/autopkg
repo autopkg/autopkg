@@ -17,44 +17,42 @@
 related tasks"""
 
 import sys
-
-if 'darwin' != sys.platform:
-    print "----------------------------------------------------------------------------------"
-    print "--  WARNING: AutoPkg is not completely functional on platforms other than OS X  --"
-    print "----------------------------------------------------------------------------------"
-
 import difflib
 import glob
 import hashlib
 import os
 import operator
 import optparse
-
-try:
-    import FoundationPlist
-except:
-    print 'WARNING: importing plistlib as FoundationPlist'
-    import plistlib as FoundationPlist
-
-import plistlib
 import pprint
 import re
 import shutil
 import subprocess
 import time
 import traceback
-import autopkglib.github
-
 from urlparse import urlparse
 
+import autopkglib.github
 from autopkglib import get_pref, get_all_prefs
 from autopkglib import set_pref, PreferenceError
 from autopkglib import AutoPackagerError, AutoPackager
-from autopkglib import get_processor, processor_names
+from autopkglib import get_processor, processor_names, core_processor_names
 from autopkglib import extract_processor_name_with_recipe_identifier
 from autopkglib import get_autopkg_version, version_equal_or_greater
 from autopkglib import find_recipe_by_identifier, get_identifier
 
+if sys.platform != 'darwin':
+    print """
+--------------------------------------------------------------------------------
+-- WARNING: AutoPkg is not completely functional on platforms other than OS X --
+--------------------------------------------------------------------------------
+"""
+
+try:
+    import FoundationPlist
+except:
+    print 'WARNING: importing plistlib as FoundationPlist;'
+    print 'WARNING: some plist formats will be unsupported'
+    import plistlib as FoundationPlist
 
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
@@ -1265,7 +1263,7 @@ def getsha256hash(filepath):
 
 
 def find_processor_path(processor_name, recipe, env=None):
-    '''Returns the pathname to a procesor given a name andv a recipe'''
+    '''Returns the pathname to a procesor given a name and a recipe'''
     if env is None:
         env = {}
     if recipe:
@@ -1322,8 +1320,11 @@ def get_trust_info(recipe, search_dirs=None):
             parent_recipe_hashes[identifier]['git_hash'] = git_hash
     # generate hashes for each non-core processor
     recipe_processors = [step["Processor"] for step in recipe["Process"]]
+    core_processors = core_processor_names()
     non_core_processors = [processor for processor in recipe_processors
-                           if not processor_is_core(processor)]
+                           if not processor in core_processors]
+    print "processors: ", recipe_processors
+    print "non_core_processors: ", non_core_processors
     non_core_processor_hashes = {}
     for processor in non_core_processors:
         processor_path = find_processor_path(processor, recipe)
@@ -1513,7 +1514,7 @@ def verify_trust_info(argv):
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
     return_code = 0
-    
+
     for recipe_name in arguments:
         recipe = load_recipe(recipe_name, override_dirs, search_dirs,
                              make_suggestions=True, search_github=False)
@@ -1954,23 +1955,6 @@ def printplist(plistdict):
         printplistitem(key, plistdict[key], indent=2)
 
 
-def processor_is_core(processor_name):
-    '''Returns True if processor_name refers to a "core" processor'''
-    (processor_name, processor_recipe_id) = (
-        extract_processor_name_with_recipe_identifier(processor_name))
-    if processor_recipe_id:
-        # refers to a Shared processor
-        return False
-    try:
-        # just try to find the processor
-        _ = get_processor(processor_name)
-        return True
-    except (KeyError, AttributeError):
-        # autopkglib.get_processor raises KeyError if the processor isn't found
-        # probably should make that nicer/more explicit
-        return False
-
-
 def find_http_urls_in_recipe(recipe):
     '''Looks in the Input and Process sections of a recipe for any http URLs.
     Returns a dict.'''
@@ -2073,8 +2057,9 @@ def audit(argv):
             audit_results[recipe_path]['MissingCodeSignatureVerifier'] = True
         creator_processors = set(recipe_processors).intersection(
             CREATOR_PROCESSORS)
+        core_processors = core_processor_names()
         non_core_processors = [processor for processor in recipe_processors
-                               if not processor_is_core(processor)]
+                               if not processor in core_processors]
         modification_processors = set()
         # only flag modification processors if there is a creator or non-core
         # processor afterwards
@@ -2129,7 +2114,7 @@ def audit(argv):
             recipe_no_issue_count += 1
             log('%s: no audit flags triggered.' % recipe_path)
     if options.plist:
-        print plistlib.writePlistToString(audit_results)
+        print FoundationPlist.writePlistToString(audit_results)
     elif len(recipe_paths) > 1:
         log('\nSummary:')
         log('    %s recipes audited' % len(audit_results.keys()))

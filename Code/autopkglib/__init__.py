@@ -502,7 +502,7 @@ class AutoPackager(object):
         if self.verbose > 2:
             pprint.pprint(self.env)
 
-
+_CORE_PROCESSOR_NAMES = []
 _PROCESSOR_NAMES = []
 def import_processors():
     '''Imports processors from the directory this init file is in'''
@@ -529,6 +529,7 @@ def import_processors():
         globals()[name] = getattr(__import__(
             mydirname + '.' + name, fromlist=[name]), name)
         _PROCESSOR_NAMES.append(name)
+        _CORE_PROCESSOR_NAMES.append(name)
 
 
 # convenience functions for adding and accessing processors
@@ -616,6 +617,10 @@ def processor_names():
     """Return our Processor names"""
     return _PROCESSOR_NAMES
 
+
+def core_processor_names():
+    '''Returns the names of the 'core' processors'''
+    return _CORE_PROCESSOR_NAMES
 
 # when importing autopkglib, need to also import all the processors
 # in this same directory
