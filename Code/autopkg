@@ -1852,26 +1852,22 @@ def run_recipes(argv):
 
         autopackager = AutoPackager(options, prefs)
 
-        autopackager.process_cli_overrides(recipe, cli_values)
+        fail_recipes_without_trust_info = bool(cli_values.get(
+            'FAIL_RECIPES_WITHOUT_TRUST_INFO', prefs.get(
+                'FAIL_RECIPES_WITHOUT_TRUST_INFO')))
 
-        # if admin has set ALLOW_RECIPES_WITHOUT_TRUST_INFO in the preferences
-        # or via cli, we should skip trust verification for recipes that
-        # have no ParentRecipeTrustInfo
-        allow_recipes_without_trust_info = cli_values.get(
-            'ALLOW_RECIPES_WITHOUT_TRUST_INFO', prefs.get(
-                'ALLOW_RECIPES_WITHOUT_TRUST_INFO'))
-
-        if (allow_recipes_without_trust_info and
-                'ParentRecipeTrustInfo' not in recipe):
-            log_err("WARNING: %s is missing trust information. "
-                    "Proceeding anyway..." % recipe_path)
+        if ('ParentRecipeTrustInfo' not in recipe and
+                not fail_recipes_without_trust_info):
+            log_err("WARNING: %s is missing trust info and "
+                    "FAIL_RECIPES_WITHOUT_TRUST_INFO is not set. " 
+                    "Proceeding..." % recipe_path)
 
         # we should also skip trust verification if we've been told to ignore
         # verification errors
         skip_trust_verification = (
             options.ignore_parent_trust_verification_errors or
-            (allow_recipes_without_trust_info and
-             'ParentRecipeTrustInfo' not in recipe)
+            ('ParentRecipeTrustInfo' not in recipe and
+             not fail_recipes_without_trust_info)
         )
 
         try:
