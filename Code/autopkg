@@ -1372,10 +1372,36 @@ class TrustVerificationError(AutoPackagerError):
     pass
 
 
+def recipe_from_external_repo(recipe_path):
+    '''Returns True if the recipe_path is in a path in RECIPE_REPOS, which contains
+    recipes added via repo-add'''
+    recipe_repos = get_pref("RECIPE_REPOS") or {}
+    for repo in recipe_repos.keys():
+        if recipe_path.startswith(repo):
+            return True
+    return False
+
+
 def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
-    # verify trust of parent recipes
+    '''Verify trust info for parent recipes'''
+    # warn if no trust info
     if not (recipe.get('ParentRecipe') and recipe.get('ParentRecipeTrustInfo')):
-        raise TrustVerificationWarning('No trust information present')
+        raise TrustVerificationWarning(
+            'No trust information present. Audit the recipe, then create an '
+            'override to trust it.')
+    recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or
+                       "~/Library/AutoPkg/RecipeRepos")
+    recipe_repo_dir = os.path.expanduser(recipe_repo_dir)
+
+    # error if we can't use/trust the trust info (it was provided by another)
+    if recipe_from_external_repo(recipe["RECIPE_PATH"]):
+        # this recipe is in a cloned recipe repo; IE, not a local recipe
+        # ignore any embedded trust info
+        raise TrustVerificationError(
+            'Recipe from external repo: embedded trust info will be ignored. '
+            'Audit the recipe, then create an override to trust it.')
+
+    # verify trust of parent recipes
     parent_recipe = load_recipe(recipe['ParentRecipe'],
                                 override_dirs, search_dirs,
                                 make_suggestions=False, search_github=False)
@@ -1453,6 +1479,16 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         raise TrustVerificationError(trust_errors)
 
 
+def recipe_in_override_dir(recipe_path, override_dirs):
+    '''Returns True if the recipe is in a path in override_dirs'''
+    normalized_override_dirs = [os.path.abspath(os.path.expanduser(directory))
+                                for directory in override_dirs]
+    for override_dir in normalized_override_dirs:
+        if recipe_path.startswith(override_dir):
+            return True
+    return False
+
+
 def update_trust_info(argv):
     '''Update the parent recipe trust information stored in a recipe override'''
     verb = argv[1]
@@ -1469,9 +1505,6 @@ def update_trust_info(argv):
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
 
-    normalized_override_dirs = [os.path.abspath(os.path.expanduser(directory))
-                                for directory in override_dirs]
-
     for recipe_name in recipe_names:
         recipe_path = locate_recipe(recipe_name, override_dirs, search_dirs,
                                     make_suggestions=True, search_github=False)
@@ -1480,19 +1513,24 @@ def update_trust_info(argv):
             continue
         # normalize recipe path
         recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
-        recipe_dir = os.path.dirname(recipe_path)
         recipe = FoundationPlist.readPlist(recipe_path)
         if 'ParentRecipe' not in recipe:
             log_err("%s is not a recipe override and has no parent recipe."
                     % recipe_name)
             log_err("Path: %s" % recipe_path)
             continue
-        if (recipe_dir not in normalized_override_dirs and
-                'ParentRecipeTrustInfo' not in recipe):
+        if ('ParentRecipeTrustInfo' not in recipe and
+                not recipe_in_override_dir(recipe_path, override_dirs)):
             print "%s does not appear to be a recipe override." % recipe_name
-            answer = raw_input("Add parent trust info anyway? [y/n]: ")
-            if not answer.lower().startswith('y'):
+            if recipe_from_external_repo(recipe_path):
+                # don't offer to add parent trust info to a recipe from
+                # an external repo
                 continue
+            else:
+                # must be a local recipe
+                answer = raw_input("Add parent trust info anyway? [y/n]: ")
+                if not answer.lower().startswith('y'):
+                    continue
         # add trust info
         parent_recipe = load_recipe(
             recipe["ParentRecipe"], override_dirs, search_dirs)
@@ -1815,14 +1853,24 @@ def run_recipes(argv):
         autopackager = AutoPackager(options, prefs)
 
         autopackager.process_cli_overrides(recipe, cli_values)
-        
+
+        # if admin has set ALLOW_RECIPES_WITHOUT_TRUST_INFO in the preferences
+        # or via cli, we should skip trust verification for recipes that
+        # have no ParentRecipeTrustInfo
         allow_recipes_without_trust_info = cli_values.get(
             'ALLOW_RECIPES_WITHOUT_TRUST_INFO', prefs.get(
                 'ALLOW_RECIPES_WITHOUT_TRUST_INFO'))
-       
+
+        if (allow_recipes_without_trust_info and
+                'ParentRecipeTrustInfo' not in recipe):
+            log_err("WARNING: %s is missing trust information. "
+                    "Proceeding anyway..." % recipe_path)
+
+        # we should also skip trust verification if we've been told to ignore
+        # verification errors
         skip_trust_verification = (
             options.ignore_parent_trust_verification_errors or
-            (allow_recipes_without_trust_info and 
+            (allow_recipes_without_trust_info and
              'ParentRecipeTrustInfo' not in recipe)
         )
 
