@@ -388,6 +388,10 @@ def load_recipe(name, override_dirs, recipe_dirs,
         else:
             recipe["RECIPE_PATH"] = recipe_file
 
+    if recipe:
+        # store the name the user used to locate this recipe
+        recipe['name'] = name
+
     if recipe and preprocessors:
         steps = []
         for preprocessor_name in preprocessors:
@@ -1382,13 +1386,34 @@ def recipe_from_external_repo(recipe_path):
     return False
 
 
+def recipe_in_override_dir(recipe_path, override_dirs):
+    '''Returns True if the recipe is in a path in override_dirs'''
+    normalized_override_dirs = [os.path.abspath(os.path.expanduser(directory))
+                                for directory in override_dirs]
+    for override_dir in normalized_override_dirs:
+        if recipe_path.startswith(override_dir):
+            return True
+    return False
+
+
 def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
     '''Verify trust info for parent recipes'''
     # warn if no trust info
-    if not (recipe.get('ParentRecipe') and recipe.get('ParentRecipeTrustInfo')):
-        raise TrustVerificationWarning(
-            'No trust information present. Audit the recipe, then create an '
-            'override to trust it.')
+    if not recipe.get('ParentRecipeTrustInfo'):
+        warning = 'No trust information present.'
+        if (recipe_in_override_dir(recipe["RECIPE_PATH"], override_dirs) and
+                recipe.get('PARENT_RECIPES')):
+            if verbosity > 1:
+                warning += (
+                    '\nAudit the parent recipe, then run:\n'
+                    '\tautopkg update-trust-info %s' % recipe["name"])
+            raise TrustVerificationWarning(warning)
+        else:
+            if verbosity > 1:
+                warning += (
+                    '\nAudit the recipe, then store trust info by running:\n'
+                    '\tautopkg make-override %s' % recipe["name"])
+            raise TrustVerificationWarning(warning)
     recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or
                        "~/Library/AutoPkg/RecipeRepos")
     recipe_repo_dir = os.path.expanduser(recipe_repo_dir)
@@ -1479,16 +1504,6 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         raise TrustVerificationError(trust_errors)
 
 
-def recipe_in_override_dir(recipe_path, override_dirs):
-    '''Returns True if the recipe is in a path in override_dirs'''
-    normalized_override_dirs = [os.path.abspath(os.path.expanduser(directory))
-                                for directory in override_dirs]
-    for override_dir in normalized_override_dirs:
-        if recipe_path.startswith(override_dir):
-            return True
-    return False
-
-
 def update_trust_info(argv):
     '''Update the parent recipe trust information stored in a recipe override'''
     verb = argv[1]
@@ -1561,7 +1576,7 @@ def verify_trust_info(argv):
                       help=("Path to a text file with a list of recipes to "
                             "verify."))
     parser.add_option("-v", "--verbose", action="count", default=0,
-                      help="Verbose output.")
+                      help="Verbose output. May be specified multiple times.")
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
