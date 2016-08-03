@@ -372,7 +372,7 @@ class Packager(object):
                     self.log.info("Setting mode of %s to %s" % (
                         entry.path,
                         str(entry.mode)))
-                    os.chmod(chownpath, int(entry.mode, 8))
+                    os.lchmod(chownpath, int(entry.mode, 8))
             else:
                 for (dirpath,
                      dirnames,
@@ -386,7 +386,7 @@ class Packager(object):
                         try:
                             os.lchown(path, uid, gid)
                             if chmod_present:
-                                os.chmod(path, int(entry.mode, 8))
+                                os.lchmod(path, int(entry.mode, 8))
                         except OSError as e:
                             raise PackagerError("Can't lchown %s: %s" % (path, e))
 
