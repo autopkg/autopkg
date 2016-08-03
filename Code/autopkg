@@ -1505,6 +1505,11 @@ def update_trust_info(argv):
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
 
+    if not recipe_names:
+        log_err('Need at least one recipe name or path!')
+        log_err(parser.get_usage())
+        return -1
+
     for recipe_name in recipe_names:
         recipe_path = locate_recipe(recipe_name, override_dirs, search_dirs,
                                     make_suggestions=True, search_github=False)
@@ -1572,6 +1577,11 @@ def verify_trust_info(argv):
         recipes = [line for line in data.splitlines()
                    if line and not line.startswith("#")]
         recipe_names.extend(recipes)
+
+    if not recipe_names:
+        log_err('Need at least one recipe name or path!')
+        log_err(parser.get_usage())
+        return -1
 
     for recipe_name in recipe_names:
         recipe = load_recipe(recipe_name, override_dirs, search_dirs,
