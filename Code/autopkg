@@ -1235,16 +1235,30 @@ def get_git_commit_hash(filepath):
         return None
     try:
         relative_path = os.path.relpath(filepath, git_toplevel_dir)
+        # this was the _wrong_ implementation and essentially is the same
+        # as `git hash-object filepath`. It gives us the object hash for the
+        # file. Fine for later getting diff info but no good for finding the
+        # the commits since the hash was recorded
+        #
+        #git_hash = run_git(
+        #    ['rev-parse', ':' + relative_path],
+        #    git_directory=git_toplevel_dir).rstrip('\n')
+        #
+        # instead, we need to use `rev-list` to find the most recent commit
+        # hash for the file in question.
         git_hash = run_git(
-            ['rev-parse', ':' + relative_path],
+            ['rev-list', '-1', 'HEAD', '--', relative_path],
             git_directory=git_toplevel_dir).rstrip('\n')
     except GitError:
         return None
+    # make sure the file hasn't been changed locally since the last git pull
+    # if git diff produces output, it's been changed, and therefore storing
+    # the hash is pointless
     try:
         diff_output = run_git(
             ['diff', git_hash, relative_path],
             git_directory=git_toplevel_dir).rstrip('\n')
-    except GitError:
+    except GitError as err:
         return None
     if diff_output:
         return None
@@ -1318,6 +1332,7 @@ def get_trust_info(recipe, search_dirs=None):
                                recipe_dirs=search_dirs)
         identifier = get_identifier(p_recipe)
         parent_recipe_hashes[identifier] = {
+            'path': p_recipe_path,
             'sha256_hash': p_recipe_hash,
         }
         if git_hash:
@@ -1337,6 +1352,7 @@ def get_trust_info(recipe, search_dirs=None):
             processor_hash = "PROCESSOR FILEPATH NOT FOUND"
             git_hash = None
         non_core_processor_hashes[processor] = {
+            'path': processor_path,
             'sha256_hash': processor_hash,
         }
         if git_hash:
@@ -1361,6 +1377,24 @@ def get_git_diff(filepath, git_hash):
     try:
         return run_git(
             ['diff', git_hash, relative_path],
+            git_directory=git_toplevel_dir)
+    except GitError:
+        return ''
+
+
+def get_git_log(filepath, git_hash):
+    '''Get log entries for commits for filepath since the commit referred to by
+    git_hash'''
+    try:
+        git_toplevel_dir = run_git(
+            ['rev-parse', '--show-toplevel'],
+            git_directory=os.path.dirname(filepath)).rstrip('\n')
+    except GitError:
+        return ''
+    relative_path = os.path.relpath(filepath, git_toplevel_dir)
+    try:
+        return run_git(
+            ['log', git_hash + '..', '--', relative_path],
             git_directory=git_toplevel_dir)
     except GitError:
         return ''
@@ -1432,75 +1466,100 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
                                 make_suggestions=False, search_github=False)
     expected_trust_info = recipe['ParentRecipeTrustInfo']
     actual_trust_info = get_trust_info(parent_recipe, search_dirs)
-    if actual_trust_info != expected_trust_info:
-        trust_errors = ''
-        # get detail on non_core_processors
-        expected_processor_names = (
-            expected_trust_info['non_core_processors'].keys())
-        actual_processor_names = (
-            actual_trust_info['non_core_processors'].keys())
-        if set(expected_processor_names) != set(actual_processor_names):
-            trust_errors += ("Expected non-core processor list: %s\n"
-                             % list(expected_processor_names))
-            trust_errors += ("Actual non-core processor list: %s\n"
-                             % list(actual_processor_names))
-        for processor in expected_processor_names:
-            expected_hash = (
-                expected_trust_info['non_core_processors'][
-                    processor]['sha256_hash'])
-            git_hash = expected_trust_info['non_core_processors'][
-                processor].get('git_hash')
-            actual_hash = (
-                actual_trust_info['non_core_processors'].get(
-                    processor, {}).get('sha256_hash'))
-            if expected_hash != actual_hash:
+    if actual_trust_info == expected_trust_info:
+        # shortcut if the two dictionaries match perfectly
+        return
+    # look for differences
+    trust_errors = ''
+    # get detail on non_core_processors
+    expected_processor_names = set(
+        expected_trust_info['non_core_processors'].keys())
+    actual_processor_names = set(
+        actual_trust_info['non_core_processors'].keys())
+    for processor in expected_processor_names:
+        expected_hash = (
+            expected_trust_info['non_core_processors'][
+                processor]['sha256_hash'])
+        git_hash = expected_trust_info['non_core_processors'][
+            processor].get('git_hash')
+        actual_hash = (
+            actual_trust_info['non_core_processors'].get(
+                processor, {}).get('sha256_hash'))
+        if expected_hash != actual_hash:
+            processor_path = find_processor_path(processor, recipe)
+            if processor_path:
                 trust_errors += (
-                    "Processor %s differs from expected.\n" % processor)
-                processor_path = find_processor_path(processor, recipe)
-                if processor_path:
-                    trust_errors += (
-                        'Processor path: %s\n' % processor_path)
-                else:
-                    trust_errors += (
-                        'Processor %s can\'t be found.\n' % processor)
-                if verbosity > 1 and processor_path and git_hash:
-                    trust_errors += get_git_diff(processor_path, git_hash)
-        # get detail on parent_recipes
-        expected_parent_recipes = (
-            expected_trust_info['parent_recipes'].keys())
-        actual_parent_recipes = (
-            actual_trust_info['parent_recipes'].keys())
-        if set(expected_parent_recipes) != set(actual_parent_recipes):
-            trust_errors += ("Expected parent recipe list: %s\n"
-                             % list(expected_parent_recipes))
-            trust_errors += ("Actual parent recipe list: %s\n"
-                             % list(actual_parent_recipes))
-        for p_recipe_id in expected_parent_recipes:
-            expected_hash = (
-                expected_trust_info['parent_recipes'][
-                    p_recipe_id]['sha256_hash'])
-            git_hash = expected_trust_info['parent_recipes'][
-                p_recipe_id].get('git_hash')
-            actual_hash = (
-                actual_trust_info['parent_recipes'].get(
-                    p_recipe_id, {}).get('sha256_hash'))
-            if expected_hash != actual_hash:
+                    "Processor %s contents differ from expected.\n" % processor)
                 trust_errors += (
-                    "Parent recipe %s differs from expected.\n"
+                    '    Path: %s\n' % processor_path)
+            else:
+                trust_errors += (
+                    'Expected processor %s can\'t be found.\n' % processor)
+                processor_path = expected_trust_info['non_core_processors'][
+                    processor].get('path')
+            if verbosity > 1 and processor_path and git_hash:
+                trust_errors += get_git_diff(processor_path, git_hash)
+                trust_errors += get_git_log(processor_path, git_hash)
+                trust_errors += '\n'
+    for processor in actual_processor_names:
+        if processor not in expected_processor_names:
+            trust_errors += "Unexpected processor found: %s\n" % processor
+            processor_path = find_processor_path(processor, recipe)
+            if processor_path:
+                trust_errors += (
+                    '    Path: %s\n' % processor_path)
+
+    # get detail on parent_recipes
+    expected_parent_recipes = (
+        expected_trust_info['parent_recipes'].keys())
+    actual_parent_recipes = (
+        actual_trust_info['parent_recipes'].keys())
+    if set(expected_parent_recipes) != set(actual_parent_recipes):
+        trust_errors += ("Expected parent recipe list: %s\n"
+                         % list(expected_parent_recipes))
+        trust_errors += ("Actual parent recipe list: %s\n"
+                         % list(actual_parent_recipes))
+    for p_recipe_id in expected_parent_recipes:
+        expected_hash = (
+            expected_trust_info['parent_recipes'][
+                p_recipe_id]['sha256_hash'])
+        git_hash = expected_trust_info['parent_recipes'][
+            p_recipe_id].get('git_hash')
+        actual_hash = (
+            actual_trust_info['parent_recipes'].get(
+                p_recipe_id, {}).get('sha256_hash'))
+        if expected_hash != actual_hash:
+            p_recipe = load_recipe(
+                p_recipe_id, override_dirs, search_dirs,
+                make_suggestions=False, search_github=False)
+            if p_recipe:
+                trust_errors += (
+                    "Parent recipe %s contents differ from expected.\n"
                     % p_recipe_id)
-                p_recipe = load_recipe(
-                    p_recipe_id, override_dirs, search_dirs,
-                    make_suggestions=False, search_github=False)
-                if p_recipe:
-                    trust_errors += (
-                        "Recipe path: %s\n" % p_recipe["RECIPE_PATH"])
-                    if verbosity > 1 and git_hash:
-                        trust_errors += get_git_diff(
-                            p_recipe["RECIPE_PATH"], git_hash)
-                else:
-                    trust_errors += (
-                        'Parent recipe %s can\'t be found.\n'
-                        % p_recipe_id)
+                trust_errors += (
+                    "    Path: %s\n" % p_recipe["RECIPE_PATH"])
+                recipe_path = p_recipe["RECIPE_PATH"]
+            else:
+                trust_errors += (
+                    'Expected parent recipe %s can\'t be found.\n'
+                    % p_recipe_id)
+                recipe_path = expected_trust_info['parent_recipes'][
+                    p_recipe_id].get('path')
+            if verbosity > 1 and recipe_path and git_hash:
+                trust_errors += get_git_log(recipe_path, git_hash)
+                trust_errors += get_git_diff(recipe_path, git_hash)
+                trust_errors += '\n'
+    for p_recipe_id in actual_parent_recipes:
+        if p_recipe_id not in expected_parent_recipes:
+            trust_errors += "Unexpected parent recipe found: %s\n" % p_recipe_id
+            p_recipe = load_recipe(
+                p_recipe_id, override_dirs, search_dirs,
+                make_suggestions=False, search_github=False)
+            if p_recipe:
+                trust_errors += (
+                    "    Path: %s\n" % p_recipe["RECIPE_PATH"])
+
+    if trust_errors:
         raise TrustVerificationError(trust_errors)
 
 
@@ -1884,7 +1943,7 @@ def run_recipes(argv):
         if ('ParentRecipeTrustInfo' not in recipe and
                 not fail_recipes_without_trust_info):
             log_err("WARNING: %s is missing trust info and "
-                    "FAIL_RECIPES_WITHOUT_TRUST_INFO is not set. " 
+                    "FAIL_RECIPES_WITHOUT_TRUST_INFO is not set. "
                     "Proceeding..." % recipe_path)
 
         # we should also skip trust verification if we've been told to ignore
