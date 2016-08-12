@@ -29,6 +29,8 @@ import shutil
 import subprocess
 import time
 import traceback
+
+from urllib import quote
 from urlparse import urlparse
 
 import autopkglib.github
@@ -879,7 +881,7 @@ def search_recipes(argv):
         return -1
 
     results_limit = 100
-    term = arguments[0]
+    term = quote(arguments[0])
     query = "q=%s+extension:recipe+user:%s" % (term, options.user)
     qualifier_in = "in:path,file"
     if options.path_only:
