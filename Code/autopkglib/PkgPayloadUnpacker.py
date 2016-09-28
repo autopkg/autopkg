@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2013 Greg Neagle
+# Copyright 2016 Greg Neagle, Allister Banks
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import os
 import shutil
 import subprocess
 
+from glob import glob
 from autopkglib import Processor, ProcessorError
 
 
@@ -32,7 +33,9 @@ class PkgPayloadUnpacker(Processor):
             "required": True,
             "description":
                 ("Path to a payload from an expanded flat package or "
-                 "Archive.pax.gz in a bundle package."),
+                 "Archive.pax.gz in a bundle package. You may want to remove any "
+                 "previously unpacked payloads in a preceding FlatPkgUnpacker "
+                 "step if you need to use a glob'd path."),
         },
         "destination_path": {
             "required": True,
@@ -71,11 +74,20 @@ class PkgPayloadUnpacker(Processor):
                     raise ProcessorError(
                         "Can't remove %s: %s" % (path, err.strerror))
 
+        # Handle glob's in case of parent directory of payload incrementing
+        input_path = self.env['pkg_payload_path']
+        found_list = glob(input_path)
+        if len(found_list) > 1:
+            raise ProcessorError(
+                ("Multiple source paths found in globbed path in "
+                 "'pkg_payload_path'. There must be only one. Found: %s"
+                 % ", ".join(found_list)))
+        found_pkg = found_list[0]
         try:
             dittocmd = ["/usr/bin/ditto",
                         "-x",
                         "-z",
-                        self.env["pkg_payload_path"],
+                        found_pkg,
                         self.env["destination_path"]]
             proc = subprocess.Popen(dittocmd,
                                     stdout=subprocess.PIPE,
