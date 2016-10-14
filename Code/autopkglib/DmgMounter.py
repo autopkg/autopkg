@@ -40,7 +40,7 @@ class DmgMounter(Processor):
         inside a disk image"""
         for extension in self.DMG_EXTENSIONS:
             (dmg_path, dmg, dmg_source_path) = (
-                pathname.partition(extension + "/"))
+                pathname.partition(extension))
             if dmg:
                 dmg_path += extension
                 return dmg_path, dmg, dmg_source_path
