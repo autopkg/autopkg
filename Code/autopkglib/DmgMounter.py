@@ -15,6 +15,7 @@
 # limitations under the License.
 """See docstring for DmgMounter class"""
 
+import os
 import sys
 import subprocess
 import FoundationPlist
@@ -38,12 +39,18 @@ class DmgMounter(Processor):
     def parsePathForDMG(self, pathname):
         """Helper method for working with paths that reference something
         inside a disk image"""
-        for extension in self.DMG_EXTENSIONS:
-            (dmg_path, dmg, dmg_source_path) = (
-                pathname.partition(extension))
-            if dmg:
-                dmg_path += extension
-                return dmg_path, dmg, dmg_source_path
+        dmg_path = os.path.normpath(pathname)
+        dmg_source_path = ''
+        while dmg_path != '/':
+            for extension in self.DMG_EXTENSIONS:
+                found_ext = os.path.splitext(dmg_path)[1]
+                if found_ext == extension:
+                    # we return the found extension with a trailing slash
+                    # to match the previous implementation
+                    return dmg_path, found_ext + '/', dmg_source_path
+            dmg_path, tail = os.path.split(dmg_path)
+            dmg_source_path = os.path.normpath(os.path.join(
+                tail, dmg_source_path))
         # no disk image in path
         return pathname, '', ''
     #pylint: enable=invalid-name
