@@ -489,7 +489,7 @@ def run_git(git_options_and_arguments, git_directory=None):
     if proc.returncode != 0:
         raise GitError("ERROR: %s" % cmd_err)
     else:
-        return cmd_out
+        return cmd_out.decode('UTF-8')
 
 
 def get_recipe_repo(git_path):
@@ -1472,7 +1472,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         # shortcut if the two dictionaries match perfectly
         return
     # look for differences
-    trust_errors = ''
+    trust_errors = u''
     # get detail on non_core_processors
     expected_processor_names = set(
         expected_trust_info['non_core_processors'].keys())
