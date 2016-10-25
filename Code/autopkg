@@ -1286,6 +1286,7 @@ def find_processor_path(processor_name, recipe, env=None):
     '''Returns the pathname to a procesor given a name and a recipe'''
     if env is None:
         env = {}
+        env["RECIPE_SEARCH_DIRS"] = get_pref("RECIPE_SEARCH_DIRS") or []
     if recipe:
         recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
         processor_search_dirs = [recipe_dir]
