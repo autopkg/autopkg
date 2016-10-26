@@ -489,7 +489,7 @@ def run_git(git_options_and_arguments, git_directory=None):
     if proc.returncode != 0:
         raise GitError("ERROR: %s" % cmd_err)
     else:
-        return cmd_out
+        return cmd_out.decode('UTF-8')
 
 
 def get_recipe_repo(git_path):
@@ -1286,6 +1286,7 @@ def find_processor_path(processor_name, recipe, env=None):
     '''Returns the pathname to a procesor given a name and a recipe'''
     if env is None:
         env = {}
+        env["RECIPE_SEARCH_DIRS"] = get_pref("RECIPE_SEARCH_DIRS") or []
     if recipe:
         recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
         processor_search_dirs = [recipe_dir]
@@ -1378,7 +1379,7 @@ def get_git_diff(filepath, git_hash):
     relative_path = os.path.relpath(filepath, git_toplevel_dir)
     try:
         return run_git(
-            ['diff', git_hash, relative_path],
+            ['diff', '--color', git_hash, relative_path],
             git_directory=git_toplevel_dir)
     except GitError:
         return ''
@@ -1472,7 +1473,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         # shortcut if the two dictionaries match perfectly
         return
     # look for differences
-    trust_errors = ''
+    trust_errors = u''
     # get detail on non_core_processors
     expected_processor_names = set(
         expected_trust_info['non_core_processors'].keys())
@@ -1767,6 +1768,20 @@ def make_override(argv):
         return 0
 
 
+def parse_recipe_list(filename):
+    '''Parses a recipe list. This can be either a simple list of recipes to run,
+    or a plist containing recipes and other key/value pairs'''
+    recipe_list = {}
+    try:
+        return FoundationPlist.readPlist(filename)
+    except FoundationPlist.NSPropertyListSerializationException:
+        with open(filename, "r") as file_desc:
+            data = file_desc.read()
+        recipe_list['recipes'] = [line for line in data.splitlines()
+                                  if line and not line.startswith("#")]
+    return recipe_list
+
+
 def run_recipes(argv):
     """Run one or more recipes. If called with 'install' verb, run .install
        recipe"""
@@ -1819,29 +1834,10 @@ def run_recipes(argv):
     summary_results = {}
     failures = []
     error_count = 0
-
-    # Add variables from environment
-    cli_values = {}
-    for key, value in os.environ.items():
-        if key.startswith("AUTOPKG_"):
-            if options.verbose > 1:
-                log("Using environment var %s=%s" % (key, value))
-            local_key = key[8:]
-            cli_values[local_key] = value
-
-    # Add variables from commandline. These might override those from
-    # environment variables
-    for arg in options.variables:
-        (key, sep, value) = arg.partition("=")
-        if sep != "=":
-            log_err("Invalid variable [key=value]: %s" % arg)
-            log_err(parser.get_usage())
-            return 1
-        cli_values[key] = value
-
-    if options.pkg:
-        cli_values["PKG"] = options.pkg
-
+    preprocessors = []
+    postprocessors = []
+    
+    # get our list of recipes
     recipe_paths = []
     if verb == 'install':
         # hold on for syntactic sugar!
@@ -1855,16 +1851,51 @@ def run_recipes(argv):
                 del arguments[index]
 
     recipe_paths.extend(arguments)
+    recipe_list = {}
     if options.recipe_list:
-        with open(options.recipe_list, "r") as file_desc:
-            data = file_desc.read()
-        recipes = [line for line in data.splitlines()
-                   if line and not line.startswith("#")]
-        recipe_paths.extend(recipes)
+        recipe_list = parse_recipe_list(options.recipe_list)
+        recipe_paths.extend(recipe_list.get('recipes', []))
+        preprocessors = recipe_list.get('preprocessors', [])
+        postprocessors = recipe_list.get('postprocessors', [])
 
     if not recipe_paths:
         log_err(parser.get_usage())
         return -1
+
+    # override preprocessors and postprocessors if specified at the CLI
+    if options.preprocessors:
+        preprocessors = options.preprocessors
+    if options.postprocessors:
+        preprocessors = options.postprocessors
+
+    # Add variables from environment
+    cli_values = {}
+    for key, value in os.environ.items():
+        if key.startswith("AUTOPKG_"):
+            if options.verbose > 1:
+                log("Using environment var %s=%s" % (key, value))
+            local_key = key[8:]
+            cli_values[local_key] = value
+
+    # Add variables from recipe list. These might override those from
+    # environment variables
+    if recipe_list:
+        for key, value in recipe_list.items():
+            if key not in ['recipes', 'preprocessors', 'postprocessors']:
+                cli_values[key] = value
+
+    # Add variables from commandline. These might override those from
+    # environment variables and recipe_list
+    for arg in options.variables:
+        (key, sep, value) = arg.partition("=")
+        if sep != "=":
+            log_err("Invalid variable [key=value]: %s" % arg)
+            log_err(parser.get_usage())
+            return 1
+        cli_values[key] = value
+
+    if options.pkg:
+        cli_values["PKG"] = options.pkg
 
     if len(recipe_paths) > 1 and options.pkg:
         log_err("-p/--pkg option can't be used with multiple recipes!")
@@ -1898,8 +1929,8 @@ def run_recipes(argv):
         recipe = load_recipe(recipe_path,
                              override_dirs,
                              search_dirs,
-                             options.preprocessors,
-                             options.postprocessors,
+                             preprocessors,
+                             postprocessors,
                              make_suggestions=make_suggestions,
                              search_github=make_suggestions)
         if not recipe:
