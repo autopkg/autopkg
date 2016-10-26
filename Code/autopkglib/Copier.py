@@ -85,7 +85,7 @@ class Copier(DmgMounter):
         # Check if we're trying to copy something inside a dmg.
         (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(source_path)
         try:
-            if dmg:
+            if dmg and dmg_source_path:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
                 source_path = os.path.join(mount_point, dmg_source_path)
@@ -110,7 +110,7 @@ class Copier(DmgMounter):
             self.copy(matched_source_path, self.env['destination_path'],
                       overwrite=self.env.get("overwrite"))
         finally:
-            if dmg:
+            if dmg and dmg_source_path:
                 self.unmount(dmg_path)
 
 
