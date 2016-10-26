@@ -1851,7 +1851,7 @@ def run_recipes(argv):
                 del arguments[index]
 
     recipe_paths.extend(arguments)
-    recipe_list = None
+    recipe_list = {}
     if options.recipe_list:
         recipe_list = parse_recipe_list(options.recipe_list)
         recipe_paths.extend(recipe_list.get('recipes', []))
