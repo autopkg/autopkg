@@ -77,7 +77,7 @@ class URLTextSearcher(Processor):
 
     description = __doc__
 
-    def get_url_and_search(self, url, re_pattern, headers=None, flags=None):
+    def get_url_and_search(self, url, re_pattern, headers=None, flags=None, timeout=None):
         '''Get data from url and search for re_pattern'''
         #pylint: disable=no-self-use
         flag_accumulator = 0
@@ -93,9 +93,8 @@ class URLTextSearcher(Processor):
             if headers:
                 for header, value in headers.items():
                     cmd.extend(['--header', '%s: %s' % (header, value)])
-            if timeout_seconds:
-                seconds = timeout_seconds.items()
-                cmd.extend(['--connect-timeout', '%s' % seconds])
+            if timeout:
+                cmd.extend(['--connect-timeout', '%s' % timeout])
             cmd.append(url)
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -121,8 +120,10 @@ class URLTextSearcher(Processor):
 
         flags = self.env.get('re_flags', {})
 
+        timeout = self.env.get('timeout_seconds', {})
+
         groupmatch, groupdict = self.get_url_and_search(
-            self.env['url'], self.env['re_pattern'], headers, flags)
+            self.env['url'], self.env['re_pattern'], headers, flags, timeout)
 
         # favor a named group over a normal group match
         if output_var_name not in groupdict.keys():
