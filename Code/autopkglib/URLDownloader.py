@@ -176,8 +176,9 @@ class URLDownloader(Processor):
             for header, value in headers.items():
                 curl_cmd.extend(['--header', '%s: %s' % (header, value)])
 
-		if "timeout_seconds" in self.env:
-			curl_cmd.extend(['--connect-timeout', '%s' % timeout_seconds.itmes()])
+        if "timeout_seconds" in self.env:
+            seconds = self.env["timeout_seconds"]
+            curl_cmd.extend(['--connect-timeout', '%s' % seconds])
 		
         # if file already exists and the size is 0, discard it and download
         # again

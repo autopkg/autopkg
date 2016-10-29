@@ -94,8 +94,8 @@ class URLTextSearcher(Processor):
                 for header, value in headers.items():
                     cmd.extend(['--header', '%s: %s' % (header, value)])
             if timeout_seconds:
-				seconds = timeout_seconds.items()
-				cmd.extend(['--connect-timeout %s' % seconds])
+                seconds = timeout_seconds.items()
+                cmd.extend(['--connect-timeout', '%s' % seconds])
             cmd.append(url)
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
