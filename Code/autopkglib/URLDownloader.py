@@ -68,6 +68,10 @@ class URLDownloader(Processor):
             "required": False,
             "description": "Filename to override the URL's tail.",
         },
+        "timeout_seconds": {
+        	"required": False,
+        	"description": "Sets curl to timeout if it can't make a connection in supplied seconds",
+        },
         "CHECK_FILESIZE_ONLY": {
             "default": False,
             "required": False,
@@ -172,6 +176,9 @@ class URLDownloader(Processor):
             for header, value in headers.items():
                 curl_cmd.extend(['--header', '%s: %s' % (header, value)])
 
+		if "timeout_seconds" in self.env:
+			curl_cmd.extend(['--connect-timeout', '%s' % timeout_seconds.itmes()])
+		
         # if file already exists and the size is 0, discard it and download
         # again
         if os.path.exists(pathname) and os.path.getsize(pathname) == 0:

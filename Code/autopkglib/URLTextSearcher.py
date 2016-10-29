@@ -55,6 +55,10 @@ class URLTextSearcher(Processor):
                             'expression flags. E.g. IGNORECASE.'),
             'required': False,
         },
+        'timeout_seconds': {
+        	'description': ("Sets curl to timeout if it can't make a connection in supplied seconds"),
+        	'required': False,
+        },
         "CURL_PATH": {
             "required": False,
             "default": "/usr/bin/curl",
@@ -89,6 +93,9 @@ class URLTextSearcher(Processor):
             if headers:
                 for header, value in headers.items():
                     cmd.extend(['--header', '%s: %s' % (header, value)])
+            if timeout_seconds:
+				seconds = timeout_seconds.items()
+				cmd.extend(['--connect-timeout %s' % seconds])
             cmd.append(url)
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
