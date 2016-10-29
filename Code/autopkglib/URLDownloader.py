@@ -168,6 +168,7 @@ class URLDownloader(Processor):
                     '--dump-header', '-',
                     '--speed-time', '30',
                     '--location',
+                    '--connect-timeout', '2',
                     '--url', self.env["url"],
                     '--output', pathname_temporary]
 
