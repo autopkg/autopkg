@@ -68,9 +68,9 @@ class URLDownloader(Processor):
             "required": False,
             "description": "Filename to override the URL's tail.",
         },
-		"timeout_seconds": {
-			"required": False,
-			"description": "Sets curl to timeout if it can't make a connection in supplied seconds",
+        "timeout_seconds": {
+            "required": False,
+            "description": "Sets curl to timeout if it can't make a connection in supplied seconds",
         },
         "CHECK_FILESIZE_ONLY": {
             "default": False,
@@ -256,7 +256,7 @@ class URLDownloader(Processor):
             except IndexError:
                 pass
 
-            raise ProcessorError( "Curl failure: %s (exit code %s)" % (curlerr, retcode) )
+            raise ProcessorError("Curl failure: %s (exit code %s)" % (curlerr, retcode))
 
         # If Content-Length header is present and we had a cached
         # file, see if it matches the size of the cached file.
