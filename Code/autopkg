@@ -1866,7 +1866,7 @@ def run_recipes(argv):
     if options.preprocessors:
         preprocessors = options.preprocessors
     if options.postprocessors:
-        preprocessors = options.postprocessors
+        postprocessors = options.postprocessors
 
     # Add variables from environment
     cli_values = {}
