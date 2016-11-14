@@ -75,6 +75,11 @@ class MunkiImporter(Processor):
             "description": ("String to set 'version_comparison_key' for "
                             "any generated installs items."),
         },
+        "uninstaller_pkg_path": {
+            "required": False,
+            "description": ("Path to an uninstaller pkg, supported for Adobe "
+                            "installer_type items."),
+        },
         "MUNKI_PKGINFO_FILE_EXTENSION": {
             "description":
                 "Extension for output pkginfo files. Default is 'plist'.",
@@ -307,13 +312,17 @@ class MunkiImporter(Processor):
         return None
 
 
-    def copy_item_to_repo(self, pkginfo):
+    def copy_item_to_repo(self, pkginfo, uninstaller_pkg=False):
         """Copies an item to the appropriate place in the repo.
         If itempath is a path within the repo/pkgs directory, copies nothing.
         Renames the item if an item already exists with that name.
-        Returns the relative path to the item."""
+        Returns the relative path to the item.
+        uninstaller_pkg should be True if the item is an uninstaller (Adobe).
+        """
 
         itempath = self.env["pkg_path"]
+        if uninstaller_pkg:
+            itempath = self.env["uninstaller_pkg_path"]
         repo_path = self.env["MUNKI_REPO"]
         subdirectory = self.env.get("repo_subdirectory", "")
         item_version = pkginfo.get("version")
@@ -409,6 +418,10 @@ class MunkiImporter(Processor):
             args.extend(["--pkgname", self.env["munkiimport_pkgname"]])
         if self.env.get("munkiimport_appname"):
             args.extend(["--appname", self.env["munkiimport_appname"]])
+        # uninstaller pkg will be copied later, this is just to suppress
+        # makepkginfo stderr warning output
+        if self.env.get("uninstaller_pkg_path"):
+            args.extend(["--uninstallpkg", self.env["uninstaller_pkg_path"]])
         if self.env.get("additional_makepkginfo_options"):
             args.extend(self.env["additional_makepkginfo_options"])
 
@@ -471,6 +484,12 @@ class MunkiImporter(Processor):
         # adjust the installer_item_location to match the actual location
         # and name
         pkginfo["installer_item_location"] = relative_path
+
+        if self.env.get("uninstaller_pkg_path"):
+            relative_uninstall_path = self.copy_item_to_repo(
+                pkginfo, uninstaller_pkg=True)
+            pkginfo["uninstaller_item_location"] = relative_uninstall_path
+            pkginfo["uninstallable"] = True
 
         # set output variables
         self.env["pkginfo_repo_path"] = self.copy_pkginfo_to_repo(pkginfo)
