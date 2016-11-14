@@ -129,6 +129,7 @@ class MunkiImporter(Processor):
         installer_item_table = {}
         hash_table = {}
         checksum_table = {}
+        files_table = {}
 
         itemindex = -1
         for item in catalogitems:
@@ -190,14 +191,26 @@ class MunkiImporter(Processor):
                             app_table[
                                 install['path']][app_version].append(itemindex)
                     if install.get('type') == 'file':
-                        if 'path' in install and 'md5checksum' in install:
-                            cksum = install['md5checksum']
+                        if 'path' in install:
+                            if 'md5checksum' in install:
+                                cksum = install['md5checksum']
 
-                            if cksum not in checksum_table.keys():
-                                checksum_table[cksum] = []
+                                if cksum not in checksum_table.keys():
+                                    checksum_table[cksum] = []
 
-                            checksum_table[cksum].append(
-                                {'path': install['path'], 'index': itemindex})
+                                checksum_table[cksum].append(
+                                    {'path': install['path'],
+                                     'index': itemindex})
+                            else:
+                                path = install['path']
+
+                                if path not in files_table.keys():
+                                    files_table[path] = []
+
+                                files_table[path].append(
+                                    {'path': install['path'],
+                                     'index': itemindex})
+
                 except (TypeError, KeyError):
                     # skip this item
                     continue
@@ -208,6 +221,7 @@ class MunkiImporter(Processor):
         pkgdb['applications'] = app_table
         pkgdb['installer_items'] = installer_item_table
         pkgdb['checksums'] = checksum_table
+        pkgdb['files'] = files_table
         pkgdb['items'] = catalogitems
 
         return pkgdb
@@ -307,6 +321,24 @@ class MunkiImporter(Processor):
                             # if matching_pkg['name'] == pkginfo['name']:
 
                             return matching_pkg
+
+        # Try to match against a simple list of files and paths
+        # where our pkginfo version also matches
+        path_only_filelist = [item for item in pkginfo.get('installs', [])
+                              if item.get('type') == 'file' and 'path' in item
+                              and 'md5checksum' not in item]
+        if path_only_filelist:
+            for pathitem in path_only_filelist:
+                path = pathitem['path']
+                if path in pkgdb['files']:
+                    path_matches = pkgdb['files'][path]
+                    for path_match in path_matches:
+                        if path_match['path'] == pathitem['path']:
+                            matching_pkg = pkgdb['items'][path_match['index']]
+                            # make sure we do this only for items that also
+                            # match our pkginfo version
+                            if matching_pkg['version'] == pkginfo['version']:
+                                return matching_pkg
 
         # if we get here, we found no matches
         return None
