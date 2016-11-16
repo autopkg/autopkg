@@ -21,6 +21,9 @@ ADDITIONS:
   [wiki article](https://github.com/autopkg/autopkg/wiki/Autopkg-and-recipe-parent-trust-info) for more information.
 - New `AppPkgCreator` processor, a single processor replacing the several steps
   previously required for building a package from an application bundle.
+- Support for "rich" recipe lists in property list format, which can specify
+  pre/post-processors and additional input variables for that specific run. See the
+  [Running Multpiple Recipes article](https://github.com/autopkg/autopkg/wiki/Running-Multiple-Recipes) for more details.
 
 FIXES:
 
