@@ -1649,11 +1649,8 @@ def verify_trust_info(argv):
     return_code = 0
 
     if options.recipe_list:
-        with open(options.recipe_list, "r") as file_desc:
-            data = file_desc.read()
-        recipes = [line for line in data.splitlines()
-                   if line and not line.startswith("#")]
-        recipe_names.extend(recipes)
+        recipe_list = parse_recipe_list(options.recipe_list)
+        recipe_names.extend(recipe_list.get('recipes', []))
 
     if not recipe_names:
         log_err('Need at least one recipe name or path!')
@@ -2209,11 +2206,8 @@ def audit(argv):
     recipe_paths = []
     recipe_paths.extend(arguments)
     if options.recipe_list:
-        with open(options.recipe_list, "r") as file_desc:
-            data = file_desc.read()
-        recipes = [line for line in data.splitlines()
-                   if line and not line.startswith("#")]
-        recipe_paths.extend(recipes)
+        recipe_list = parse_recipe_list(options.recipe_list)
+        recipe_paths.extend(recipe_list.get('recipes', []))
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
