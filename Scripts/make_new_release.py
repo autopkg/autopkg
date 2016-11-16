@@ -97,6 +97,10 @@ be done as root, so it's best done as a separate process.
     parser.add_option('-v', '--next-version',
                       help=("Next version to which AutoPkg will be "
                             "incremented. Required."))
+    parser.add_option('-p', '--prerelease',
+                      action='store_true',
+                      default=False,
+                      help="Mark this release as a pre-release.")
     parser.add_option('--dry-run', action='store_true',
                       help=("Don't actually push any changes to "
                             "Git remotes, and skip the actual release "
@@ -154,7 +158,7 @@ be done as root, so it's best done as a separate process.
     with open(changelog_path, 'r') as fdesc:
         changelog = fdesc.read()
     release_date = strftime('(%B %d, %Y)')
-    new_changelog = re.sub('\(Unreleased\)', release_date, changelog)
+    new_changelog = re.sub(r'\(Unreleased\)', release_date, changelog)
     new_changelog = re.sub('...HEAD', '...v%s' % current_version, new_changelog)
     with open(changelog_path, 'w') as fdesc:
         fdesc.write(new_changelog)
@@ -218,6 +222,7 @@ be done as root, so it's best done as a separate process.
     release_data['name'] = "AutoPkg " + current_version
     release_data['body'] = release_notes
     release_data['draft'] = False
+    release_data['prerelease'] = opts.prerelease
 
     # create the release
     if not opts.dry_run:
