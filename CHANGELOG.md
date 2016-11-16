@@ -1,5 +1,44 @@
 ### [0.6.2](https://github.com/autopkg/autopkg/compare/v0.6.1...HEAD) (Unreleased)
 
+ADDITIONS:
+
+- New `audit` verb, used to output helpful information about any recipes that:
+  - Are missing a CodeSignatureVerifier step
+  - Use non-HTTP URLs for downloads
+  - Supply their own processors and thus will run code not provided by AutoPkg itself
+  - Use processors that may potentially be modifying the original software
+    downloaded from the vendor
+- New `verify-trust-info` and `update-trust-info` verbs. These can be used to
+  add "trust" hash information to a recipe override. If a parent recipe and/or
+  its processor(s)  is later updated (typically via a third-party recipe repo and
+  running `autopkg repo-update` against this or all recipe repos), this
+  trust information will be invalid and prevent the recipe from running
+  until the trust information has been updated. Running `verify-trust-info` with
+  additional verbosity will print out full diffs of upstream changes made since
+  the last trust information was recorded, and `update-trust-info` will update
+  it to match the current state of parent recipes. This behaviour can be bypassed
+  using the `FAIL_RECIPES_WITHOUT_TRUST_INFO` AutoPkg preference. See the
+  [wiki article](https://github.com/autopkg/autopkg/wiki/Autopkg-and-recipe-parent-trust-info) for more information.
+- New `AppPkgCreator` processor, a single processor replacing the several steps
+  previously required for building a package from an application bundle.
+
+FIXES:
+
+- Fix SparkleUpdateInfoProvider ignoring `appcast_request_headers` argument since
+  switching from urllib2 to curl. (GH-277)
+- Miscellaneous fixes to better handle unicode in `autopkg` message output.
+  (GH-299)
+- Fix GitHub API error on `autopkg search` for a recipe name containing spaces.
+  (GH-305)
+
+IMPROVEMENTS:
+
+- URLDownloader now passes `--fail` option so that most 400-class error codes
+  will result in a failed recipe run. (GH-284)
+- AutoPkg now reports an exit code of `70` if any recipe in an `autopkg run`
+  fails. Eventually other exit codes may later be added to report on other
+  specific behavior. (GH-297)
+
 ### [0.6.1](https://github.com/autopkg/autopkg/compare/v0.6.0...v0.6.1) (March 18, 2016)
 
 FIXES:
