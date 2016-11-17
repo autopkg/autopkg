@@ -1,4 +1,4 @@
-### [1.0.0](https://github.com/autopkg/autopkg/compare/v0.6.1...HEAD) (Unreleased)
+### [1.0.0](https://github.com/autopkg/autopkg/compare/v0.6.1...v1.0.0) (November 16, 2016)
 
 ADDITIONS:
 
