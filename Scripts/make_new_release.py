@@ -98,9 +98,8 @@ be done as root, so it's best done as a separate process.
                       help=("Next version to which AutoPkg will be "
                             "incremented. Required."))
     parser.add_option('-p', '--prerelease',
-                      action='store_true',
-                      default=False,
-                      help="Mark this release as a pre-release.")
+                      help=("Mark this release as a pre-release, applying "
+                            "a given suffix to the tag, i.e. 'RC1'"))
     parser.add_option('--dry-run', action='store_true',
                       help=("Don't actually push any changes to "
                             "Git remotes, and skip the actual release "
@@ -144,6 +143,8 @@ be done as root, so it's best done as a separate process.
             % (next_version, current_version))
 
     tag_name = 'v%s' % current_version
+    if opts.prerelease:
+        tag_name += opts.prerelease
     published_releases = api_call('/repos/%s/releases' % GITHUB_REPO, token)
     for rel in published_releases:
         if rel['tag_name'] == tag_name:
@@ -222,7 +223,8 @@ be done as root, so it's best done as a separate process.
     release_data['name'] = "AutoPkg " + current_version
     release_data['body'] = release_notes
     release_data['draft'] = False
-    release_data['prerelease'] = opts.prerelease
+    if opts.prerelease:
+        release_data['prerelease'] = True
 
     # create the release
     if not opts.dry_run:
