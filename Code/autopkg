@@ -1770,8 +1770,15 @@ def parse_recipe_list(filename):
     or a plist containing recipes and other key/value pairs'''
     recipe_list = {}
     try:
-        return FoundationPlist.readPlist(filename)
-    except FoundationPlist.NSPropertyListSerializationException:
+        plist = FoundationPlist.readPlist(filename)
+        if not plist.get('recipes'):
+            # try to trigger an AttributeError if the plist is not a dict
+            pass
+        return plist
+    except (FoundationPlist.NSPropertyListSerializationException,
+            AttributeError):
+        # file does not appear to be a plist containing a dictionary;
+        # read it as a plaintext list of recipes
         with open(filename, "r") as file_desc:
             data = file_desc.read()
         recipe_list['recipes'] = [line for line in data.splitlines()
