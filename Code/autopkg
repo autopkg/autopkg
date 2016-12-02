@@ -2001,7 +2001,11 @@ def run_recipes(argv):
         except AutoPackagerError as err:
             error_count += 1
             failure = {}
-            log_err("Failed.")
+            if isinstance(err,
+                         (TrustVerificationWarning, TrustVerificationError)):
+                log_err("Failed local trust verification.")
+            else:
+                log_err("Failed.")
             failure["recipe"] = recipe_path
             failure["message"] = unicode(err)
             failure["traceback"] = traceback.format_exc()
