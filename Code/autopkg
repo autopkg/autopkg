@@ -344,6 +344,15 @@ def load_recipe(name, override_dirs, recipe_dirs,
     if recipe_file:
         # read it
         recipe = FoundationPlist.readPlist(recipe_file)
+
+        # store parent trust info, but only if this is an override
+        if recipe_in_override_dir(recipe_file, override_dirs):
+            parent_trust_info = recipe.get('ParentRecipeTrustInfo')
+            override_parent = (recipe.get("ParentRecipe")
+                               or recipe.get("Recipe"))
+        else:
+            parent_trust_info = None
+
         # does it refer to another recipe?
         if recipe.get("ParentRecipe") or recipe.get("Recipe"):
             # save current recipe as a child
@@ -379,16 +388,22 @@ def load_recipe(name, override_dirs, recipe_dirs,
                     recipe["PARENT_RECIPES"] = (
                         [recipe["RECIPE_PATH"]] + recipe["PARENT_RECIPES"])
                 recipe["RECIPE_PATH"] = recipe_file
-                if 'ParentRecipeTrustInfo' in child_recipe:
-                    recipe['ParentRecipe'] = (child_recipe.get("ParentRecipe")
-                                              or child_recipe.get("Recipe"))
-                    recipe['ParentRecipeTrustInfo'] = child_recipe[
-                        'ParentRecipeTrustInfo']
             else:
                 # no parent recipe, so the current recipe is invalid
                 log_err('Could not find parent recipe for %s' % name)
         else:
             recipe["RECIPE_PATH"] = recipe_file
+
+    # re-add original stored parent trust info or remove it if it was picked
+    # up from a parent recipe
+    if parent_trust_info:
+        recipe['ParentRecipeTrustInfo'] = parent_trust_info
+        if override_parent:
+            recipe['ParentRecipe'] = override_parent
+        else:
+            log_err('No parent recipe specified for %s' % name)
+    elif 'ParentRecipeTrustInfo' in recipe:
+        del recipe['ParentRecipeTrustInfo']
 
     if recipe:
         # store the name the user used to locate this recipe
@@ -815,7 +830,7 @@ def do_gh_code_search(query, use_token=False):
         log_err(results["message"])
         log_err(results["documentation_url"])
         return None
-    if results == None or code == None:
+    if results is None or code is None:
         log_err("A GitHub API error occurred!")
         return None
     return results
@@ -1435,6 +1450,15 @@ def recipe_in_override_dir(recipe_path, override_dirs):
 
 def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
     '''Verify trust info for parent recipes'''
+    # warn if trust info is in non-override
+    if (recipe.get('ParentRecipeTrustInfo') and
+            not recipe_in_override_dir(recipe["RECIPE_PATH"], override_dirs)):
+        warning = "Trust information in non-override recipe."
+        if verbosity > 1:
+            warning += (
+                '\nTrust info should only be stored in local recipe overrides.'
+                '\nTrust info found in %s' % recipe["RECIPE_PATH"])
+        raise TrustVerificationWarning(warning)
     # warn if no trust info
     if not recipe.get('ParentRecipeTrustInfo'):
         warning = 'No trust information present.'
@@ -1840,7 +1864,7 @@ def run_recipes(argv):
     error_count = 0
     preprocessors = []
     postprocessors = []
-    
+
     # get our list of recipes
     recipe_paths = []
     if verb == 'install':
@@ -2002,7 +2026,7 @@ def run_recipes(argv):
             error_count += 1
             failure = {}
             if isinstance(err,
-                         (TrustVerificationWarning, TrustVerificationError)):
+                          (TrustVerificationWarning, TrustVerificationError)):
                 log_err("Failed local trust verification.")
             else:
                 log_err("Failed.")
