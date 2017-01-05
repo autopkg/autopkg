@@ -394,16 +394,16 @@ def load_recipe(name, override_dirs, recipe_dirs,
         else:
             recipe["RECIPE_PATH"] = recipe_file
 
-    # re-add original stored parent trust info or remove it if it was picked
-    # up from a parent recipe
-    if parent_trust_info:
-        recipe['ParentRecipeTrustInfo'] = parent_trust_info
-        if override_parent:
-            recipe['ParentRecipe'] = override_parent
-        else:
-            log_err('No parent recipe specified for %s' % name)
-    elif 'ParentRecipeTrustInfo' in recipe:
-        del recipe['ParentRecipeTrustInfo']
+        # re-add original stored parent trust info or remove it if it was picked
+        # up from a parent recipe
+        if parent_trust_info:
+            recipe['ParentRecipeTrustInfo'] = parent_trust_info
+            if override_parent:
+                recipe['ParentRecipe'] = override_parent
+            else:
+                log_err('No parent recipe specified for %s' % name)
+        elif 'ParentRecipeTrustInfo' in recipe:
+            del recipe['ParentRecipeTrustInfo']
 
     if recipe:
         # store the name the user used to locate this recipe
