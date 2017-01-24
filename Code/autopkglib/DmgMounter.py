@@ -44,7 +44,7 @@ class DmgMounter(Processor):
         while dmg_path != '/':
             for extension in self.DMG_EXTENSIONS:
                 found_ext = os.path.splitext(dmg_path)[1]
-                if found_ext == extension:
+                if found_ext == extension and dmg_source_path:
                     # we return the found extension with a trailing slash
                     # to match the previous implementation
                     return dmg_path, found_ext + '/', dmg_source_path
