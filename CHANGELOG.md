@@ -352,37 +352,37 @@ FIXES:
 
 ADDITIONS:
 
-- New 'FlatPkgPacker' and 'FileFinder' processors, contributed by Jesse Peterson. (GH-36, GH-33)
+- New 'FlatPkgPacker' and 'FileFinder' processors, contributed by Jesse Peterson. (GH #36, GH #33)
 - Copier processor supports glob wildcard characters for 'source_path', useful when
-  exact path names vary. (GH-40)
+  exact path names vary. (GH #40)
 
 CHANGES:
 
 - 'FlatPkgUnpacker' processor now uses `pkgutil --expand` by default, meaning 'Scripts'
   archives will now be decompressed automatically. The `skip_payload` input variable
-  will automatically switch the processor to use `xar` instead. (GH-36)
+  will automatically switch the processor to use `xar` instead. (GH #36)
 
 FIXES:
 
 - Fix for MunkiImporter processor not finding an already-present pkg when using
-  a manual `installs` key and with a unique `installer_item_hash`. (GH-35)
+  a manual `installs` key and with a unique `installer_item_hash`. (GH #35)
 - Fix for 'mutating method sent to immutable object' errors, contributed by Joe
-  Wollard and Michael Lynn (GH-24)
+  Wollard and Michael Lynn (GH #24)
 - MunkiImporter now checks for matching md5checksums when attempting to locate a matching
-  pkginfo. (GH-41)
+  pkginfo. (GH #41)
 
 ### [0.2.3](https://github.com/autopkg/autopkg/compare/v0.2.2...v0.2.3) (September 27, 2013)
 
 ADDITIONS:
 
 - New 'FileFinder' processor for searching files, currently supports glob.
-  Contributed by Jesse Peterson. (GH-33)
+  Contributed by Jesse Peterson. (GH #33)
 
 FIXES:
 
 - Fix `autopkg info` showing a Description of a ParentRecipe instead of the actual recipe.
-- Fix TypeError on Snow Leopard on list concatenation between Foundation and native Python list equivalents (GH-21)
-- Fix case where a child recipe could not locate its parent(s) if the child was not already on the search path (GH-25)
+- Fix TypeError on Snow Leopard on list concatenation between Foundation and native Python list equivalents (GH #21)
+- Fix case where a child recipe could not locate its parent(s) if the child was not already on the search path (GH #25)
 
 ### [0.2.2](https://github.com/autopkg/autopkg/compare/v0.2.1...v0.2.2) (September 10, 2013)
 
@@ -395,7 +395,7 @@ CHANGES:
 
 CHANGES:
 
-- Relative paths given for "infofile", "resources", "options", "scripts" in a PkgCreator's pkg_request dictionary should now work if this path is found at the current working directory (GH-20)
+- Relative paths given for "infofile", "resources", "options", "scripts" in a PkgCreator's pkg_request dictionary should now work if this path is found at the current working directory (GH #20)
 
 ### [0.2.0](https://github.com/autopkg/autopkg/compare/v0.1.1...v0.2.0) (September 1, 2013)
 
