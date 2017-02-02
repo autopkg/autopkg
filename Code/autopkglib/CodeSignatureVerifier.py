@@ -69,6 +69,11 @@ class CodeSignatureVerifier(DmgMounter):
                  "by running:"
                  "\n\t$ codesign --display -r- <path_to_app>"),
         },
+        "codesign_additional_arguments": {
+            "required": False,
+            "description":
+                ("Additional arguments to pass to codesign."),
+        },
     }
     output_variables = {
     }
@@ -95,7 +100,7 @@ class CodeSignatureVerifier(DmgMounter):
             authority_name_chain.append(match.group('authority'))
         return authority_name_chain
 
-    def codesign_verify(self, path, test_requirement=None):
+    def codesign_verify(self, path, test_requirement=None, codesign_additional_arguments=[]):
         """
         Runs 'codesign --verify --verbose <path>'. Returns True if
         codesign exited with 0 and False otherwise.
@@ -114,6 +119,9 @@ class CodeSignatureVerifier(DmgMounter):
         darwin_version = os.uname()[2]
         if StrictVersion(darwin_version) >= StrictVersion('15.0'):
             process.append("--strict")
+
+        for argument in codesign_additional_arguments:
+            process.append(argument)
 
         if test_requirement:
             process.append("-R=%s" % test_requirement)
@@ -170,7 +178,8 @@ class CodeSignatureVerifier(DmgMounter):
         self.output("Verifying application bundle signature...")
         # The first step is to run 'codesign --verify <path>'
         requirement = self.env.get('requirement', None)
-        if self.codesign_verify(path, requirement):
+        codesign_additional_arguments = self.env.get('codesign_additional_arguments', [])
+        if self.codesign_verify(path, requirement, codesign_additional_arguments):
             self.output("Signature is valid")
         else:
             raise ProcessorError(
