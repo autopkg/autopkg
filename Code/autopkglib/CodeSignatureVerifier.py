@@ -105,10 +105,15 @@ class CodeSignatureVerifier(DmgMounter):
                    "--verify",
                    "--verbose=1"]
 
-        # Only use --deep option in OS X 10.9.5 or later
+        # Use --deep option in OS X 10.9.5 or later
         darwin_version = os.uname()[2]
         if StrictVersion(darwin_version) >= StrictVersion('13.4.0'):
             process.append("--deep")
+        
+        # Use --strict option in OS X 10.11 or later
+        darwin_version = os.uname()[2]
+        if StrictVersion(darwin_version) >= StrictVersion('15.0'):
+            process.append("--strict")
 
         if test_requirement:
             process.append("-R=%s" % test_requirement)
