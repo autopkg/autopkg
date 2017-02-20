@@ -165,9 +165,9 @@ class CodeSignatureVerifier(DmgMounter):
         # a list with certificate authority names
         return proc.returncode == 0, authority_name_chain
 
-    def process_app_bundle(self, path):
-        '''Verifies the signature for an application bundle'''
-        self.output("Verifying application bundle signature...")
+    def process_code_signature(self, path):
+        '''Verifies the code signature for a path'''
+        self.output("Verifying code signature...")
         # The first step is to run 'codesign --verify <path>'
         requirement = self.env.get('requirement', None)
         codesign_additional_arguments = self.env.get('codesign_additional_arguments', [])
@@ -180,9 +180,9 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
 
         if self.env.get('expected_authority_names', None):
-            self.output("WARNING: Using 'expected_authority_names' to verify .app "
-                        "bundles is deprecated. Verifying .app bundles should use "
-                        "the 'requirement' argument instead.")
+            self.output("WARNING: Using 'expected_authority_names' to verify code "
+                        "signature is deprecated. Recipes should use the "
+                        "'requirement' argument instead.")
             self.output("See https://github.com/autopkg/autopkg/wiki/Using-"
                         "CodeSignatureVerification for more information.")
 
