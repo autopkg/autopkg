@@ -95,7 +95,6 @@ class CodeSignatureVerifier(DmgMounter):
             process.append("--deep")
         
         # Use --strict option in OS X 10.11 or later
-        darwin_version = os.uname()[2]
         if StrictVersion(darwin_version) >= StrictVersion('15.0'):
             process.append("--strict")
 
@@ -109,9 +108,16 @@ class CodeSignatureVerifier(DmgMounter):
             process.append("=%s" % test_requirement)
 
         process.append(path)
+        
+        if self.env.get('CODE_SIGNATURE_VERIFICATION_DEBUG'):
+            self.output("%s" % " ".join(process))
 
-        proc = subprocess.Popen(process,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(
+            process,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
         (output, error) = proc.communicate()
 
         # Log all output. codesign seems to output only
@@ -134,8 +140,12 @@ class CodeSignatureVerifier(DmgMounter):
         process = ["/usr/sbin/pkgutil",
                    "--check-signature",
                    path]
-        proc = subprocess.Popen(process,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        proc = subprocess.Popen(
+            process,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
         (output, error) = proc.communicate()
 
         # Log everything
@@ -196,7 +206,8 @@ class CodeSignatureVerifier(DmgMounter):
                 self.output("Mismatch in authority names")
                 self.output(
                     "Expected: %s" % ' -> '.join(expected_authority_names))
-                self.output("Found:    %s" % ' -> '.join(authority_names))
+                self.output(
+                    "Found:    %s" % ' -> '.join(authority_names))
                 raise ProcessorError(
                     "Mismatch in authority names. Note that all "
                     "verification can be disabled by setting the variable "
