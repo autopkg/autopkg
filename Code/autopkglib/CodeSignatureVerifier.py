@@ -26,7 +26,6 @@ from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["CodeSignatureVerifier"]
 
-RE_AUTHORITY_CODESIGN = re.compile(r'Authority=(?P<authority>.*)\n')
 RE_AUTHORITY_PKGUTIL = re.compile(r'\s+[1-9]+\. (?P<authority>.*)\n')
 
 
@@ -79,26 +78,6 @@ class CodeSignatureVerifier(DmgMounter):
     }
 
     description = __doc__
-
-    def codesign_get_authority_names(self, path):
-        """
-        Runs 'codesign --display -vvvv <path>' and returns a list of
-        found certificate authority names.
-        """
-        #pylint: disable=no-self-use
-        process = ["/usr/bin/codesign",
-                   "--display",
-                   "-vvvv",
-                   path]
-
-        proc = subprocess.Popen(process,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        codesign_details = proc.communicate()[1]
-
-        authority_name_chain = []
-        for match in re.finditer(RE_AUTHORITY_CODESIGN, codesign_details):
-            authority_name_chain.append(match.group('authority'))
-        return authority_name_chain
 
     def codesign_verify(self, path, test_requirement=None, codesign_additional_arguments=[]):
         """
@@ -189,24 +168,10 @@ class CodeSignatureVerifier(DmgMounter):
 
         if self.env.get('expected_authority_names', None):
             self.output("WARNING: Using 'expected_authority_names' to verify .app "
-                        "bundles is deprecated and may be removed in a future "
-                        "AutoPkg release. Verifying .app bundles should use the "
-                        "'requirement' argument instead.")
+                        "bundles is deprecated. Verifying .app bundles should use "
+                        "the 'requirement' argument instead.")
             self.output("See https://github.com/autopkg/autopkg/wiki/Using-"
                         "CodeSignatureVerification for more information.")
-            authority_names = self.codesign_get_authority_names(path)
-            expected_authority_names = self.env['expected_authority_names']
-            if authority_names != expected_authority_names:
-                self.output("Mismatch in authority names")
-                self.output(
-                    "Expected: %s" % ' -> '.join(expected_authority_names))
-                self.output("Found:    %s" % ' -> '.join(authority_names))
-                raise ProcessorError(
-                    "Mismatch in authority names. Note that all "
-                    "verification can be disabled by setting the variable "
-                    "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
-            else:
-                self.output("Authority name chain is valid")
 
     def process_installer_package(self, path):
         '''Verifies the signature for an installer pkg'''
