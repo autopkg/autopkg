@@ -180,11 +180,16 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
 
         if self.env.get('expected_authority_names', None):
-            self.output("WARNING: Using 'expected_authority_names' to verify code "
+            self.output("ERROR: Using 'expected_authority_names' to verify code "
                         "signature is deprecated. Recipes should use the "
                         "'requirement' argument instead.")
             self.output("See https://github.com/autopkg/autopkg/wiki/Using-"
                         "CodeSignatureVerification for more information.")
+            raise ProcessorError(
+                "Using 'expected_authority_names' to verify code signature "
+                "is deprecated. Note that all verifications can be disabled "
+                "by setting the variable DISABLE_CODE_SIGNATURE_VERIFICATION "
+                "to a non-empty value.")
 
     def process_installer_package(self, path):
         '''Verifies the signature for an installer pkg'''
