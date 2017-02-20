@@ -103,7 +103,10 @@ class CodeSignatureVerifier(DmgMounter):
             process.append(argument)
 
         if test_requirement:
-            process.append("-R=%s" % test_requirement)
+            if self.env.get('CODE_SIGNATURE_VERIFICATION_DEBUG'):
+                self.output("Requirement: %s" % test_requirement)
+            process.append("--test-requirement")
+            process.append("=%s" % test_requirement)
 
         process.append(path)
 
