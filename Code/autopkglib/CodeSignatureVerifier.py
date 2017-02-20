@@ -248,21 +248,21 @@ class CodeSignatureVerifier(DmgMounter):
             # Get current Darwin kernel version
             darwin_version = os.uname()[2]
 
-            # Currently we support only .app, .pkg, .mpkg or .xip types
+            # Get the input file extension and use pkgutil
+            # for .pkg, .mpkg and .xip files.
             file_extension = os.path.splitext(matched_input_path)[1]
-            if file_extension == ".app":
-                self.process_app_bundle(matched_input_path)
-            elif file_extension in [".pkg", ".mpkg", ".xip"]:
+            if file_extension in [".pkg", ".mpkg", ".xip"]:
                 # Check the kernel version to make sure we're running on
-                # Snow Leopard:
-                # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
-                if StrictVersion(darwin_version) < StrictVersion('11.0'):
+                # 10.7 or later (10.6.8 == Darwin Kernel Version 10.8.0)
+                if StrictVersion(darwin_version) >= StrictVersion('11.0'):
+                    self.process_installer_package(matched_input_path)
+                else:
                     self.output("Warning: Installer package signature "
                                 "verification not supported on Mac OS X 10.6")
-                else:
-                    self.process_installer_package(matched_input_path)
+
+            # For everything else, use /usr/bin/codesign.
             else:
-                raise ProcessorError("Unsupported file type")
+                self.process_code_signature(matched_input_path)
 
         finally:
             if dmg:
