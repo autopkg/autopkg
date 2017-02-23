@@ -68,10 +68,17 @@ class CodeSignatureVerifier(DmgMounter):
                  "by running:"
                  "\n\t$ codesign --display -r- <path_to_app>"),
         },
+        "strict_verification": {
+            "required": False,
+            "description":
+                ("Boolean value to control the strictness of signature validation. "
+                "If not defined, codesign defaults are used. Note that this option "
+                "is ignored if the current system version is less than 10.11."),
+        },
         "codesign_additional_arguments": {
             "required": False,
             "description":
-                ("Additional arguments to pass to codesign."),
+                ("Array of additional argument strings to pass to codesign."),
         },
     }
     output_variables = {
@@ -79,7 +86,7 @@ class CodeSignatureVerifier(DmgMounter):
 
     description = __doc__
 
-    def codesign_verify(self, path, test_requirement=None, codesign_additional_arguments=[]):
+    def codesign_verify(self, path, test_requirement=None, strict_verification=None, codesign_additional_arguments=[]):
         """
         Runs 'codesign --verify --verbose <path>'. Returns True if
         codesign exited with 0 and False otherwise.
@@ -94,13 +101,22 @@ class CodeSignatureVerifier(DmgMounter):
         if StrictVersion(darwin_version) >= StrictVersion('13.4.0'):
             process.append("--deep")
         
-        # Use --strict option in OS X 10.11 or later
+        # Use --strict option in OS X 10.11 or later and only if requested by the recipe
         if StrictVersion(darwin_version) >= StrictVersion('15.0'):
-            process.append("--strict")
+            if strict_verification is None:
+                self.output("Strict verification not defined. Using codesign defaults...")
+            elif strict_verification is True:
+                self.output("Strict verification enabled...")
+                process.append("--strict")
+            elif strict_verification is False:
+                self.output("Strict verification disabled...")
+                process.append("--no-strict")
 
+        # Add additional arguments (if any).
         for argument in codesign_additional_arguments:
             process.append(argument)
 
+        # Add the requirement string
         if test_requirement:
             if self.env.get('CODE_SIGNATURE_VERIFICATION_DEBUG'):
                 self.output("Requirement: %s" % test_requirement)
@@ -108,7 +124,7 @@ class CodeSignatureVerifier(DmgMounter):
             process.append("=%s" % test_requirement)
 
         process.append(path)
-        
+
         if self.env.get('CODE_SIGNATURE_VERIFICATION_DEBUG'):
             self.output("%s" % " ".join(process))
 
@@ -170,8 +186,9 @@ class CodeSignatureVerifier(DmgMounter):
         self.output("Verifying code signature...")
         # The first step is to run 'codesign --verify <path>'
         requirement = self.env.get('requirement', None)
+        strict_verification = self.env.get('strict_verification', None)
         codesign_additional_arguments = self.env.get('codesign_additional_arguments', [])
-        if self.codesign_verify(path, requirement, codesign_additional_arguments):
+        if self.codesign_verify(path, requirement, strict_verification, codesign_additional_arguments):
             self.output("Signature is valid")
         else:
             raise ProcessorError(
