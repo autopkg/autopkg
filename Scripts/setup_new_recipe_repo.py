@@ -115,7 +115,7 @@ def main():
              "\n\n %prog [options] source-repo-user/recipe-repo-name")
     default_org = "autopkg"
     permisison_levels = ["pull", "push", "admin"]
-    default_permission_level = "admin"
+    default_permission_level = "push"
     parser = optparse.OptionParser(usage=usage)
     parser.add_option("-t", "--token",
                       help="Auth token string to use. Required.")
