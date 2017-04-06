@@ -57,7 +57,7 @@ class PkgCopier(Copier):
             del self.env['pkg_copier_summary_result']
 
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_pkg_path) = self.parsePathForDMG(
+        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
             self.env['source_pkg'])
         try:
             if dmg:
