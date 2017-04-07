@@ -4,6 +4,7 @@ FIXES:
 
 - Trust info is ignored if it is ever present in a recipe which is not an override,
   and warns if any such trust info is found (GH-334)
+- Fix a regression in PlistReader and handling disk images
 - PkgCopier can now mount a diskimage in the source path even if its extension is not
   `.dmg` (GH-349)
 
