@@ -1,5 +1,22 @@
 ### [1.0.2](https://github.com/autopkg/autopkg/compare/v1.0.1...HEAD) (Unreleased)
 
+FIXES:
+
+- Trust info is ignored if it is ever present in a recipe which is not an override,
+  and warns if any such trust info is found (GH-334)
+- PkgCopier can now mount a diskimage in the source path even if its extension is not
+  `.dmg` (GH-349)
+
+IMPROVEMENTS:
+
+- If an `autopkg run` has recipes failing due to trust verification failure, this is
+  clarified in the output as the reason for the failure.
+- URLDownloader now handles file sizes in FTP server responses, avoiding repeated
+  downloads from `ftp://` server URLs (GH-338)
+- FileFinder can now mount DMG files given as part of its input `pattern` (GH-263)
+- When PkgCreator logs `Invalid version`, it now includes the offending version string
+  in this output (GH-343)
+
 ### [1.0.1](https://github.com/autopkg/autopkg/compare/v1.0.0...v1.0.1) (November 30, 2016)
 
 FIXES:
