@@ -218,6 +218,23 @@ class URLDownloader(Processor):
                         header[fieldname] = part[1]
                     except IndexError:
                         header[fieldname] = ''
+                elif self.env["url"].startswith('ftp://'):
+                    part = info.split(None, 1)
+                    responsecode = part[0]
+                    if responsecode == '213':
+                        # This is the reply to curl's SIZE command on the file
+                        # We can map it to the HTTP content-length header
+                        try:
+                            header['content-length'] = part[1]
+                        except IndexError:
+                            pass
+                    elif responsecode.startswith('55'):
+                        header['http_result_code'] = '404'
+                        header['http_result_description'] = info
+                    elif responsecode == '150' or responsecode == '125':
+                        header['http_result_code'] = '200'
+                        header['http_result_description'] = info
+                        donewithheaders = True
                 elif info == '':
                     # we got an empty line; end of headers (or curl exited)
                     if header.get('http_result_code') in [
