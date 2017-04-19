@@ -22,6 +22,9 @@ import time
 import xattr
 import tempfile
 
+from types import IntType
+from string import atoi
+
 from autopkglib import Processor, ProcessorError
 try:
     from autopkglib import BUNDLE_ID
@@ -91,6 +94,11 @@ class URLDownloader(Processor):
             "required": False,
             "default": "/usr/bin/curl",
             "description": "Path to curl binary. Defaults to /usr/bin/curl.",
+        },
+        "HTTP_FAILURE_CODE_MIN": {
+            "default": 400,
+            "required": False,
+            "description": ("If the HTTP Status code is larger than or equal to this value, consider the download to be failed") 
         },
     }
     output_variables = {
@@ -266,6 +274,21 @@ class URLDownloader(Processor):
                 pass
 
             raise ProcessorError( "Curl failure: %s (exit code %s)" % (curlerr, retcode) )
+
+        # Attempt to fail if there is a bad HTTP Status code.
+        # Sometimes, curl successfully exits, having not downloaded
+        # anything useful (e.g. we received a 404 message code, but 
+        # got some HTML, but this is flagged as success)
+        self.output( '%s has HTTP Status code %s' % ( self.env['url'], header['http_result_code'] ), verbose_level = 3 )
+        if self.env['HTTP_FAILURE_CODE_MIN']:
+            failure_min = self.env['HTTP_FAILURE_CODE_MIN']
+            http_status = header['http_result_code']
+            if type(failure_min) != IntType:
+                failure_min = atoi(failure_min)
+            if type(http_status) != IntType:
+                http_status = atoi(http_status)
+            if http_status >= failure_min:
+                raise ProcessorError( "Failed to download %s due to HTTP Status code %d being larger than %d" % (self.env['url'], http_status, failure_min)  )
 
         # If Content-Length header is present and we had a cached
         # file, see if it matches the size of the cached file.
