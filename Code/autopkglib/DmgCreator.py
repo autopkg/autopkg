@@ -104,6 +104,7 @@ class DmgCreator(Processor):
         # Allow any filesystem that hdiutil supports
         valid_filesystems = [
             "APFS",
+            "Case-insensitive APFS",
             "Case-sensitive APFS",
             "Case-sensitive HFS+",
             "Case-sensitive Journaled HFS+",
