@@ -24,7 +24,7 @@ from autopkglib import Processor, ProcessorError
 __all__ = ["DmgCreator"]
 
 DEFAULT_DMG_FORMAT = "UDZO"
-DEFAULT_DMG_FILESYSTEM = "Journaled HFS+"
+DEFAULT_DMG_FILESYSTEM = "HFS+"
 DEFAULT_ZLIB_LEVEL = 5
 
 class DmgCreator(Processor):
@@ -104,6 +104,7 @@ class DmgCreator(Processor):
         # Allow any filesystem that hdiutil supports
         valid_filesystems = [
             "APFS",
+            "Case-insensitive APFS",
             "Case-sensitive APFS",
             "Case-sensitive HFS+",
             "Case-sensitive Journaled HFS+",
