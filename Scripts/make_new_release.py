@@ -30,8 +30,6 @@ from pprint import pprint
 from shutil import rmtree
 from time import strftime
 
-GITHUB_REPO = 'autopkg/autopkg'
-
 class GitHubAPIError(BaseException):
     '''Base error for GitHub API interactions'''
     pass
@@ -97,12 +95,19 @@ be done as root, so it's best done as a separate process.
     parser.add_option('-v', '--next-version',
                       help=("Next version to which AutoPkg will be "
                             "incremented. Required."))
+    parser.add_option('-p', '--prerelease',
+                      help=("Mark this release as a pre-release, applying "
+                            "a given suffix to the tag, i.e. 'RC1'"))
     parser.add_option('--dry-run', action='store_true',
                       help=("Don't actually push any changes to "
                             "Git remotes, and skip the actual release "
                             "creation. Useful for testing changes "
                             "to this script. Any GitHub API calls made "
                             "are read-only."))
+    parser.add_option('--user-repo', default='autopkg/autopkg',
+                      help=("Alternate org/user and repo to use for "
+                            "the release, useful for testing. Defaults to "
+                            "'autopkg/autopkg'."))
 
     opts = parser.parse_args()[0]
     if not opts.next_version:
@@ -112,9 +117,11 @@ be done as root, so it's best done as a separate process.
     next_version = opts.next_version
     if opts.dry_run:
         print "Running in 'dry-run' mode.."
+    publish_user, publish_repo = opts.user_repo.split('/')
     token = opts.token
+
     # ensure our OAuth token works before we go any further
-    api_call('/users/autopkg', token)
+    api_call('/users/%s' % publish_user, token)
 
     # set up some paths and important variables
     autopkg_root = tempfile.mkdtemp()
@@ -124,7 +131,9 @@ be done as root, so it's best done as a separate process.
 
     # clone Git master
     subprocess.check_call(
-        ['git', 'clone', 'https://github.com/autopkg/autopkg', autopkg_root])
+        ['git', 'clone',
+         'https://github.com/%s/%s' % (publish_user, publish_repo),
+         autopkg_root])
     os.chdir(autopkg_root)
 
     # get the current autopkg version
@@ -140,7 +149,10 @@ be done as root, so it's best done as a separate process.
             % (next_version, current_version))
 
     tag_name = 'v%s' % current_version
-    published_releases = api_call('/repos/%s/releases' % GITHUB_REPO, token)
+    if opts.prerelease:
+        tag_name += opts.prerelease
+    published_releases = api_call(
+        '/repos/%s/%s/releases' % (publish_user, publish_repo), token)
     for rel in published_releases:
         if rel['tag_name'] == tag_name:
             print >> sys.stderr, (
@@ -154,7 +166,7 @@ be done as root, so it's best done as a separate process.
     with open(changelog_path, 'r') as fdesc:
         changelog = fdesc.read()
     release_date = strftime('(%B %d, %Y)')
-    new_changelog = re.sub('\(Unreleased\)', release_date, changelog)
+    new_changelog = re.sub(r'\(Unreleased\)', release_date, changelog)
     new_changelog = re.sub('...HEAD', '...v%s' % current_version, new_changelog)
     with open(changelog_path, 'w') as fdesc:
         fdesc.write(new_changelog)
@@ -218,11 +230,13 @@ be done as root, so it's best done as a separate process.
     release_data['name'] = "AutoPkg " + current_version
     release_data['body'] = release_notes
     release_data['draft'] = False
+    if opts.prerelease:
+        release_data['prerelease'] = True
 
     # create the release
     if not opts.dry_run:
         create_release = api_call(
-            '/repos/%s/releases' % GITHUB_REPO,
+            '/repos/%s/%s/releases' % (publish_user, publish_repo),
             token,
             data=release_data)
         if create_release:
@@ -232,8 +246,11 @@ be done as root, so it's best done as a separate process.
 
             # upload the pkg as a release asset
             new_release_id = create_release['id']
-            endpoint = ('/repos/%s/releases/%s/assets?name=%s'
-                        % (GITHUB_REPO, new_release_id, pkg_filename))
+            endpoint = ('/repos/%s/%s/releases/%s/assets?name=%s'
+                        % (publish_user,
+                           publish_repo,
+                           new_release_id,
+                           pkg_filename))
             upload_asset = api_call(
                 endpoint,
                 token,
@@ -253,7 +270,11 @@ be done as root, so it's best done as a separate process.
     plistlib.writePlist(plist, version_plist_path)
 
     # increment changelog
-    new_changelog = "### [{0}](https://github.com/autopkg/autopkg/compare/v{1}...HEAD) (Unreleased)\n\n".format(next_version, current_version) + new_changelog
+    new_changelog = "### [{0}](https://github.com/{1}/{2}/compare/v{3}...HEAD) (Unreleased)\n\n".format(
+        next_version,
+        publish_user,
+        publish_repo,
+        current_version) + new_changelog
     with open(changelog_path, 'w') as fdesc:
         fdesc.write(new_changelog)
 

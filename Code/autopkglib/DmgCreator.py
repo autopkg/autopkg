@@ -24,6 +24,7 @@ from autopkglib import Processor, ProcessorError
 __all__ = ["DmgCreator"]
 
 DEFAULT_DMG_FORMAT = "UDZO"
+DEFAULT_DMG_FILESYSTEM = "HFS+"
 DEFAULT_ZLIB_LEVEL = 5
 
 class DmgCreator(Processor):
@@ -43,6 +44,11 @@ class DmgCreator(Processor):
             "required": False,
             "description": ("The dmg format. Defaults to %s."
                             % DEFAULT_DMG_FORMAT),
+        },
+        "dmg_filesystem": {
+            "required": False,
+            "description": ("The dmg filesystem. Defaults to %s."
+                            % DEFAULT_DMG_FILESYSTEM),
         },
         "dmg_zlib_level": {
             "required": False,
@@ -95,10 +101,34 @@ class DmgCreator(Processor):
             raise ProcessorError(
                 "dmg_zlib_level must be a value between 1 and 9.")
 
+        # Allow any filesystem that hdiutil supports
+        valid_filesystems = [
+            "APFS",
+            "Case-insensitive APFS",
+            "Case-sensitive APFS",
+            "Case-sensitive HFS+",
+            "Case-sensitive Journaled HFS+",
+            "ExFAT",
+            "HFS+",
+            "Journaled HFS+",
+            "MS-DOS FAT12",
+            "MS-DOS FAT16",
+            "MS-DOS FAT32",
+            "MS-DOS",
+            "UDF",
+        ]
+        dmg_filesystem = self.env.get("dmg_filesystem", DEFAULT_DMG_FILESYSTEM)
+        if dmg_filesystem not in valid_filesystems:
+            raise ProcessorError(
+                "dmg filesystem '%s' is invalid. Must be one of: %s."
+                % (dmg_filesystem, ", ".join(valid_filesystems)))
+
         # Build a command for hdiutil.
         cmd = ["/usr/bin/hdiutil",
                "create",
                "-plist",
+               "-fs",
+               dmg_filesystem,
                "-format",
                dmg_format]
         if dmg_format == "UDZO":
@@ -129,4 +159,3 @@ class DmgCreator(Processor):
 if __name__ == '__main__':
     PROCESSOR = DmgCreator()
     PROCESSOR.execute_shell()
-

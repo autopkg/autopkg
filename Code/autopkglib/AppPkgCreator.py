@@ -52,13 +52,13 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             "required": False,
             "description":
                 "Bundle identifier of the app. If not set, will be extracted "
-                "from the app's Info.plist.",
+                "from the CFBundleIdentifier in the app's Info.plist.",
         },
         "version": {
             "required": False,
             "description":
                 "Version of the app. If not set, will be extracted from the"
-                "app's Info.plist.",
+                "CFBundleShortVersionString in the app's Info.plist.",
         },
         "force_pkg_build": {
             "required": False,

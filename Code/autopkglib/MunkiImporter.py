@@ -75,6 +75,11 @@ class MunkiImporter(Processor):
             "description": ("String to set 'version_comparison_key' for "
                             "any generated installs items."),
         },
+        "uninstaller_pkg_path": {
+            "required": False,
+            "description": ("Path to an uninstaller pkg, supported for Adobe "
+                            "installer_type items."),
+        },
         "MUNKI_PKGINFO_FILE_EXTENSION": {
             "description":
                 "Extension for output pkginfo files. Default is 'plist'.",
@@ -124,6 +129,7 @@ class MunkiImporter(Processor):
         installer_item_table = {}
         hash_table = {}
         checksum_table = {}
+        files_table = {}
 
         itemindex = -1
         for item in catalogitems:
@@ -185,14 +191,26 @@ class MunkiImporter(Processor):
                             app_table[
                                 install['path']][app_version].append(itemindex)
                     if install.get('type') == 'file':
-                        if 'path' in install and 'md5checksum' in install:
-                            cksum = install['md5checksum']
+                        if 'path' in install:
+                            if 'md5checksum' in install:
+                                cksum = install['md5checksum']
 
-                            if cksum not in checksum_table.keys():
-                                checksum_table[cksum] = []
+                                if cksum not in checksum_table.keys():
+                                    checksum_table[cksum] = []
 
-                            checksum_table[cksum].append(
-                                {'path': install['path'], 'index': itemindex})
+                                checksum_table[cksum].append(
+                                    {'path': install['path'],
+                                     'index': itemindex})
+                            else:
+                                path = install['path']
+
+                                if path not in files_table.keys():
+                                    files_table[path] = []
+
+                                files_table[path].append(
+                                    {'path': install['path'],
+                                     'index': itemindex})
+
                 except (TypeError, KeyError):
                     # skip this item
                     continue
@@ -203,6 +221,7 @@ class MunkiImporter(Processor):
         pkgdb['applications'] = app_table
         pkgdb['installer_items'] = installer_item_table
         pkgdb['checksums'] = checksum_table
+        pkgdb['files'] = files_table
         pkgdb['items'] = catalogitems
 
         return pkgdb
@@ -303,17 +322,39 @@ class MunkiImporter(Processor):
 
                             return matching_pkg
 
+        # Try to match against a simple list of files and paths
+        # where our pkginfo version also matches
+        path_only_filelist = [item for item in pkginfo.get('installs', [])
+                              if item.get('type') == 'file' and 'path' in item
+                              and 'md5checksum' not in item]
+        if path_only_filelist:
+            for pathitem in path_only_filelist:
+                path = pathitem['path']
+                if path in pkgdb['files']:
+                    path_matches = pkgdb['files'][path]
+                    for path_match in path_matches:
+                        if path_match['path'] == pathitem['path']:
+                            matching_pkg = pkgdb['items'][path_match['index']]
+                            # make sure we do this only for items that also
+                            # match our pkginfo version
+                            if matching_pkg['version'] == pkginfo['version']:
+                                return matching_pkg
+
         # if we get here, we found no matches
         return None
 
 
-    def copy_item_to_repo(self, pkginfo):
+    def copy_item_to_repo(self, pkginfo, uninstaller_pkg=False):
         """Copies an item to the appropriate place in the repo.
         If itempath is a path within the repo/pkgs directory, copies nothing.
         Renames the item if an item already exists with that name.
-        Returns the relative path to the item."""
+        Returns the relative path to the item.
+        uninstaller_pkg should be True if the item is an uninstaller (Adobe).
+        """
 
         itempath = self.env["pkg_path"]
+        if uninstaller_pkg:
+            itempath = self.env["uninstaller_pkg_path"]
         repo_path = self.env["MUNKI_REPO"]
         subdirectory = self.env.get("repo_subdirectory", "")
         item_version = pkginfo.get("version")
@@ -409,6 +450,10 @@ class MunkiImporter(Processor):
             args.extend(["--pkgname", self.env["munkiimport_pkgname"]])
         if self.env.get("munkiimport_appname"):
             args.extend(["--appname", self.env["munkiimport_appname"]])
+        # uninstaller pkg will be copied later, this is just to suppress
+        # makepkginfo stderr warning output
+        if self.env.get("uninstaller_pkg_path"):
+            args.extend(["--uninstallpkg", self.env["uninstaller_pkg_path"]])
         if self.env.get("additional_makepkginfo_options"):
             args.extend(self.env["additional_makepkginfo_options"])
 
@@ -471,6 +516,12 @@ class MunkiImporter(Processor):
         # adjust the installer_item_location to match the actual location
         # and name
         pkginfo["installer_item_location"] = relative_path
+
+        if self.env.get("uninstaller_pkg_path"):
+            relative_uninstall_path = self.copy_item_to_repo(
+                pkginfo, uninstaller_pkg=True)
+            pkginfo["uninstaller_item_location"] = relative_uninstall_path
+            pkginfo["uninstallable"] = True
 
         # set output variables
         self.env["pkginfo_repo_path"] = self.copy_pkginfo_to_repo(pkginfo)

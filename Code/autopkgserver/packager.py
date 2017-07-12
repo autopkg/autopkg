@@ -231,10 +231,10 @@ class Packager(object):
             raise PackagerError("Version too long")
         components = self.request.version.split(".")
         if len(components) < 1:
-            raise PackagerError("Invalid version")
+            raise PackagerError("Invalid version \"%s\"" % self.request.version)
         for comp in components:
             if not self.re_version.search(comp):
-                raise PackagerError("Invalid version")
+                raise PackagerError("Invalid version component \"%s\"" % comp)
         self.log.debug("version ok")
 
         # Make sure infofile and resources exist and can be read.

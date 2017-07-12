@@ -111,6 +111,8 @@ def get_identifier(recipe):
             return recipe["Input"]["IDENTIFIER"]
         except (KeyError, AttributeError):
             return None
+    except TypeError:
+        return None
 
 
 def get_identifier_from_recipe_file(filename):
