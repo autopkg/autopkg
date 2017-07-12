@@ -176,7 +176,8 @@ class MunkiImporter(Processor):
             # add to table of installed applications
             for install in item.get('installs', []):
                 try:
-                    if install.get('type') == 'application':
+                    if (install.get('type') == 'application' or
+                            install.get('type') == 'bundle'):
                         if 'path' in install:
                             if 'version_comparison_key' in install:
                                 app_version = (
