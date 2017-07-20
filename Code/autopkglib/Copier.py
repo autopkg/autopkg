@@ -46,7 +46,8 @@ class Copier(DmgMounter):
         "overwrite": {
             "required": False,
             "description": (
-                "Whether the destination will be overwritten if necessary."),
+                "Whether the destination will be overwritten if necessary. "
+                "Uses a boolean value."),
         },
     }
     output_variables = {
