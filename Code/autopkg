@@ -529,11 +529,25 @@ def get_recipe_repo(git_path):
     if not gitcmd:
         log_err("No git binary could be found!")
         return None
+    
+    # check if recipe_repo_dir is versionned with git or not
+    # if so, we should use submodule instead of clone
+    # `git rev-parse --is-inside-work-tree` will return "true"
+    # and exit with 0 if we are already under a git tree.
+    try:
+        is_inside_work_tree_output = run_git(['rev-parse', '--is-inside-work-tree'], git_directory=recipe_repo_dir).rstrip()
+        if is_inside_work_tree_output == "true":
+            is_under_git_tree = True
+        else:
+            is_under_git_tree = False
+    except GitError, err:
+        is_under_git_tree = False
+
 
     if os.path.exists(dest_dir):
         # probably should attempt a git pull
         # check to see if this is really a git repo first
-        if not os.path.isdir(os.path.join(dest_dir, '.git')):
+        if not is_under_git_tree:
             log_err("%s exists and is not a git repo!" % dest_dir)
             return None
         log("Attempting git pull...")
@@ -544,9 +558,13 @@ def get_recipe_repo(git_path):
             log_err(err)
             return None
     else:
-        log("Attempting git clone...")
         try:
-            log(run_git(['clone', git_path, dest_dir]))
+            if is_under_git_tree:
+                log("Attempting git submodule...")
+                log(run_git(['submodule', 'add', git_path, dest_dir], git_directory=recipe_repo_dir))
+            else:
+                log("Attempting git clone...")
+                log(run_git(['clone', git_path, dest_dir]))
             return dest_dir
         except GitError, err:
             log_err(err)
