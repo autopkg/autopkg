@@ -547,7 +547,8 @@ def get_recipe_repo(git_path):
     if os.path.exists(dest_dir):
         # probably should attempt a git pull
         # check to see if this is really a git repo first
-        if not is_under_git_tree:
+        dest_dir_is_git_tree = run_git(['rev-parse', '--is-inside-work-tree'], git_directory=dest_dir).rstrip()
+        if not dest_dir_is_git_tree == "true":
             log_err("%s exists and is not a git repo!" % dest_dir)
             return None
         log("Attempting git pull...")
