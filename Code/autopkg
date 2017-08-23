@@ -562,7 +562,7 @@ def get_recipe_repo(git_path):
         try:
             if is_under_git_tree:
                 log("Attempting git submodule...")
-                log(run_git(['submodule', 'add', git_path, dest_dir], git_directory=recipe_repo_dir))
+                log(run_git(['submodule', 'add', git_path, os.path.relpath(dest_dir, recipe_repo_dir)], git_directory=recipe_repo_dir))
             else:
                 log("Attempting git clone...")
                 log(run_git(['clone', git_path, dest_dir]))
