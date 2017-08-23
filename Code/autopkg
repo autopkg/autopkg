@@ -765,8 +765,28 @@ def repo_delete(argv):
         if repo_path in recipe_search_dirs:
             recipe_search_dirs.remove(repo_path)
         # now remove the repo files
+        
+        repo_parent_path=os.path.dirname(repo_path)
         try:
-            shutil.rmtree(repo_path)
+            is_inside_work_tree_output = run_git(['rev-parse', '--is-inside-work-tree'], git_directory=repo_parent_path).rstrip()
+            if is_inside_work_tree_output == "true":
+                is_under_git_tree = True
+            else:
+                is_under_git_tree = False
+        except GitError, err:
+            is_under_git_tree = False
+            
+        try:
+            if is_under_git_tree:
+                git_repo_top_level = run_git(['rev-parse', '--show-toplevel'], git_directory=repo_parent_path).rstrip()
+                repo_relative_path=os.path.relpath(repo_path, git_repo_top_level)
+                log("Removing git submodule: "+repo_relative_path)
+                log(run_git(['submodule', 'deinit', repo_relative_path], git_directory=git_repo_top_level))
+                log(run_git(['rm', '--cache', repo_relative_path], git_directory=git_repo_top_level))
+                log(run_git(['config', '-f', '.gitmodules', '--remove-section', 'submodule.' + repo_relative_path], git_directory=git_repo_top_level))
+                shutil.rmtree(repo_path)
+            else:
+                shutil.rmtree(repo_path)
         except (OSError, IOError), err:
             log_err("ERROR: Could not remove %s: %s" % (repo_path, err))
         else:
