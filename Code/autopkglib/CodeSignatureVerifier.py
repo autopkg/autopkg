@@ -212,13 +212,13 @@ class CodeSignatureVerifier(DmgMounter):
 
         if self.env.get('expected_authority_names', None):
             self.output("ERROR: Using 'expected_authority_names' to verify code "
-                        "signature is deprecated. Recipes should use the "
+                        "signature is no longer supported. Recipes should use the "
                         "'requirement' argument instead.")
             self.output("See https://github.com/autopkg/autopkg/wiki/Using-"
                         "CodeSignatureVerification for more information.")
             raise ProcessorError(
                 "Using 'expected_authority_names' to verify code signature "
-                "is deprecated. Note that all verifications can be disabled "
+                "is no longer supported. Note that all verifications can be disabled "
                 "by setting the variable DISABLE_CODE_SIGNATURE_VERIFICATION "
                 "to a non-empty value.")
 
