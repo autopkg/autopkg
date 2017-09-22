@@ -3,7 +3,7 @@
 FIXES:
 
 - DmgCreator now explicitly specifies HFS+ format when creating disk images. Avoids an issue where APFS images were created under High Sierra, potentially causing issues with machines running older macOS versions. (GH-357)
-- Better handling of bundle items in MunkiImpoter (GH-352)
+- Better handling of bundle items in MunkiImporter (GH-352)
 - Prevent stack trace when parent recipe does not exist (GH-363)
 
 IMPROVEMENTS:
