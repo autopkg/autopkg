@@ -2,17 +2,25 @@
 
 FIXES:
 
-- DmgCreator now explicitly specifies HFS+ format when creating disk images. Avoids an issue where APFS images were created under High Sierra, potentially causing issues with machines running older macOS versions. (GH-357)
 - Better handling of bundle items in MunkiImporter (GH-352)
 - Prevent stack trace when parent recipe does not exist (GH-363)
 
 IMPROVEMENTS:
 
+- DmgCreator now explicitly specifies HFS+ format when creating disk images. Avoids an
+  issue where APFS images were created under High Sierra, potentially causing issues
+  with machines running older macOS versions. (GH-357)
 - Improvements to CodeSignatureVerifier (GH-373)
-  - Added strict_verification variable to control whether to pass --strict, --no-strict or nothing at all to codesign.
-  - Added deep_verification variable to control whether to pass --deep to codesign or not. Deep verification was previously on by default (and still is) but it can now be explicitly disabled.
-  - Added codesign_additional_arguments variable for specifying additional arguments for codesign tool.
-  - Removed the .app file extension checking and no longer require the input to be a specific file type. Only check for .pkg, .mpkg or .xip extensions and pass those to pkgutil, everything else should go to codesign.
+  - Added strict_verification variable to control whether to pass --strict, --no-strict
+    or nothing at all to codesign.
+  - Added deep_verification variable to control whether to pass --deep to codesign or
+    not. Deep verification was previously on by default (and still is) but it can now be
+    explicitly disabled.
+  - Added codesign_additional_arguments variable for specifying additional arguments for
+    codesign tool.
+  - Removed the .app file extension checking and no longer require the input to be a
+    specific file type. Only check for .pkg, .mpkg or .xip extensions and pass those to
+    pkgutil, everything else should go to codesign.
 
 ### [1.0.2](https://github.com/autopkg/autopkg/compare/v1.0.1...v1.0.2) (April 07, 2017)
 
