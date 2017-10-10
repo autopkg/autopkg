@@ -18,6 +18,7 @@
 
 import re
 import subprocess
+import HTMLParser
 
 from autopkglib import Processor, ProcessorError
 
@@ -104,8 +105,11 @@ class URLTextSearcher(Processor):
         if not match:
             raise ProcessorError('No match found on URL: %s' % url)
 
-        # return the last matched group with the dict of named groups
-        return (match.group(match.lastindex or 0), match.groupdict(), )
+        # Unescape last matched group to get rid of html escape characters
+        unescaped_url = HTMLParser.HTMLParser().unescape(match.group(match.lastindex or 0))
+
+        # return the last matched group as unescaped url with the dict of named groups
+        return (unescaped_url, match.groupdict(), )
 
     def main(self):
         output_var_name = self.env['result_output_var_name']
