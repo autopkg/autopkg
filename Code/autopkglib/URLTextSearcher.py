@@ -50,6 +50,11 @@ class URLTextSearcher(Processor):
                             'the download request.'),
             'required': False,
         },
+        'curl_opts': {
+            'description': ('Optional array of curl options to include with '
+                            'the download request.'),
+            'required': False,
+        },
         're_flags': {
             'description': ('Optional array of strings of Python regular '
                             'expression flags. E.g. IGNORECASE.'),
@@ -73,7 +78,7 @@ class URLTextSearcher(Processor):
 
     description = __doc__
 
-    def get_url_and_search(self, url, re_pattern, headers=None, flags=None):
+    def get_url_and_search(self, url, re_pattern, headers=None, flags=None, opts=None):
         '''Get data from url and search for re_pattern'''
         #pylint: disable=no-self-use
         flag_accumulator = 0
@@ -89,6 +94,9 @@ class URLTextSearcher(Processor):
             if headers:
                 for header, value in headers.items():
                     cmd.extend(['--header', '%s: %s' % (header, value)])
+            if opts:
+                for item in opts:
+                    cmd.extend([item])
             cmd.append(url)
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -114,8 +122,10 @@ class URLTextSearcher(Processor):
 
         flags = self.env.get('re_flags', {})
 
+        opts = self.env.get('curl_opts', [])
+
         groupmatch, groupdict = self.get_url_and_search(
-            self.env['url'], self.env['re_pattern'], headers, flags)
+            self.env['url'], self.env['re_pattern'], headers, flags, opts)
 
         # favor a named group over a normal group match
         if output_var_name not in groupdict.keys():
