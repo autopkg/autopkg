@@ -58,6 +58,12 @@ class URLDownloader(Processor):
                 ("Optional dictionary of headers to include with the download "
                  "request.")
         },
+        "curl_opts": {
+            "required": False,
+            "description":
+                ("Optional array of options to include with the download "
+                 "request.")
+        },
         "download_dir": {
             "required": False,
             "description":
@@ -171,6 +177,10 @@ class URLDownloader(Processor):
             headers = self.env["request_headers"]
             for header, value in headers.items():
                 curl_cmd.extend(['--header', '%s: %s' % (header, value)])
+
+        if "curl_opts" in self.env:
+            for item in self.env["curl_opts"]:
+                curl_cmd.extend([item])
 
         # if file already exists and the size is 0, discard it and download
         # again
