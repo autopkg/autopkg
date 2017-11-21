@@ -283,6 +283,10 @@ class URLDownloader(Processor):
                             "fallback mechanism that does not guarantee "
                             "that a build is unchanged.")
                 self.output("Using existing %s" % pathname)
+
+                # Discard the temp file
+                os.remove(pathname_temporary)
+
                 return
 
         if header['http_result_code'] == '304':
