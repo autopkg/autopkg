@@ -74,7 +74,7 @@ class FlatPkgUnpacker(DmgMounter):
         # Create the directory if needed.
         if not os.path.exists(self.env['destination_path']):
             try:
-                os.mkdir(self.env['destination_path'])
+                os.makedirs(self.env['destination_path'])
             except OSError as err:
                 raise ProcessorError(
                     "Can't create %s: %s"
