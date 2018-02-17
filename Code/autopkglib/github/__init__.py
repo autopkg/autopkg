@@ -22,7 +22,7 @@ import urllib2
 
 from base64 import b64encode
 from getpass import getpass
-from pprint import pprint
+from .. import get_pref
 
 BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
@@ -44,7 +44,11 @@ class RequestWithMethod(urllib2.Request):
 class GitHubSession(object):
     """Handles a session with the GitHub API"""
     def __init__(self):
-        self.token = None
+        token = get_pref('GITHUB_TOKEN')
+        if token is not None:
+            self.token = token
+        else:
+            self.token = None
 
     def setup_token(self):
         """Return a GitHub OAuth token string. Will create one if necessary.
