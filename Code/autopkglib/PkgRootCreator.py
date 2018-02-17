@@ -82,7 +82,7 @@ class PkgRootCreator(Processor):
                 raise ProcessorError("%s is outside pkgroot" % directory)
 
             try:
-                os.mkdir(dirpath)
+                os.makedirs(dirpath)
                 os.chmod(dirpath, int(mode, 8))
                 self.output("Created %s" % dirpath)
             except OSError as err:
