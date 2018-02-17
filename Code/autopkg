@@ -1337,6 +1337,17 @@ def find_processor_path(processor_name, recipe, env=None):
     return None
 
 
+def os_path_compressuser(pathname):
+    '''Sort of the inverse of os.path.expanduser'''
+    home_dir = os.path.expanduser('~')
+    if pathname == home_dir:
+        return '~'
+    elif pathname.startswith(home_dir):
+        return '~/' + os.path.relpath(pathname, home_dir)
+    else:
+        return pathname
+
+
 def get_trust_info(recipe, search_dirs=None):
     '''Gets information from a recipe we use to ensure parent recipes and
     non-core processors have not changed'''
@@ -1351,7 +1362,7 @@ def get_trust_info(recipe, search_dirs=None):
                                recipe_dirs=search_dirs)
         identifier = get_identifier(p_recipe)
         parent_recipe_hashes[identifier] = {
-            'path': p_recipe_path,
+            'path': os_path_compressuser(p_recipe_path),
             'sha256_hash': p_recipe_hash,
         }
         if git_hash:
@@ -1371,7 +1382,7 @@ def get_trust_info(recipe, search_dirs=None):
             processor_hash = "PROCESSOR FILEPATH NOT FOUND"
             git_hash = None
         non_core_processor_hashes[processor] = {
-            'path': processor_path,
+            'path': os_path_compressuser(processor_path),
             'sha256_hash': processor_hash,
         }
         if git_hash:
@@ -1386,6 +1397,7 @@ def get_trust_info(recipe, search_dirs=None):
 
 def get_git_diff(filepath, git_hash):
     '''Get a git diff of filepath from git_hash'''
+    filepath = os.path.expanduser(filepath)
     try:
         git_toplevel_dir = run_git(
             ['rev-parse', '--show-toplevel'],
@@ -1404,6 +1416,7 @@ def get_git_diff(filepath, git_hash):
 def get_git_log(filepath, git_hash):
     '''Get log entries for commits for filepath since the commit referred to by
     git_hash'''
+    filepath = os.path.expanduser(filepath)
     try:
         git_toplevel_dir = run_git(
             ['rev-parse', '--show-toplevel'],
