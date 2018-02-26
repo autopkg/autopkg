@@ -19,6 +19,8 @@ import json
 import os
 import sys
 import urllib2
+import subprocess
+from autopkglib import curl_cmd
 
 from base64 import b64encode
 from getpass import getpass
@@ -103,9 +105,8 @@ home folder at %s.""" % TOKEN_LOCATION
 
     def call_api(self, endpoint, method="GET", query=None, data=None,
                  headers=None, accept="application/vnd.github.v3+json"):
-        """Return a tuple of a serialized JSON response and HTTP status code
-        from a call to a GitHub API endpoint. Certain APIs return no JSON
-        result and so the first item in the tuple (the response) will be None.
+        """Return a serialized JSON response from a call to a GitHub API endpoint.
+        Certain APIs return no JSON result and so the response might be None.
 
         endpoint: REST endpoint, beginning with a forward-slash
         method: optional alternate HTTP method to use other than GET
@@ -117,40 +118,38 @@ home folder at %s.""" % TOKEN_LOCATION
 
         url = BASE_URL + endpoint
         if query:
-            url += "?" + query
-        if data:
-            data = json.dumps(data)
-
-        # Setup custom request and its headers
-        req = RequestWithMethod(method, url)
-        req.add_header("User-Agent", "AutoPkg")
-        req.add_header("Accept", accept)
-        if self.token:
-            req.add_header("Authorization", "token %s" % self.token)
-        if headers:
-            for key, value in headers.items():
-                req.add_header(key, value)
+            url += "?" + query 
 
         try:
-            urlfd = urllib2.urlopen(req, data=data)
-            status = urlfd.getcode()
-            response = urlfd.read()
-            if response:
-                resp_data = json.loads(response)
+            curl_path = curl_cmd()
+            if not curl_path:
+                return None
+            cmd = [curl_path, '--location']
+            cmd.extend(['-X', method])
+            cmd.extend(['--header', '%s: %s' % ("User-Agent", "AutoPkg")])
+            cmd.extend(['--header', '%s: %s' % ("Accept", accept)])
+            if data:
+                data = json.dumps(data)
+                cmd.extend(['-d', data, '--header', 'Content-Type: application/json'])
+            if self.token:
+                cmd.extend(['--header', '%s: %s' % ("Authorization", "token %s" % self.token)])
+            if headers:
+                for header, value in headers.items():
+                    cmd.extend(['--header', '%s: %s' % (header, value)])
+            cmd.append(url)
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            (content, stderr) = proc.communicate()
+            if content:
+                resp_data = json.loads(content)
             else:
                 resp_data = None
-        except urllib2.HTTPError as err:
-            status = err.code
-            print >> sys.stderr, "API error: %s" % err
-            try:
-                error_json = json.loads(err.read())
-                resp_data = error_json
-            except BaseException:
-                print >> sys.stderr, err.read()
+            if proc.returncode:
+                print >> sys.stderr, 'Could not retrieve URL %s: %s' % (url, stderr)
                 resp_data = None
-        except urllib2.URLError as err:
-            print >> sys.stderr, "Error opening URL: %s" % url
-            print >> sys.stderr, err.reason
-            (resp_data, status) = (None, None)
+        except OSError:
+            print >> sys.stderr, 'Could not retrieve URL: %s' % url
+            resp_data = None
 
-        return (resp_data, status)
+        return resp_data
+

@@ -820,18 +820,18 @@ def do_gh_code_search(query, use_token=False):
     if use_token:
         gh_session.setup_token()
     # Do the search, including text match metadata
-    (results, code) = gh_session.call_api(
+    results = gh_session.call_api(
         "/search/code",
         query=query,
         accept="application/vnd.github.v3.text-match+json")
-    if code == 403:
-        log_err(
-            "You've probably hit the GitHub's search rate limit, officially 5 "
-            "requests per minute. Server response follows:\n")
-        log_err(results["message"])
-        log_err(results["documentation_url"])
-        return None
-    if results is None or code is None:
+    
+    gh_message = results.get("message", None)
+    gh_documentation_url = results.get("documentation_url", None)
+    if gh_message:
+        log_err(gh_message)
+        log_err(gh_documentation_url)
+    
+    if results is None:
         log_err("A GitHub API error occurred!")
         return None
     return results
@@ -909,7 +909,7 @@ def search_recipes(argv):
     if not results:
         return
 
-    count = results["total_count"]
+    count = results.get("total_count", 0)
     if count == 0:
         print "No results."
         return
