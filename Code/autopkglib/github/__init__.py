@@ -116,11 +116,13 @@ home folder at %s.""" % TOKEN_LOCATION
         accept: optional Accept media type for exceptional APIs (like release
                 assets)."""
 
+        # Compose the URL
         url = BASE_URL + endpoint
         if query:
             url += "?" + query 
 
         try:
+            # Compose the curl command
             curl_path = curl_cmd()
             if not curl_path:
                 return None
@@ -128,17 +130,30 @@ home folder at %s.""" % TOKEN_LOCATION
             cmd.extend(['-X', method])
             cmd.extend(['--header', '%s: %s' % ("User-Agent", "AutoPkg")])
             cmd.extend(['--header', '%s: %s' % ("Accept", accept)])
-            if data:
-                data = json.dumps(data)
-                cmd.extend(['-d', data, '--header', 'Content-Type: application/json'])
+
+            # Pass the GitHub token as a header
             if self.token:
                 cmd.extend(['--header', '%s: %s' % ("Authorization", "token %s" % self.token)])
+
+            # Additional headers if defined
             if headers:
                 for header, value in headers.items():
                     cmd.extend(['--header', '%s: %s' % (header, value)])
+
+            # Set the data header if defined
+            if data:
+                data = json.dumps(data)
+                cmd.extend(['-d', data, '--header', 'Content-Type: application/json'])
+
+            # Final argument to curl is the URL
             cmd.append(url)
+            
+            # Start the curl process
             proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
             (content, stderr) = proc.communicate()
             if content:
                 resp_data = json.loads(content)
