@@ -55,6 +55,7 @@ class GitHubSession(object):
 
         #TODO: - support defining alternate scopes
         #      - deal with case of an existing token with the same note
+        #      - Two-factor auth
         if not os.path.exists(TOKEN_LOCATION):
             print """You will now be asked to enter credentials to a GitHub
 account in order to create an API token. This token has only
@@ -67,27 +68,52 @@ home folder at %s.""" % TOKEN_LOCATION
             username = raw_input("Username: ")
             password = getpass("Password: ")
             auth = b64encode(username + ":" + password)
-
-            # https://developer.github.com/v3/oauth/#scopes
-            req = urllib2.Request(BASE_URL + "/authorizations")
-            req.add_header("Authorization", "Basic %s" % auth)
-            json_resp = urllib2.urlopen(req)
-            data = json.load(json_resp)
-
+            
+            curl_path = curl_cmd()
+            if not curl_path:
+                return None
+            cmd = [curl_path, '--location']
+            cmd.extend(['-X', 'POST'])
+            cmd.extend(['--header', '%s: %s' % ("User-Agent", "AutoPkg")])
+            cmd.extend(['--header', '%s: %s' % ("Accept", "application/vnd.github.v3+json")])
+            cmd.extend(['--header', '%s: %s' % ("Authorization", "Basic %s" % auth)])
+            
             req_post = {"note": "AutoPkg CLI"}
             req_json = json.dumps(req_post)
-            create_resp = urllib2.urlopen(req, req_json)
-            data = json.load(create_resp)
+            cmd.extend(['-d', req_json, '--header', 'Content-Type: application/json'])
+            
+            url = BASE_URL + "/authorizations"
+            cmd.append(url)
+            
+            # Start the curl process
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            (content, stderr) = proc.communicate()
+            if content:
+                data = json.loads(content)
+            else:
+                data = None
+            if proc.returncode:
+                print >> sys.stderr, 'Could not retrieve URL %s: %s' % (url, stderr)
+                data = None
 
-            token = data["token"]
-            try:
-                with open(TOKEN_LOCATION, "w") as tokenf:
-                    tokenf.write(token)
-                os.chmod(TOKEN_LOCATION, 0600)
-            except IOError as err:
+            token = data.get("token", None)
+            if token:
+                try:
+                    with open(TOKEN_LOCATION, "w") as tokenf:
+                        tokenf.write(token)
+                    os.chmod(TOKEN_LOCATION, 0600)
+                except IOError as err:
+                    print >> sys.stderr, (
+                        "Couldn't write token file at %s! Error: %s"
+                        % (TOKEN_LOCATION, err))
+            else:
                 print >> sys.stderr, (
-                    "Couldn't write token file at %s! Error: %s"
-                    % (TOKEN_LOCATION, err))
+                        "Couldn't get token from GitHub: %s"
+                        % data.get("message"))
         else:
             try:
                 with open(TOKEN_LOCATION, "r") as tokenf:
