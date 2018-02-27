@@ -49,59 +49,20 @@ class GitHubSession(object):
         self.token = None
 
     def setup_token(self):
-        """Return a GitHub OAuth token string. Will create one if necessary.
+        """Setup a GitHub OAuth token string. Will help to create one if necessary.
         The string will be stored in TOKEN_LOCATION and used again
         if it exists."""
 
-        #TODO: - support defining alternate scopes
-        #      - deal with case of an existing token with the same note
-        #      - Two-factor auth
         if not os.path.exists(TOKEN_LOCATION):
-            print """You will now be asked to enter credentials to a GitHub
-account in order to create an API token. This token has only
-a 'public' scope, meaning it cannot be used to retrieve
-personal information from your account, or push to any repos
-you may have access to. You can verify this token within your
-profile page at https://github.com/settings/tokens and
-revoke it at any time. This token will be stored in your user's
-home folder at %s.""" % TOKEN_LOCATION
-            username = raw_input("Username: ")
-            password = getpass("Password: ")
-            auth = b64encode(username + ":" + password)
-            
-            curl_path = curl_cmd()
-            if not curl_path:
-                return None
-            cmd = [curl_path, '--location']
-            cmd.extend(['-X', 'POST'])
-            cmd.extend(['--header', '%s: %s' % ("User-Agent", "AutoPkg")])
-            cmd.extend(['--header', '%s: %s' % ("Accept", "application/vnd.github.v3+json")])
-            cmd.extend(['--header', '%s: %s' % ("Authorization", "Basic %s" % auth)])
-            
-            req_post = {"note": "AutoPkg CLI"}
-            req_json = json.dumps(req_post)
-            cmd.extend(['-d', req_json, '--header', 'Content-Type: application/json'])
-            
-            url = BASE_URL + "/authorizations"
-            cmd.append(url)
-            
-            # Start the curl process
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            (content, stderr) = proc.communicate()
-            if content:
-                data = json.loads(content)
-            else:
-                data = None
-            if proc.returncode:
-                print >> sys.stderr, 'Could not retrieve URL %s: %s' % (url, stderr)
-                data = None
+            print """Create a new token in your GitHub settings page:
 
-            token = data.get("token", None)
+    https://github.com/settings/tokens
+
+To save the token, paste it to the following prompt."""
+
+            token = raw_input("Token: ")
             if token:
+                print """Writing token file %s.""" % TOKEN_LOCATION
                 try:
                     with open(TOKEN_LOCATION, "w") as tokenf:
                         tokenf.write(token)
@@ -111,9 +72,7 @@ home folder at %s.""" % TOKEN_LOCATION
                         "Couldn't write token file at %s! Error: %s"
                         % (TOKEN_LOCATION, err))
             else:
-                print >> sys.stderr, (
-                        "Couldn't get token from GitHub: %s"
-                        % data.get("message"))
+                print >> sys.stderr, ("Skipping token file creation.")
         else:
             try:
                 with open(TOKEN_LOCATION, "r") as tokenf:
