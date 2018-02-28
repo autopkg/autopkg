@@ -82,7 +82,10 @@ class GitHubReleasesInfoProvider(Processor):
         releases = None
         github = autopkglib.github.GitHubSession()
         releases_uri = "/repos/%s/releases" % repo
-        releases = github.call_api(releases_uri)
+        (releases, status) = github.call_api(releases_uri)
+        if status != 200:
+            raise ProcessorError(
+                "Unexpected GitHub API status code %s." % status)
 
         if not releases:
             raise ProcessorError("No releases found for repo '%s'" % repo)
