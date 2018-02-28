@@ -20,7 +20,7 @@ import os
 import sys
 import re
 import subprocess
-from autopkglib import curl_cmd
+from autopkglib import curl_cmd, get_pref
 
 BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
@@ -29,7 +29,20 @@ TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 class GitHubSession(object):
     """Handles a session with the GitHub API"""
     def __init__(self):
-        self.token = None
+        token = get_pref('GITHUB_TOKEN')
+        if token:
+            self.token = token
+        elif os.path.exists(TOKEN_LOCATION):
+            try:
+                with open(TOKEN_LOCATION, "r") as tokenf:
+                    self.token = tokenf.read()
+            except IOError as err:
+                print >> sys.stderr, (
+                    "Couldn't read token file at %s! Error: %s"
+                    % (TOKEN_LOCATION, err))
+                self.token = None
+        else:
+            self.token = None
 
     def setup_token(self):
         """Setup a GitHub OAuth token string. Will help to create one if necessary.
