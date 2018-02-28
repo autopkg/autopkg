@@ -18,29 +18,11 @@
 import json
 import os
 import sys
-import urllib2
 import subprocess
 from autopkglib import curl_cmd
 
-from base64 import b64encode
-from getpass import getpass
-from pprint import pprint
-
 BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
-
-
-class RequestWithMethod(urllib2.Request):
-    """Custom Request class that can accept arbitrary methods besides
-    GET/POST"""
-    # http://benjamin.smedbergs.us/blog/2008-10-21/
-    #        putting-and-deleteing-in-python-urllib2/
-    def __init__(self, method, *args, **kwargs):
-        self._method = method
-        urllib2.Request.__init__(self, *args, **kwargs)
-
-    def get_method(self):
-        return self._method
 
 
 class GitHubSession(object):
