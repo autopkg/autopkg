@@ -82,11 +82,7 @@ class GitHubReleasesInfoProvider(Processor):
         releases = None
         github = autopkglib.github.GitHubSession()
         releases_uri = "/repos/%s/releases" % repo
-        try:
-            (releases, status) = github.call_api(releases_uri)
-        # Catch a 404
-        except urllib2.HTTPError as err:
-            raise ProcessorError("GitHub API returned an error: '%s'." % err)
+        (releases, status) = github.call_api(releases_uri)
         if status != 200:
             raise ProcessorError(
                 "Unexpected GitHub API status code %s." % status)

@@ -824,12 +824,16 @@ def do_gh_code_search(query, use_token=False):
         "/search/code",
         query=query,
         accept="application/vnd.github.v3.text-match+json")
+    
     if code == 403:
         log_err(
-            "You've probably hit the GitHub's search rate limit, officially 5 "
-            "requests per minute. Server response follows:\n")
-        log_err(results["message"])
-        log_err(results["documentation_url"])
+                "You've probably hit the GitHub's search rate limit, officially 5 "
+                "requests per minute.\n")
+        if results:
+            log_err("Server response follows:\n")
+            log_err(results.get("message", None))
+            log_err(results.get("documentation_url", None))
+            
         return None
     if results is None or code is None:
         log_err("A GitHub API error occurred!")
@@ -909,7 +913,7 @@ def search_recipes(argv):
     if not results:
         return
 
-    count = results["total_count"]
+    count = results.get("total_count", 0)
     if count == 0:
         print "No results."
         return
