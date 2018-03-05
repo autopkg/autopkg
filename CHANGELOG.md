@@ -1,3 +1,5 @@
+### [1.0.5](https://github.com/autopkg/autopkg/compare/v1.0.4...HEAD) (Unreleased)
+
 ### [1.0.4](https://github.com/autopkg/autopkg/compare/v1.0.3...v1.0.4) (March 05, 2018)
 
 FIXES:
