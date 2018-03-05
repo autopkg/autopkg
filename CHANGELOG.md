@@ -10,6 +10,7 @@ FIXES:
 
 IMPROVEMENTS:
 
+- A GitHub token can now be specified in AutoPkg preferences (GITHUB_TOKEN) or in a file: ~/.autopkg_gh_token (Original PR was GH-407, code merged here as part of GH-408: https://github.com/autopkg/autopkg/commit/8e0f19b99ce24311752d1300ed408d90713e144c)
 - In parent trust info, store paths within user home as ~/some/path. When verifying
   trust info, expand ~ to current user home directory.
 - FlatPkgUnpacker, PkgPayloadUnpacker and PkgRootCreator will now create intermediary
