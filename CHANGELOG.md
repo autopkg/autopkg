@@ -1,5 +1,20 @@
 ### [1.0.4](https://github.com/autopkg/autopkg/compare/v1.0.3...HEAD) (Unreleased)
 
+FIXES:
+
+- All GitHub API requests are now performed using curl. This fixes TLS errors with
+  GitHubReleasesInfoProvider processor and `autopkg search` functionality on macOS 10.12
+  and earlier. (GH-408)
+
+IMPROVEMENTS:
+
+- In parent trust info, store paths within user home as ~/some/path. When verifying
+  trust info, expand ~ to current user home directory.
+- FlatPkgUnpacker, PkgPayloadUnpacker and PkgRootCreator will now create intermediary
+  directories (GH-401)
+- URLDownloader and URLTextSearcher now accept `curl_opts` input variable to provide
+  additional arguments to curl (GH-384, GH-386)
+
 ### [1.0.3](https://github.com/autopkg/autopkg/compare/v1.0.2...v1.0.3) (September 22, 2017)
 
 FIXES:
