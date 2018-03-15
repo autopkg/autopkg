@@ -1383,6 +1383,9 @@ def get_trust_info(recipe, search_dirs=None):
             processor_hash = getsha256hash(processor_path)
             git_hash = get_git_commit_hash(processor_path)
         else:
+            print >> sys.stderr, (
+                'WARNING: processor path not found for %s' % processor)
+            processor_path = ""
             processor_hash = "PROCESSOR FILEPATH NOT FOUND"
             git_hash = None
         non_core_processor_hashes[processor] = {
