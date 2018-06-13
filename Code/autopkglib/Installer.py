@@ -44,8 +44,8 @@ class Installer(DmgMounter):
             "description": (
                 "new_package_request is set by the PkgCreator processor to "
                 "indicate that a new package was built. If this key is set in "
-                "the environment and is False or empty the installation will be"
-                "skipped.")
+                "the environment and is False or empty the installation will "
+                "be skipped.")
         },
         "download_changed": {
             "required": False,
@@ -57,24 +57,32 @@ class Installer(DmgMounter):
         },
     }
     output_variables = {
-        "install_result": "Result of install request."
+        "install_result": {
+            "description": "Result of install request."
+        },
+        "installer_summary_result": {
+            "description": "Description of interesting results."
+        }
     }
 
     def install(self):
         '''Build an installation request, send it to autopkginstalld'''
-
+        # clear any pre-exising summary result
+        if 'installer_summary_result' in self.env:
+            del self.env['installer_summary_result']
+        
         if "new_package_request" in self.env:
             if not self.env["new_package_request"]:
                 # PkgCreator did not build a new package, so skip the install
                 self.output("Skipping installation: no new package.")
-                self.env["install_result"] = "OK:SKIPPED"
+                self.env["install_result"] = "SKIPPED"
                 return
         elif "download_changed" in self.env:
             if not self.env["download_changed"]:
                 # URLDownloader did not download something new,
                 # so skip the install
                 self.output("Skipping installation: no new download.")
-                self.env["install_result"] = "OK:SKIPPED"
+                self.env["install_result"] = "SKIPPED"
                 return
 
         pkg_path = self.env["pkg_path"]
@@ -119,6 +127,14 @@ class Installer(DmgMounter):
             # Return result.
             self.output("Result: %s" % result)
             self.env["install_result"] = result
+            if result == 'DONE':
+                self.env['installer_summary_result'] = {
+                    'summary_text': ('The following pkgs '
+                                     'were successfully installed:'),
+                    'data': {
+                        'pkg_path': matched_pkg_path,
+                    }
+                }
 
         finally:
             if dmg:

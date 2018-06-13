@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from ctypes import *
-libc = CDLL("libc.dylib")
+libc = CDLL("/usr/lib/libc.dylib")
 
 
 c_launch_data_t = c_void_p
@@ -202,7 +202,7 @@ class LaunchDCheckInError(Exception):
 def get_launchd_socket_fds():
     """Check in with launchd to get socket file descriptors."""
 
-    # Returna dictionary with lists of file descriptors.
+    # Return a dictionary with keys pointing to lists of file descriptors.
     launchd_socket_fds = dict()
 
     # Callback for dict iterator.

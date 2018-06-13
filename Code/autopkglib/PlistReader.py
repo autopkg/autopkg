@@ -34,7 +34,9 @@ class PlistReader(DmgMounter):
     processors that pre-define all their possible output variables.
     As it is often used for versioning, it defaults to extracting
     'CFBundleShortVersionString' to 'version'. This can be used as a replacement
-    for both the AppDmgVersioner and Versioner processors."""
+    for both the AppDmgVersioner and Versioner processors.
+
+    Requires version 0.2.5."""
 
     description = __doc__
     input_variables = {
@@ -79,12 +81,14 @@ class PlistReader(DmgMounter):
         # filter out any symlinks that don't have extensions
         # - common case is a symlink to 'Applications', which
         #   we don't want to exhaustively search
-        filtered = [f for f in files if \
-                    not os.path.islink(f) and \
-                    not os.path.splitext(os.path.basename(f))[1]]
+        filtered = [f for f in files
+                    if not(os.path.islink(f) and
+                           not os.path.splitext(os.path.basename(f))[1])]
 
         for test_bundle in filtered:
-            return self.get_bundle_info_path(test_bundle)
+            bundle_path = self.get_bundle_info_path(test_bundle)
+            if bundle_path:
+                return bundle_path
         return None
 
 

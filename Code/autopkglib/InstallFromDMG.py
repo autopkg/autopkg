@@ -42,7 +42,7 @@ class InstallFromDMG(DmgMounter):
             "required": True,
             "description": (
                 "Array of dictionaries describing what is to be copied. "
-                "Each item should contain 'source_path' and "
+                "Each item should contain 'source_item' and "
                 "'destination_path', and may optionally include: "
                 "'destination_item' to rename the item on copy, and "
                 "'user', 'group' and 'mode' to explictly set those items.")
@@ -57,18 +57,26 @@ class InstallFromDMG(DmgMounter):
         },
     }
     output_variables = {
-        "install_result": "Result of install request."
+        "install_result": {
+            "description": "Result of install request."
+        },
+        "install_from_dmg_summary_result": {
+            "description": "Description of interesting results."
+        }
     }
 
     def install(self):
         '''Build an ItemCopier request, send it to autopkginstalld'''
-
+        # clear any pre-exising summary result
+        if 'install_from_dmg_summary_result' in self.env:
+            del self.env['install_from_dmg_summary_result']
+        
         if "download_changed" in self.env:
             if not self.env["download_changed"]:
                 # URLDownloader did not download something new, 
                 # so skip the install
                 self.output("Skipping installation: no new download.")
-                self.env["install_result"] = "OK:SKIPPED"
+                self.env["install_result"] = "SKIPPED"
                 return
         try:
             mount_point = self.mount(self.env['dmg_path'])
@@ -91,6 +99,14 @@ class InstallFromDMG(DmgMounter):
             # Return result.
             self.output("Result: %s" % result)
             self.env["install_result"] = result
+            if result == 'DONE':
+                self.env['install_from_dmg_summary_result'] = {
+                    'summary_text': ('Items from the following disk images '
+                                     'were successfully installed:'),
+                    'data': {
+                        'dmg_path': self.env['dmg_path'],
+                    }
+                }
         finally:
             self.unmount(self.env['dmg_path'])
 

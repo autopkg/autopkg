@@ -231,10 +231,10 @@ class Packager(object):
             raise PackagerError("Version too long")
         components = self.request.version.split(".")
         if len(components) < 1:
-            raise PackagerError("Invalid version")
+            raise PackagerError("Invalid version \"%s\"" % self.request.version)
         for comp in components:
             if not self.re_version.search(comp):
-                raise PackagerError("Invalid version")
+                raise PackagerError("Invalid version component \"%s\"" % comp)
         self.log.debug("version ok")
 
         # Make sure infofile and resources exist and can be read.
@@ -358,7 +358,10 @@ class Packager(object):
                      str(entry.user),
                      str(entry.group)))
 
-            chownpath = os.path.join(self.tmp_pkgroot, entry.path)
+            # If an absolute path is passed in entry.path, os.path.join
+            # will not join it to the tmp_pkgroot. We need to strip out
+            # the leading / to make sure we only touch the pkgroot.
+            chownpath = os.path.join(self.tmp_pkgroot, entry.path.lstrip('/'))
             if "mode" in entry.keys():
                 chmod_present = True
             else:
@@ -378,8 +381,8 @@ class Packager(object):
                         os.lchown(dirpath, uid, gid)
                     except OSError as e:
                         raise PackagerError("Can't lchown %s: %s" % (dirpath, e))
-                    for entry in dirnames + filenames:
-                        path = os.path.join(dirpath, entry)
+                    for path_entry in dirnames + filenames:
+                        path = os.path.join(dirpath, path_entry)
                         try:
                             os.lchown(path, uid, gid)
                             if chmod_present:

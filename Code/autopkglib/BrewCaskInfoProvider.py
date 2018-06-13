@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2013 Timothy Sutton
+# Copyright 2013-2016 Timothy Sutton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,7 +27,10 @@ class BrewCaskInfoProvider(Processor):
     # we dynamically set the docstring from the description (DRY), so:
     #pylint: disable=missing-docstring
 
-    description = ("Provides crowd-sourced URL and version info from thousands "
+    description = ("ATTENTION: This processor is deprecated, may not work "
+                   "as expected with all known Casks, and may be removed "
+                   "in a future release of AutoPkg. Description follows: "
+                   "Provides crowd-sourced URL and version info from thousands "
                    "of applications listed in brew-cask: "
                    "https://github.com/caskroom/homebrew-cask. See available "
                    "apps: https://github.com/caskroom/homebrew-cask/tree/"
@@ -59,7 +62,7 @@ class BrewCaskInfoProvider(Processor):
         'version', etc. parsed from the formula .rb file."""
         #pylint: disable=no-self-use
         attrs = {}
-        regex = r"  (?P<attr>.+) '(?P<value>.+)'"
+        regex = r"^\s+(?P<attr>.+) [\'\"](?P<value>.+)[\'\"].*$"
         for line in formula.splitlines():
             match = re.match(regex, line)
             if match:
@@ -68,8 +71,26 @@ class BrewCaskInfoProvider(Processor):
             raise ProcessorError("Could not parse formula!")
         return attrs
 
+    def interpolate_vars(self, attrs):
+        """Return a copy of the dictionary of attributes parsed from the
+        Cask, with variables substituted. Currently we only expect this
+        to be used in 'url', which may contain Ruby-style substitutions
+        of '#{version}' within."""
+        newattrs = attrs.copy()
+        for key, value in newattrs.items():
+            match = re.search("#{(.+?)}", value)
+            if match:
+                subbed_key = match.groups()[0]
+                self.output("Substituting value '%s' in %s: '%s'" % (
+                    subbed_key, key, value))
+                newattrs[key] = re.sub("#{%s}" % subbed_key,
+                                       newattrs[subbed_key],
+                                       newattrs[key])
+        return newattrs
 
     def main(self):
+        self.output("WARNING: BrewCaskInfoProvider is deprecated and may be "
+                    "removed in a future AutoPkg release.")
         github_raw_baseurl = (
             "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/"
             "Casks")
@@ -81,6 +102,7 @@ class BrewCaskInfoProvider(Processor):
 
         formula_data = urlobj.read()
         parsed = self.parse_formula(formula_data)
+        parsed = self.interpolate_vars(parsed)
 
         if not "url" in parsed.keys():
             raise ProcessorError("No 'url' parsed from Formula!")

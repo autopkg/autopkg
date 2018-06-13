@@ -46,13 +46,19 @@ class PkgCopier(Copier):
         "pkg_path": {
             "description": "Path to copied pkg.",
         },
+        "pkg_copier_summary_result": {
+            "description": "Description of interesting results."
+        }
     }
 
     def main(self):
+        # clear any pre-exising summary result
+        if 'pkg_copier_summary_result' in self.env:
+            del self.env['pkg_copier_summary_result']
+
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg,
-         dmg_source_path) = self.env['source_pkg'].partition(".dmg/")
-        dmg_path += ".dmg"
+        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
+            self.env['source_pkg'])
         try:
             if dmg:
                 # Mount dmg and copy path inside.
@@ -83,6 +89,12 @@ class PkgCopier(Copier):
                                      os.path.basename(source_pkg)))
             self.copy(matched_source_path, pkg_path, overwrite=True)
             self.env["pkg_path"] = pkg_path
+            self.env["pkg_copier_summary_result"] = {
+                'summary_text': 'The following packages were copied:',
+                'data': {
+                    'pkg_path': pkg_path,
+                }
+            }
 
         finally:
             if dmg:

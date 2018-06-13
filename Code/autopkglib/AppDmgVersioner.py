@@ -18,8 +18,12 @@
 import os.path
 import glob
 #pylint: disable=no-name-in-module
-from Foundation import NSData, NSPropertyListSerialization
-from Foundation import NSPropertyListMutableContainers
+try:
+    from Foundation import NSData, NSPropertyListSerialization
+    from Foundation import NSPropertyListMutableContainers
+except:
+    print "WARNING: Failed 'from Foundation import NSData, NSPropertyListSerialization' in " + __name__
+    print "WARNING: Failed 'from Foundation import NSPropertyListMutableContainers' in " + __name__
 #pylint: enable=no-name-in-module
 
 from autopkglib.DmgMounter import DmgMounter

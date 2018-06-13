@@ -1,6 +1,251 @@
-### 0.4.3 (Unreleased)
+### [1.0.5](https://github.com/autopkg/autopkg/compare/v1.0.4...HEAD) (Unreleased)
 
-### 0.4.2 (December 12, 2014)
+### [1.0.4](https://github.com/autopkg/autopkg/compare/v1.0.3...v1.0.4) (March 05, 2018)
+
+FIXES:
+
+- All GitHub API requests are now performed using curl. This fixes TLS errors with
+  GitHubReleasesInfoProvider processor and `autopkg search` functionality on macOS 10.12
+  and earlier. (GH-408)
+
+IMPROVEMENTS:
+
+- A GitHub token can now be specified in AutoPkg preferences (GITHUB_TOKEN) or in a file: ~/.autopkg_gh_token (Original PR was GH-407, code merged here as part of GH-408: https://github.com/autopkg/autopkg/commit/8e0f19b99ce24311752d1300ed408d90713e144c)
+- In parent trust info, store paths within user home as ~/some/path. When verifying
+  trust info, expand ~ to current user home directory.
+- FlatPkgUnpacker, PkgPayloadUnpacker and PkgRootCreator will now create intermediary
+  directories (GH-401)
+- URLDownloader and URLTextSearcher now accept `curl_opts` input variable to provide
+  additional arguments to curl (GH-384, GH-386)
+
+### [1.0.3](https://github.com/autopkg/autopkg/compare/v1.0.2...v1.0.3) (September 22, 2017)
+
+FIXES:
+
+- Better handling of bundle items in MunkiImporter (GH-352)
+- Prevent stack trace when parent recipe does not exist (GH-363)
+
+IMPROVEMENTS:
+
+- DmgCreator now explicitly specifies HFS+ format when creating disk images.
+  Avoids an issue where APFS images were created under High Sierra,
+  potentially causing issues with machines running older macOS versions.
+  (GH-357)
+- Improvements to CodeSignatureVerifier (GH-373)
+  - Added strict_verification variable to control whether to pass --strict,
+    --no-strict or nothing at all to `codesign`.
+  - Added deep_verification variable to control whether to pass --deep to
+    `codesign` or not. Deep verification was previously on by default (and
+    still is) but it can now be explicitly disabled.
+  - Added codesign_additional_arguments variable for specifying additional
+    arguments for `codesign` tool.
+  - Removed the .app file extension checking and no longer require the input to
+    be a specific file type. Only check for .pkg, .mpkg or .xip extensions and
+    pass those to `pkgutil`, everything else should go to `codesign`.
+
+### [1.0.2](https://github.com/autopkg/autopkg/compare/v1.0.1...v1.0.2) (April 07, 2017)
+
+FIXES:
+
+- Trust info is ignored if it is ever present in a recipe which is not an override,
+  and warns if any such trust info is found (GH-334)
+- Fix a regression in PlistReader and handling disk images
+- PkgCopier can now mount a diskimage in the source path even if its extension is not
+  `.dmg` (GH-349)
+
+IMPROVEMENTS:
+
+- If an `autopkg run` has recipes failing due to trust verification failure, this is
+  clarified in the output as the reason for the failure.
+- URLDownloader now handles file sizes in FTP server responses, avoiding repeated
+  downloads from `ftp://` server URLs (GH-338)
+- FileFinder can now mount DMG files given as part of its input `pattern` (GH-263)
+- When PkgCreator logs `Invalid version`, it now includes the offending version string
+  in this output (GH-343)
+
+### [1.0.1](https://github.com/autopkg/autopkg/compare/v1.0.0...v1.0.1) (November 30, 2016)
+
+FIXES:
+
+- Fix a crash when parsing a plaintext `--recipe-list` containing a single item
+  (GH-323)
+
+### [1.0.0](https://github.com/autopkg/autopkg/compare/v0.6.1...v1.0.0) (November 16, 2016)
+
+ADDITIONS:
+
+- New `audit` verb, used to output helpful information about any recipes that:
+  - Are missing a CodeSignatureVerifier step
+  - Use non-HTTP URLs for downloads
+  - Supply their own processors and thus will run code not provided by AutoPkg itself
+  - Use processors that may potentially be modifying the original software
+    downloaded from the vendor
+- New `verify-trust-info` and `update-trust-info` verbs. These can be used to
+  add "trust" hash information to a recipe override. If a parent recipe and/or
+  its processor(s)  is later updated (typically via a third-party recipe repo and
+  running `autopkg repo-update` against this or all recipe repos), this
+  trust information will be invalid and prevent the recipe from running
+  until the trust information has been updated. Running `verify-trust-info` with
+  additional verbosity will print out full diffs of upstream changes made since
+  the last trust information was recorded, and `update-trust-info` will update
+  it to match the current state of parent recipes. This behaviour can be bypassed
+  using the `FAIL_RECIPES_WITHOUT_TRUST_INFO` AutoPkg preference. See the
+  [wiki article](https://github.com/autopkg/autopkg/wiki/Autopkg-and-recipe-parent-trust-info) for more information.
+- New `AppPkgCreator` processor, a single processor replacing the several steps
+  previously required for building a package from an application bundle.
+- Support for "rich" recipe lists in property list format, which can specify
+  pre/post-processors and additional input variables for that specific run. See the
+  [Running Multpiple Recipes article](https://github.com/autopkg/autopkg/wiki/Running-Multiple-Recipes) for more details.
+
+FIXES:
+
+- Fix SparkleUpdateInfoProvider ignoring `appcast_request_headers` argument since
+  switching from urllib2 to curl. (GH-277)
+- Miscellaneous fixes to better handle unicode in `autopkg` message output.
+  (GH-299)
+- Fix GitHub API error on `autopkg search` for a recipe name containing spaces.
+  (GH-305)
+
+IMPROVEMENTS:
+
+- URLDownloader now passes `--fail` option so that most 400-class error codes
+  will result in a failed recipe run. (GH-284)
+- AutoPkg now reports an exit code of `70` if any recipe in an `autopkg run`
+  fails. Eventually other exit codes may later be added to report on other
+  specific behavior. (GH-297)
+- MunkiImporter now accepts an `uninstaller_pkg_path` input variable, used to
+  copy Adobe uninstaller packages and set `uninstaller_item_location` in pkginfos.
+- MunkiImporter should now be able to detect existing Adobe CCP-built package
+  items in a Munki repo as generated by `makepkginfo` in Munki tools version 2.8.0
+  and higher.
+
+### [0.6.1](https://github.com/autopkg/autopkg/compare/v0.6.0...v0.6.1) (March 18, 2016)
+
+FIXES:
+
+- Fix too-restrictive 600 permissions on files downloaded by curl. This caused an issue
+  where a file copied to either a local or remote Munki repo may not be readable by the
+  webserver. Modes of downloaded files are now set to 644.
+
+### [0.6.0](https://github.com/autopkg/autopkg/compare/v0.5.2...v0.6.0) (March 15, 2016)
+
+CHANGES:
+
+- URLDownloader, URLTextSearcher and SparkleUpdateInfoProvider now all use
+  the `/usr/bin/curl` binary for performing HTTP requests. This resolves
+  several ongoing issues with Apple's Python urllib2 module and SSL.
+  CURLDownloader and CURLTextSearcher processors refer internally to the same
+  processors, and recipes using them can be safely switched back to the
+  "standard" versions.
+  An alternate cURL binary can be specified using the `CURL_PATH` input variable.
+- The BrewCaskInfoProvider processor is now deprecated. The [Cask DSL](https://github.com/caskroom/homebrew-cask/tree/master/doc/cask_language_reference) has added
+  over time logic for specifying URLs that requires the ability to actually invoke Ruby
+  code, and this processor was never widely used. It will remain in AutoPkg for
+  some time but will not function with all Cask files.
+- CodeSignatureVerifier: the use of `expected_authority_names` to verify .app
+  bundles is now deprecated, and will be removed in a future AutoPkg release. Use
+  [`requirement`](https://github.com/autopkg/autopkg/wiki/Using-CodeSignatureVerification) instead. (GH-256)
+
+
+FIXES:
+
+- CodeSignatureVerifier: globbing is performed on all paths, rather than only
+  within a disk image path. (GH-252)
+
+IMPROVEMENTS:
+
+- URLDownloader: support for 'CHECK_FILESIZE_ONLY' input variable,
+  which skips checks for Last-Modified and ETag headers when checking whether a
+  download has changed on the server, and uses only the file size. This is useful
+  for recipes that redirect to various mirrors for downloads, where these server
+  header values differ, causing repeated downloads. This can be set in a recipe's
+  Input section, or like any other variable it can also be altered on the CLI using
+  the '--key/-k' option during any given run, for example:
+  `autopkg run -k CHECK_FILESIZE_ONLY=true VLC.munki`
+    - related issue: (GH-219)
+- CodeSignatureVerifier: support for xip archives
+- Unarchiver: support for gzip archives
+
+### [0.5.2](https://github.com/autopkg/autopkg/compare/v0.5.1...v0.5.2) (January 13, 2016)
+
+FIXES:
+
+- Fix for curl/CURLDownloader saving zero-byte files. (GH-237)
+- Don't prompt to search recipes when running `autopkg run --recipe-list`. (GH-223)
+- Fix a regression in 0.5.1 in running .install recipes on OS X 10.9 and earlier.
+- Properly handle the case of SparkleUpdateInfoProvider finding no items in an appcast feed. (GH-208)
+
+### [0.5.1](https://github.com/autopkg/autopkg/compare/v0.5.0...v0.5.1) (September 02, 2015)
+
+ADDITIONS:
+
+- New processor, PackageRequired. Can be added to recipes that require a --pkg
+  argument (or `PKG` variable), where a public .download recipe is not feasible. (GH-207)
+- New proof-of-concept processors CURLDownloader and CURLTextSearcher, drop-in
+  replacements for URLDownloader and URLTextSearcher which use cURL instead of
+  Python urllib2. Can be used to mitigate issues with SSL and the system Python.
+
+IMPROVEMENTS:
+
+- PathDeleter: Guard against the mistake of `path_list` being a single string instead
+  of a list of strings. (GH-200)
+- Compatibility fixes in packaging and install daemons for future OS X releases.
+- `MUNKI_PKGINFO_FILE_EXTENSION` default variable can now be an empty string to
+  eliminate a pkginfo file extension altogether. (GH-212)
+- MunkiImporter: When attempting to match previous versions of existing items, check `bundle`
+  `installs` types in addition to well as `application` types. (GH-216)
+- PkgCreator: Previously, in `pkg_request`'s `chown` dict, if an absolute path was
+  given in `path`, that literal path would be used rather than relative to the pkg
+  root. Now, if an absolute path is given, it will still be properly joined to the
+  pkg root. (GH-220)
+- Fix issue where an unhandled exception in any recipe processor would halt the entire
+  AutoPkg run and Python would abort with a traceback. The output of `--report-plist`
+  now stores the relevant traceback within `failures` item dicts. (GH-147)
+
+FIXES:
+
+- URLDownloader: Fix issue where URL has updated ETag/Last-Modified but a matching
+  filesize, and would not continue downloading the new file. (GH-219)
+
+### [0.5.0](https://github.com/autopkg/autopkg/compare/v0.4.2...v0.5.0) (July 17, 2015)
+
+BREAKING CHANGES:
+
+- The structure of a plist output by `--report-plist` has changed to reflect the
+  structure of the summary results described below in ADDITIONS. (GH-163)
+
+ADDITIONS:
+
+- New processor, GitHubReleasesInfoProvider. Used to fetch download URLs and metadata about
+  releases posted on GitHub.
+- `autopkg run` interactively offers suggestions for similar recipe names when a recipe can't
+  be found, and also offers to search for the desired recipe on GitHub.
+- New `install` verb. `autopkg install Firefox` is equivalent to `autopkg run Firefox.install`
+- Processors may now define their own summary reporting data. Previously AutoPkg provided
+  summary data only for several known, core processors like URLDownloader, PkgCreator, etc.
+  Now AutoPkg will print out data provided within a dict value of an env key ending in
+  `_summary_result` (see [Processor Summary Reporting](https://github.com/autopkg/autopkg/wiki/Processor-Summary-Reporting) on the AutoPkg wiki). (GH-163)
+
+IMPROVEMENTS:
+
+- SparkleUpdateInfoProvider now sets the `version` key based on what feed item it has
+  processed. This key can be used in later steps of the recipe. (GH-166)
+- AutoPkg now warns against being run as root.
+- Use of new launchd 2.0 socket API is used by autopkgserver if running on Yosemite or
+  higher. (GH-176)
+- URLDownloader is now able to decompress gzip-encoded content. (GH-184)
+- FileCreator now supports optional `file_mode` input variable.
+- SparkleUpdateInfoProvider processor is now skipped early if `--pkg` argument is given
+  to `autopkg run`, similar to URLDownloader.
+
+FIXES:
+
+- Fixes in MunkiImporter's logic when attempting to locate a matching item in a repo.
+- PkgCreator: fix an exception when setting `mode` on a direcotry (in `chown`, in
+  `pkg_request`). (GH-177)
+- BrewCaskInfoProvider now properly interpolates '#{version}' within 'url' strings.
+
+### [0.4.2](https://github.com/autopkg/autopkg/compare/v0.4.1...v0.4.2) (December 12, 2014)
 
 ADDITIONS:
 
@@ -18,7 +263,7 @@ IMPROVEMENTS:
 - new `list-recipes` command options for more detailed listings. Listings can now include
   identifiers, recipe paths, and can be output in a parsable plist format. (GH-135)
 
-### 0.4.1 (October 20, 2014)
+### [0.4.1](https://github.com/autopkg/autopkg/compare/v0.4.0...v0.4.1) (October 20, 2014)
 
 IMPROVEMENTS:
 
@@ -28,7 +273,7 @@ IMPROVEMENTS:
 - CodeSignatureVerifier: use the '--deep' option for verify, when running on 10.9.5 or greater.
   (GH-124, GH-125)
 
-### 0.4.0 (August 29, 2014)
+### [0.4.0](https://github.com/autopkg/autopkg/compare/v0.3.2...v0.4.0) (August 29, 2014)
 
 IMPROVEMENTS:
 
@@ -58,7 +303,7 @@ CHANGES:
 - CACHE_DIR and RECIPE_REPO_DIR preferences can now include paths with a '~' that will
   be expanded, shell-style, to the user's home. (GH-105)
 
-### 0.3.2 (July 24, 2014)
+### [0.3.2](https://github.com/autopkg/autopkg/compare/v0.3.1...v0.3.2) (July 24, 2014)
 
 FIXES:
 
@@ -78,7 +323,7 @@ CHANGES:
 - Unarchiver: Create intermediate directories needed for 'destination_path' input var
   (GH-100)
 
-### 0.3.1 (July 01, 2014)
+### [0.3.1](https://github.com/autopkg/autopkg/compare/v0.3.0...v0.3.1) (July 01, 2014)
 
 ADDITIONS:
 
@@ -99,7 +344,7 @@ FIXES:
   to handle an hdiutil-related error.
 - Fix a crash as a result of parsing an incomplete recipe plist
 
-### 0.3.0 (May 20, 2014)
+### [0.3.0](https://github.com/autopkg/autopkg/compare/v0.2.9...v0.3.0) (May 20, 2014)
 
 ADDITIONS:
 
@@ -119,39 +364,39 @@ FIXES:
 - PlistReader, when searching a path for a bundle, no longer follows symlinks that don't contain extensions. It's common for a dmg to contain a symlink to '/Applications' and we don't want to go searching this path for bundles.
 - autopkgserver's `pkg_request` argument no longer rejects an `id` that contains dashes between words (GH-91)
 
-### 0.2.9 (February 28, 2014)
+### [0.2.9](https://github.com/autopkg/autopkg/compare/v0.2.8...v0.2.9) (February 28, 2014)
 
 ADDITIONS:
 
 - New FileMover processor, contributed by Jesse Peterson. (GH-64)
 - New URLTextSearcher processor, contributed by Jesse Peterson. (GH-64)
 
-### 0.2.8 (January 08, 2014)
+### [0.2.8](https://github.com/autopkg/autopkg/compare/v0.2.7...v0.2.8) (January 08, 2014)
 
 FIXES:
 - New package release to fix issue with autopkgsever launch daemon plist in 0.2.6 and 0.2.7 package releases.
 
-### 0.2.7 (January 08, 2014)
+### [0.2.7](https://github.com/autopkg/autopkg/compare/v0.2.6...v0.2.7) (January 08, 2014)
 
 FIXES:
 
 - Fix unhandled exception when FoundationPlist encounters a malformed plist
 - Fix long string wrapping in several Processor's descriptions and input/output variable descriptions. This caused `autopkg processor-info foo` to fail for several Processors.
 
-### 0.2.6 (January 06, 2014)
+### [0.2.6](https://github.com/autopkg/autopkg/compare/v0.2.5...v0.2.6) (January 06, 2014)
 
 FIXES:
 
 - Fix for FoundationPlist functions under Snow Leopard. Changes to FoundationPlist in 0.2.5 broke autopkg under Snow Leopard; these changes remedy that.
 
-### 0.2.5 (January 04, 2014)
+### [0.2.5](https://github.com/autopkg/autopkg/compare/v0.2.4...v0.2.5) (January 04, 2014)
 
 ADDITIONS:
 
 - New 'BrewCaskInfoProvider' processor: get URL and version info from crowd-sourced
   Homebrew formulae for many Mac applications (https://github.com/phinze/homebrew-cask)
-- New 'PlistReader' processor contributed by Shea Craig. This can be used in place 
-  of both the 'AppDmgVersioner' and 'Versioner' processors (which can now be considered 
+- New 'PlistReader' processor contributed by Shea Craig. This can be used in place
+  of both the 'AppDmgVersioner' and 'Versioner' processors (which can now be considered
   deprecated), and also supports reading arbitrary keys from plists and assigning them
   to arbitrary output variables for later use in recipes. (GH-56)
 - Recipe Repo URLs for 'repo-' commands can now also be given in short GitHub-ish forms:
@@ -166,7 +411,7 @@ FIXES:
 
 - FoundationPlist updated to use new Property List API methods.
 
-### 0.2.4 (October 16, 2013)
+### [0.2.4](https://github.com/autopkg/autopkg/compare/v0.2.3...v0.2.4) (October 16, 2013)
 
 ADDITIONS:
 
@@ -189,7 +434,7 @@ FIXES:
 - MunkiImporter now checks for matching md5checksums when attempting to locate a matching
   pkginfo. (GH-41)
 
-### 0.2.3 (September 27, 2013)
+### [0.2.3](https://github.com/autopkg/autopkg/compare/v0.2.2...v0.2.3) (September 27, 2013)
 
 ADDITIONS:
 
@@ -202,24 +447,24 @@ FIXES:
 - Fix TypeError on Snow Leopard on list concatenation between Foundation and native Python list equivalents (GH-21)
 - Fix case where a child recipe could not locate its parent(s) if the child was not already on the search path (GH-25)
 
-### 0.2.2 (September 10, 2013)
+### [0.2.2](https://github.com/autopkg/autopkg/compare/v0.2.1...v0.2.2) (September 10, 2013)
 
 CHANGES:
 
 - Pkg recipe runs now print a report output similar to Munki recipes, and have version, identifier information available in the report.
 - Fix for `autopkg version` when run from /usr/local/bin/autopkg
 
-### 0.2.1 (September 2, 2013)
+### [0.2.1](https://github.com/autopkg/autopkg/compare/v0.2.0...v0.2.1) (September 2, 2013)
 
 CHANGES:
 
 - Relative paths given for "infofile", "resources", "options", "scripts" in a PkgCreator's pkg_request dictionary should now work if this path is found at the current working directory (GH-20)
 
-### 0.2.0 (September 1, 2013)
+### [0.2.0](https://github.com/autopkg/autopkg/compare/v0.1.1...v0.2.0) (September 1, 2013)
 
 CHANGES:
 
-- The recipe identifier is now named "Identifier" and is a top-level recipe key. 
+- The recipe identifier is now named "Identifier" and is a top-level recipe key.
 - The "recipe" key formerly seen in overrides has been renamed "ParentRecipe". Its value is now a string -- the identifier of its parent recipes.
 - There is now essentially no difference between an "override" and a child recipe; a recipe can refer to a parent recipe, which can in turn refer to its own parent recipe, and so on.
 - Child recipes can override keys in the Input dictionary and/or add new key/value pairs to the Input dictionary. This is the same functionality that RecipeOverrides have.
@@ -230,7 +475,7 @@ CHANGES:
     - `autopkg list-processors` returns a list of "core" Processors -- those available to all recipes (in /Library/AutoPkg/autopkglib)
     - `autopkg processor-info PROCESSORNAME` prints basic documentation for PROCESSORNAME; use `autopkg processor-info PROCESSORNAME --recipe RECIPE` to get basic docs on a recipe-specific Processor (like MozillaURLProvider).
 
-### 0.1.1 (August 27, 2013)
+### [0.1.1](https://github.com/autopkg/autopkg/compare/v0.1.0...v0.1.1) (August 27, 2013)
 
 CHANGES:
 

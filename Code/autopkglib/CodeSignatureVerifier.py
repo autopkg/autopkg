@@ -26,12 +26,14 @@ from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["CodeSignatureVerifier"]
 
-RE_AUTHORITY_CODESIGN = re.compile(r'Authority=(?P<authority>.*)\n')
 RE_AUTHORITY_PKGUTIL = re.compile(r'\s+[1-9]+\. (?P<authority>.*)\n')
 
 
 class CodeSignatureVerifier(DmgMounter):
-    """Verifies application bundle or installer package signature"""
+    """Verifies application bundle or installer package signature.
+
+    Requires version 0.3.1."""
+
     input_variables = {
         "DISABLE_CODE_SIGNATURE_VERIFICATION": {
             "required": False,
@@ -45,7 +47,7 @@ class CodeSignatureVerifier(DmgMounter):
             "required": True,
             "description":
                 ("File path to an application bundle (.app) or installer "
-                 "package (.pkg or .mpkg). Can point to a globbed path inside "
+                 "package (.pkg or .mpkg). Can point to a path inside "
                  "a .dmg which will be mounted."),
         },
         "expected_authority_names": {
@@ -55,9 +57,7 @@ class CodeSignatureVerifier(DmgMounter):
                  "authority names. Complete list of the certificate name chain "
                  "is required and it needs to be in the correct order. These "
                  "can be determined by running: "
-                 "\n\t$ codesign --display -vvvv <path_to_app>"
-                 "\n\tor"
-                 "\n\t$ pkgutil --check-signature <path_to_pkg>"),
+                 "\n\tpkgutil --check-signature <path_to_pkg>"),
         },
         "requirement": {
             "required": False,
@@ -68,33 +68,32 @@ class CodeSignatureVerifier(DmgMounter):
                  "by running:"
                  "\n\t$ codesign --display -r- <path_to_app>"),
         },
+        "deep_verification": {
+            "required": False,
+            "description":
+                ("Boolean value to specify that any nested code content will be "
+                 "recursively verified as to its full content. Note that this option "
+                 "is ignored if the current system version is less than 10.9."),
+        },
+        "strict_verification": {
+            "required": False,
+            "description":
+                ("Boolean value to control the strictness of signature validation. "
+                 "If not defined, codesign defaults are used. Note that this option "
+                 "is ignored if the current system version is less than 10.11."),
+        },
+        "codesign_additional_arguments": {
+            "required": False,
+            "description":
+                ("Array of additional argument strings to pass to codesign."),
+        },
     }
     output_variables = {
     }
 
     description = __doc__
 
-    def codesign_get_authority_names(self, path):
-        """
-        Runs 'codesign --display -vvvv <path>' and returns a list of
-        found certificate authority names.
-        """
-        #pylint: disable=no-self-use
-        process = ["/usr/bin/codesign",
-                   "--display",
-                   "-vvvv",
-                   path]
-
-        proc = subprocess.Popen(process,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        codesign_details = proc.communicate()[1]
-
-        authority_name_chain = []
-        for match in re.finditer(RE_AUTHORITY_CODESIGN, codesign_details):
-            authority_name_chain.append(match.group('authority'))
-        return authority_name_chain
-
-    def codesign_verify(self, path, test_requirement=None):
+    def codesign_verify(self, path, test_requirement=None, strict_verification=None, deep_verification=True, codesign_additional_arguments=[]):
         """
         Runs 'codesign --verify --verbose <path>'. Returns True if
         codesign exited with 0 and False otherwise.
@@ -104,18 +103,50 @@ class CodeSignatureVerifier(DmgMounter):
                    "--verify",
                    "--verbose=1"]
 
-        # Only use --deep option in OS X 10.9.5 or later
+        # Use --deep option in OS X 10.9.5 or later
         darwin_version = os.uname()[2]
         if StrictVersion(darwin_version) >= StrictVersion('13.4.0'):
-            process.append("--deep")
+            if deep_verification:
+                self.output("Deep verification enabled...")
+                process.append("--deep")
+            else:
+                self.output("Deep verification disabled...")
 
+        # Use --strict option in OS X 10.11 or later and only if requested by the recipe
+        if StrictVersion(darwin_version) >= StrictVersion('15.0'):
+            if strict_verification is None:
+                self.output("Strict verification not defined. Using codesign defaults...")
+            elif strict_verification:
+                self.output("Strict verification enabled...")
+                process.append("--strict")
+            elif not strict_verification:
+                self.output("Strict verification disabled...")
+                process.append("--no-strict")
+            else:
+                self.output("Strict verification value type unknown. Using codesign defaults...")
+
+        # Add additional arguments (if any).
+        for argument in codesign_additional_arguments:
+            process.append(argument)
+
+        # Add the requirement string
         if test_requirement:
-            process.append("-R=%s" % test_requirement)
+            if self.env.get('CODE_SIGNATURE_VERIFICATION_DEBUG'):
+                self.output("Requirement: %s" % test_requirement)
+            process.append("--test-requirement")
+            process.append("=%s" % test_requirement)
 
         process.append(path)
 
-        proc = subprocess.Popen(process,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if self.env.get('CODE_SIGNATURE_VERIFICATION_DEBUG'):
+            self.output("%s" % " ".join(process))
+
+        proc = subprocess.Popen(
+            process,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
         (output, error) = proc.communicate()
 
         # Log all output. codesign seems to output only
@@ -127,11 +158,8 @@ class CodeSignatureVerifier(DmgMounter):
             for line in output.splitlines():
                 self.output("%s" % line)
 
-        # Return true only if codesign exited with 0
-        if proc.returncode == 0:
-            return True
-        else:
-            return False
+        # Return True if codesign exited with 0
+        return proc.returncode == 0
 
     def pkgutil_check_signature(self, path):
         """
@@ -141,8 +169,12 @@ class CodeSignatureVerifier(DmgMounter):
         process = ["/usr/sbin/pkgutil",
                    "--check-signature",
                    path]
-        proc = subprocess.Popen(process,
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        proc = subprocess.Popen(
+            process,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
         (output, error) = proc.communicate()
 
         # Log everything
@@ -158,22 +190,19 @@ class CodeSignatureVerifier(DmgMounter):
         for match in re.finditer(RE_AUTHORITY_PKGUTIL, output):
             authority_name_chain.append(match.group('authority'))
 
-        # Check the pkgutil exit code
-        if proc.returncode == 0:
-            succeeded = True
-        else:
-            succeeded = False
-
         # Return a tuple with boolean status and
         # a list with certificate authority names
-        return succeeded, authority_name_chain
+        return proc.returncode == 0, authority_name_chain
 
-    def process_app_bundle(self, path):
-        '''Verifies the signature for an application bundle'''
-        self.output("Verifying application bundle signature...")
+    def process_code_signature(self, path):
+        '''Verifies the code signature for a path'''
+        self.output("Verifying code signature...")
         # The first step is to run 'codesign --verify <path>'
         requirement = self.env.get('requirement', None)
-        if self.codesign_verify(path, requirement):
+        strict_verification = self.env.get('strict_verification', None)
+        deep_verification = self.env.get('deep_verification', True)
+        codesign_additional_arguments = self.env.get('codesign_additional_arguments', [])
+        if self.codesign_verify(path, requirement, strict_verification, deep_verification, codesign_additional_arguments):
             self.output("Signature is valid")
         else:
             raise ProcessorError(
@@ -182,19 +211,16 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
 
         if self.env.get('expected_authority_names', None):
-            authority_names = self.codesign_get_authority_names(path)
-            expected_authority_names = self.env['expected_authority_names']
-            if authority_names != expected_authority_names:
-                self.output("Mismatch in authority names")
-                self.output(
-                    "Expected: %s" % ' -> '.join(expected_authority_names))
-                self.output("Found:    %s" % ' -> '.join(authority_names))
-                raise ProcessorError(
-                    "Mismatch in authority names. Note that all "
-                    "verification can be disabled by setting the variable "
-                    "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value.")
-            else:
-                self.output("Authority name chain is valid")
+            self.output("ERROR: Using 'expected_authority_names' to verify code "
+                        "signature is no longer supported. Recipes should use the "
+                        "'requirement' argument instead.")
+            self.output("See https://github.com/autopkg/autopkg/wiki/Using-"
+                        "CodeSignatureVerification for more information.")
+            raise ProcessorError(
+                "Using 'expected_authority_names' to verify code signature "
+                "is no longer supported. Note that all verifications can be disabled "
+                "by setting the variable DISABLE_CODE_SIGNATURE_VERIFICATION "
+                "to a non-empty value.")
 
     def process_installer_package(self, path):
         '''Verifies the signature for an installer pkg'''
@@ -230,41 +256,48 @@ class CodeSignatureVerifier(DmgMounter):
                         "run.")
             return
         # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
-            self.env['input_path'])
+        input_path = self.env['input_path']
+        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(input_path)
         try:
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                globbed_paths = glob(os.path.join(mount_point, dmg_source_path))
-                if len(globbed_paths) > 0:
-                    input_path = globbed_paths[0]
-                else:
-                    self.output(
-                        "Invalid input path: %s" % self.env['input_path'])
-                    raise ProcessorError("Invalid input path")
-            else:
-                # just use the given path
-                input_path = self.env['input_path']
+                input_path = os.path.join(mount_point, dmg_source_path)
+            # process path with glob.glob
+            matches = glob(input_path)
+            if len(matches) == 0:
+                raise ProcessorError(
+                    "Error processing path '%s' with glob. " % input_path)
+            matched_input_path = matches[0]
+            if len(matches) > 1:
+                self.output(
+                    "WARNING: Multiple paths match 'input_path' glob '%s':"
+                    % input_path)
+                for match in matches:
+                    self.output("  - %s" % match)
+
+            if [c for c in '*?[]!' if c in input_path]:
+                self.output("Using path '%s' matched from globbed '%s'."
+                            % (matched_input_path, input_path))
 
             # Get current Darwin kernel version
             darwin_version = os.uname()[2]
 
-            # Currently we support only .app, .pkg or .mpkg types
-            file_extension = os.path.splitext(input_path)[1]
-            if file_extension == ".app":
-                self.process_app_bundle(input_path)
-            elif file_extension in [".pkg", ".mpkg"]:
+            # Get the input file extension and use pkgutil
+            # for .pkg, .mpkg and .xip files.
+            file_extension = os.path.splitext(matched_input_path)[1]
+            if file_extension in [".pkg", ".mpkg", ".xip"]:
                 # Check the kernel version to make sure we're running on
-                # Snow Leopard:
-                # Mac OS X 10.6.8 == Darwin Kernel Version 10.8.0
-                if StrictVersion(darwin_version) < StrictVersion('11.0'):
+                # 10.7 or later (10.6.8 == Darwin Kernel Version 10.8.0)
+                if StrictVersion(darwin_version) >= StrictVersion('11.0'):
+                    self.process_installer_package(matched_input_path)
+                else:
                     self.output("Warning: Installer package signature "
                                 "verification not supported on Mac OS X 10.6")
-                else:
-                    self.process_installer_package(input_path)
+
+            # For everything else, use /usr/bin/codesign.
             else:
-                raise ProcessorError("Unsupported file type")
+                self.process_code_signature(matched_input_path)
 
         finally:
             if dmg:

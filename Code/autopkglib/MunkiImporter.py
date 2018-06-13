@@ -75,6 +75,11 @@ class MunkiImporter(Processor):
             "description": ("String to set 'version_comparison_key' for "
                             "any generated installs items."),
         },
+        "uninstaller_pkg_path": {
+            "required": False,
+            "description": ("Path to an uninstaller pkg, supported for Adobe "
+                            "installer_type items."),
+        },
         "MUNKI_PKGINFO_FILE_EXTENSION": {
             "description":
                 "Extension for output pkginfo files. Default is 'plist'.",
@@ -96,6 +101,9 @@ class MunkiImporter(Processor):
         },
         "munki_repo_changed": {
             "description": "True if item was imported."
+        },
+        "munki_importer_summary_result": {
+            "description": "Description of interesting results."
         },
     }
     description = __doc__
@@ -121,6 +129,7 @@ class MunkiImporter(Processor):
         installer_item_table = {}
         hash_table = {}
         checksum_table = {}
+        files_table = {}
 
         itemindex = -1
         for item in catalogitems:
@@ -153,12 +162,13 @@ class MunkiImporter(Processor):
             for receipt in item.get('receipts', []):
                 try:
                     if 'packageid' in receipt and 'version' in receipt:
-                        if not receipt['packageid'] in pkgid_table:
-                            pkgid_table[receipt['packageid']] = {}
-                        if not vers in pkgid_table[receipt['packageid']]:
-                            pkgid_table[receipt['packageid']][vers] = []
-                        pkgid_table[
-                            receipt['packageid']][vers].append(itemindex)
+                        pkgid = receipt['packageid']
+                        pkgvers = receipt['version']
+                        if not pkgid in pkgid_table:
+                            pkgid_table[pkgid] = {}
+                        if not pkgvers in pkgid_table[pkgid]:
+                            pkgid_table[pkgid][pkgvers] = []
+                        pkgid_table[pkgid][pkgvers].append(itemindex)
                 except TypeError:
                     # skip this receipt
                     continue
@@ -166,7 +176,7 @@ class MunkiImporter(Processor):
             # add to table of installed applications
             for install in item.get('installs', []):
                 try:
-                    if install.get('type') == 'application':
+                    if install.get('type') in ('application', 'bundle'):
                         if 'path' in install:
                             if 'version_comparison_key' in install:
                                 app_version = (
@@ -181,14 +191,26 @@ class MunkiImporter(Processor):
                             app_table[
                                 install['path']][app_version].append(itemindex)
                     if install.get('type') == 'file':
-                        if 'path' in install and 'md5checksum' in install:
-                            cksum = install['md5checksum']
+                        if 'path' in install:
+                            if 'md5checksum' in install:
+                                cksum = install['md5checksum']
 
-                            if cksum not in checksum_table.keys():
-                                checksum_table[cksum] = []
+                                if cksum not in checksum_table.keys():
+                                    checksum_table[cksum] = []
 
-                            checksum_table[cksum].append(
-                                {'path': install['path'], 'index': itemindex})
+                                checksum_table[cksum].append(
+                                    {'path': install['path'],
+                                     'index': itemindex})
+                            else:
+                                path = install['path']
+
+                                if path not in files_table.keys():
+                                    files_table[path] = []
+
+                                files_table[path].append(
+                                    {'path': install['path'],
+                                     'index': itemindex})
+
                 except (TypeError, KeyError):
                     # skip this item
                     continue
@@ -199,6 +221,7 @@ class MunkiImporter(Processor):
         pkgdb['applications'] = app_table
         pkgdb['installer_items'] = installer_item_table
         pkgdb['checksums'] = checksum_table
+        pkgdb['files'] = files_table
         pkgdb['items'] = catalogitems
 
         return pkgdb
@@ -228,7 +251,7 @@ class MunkiImporter(Processor):
 
         # try to match against installed applications
         applist = [item for item in pkginfo.get('installs', [])
-                   if item.get('type') == 'application' and 'path' in item]
+                   if item.get('type') in ('application', 'bundle') and 'path' in item]
         if applist:
             matching_indexes = []
             for app in applist:
@@ -252,11 +275,9 @@ class MunkiImporter(Processor):
                         matching_indexes = (
                             matching_indexes.intersection(set(match)))
 
-            # if we get here, we may have found matches
+            # did we find any matches?
             if matching_indexes:
                 return pkgdb['items'][list(matching_indexes)[0]]
-            else:
-                return None
 
         # fall back to matching against receipts
         matching_indexes = []
@@ -279,11 +300,9 @@ class MunkiImporter(Processor):
                         matching_indexes = (
                             matching_indexes.intersection(set(match)))
 
-            # if we get here, we may have found matches
-            if matching_indexes:
-                return pkgdb['items'][list(matching_indexes)[0]]
-            else:
-                return None
+        # did we find any matches?
+        if matching_indexes:
+            return pkgdb['items'][list(matching_indexes)[0]]
 
         # try to match against install md5checksums
         filelist = [item for item in pkginfo.get('installs', [])
@@ -303,17 +322,39 @@ class MunkiImporter(Processor):
 
                             return matching_pkg
 
+        # Try to match against a simple list of files and paths
+        # where our pkginfo version also matches
+        path_only_filelist = [item for item in pkginfo.get('installs', [])
+                              if item.get('type') == 'file' and 'path' in item
+                              and 'md5checksum' not in item]
+        if path_only_filelist:
+            for pathitem in path_only_filelist:
+                path = pathitem['path']
+                if path in pkgdb['files']:
+                    path_matches = pkgdb['files'][path]
+                    for path_match in path_matches:
+                        if path_match['path'] == pathitem['path']:
+                            matching_pkg = pkgdb['items'][path_match['index']]
+                            # make sure we do this only for items that also
+                            # match our pkginfo version
+                            if matching_pkg['version'] == pkginfo['version']:
+                                return matching_pkg
+
         # if we get here, we found no matches
         return None
 
 
-    def copy_item_to_repo(self, pkginfo):
+    def copy_item_to_repo(self, pkginfo, uninstaller_pkg=False):
         """Copies an item to the appropriate place in the repo.
         If itempath is a path within the repo/pkgs directory, copies nothing.
         Renames the item if an item already exists with that name.
-        Returns the relative path to the item."""
+        Returns the relative path to the item.
+        uninstaller_pkg should be True if the item is an uninstaller (Adobe).
+        """
 
         itempath = self.env["pkg_path"]
+        if uninstaller_pkg:
+            itempath = self.env["uninstaller_pkg_path"]
         repo_path = self.env["MUNKI_REPO"]
         subdirectory = self.env.get("repo_subdirectory", "")
         item_version = pkginfo.get("version")
@@ -378,17 +419,17 @@ class MunkiImporter(Processor):
                 raise ProcessorError("Could not create %s: %s"
                                      % (destination_path, err.strerror))
 
-        extension = "plist"
-        if self.env.get("MUNKI_PKGINFO_FILE_EXTENSION"):
-            extension = self.env["MUNKI_PKGINFO_FILE_EXTENSION"].strip(".")
-        pkginfo_name = "%s-%s.%s" % (pkginfo["name"],
+        extension = self.env.get("MUNKI_PKGINFO_FILE_EXTENSION", "plist")
+        if len(extension) > 0:
+            extension = '.' + extension.strip(".")
+        pkginfo_name = "%s-%s%s" % (pkginfo["name"],
                                      pkginfo["version"].strip(),
                                      extension)
         pkginfo_path = os.path.join(destination_path, pkginfo_name)
         index = 0
         while os.path.exists(pkginfo_path):
             index += 1
-            pkginfo_name = "%s-%s__%s.%s" % (
+            pkginfo_name = "%s-%s__%s%s" % (
                 pkginfo["name"], pkginfo["version"], index, extension)
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
@@ -400,13 +441,19 @@ class MunkiImporter(Processor):
         return pkginfo_path
 
     def main(self):
-
+        # clear any pre-exising summary result
+        if 'munki_importer_summary_result' in self.env:
+            del self.env['munki_importer_summary_result']
         # Generate arguments for makepkginfo.
         args = ["/usr/local/munki/makepkginfo", self.env["pkg_path"]]
         if self.env.get("munkiimport_pkgname"):
             args.extend(["--pkgname", self.env["munkiimport_pkgname"]])
         if self.env.get("munkiimport_appname"):
             args.extend(["--appname", self.env["munkiimport_appname"]])
+        # uninstaller pkg will be copied later, this is just to suppress
+        # makepkginfo stderr warning output
+        if self.env.get("uninstaller_pkg_path"):
+            args.extend(["--uninstallpkg", self.env["uninstaller_pkg_path"]])
         if self.env.get("additional_makepkginfo_options"):
             args.extend(self.env["additional_makepkginfo_options"])
 
@@ -419,6 +466,9 @@ class MunkiImporter(Processor):
             raise ProcessorError(
                 "makepkginfo execution failed with error code %d: %s"
                 % (err.errno, err.strerror))
+        if err_out:
+            for err_line in err_out.splitlines():
+                self.output(err_line)
         if proc.returncode != 0:
             raise ProcessorError(
                 "creating pkginfo for %s failed: %s"
@@ -467,6 +517,12 @@ class MunkiImporter(Processor):
         # and name
         pkginfo["installer_item_location"] = relative_path
 
+        if self.env.get("uninstaller_pkg_path"):
+            relative_uninstall_path = self.copy_item_to_repo(
+                pkginfo, uninstaller_pkg=True)
+            pkginfo["uninstaller_item_location"] = relative_uninstall_path
+            pkginfo["uninstallable"] = True
+
         # set output variables
         self.env["pkginfo_repo_path"] = self.copy_pkginfo_to_repo(pkginfo)
         self.env["pkg_repo_path"] = os.path.join(
@@ -479,6 +535,20 @@ class MunkiImporter(Processor):
         self.env["pkg_path"] = self.env["pkg_repo_path"]
         self.env["munki_info"] = pkginfo
         self.env["munki_repo_changed"] = True
+        self.env["munki_importer_summary_result"] = {
+            'summary_text': 'The following new items were imported into Munki:',
+            'report_fields': ['name', 'version', 'catalogs',
+                              'pkginfo_path', 'pkg_repo_path'],
+            'data': {
+                'name': pkginfo['name'],
+                'version': pkginfo['version'],
+                'catalogs': ','. join(pkginfo['catalogs']),
+                'pkginfo_path': 
+                    self.env['pkginfo_repo_path'].partition('pkgsinfo/')[2],
+                'pkg_repo_path': 
+                    self.env['pkg_repo_path'].partition('pkgs/')[2]
+            }
+        }
 
         self.output("Copied pkginfo to %s" % self.env["pkginfo_repo_path"])
         self.output("Copied pkg to %s" % self.env["pkg_repo_path"])

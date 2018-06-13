@@ -59,6 +59,9 @@ class PkgCreator(Processor):
                 "version already exists and thus no package was built (see "
                 "'force_pkg_build' input variable.")
         },
+        "pkg_creator_summary_result": {
+            "description": "Description of interesting results."
+        }
     }
 
     def find_path_for_relpath(self, relpath):
@@ -102,9 +105,59 @@ class PkgCreator(Processor):
             raise ProcessorError("extraction of %s with xar failed: %s"
                                  % (source_path, stderr))
 
+    def pkg_already_exists(self, pkg_path, identifier, version):
+        '''Check for an existing flat package in the output dir and compare its
+           identifier and version to the one we're going to build.
+           Returns a boolean.'''
+        if os.path.exists(pkg_path) and not self.env.get("force_pkg_build"):
+            self.output("Package already exists at path %s." % pkg_path)
+            try:
+                self.xar_expand(pkg_path)
+            except ProcessorError, err:
+                self.output(err)
+                # just remove the pkg and return False
+                self.output('Removing %s' % pkg_path)
+                try:
+                    os.unlink(pkg_path)
+                except OSError, err:
+                    raise ProcessorError(
+                        "Could not remove %s: %s" % pkg_path, err)
+                return False
+            packageinfo_file = os.path.join(self.env['RECIPE_CACHE_DIR'],
+                                            'PackageInfo')
+            if not os.path.exists(packageinfo_file):
+                self.output(
+                    "Failed to parse existing package, as no PackageInfo "
+                    "file could be found in the extracted archive.")
+                # just remove the pkg and return False
+                self.output('Removing %s' % pkg_path)
+                try:
+                    os.unlink(pkg_path)
+                except OSError, err:
+                    raise ProcessorError(
+                        "Could not remove %s: %s" % pkg_path, err)
+                return False
+            # parse the PackageInfo file for version and identifier
+            tree = ET.parse(packageinfo_file)
+            root = tree.getroot()
+            local_version = root.attrib['version']
+            local_id = root.attrib['identifier']
+            try:
+                # clean up
+                os.unlink(packageinfo_file)
+            except OSError:
+                pass
+            if local_version == version and local_id == identifier:
+                return True
+        return False
+
     def package(self):
         '''Build a packaging request, send it to the autopkgserver and get the
         constructed package.'''
+
+        # clear any pre-exising summary result
+        if 'pkg_creator_summary_result' in self.env:
+            del self.env['pkg_creator_summary_result']
 
         request = self.env["pkg_request"]
         if not 'pkgdir' in request:
@@ -132,9 +185,9 @@ class PkgCreator(Processor):
                 else:
                     raise ProcessorError("Request key %s missing" % key)
 
-        # Make sure chown dict is present.
+        # Make sure chown array is present.
         if not "chown" in request:
-            request["chown"] = dict()
+            request["chown"] = []
 
         # Convert relative paths to absolute.
         for key, value in request.items():
@@ -143,32 +196,15 @@ class PkgCreator(Processor):
                     # search for it
                     request[key] = self.find_path_for_relpath(value)
 
-
         # Check for an existing flat package in the output dir and compare its
         # identifier and version to the one we're going to build.
         pkg_path = os.path.join(request['pkgdir'], request['pkgname'] + '.pkg')
-        if os.path.exists(pkg_path) and not self.env.get("force_pkg_build"):
-            self.output("Package already exists at path %s." % pkg_path)
-            self.xar_expand(pkg_path)
-            packageinfo_file = os.path.join(self.env['RECIPE_CACHE_DIR'],
-                                            'PackageInfo')
-            if not os.path.exists(packageinfo_file):
-                raise ProcessorError(
-                    "Failed to parse existing package, as no PackageInfo "
-                    "file count be found in the extracted archive.")
-
-            tree = ET.parse(packageinfo_file)
-            root = tree.getroot()
-            local_version = root.attrib['version']
-            local_id = root.attrib['identifier']
-
-            if (local_version == request['version']
-                    and local_id == request['id']):
-                self.output("Existing package matches version and identifier, "
-                            "not building.")
-                self.env["pkg_path"] = pkg_path
-                self.env["new_package_request"] = False
-                return
+        if self.pkg_already_exists(pkg_path, request['id'], request['version']):
+            self.output("Existing package matches version and identifier, "
+                        "not building.")
+            self.env["pkg_path"] = pkg_path
+            self.env["new_package_request"] = False
+            return
 
         # Send packaging request.
         try:
@@ -183,6 +219,15 @@ class PkgCreator(Processor):
 
         # Return path to pkg.
         self.env["pkg_path"] = pkg_path
+        self.env["pkg_creator_summary_result"] = {
+            'summary_text': 'The following packages were built:',
+            'report_fields': ['identifier', 'version', 'pkg_path'],
+            'data': {
+                'identifier': request['id'],
+                'version': request['version'],
+                'pkg_path': pkg_path
+            }
+        }
 
     def connect(self):
         '''Connect to autopkgserver'''

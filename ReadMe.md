@@ -36,6 +36,8 @@ Usage
 
 A getting started guide is available [here](https://github.com/autopkg/autopkg/wiki/Getting-Started).
 
+Frequently Asked Questions (and answers!) are [here](https://github.com/autopkg/autopkg/wiki/FAQ).
+
 See [the wiki](https://github.com/autopkg/autopkg/wiki) for more documentation.
 
 
