@@ -1805,7 +1805,8 @@ def make_override(argv):
     if os.path.exists(override_file):
         if not options.force:
             log_err("An override plist already exists at %s, "
-                    "will not overwrite it." % override_file)
+                    "will not overwrite it. Use --force to overwrite "
+                    "anyway." % override_file)
             return -1
         os.unlink(override_file)
     FoundationPlist.writePlist(override_plist, override_file)
