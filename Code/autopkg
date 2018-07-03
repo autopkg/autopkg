@@ -1736,6 +1736,8 @@ def make_override(argv):
     add_search_and_override_dir_options(parser)
     parser.add_option("-n", "--name", metavar="FILENAME",
                       help="Name for override file.")
+    parser.add_option("-f", "--force", action="store_true",
+                      help="Force overwrite an override file.")
     options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
@@ -1801,13 +1803,14 @@ def make_override(argv):
 
     override_file = os.path.join(override_dir, "%s.recipe" % override_name)
     if os.path.exists(override_file):
-        log_err("An override plist already exists at %s, "
-                "will not overwrite it." % override_file)
-        return -1
-    else:
-        FoundationPlist.writePlist(override_plist, override_file)
-        log("Override file saved to %s" % override_file)
-        return 0
+        if not options.force:
+            log_err("An override plist already exists at %s, "
+                    "will not overwrite it." % override_file)
+            return -1
+        os.unlink(override_file)
+    FoundationPlist.writePlist(override_plist, override_file)
+    log("Override file saved to %s" % override_file)
+    return 0
 
 
 def parse_recipe_list(filename):
