@@ -46,7 +46,7 @@ Request format:
 
     pkgname         The file or bundle name of the pkg, without pkg extension.
 
-    pkgtype         The package type, "flat" or "bundle".
+    pkgtype         The package type. "flat" is the only valid value.
 
     id              The package ID.
 
