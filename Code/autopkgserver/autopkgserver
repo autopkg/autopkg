@@ -44,7 +44,7 @@ Request format:
     pkgdir          The directory where the pkg will be created, must be a
                     directory owned by the calling user.
 
-    pkgname         The file or bundle name of the pkg, without pkg extension.
+    pkgname         The file name of the pkg, without pkg extension.
 
     pkgtype         The package type. "flat" is the only valid value.
 
@@ -170,8 +170,8 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         if syntax_ok:
 
             # Check package type.
-            if plist.pkgtype not in ("bundle", "flat"):
-                errors.append("pkgtype must be flat or bundle")
+            if plist.pkgtype not in ("flat"):
+                errors.append("pkgtype must be flat")
                 syntax_ok = False
 
             # Make sure all chown entries are dictionaries, and children are
