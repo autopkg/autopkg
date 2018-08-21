@@ -426,9 +426,12 @@ def load_recipe(name, override_dirs, recipe_dirs,
     return recipe
 
 
-def get_recipe_info(recipe_name, override_dirs, recipe_dirs):
+def get_recipe_info(recipe_name, override_dirs, recipe_dirs,
+                    make_suggestions=True, search_github=True):
     '''Loads a recipe, then prints some information about it. Override aware.'''
-    recipe = load_recipe(recipe_name, override_dirs, recipe_dirs)
+    recipe = load_recipe(recipe_name, override_dirs, recipe_dirs,
+                         make_suggestions=make_suggestions,
+                         search_github=search_github)
     if recipe:
         log("Description:         %s" %
             "\n                     "
@@ -446,6 +449,7 @@ def get_recipe_info(recipe_name, override_dirs, recipe_dirs):
         log(" " + output[1:-1])
         return True
     else:
+        log_err("No valid recipe found for %s" % recipe_name)
         return False
 
 
@@ -953,17 +957,29 @@ def get_info(argv):
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
+    parser.add_option("-q", "--quiet", action="store_true",
+                      help=("Don't offer to search Github if a recipe can't "
+                            "be found."))
     options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
+
+    make_suggestions = True
+    if options.quiet:
+        # don't make suggestions if we want to be quiet
+        make_suggestions = False
 
     if len(arguments) == 0:
         # return configuration info
         print_tool_info(options)
         return 0
     elif len(arguments) == 1:
-        if get_recipe_info(arguments[0], override_dirs, search_dirs):
+        if get_recipe_info(
+            arguments[0], override_dirs, search_dirs,
+            make_suggestions=make_suggestions,
+            search_github=make_suggestions
+        ):
             return 0
         else:
             #log_err("Can't find recipe %s, or it is invalid." % arguments[0])
@@ -1877,6 +1893,9 @@ def run_recipes(argv):
                       help=("File path to save run report plist."))
     parser.add_option("-v", "--verbose", action="count", default=0,
                       help="Verbose output.")
+    parser.add_option("-q", "--quiet", action="store_true",
+                      help=("Don't offer to search Github if a recipe can't "
+                            "be found."))
     add_search_and_override_dir_options(parser)
     options, arguments = parser.parse_args(argv[2:])
 
@@ -1978,6 +1997,9 @@ def run_recipes(argv):
         # if we have a list of recipes
         make_suggestions = False
 
+    if options.quiet:
+        # don't make suggestions or search Github if told to be quiet
+        make_suggestions = False
     for recipe_path in recipe_paths:
         recipe = load_recipe(recipe_path,
                              override_dirs,
