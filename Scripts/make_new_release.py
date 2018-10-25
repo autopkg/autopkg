@@ -190,7 +190,7 @@ be done as root, so it's best done as a separate process.
     # run the actual AutoPkg.pkg recipe
     recipes_dir = tempfile.mkdtemp()
     subprocess.check_call(
-        ['git', 'clone', 'https://github.com/autopkg/recipes', recipes_dir])
+        ['git', 'clone', 'https://github.com/{0}/recipes'.format(publish_user), recipes_dir])
     # running using the system AutoPkg directory so that we ensure we're at the
     # minimum required version to run the AutoPkg recipe
     report_plist_path = tempfile.mkstemp()[1]

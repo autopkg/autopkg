@@ -78,7 +78,7 @@ def clone_wiki_dir(clone_dir=None):
         outdir = mkdtemp()
     else:
         outdir = clone_dir
-    run_git(["clone", "https://github.com/autopkg/autopkg.wiki", outdir])
+    run_git(["clone", "https://github.com/%s/autopkg.wiki", (publish_user, outdir)])
     return os.path.abspath(outdir)
 
 
@@ -101,19 +101,26 @@ def main(_):
     parser.add_option("-d", "--directory", metavar="CLONEDIRECTORY",
                       help=("Directory path in which to clone the repo. If not "
                             "specified, a temporary directory will be used."))
-    options, arguments = parser.parse_args()
-    if len(arguments) < 1:
+    parser.add_option('--user-repo', default='autopkg/autopkg',
+                      help=("Alternate org/user and repo to use for "
+                            "the release, useful for testing. Defaults to "
+                            "'autopkg/autopkg'."))
+
+    opts = parser.parse_args()[0]
+    if not opts.directory:
         parser.print_usage()
         exit()
 
+    publish_user, publish_repo = opts.user_repo.split('/')
+    
     # Grab the version for the commit log.
     version = arguments[0]
 
     print "Cloning AutoPkg wiki.."
     print
 
-    if options.directory:
-        output_dir = clone_wiki_dir(clone_dir=options.directory)
+    if opts.directory:
+        output_dir = clone_wiki_dir(clone_dir=opts.directory)
     else:
         output_dir = clone_wiki_dir()
 
