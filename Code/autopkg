@@ -1477,10 +1477,11 @@ def recipe_from_external_repo(recipe_path):
 
 def recipe_in_override_dir(recipe_path, override_dirs):
     '''Returns True if the recipe is in a path in override_dirs'''
+    normalized_recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
     normalized_override_dirs = [os.path.abspath(os.path.expanduser(directory))
                                 for directory in override_dirs]
     for override_dir in normalized_override_dirs:
-        if recipe_path.startswith(override_dir):
+        if normalized_recipe_path.startswith(override_dir):
             return True
     return False
 
