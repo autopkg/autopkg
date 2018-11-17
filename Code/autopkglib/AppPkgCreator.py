@@ -57,7 +57,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         "version": {
             "required": False,
             "description":
-                "Version of the app. If not set, will be extracted from the"
+                "Version of the app. If not set, will be extracted from the "
                 "CFBundleShortVersionString in the app's Info.plist.",
         },
         "force_pkg_build": {
