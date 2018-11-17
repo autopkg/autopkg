@@ -1244,7 +1244,7 @@ def list_recipes(argv):
             if not out_string in output:
                 output.append(out_string)
 
-        print log(out_string)
+        print "\n".join(output)
 
 
 def get_git_commit_hash(filepath):
