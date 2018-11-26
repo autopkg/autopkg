@@ -63,6 +63,18 @@ class GitHubReleasesInfoProvider(Processor):
                 "release may be posted later."
             ),
         },
+        "curl_opts": {
+            "required": False,
+            "description": (
+                "Optional array of curl options to include with "
+                "the download request."
+            ),
+        },
+        "CURL_PATH": {
+            "required": False,
+            "default": "/usr/bin/curl",
+            "description": "Path to curl binary. Defaults to /usr/bin/curl.",
+        },
     }
     output_variables = {
         "release_notes": {
@@ -87,7 +99,11 @@ class GitHubReleasesInfoProvider(Processor):
         be of the form 'user/repo'"""
         # pylint: disable=no-self-use
         releases = None
-        github = autopkglib.github.GitHubSession()
+        if "curl_opts" in self.env:
+            curl_opts = self.env["curl_opts"]
+        else:
+            curl_opts = None
+        github = autopkglib.github.GitHubSession(self.env["CURL_PATH"], curl_opts)
         releases_uri = "/repos/%s/releases" % repo
         (releases, status) = github.call_api(releases_uri)
         if status != 200:
