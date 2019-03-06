@@ -79,9 +79,9 @@ class URLDownloader(StopProcessingIf):
             "required": False,
             "default": False,
             "description":
-                ("NSPredicate-style comparison against an environment key. See "
-                 "http://developer.apple.com/library/mac/#documentation/"
-                 "Cocoa/Conceptual/Predicates/Articles/pSyntax.html"),
+                ("If True, the StopProcessingIf processor is induced at the"
+                 "end of the process based on the predicate"
+                 "'download_changed == False'"),
         },
         "CHECK_FILESIZE_ONLY": {
             "default": False,
