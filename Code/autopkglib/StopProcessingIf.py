@@ -33,11 +33,12 @@ class StopProcessingIf(Processor):
     description = __doc__
     input_variables = {
         "predicate": {
-            "required": True,
+            "required": False,
             "description":
                 ("NSPredicate-style comparison against an environment key. See "
                  "http://developer.apple.com/library/mac/#documentation/"
                  "Cocoa/Conceptual/Predicates/Articles/pSyntax.html"),
+            "default": 'FALSEPREDICATE'
         },
     }
     output_variables = {
@@ -56,7 +57,9 @@ class StopProcessingIf(Processor):
                 % (predicate_string, err))
 
         result = predicate.evaluateWithObject_(self.env)
-        self.output("(%s) is %s" % (predicate_string, result))
+        # Do not output when FALSEPREDICATE set
+        if predicate_string != 'FALSEPREDICATE':
+            self.output("(%s) is %s" % (predicate_string, result))
         return result
 
     def main(self):

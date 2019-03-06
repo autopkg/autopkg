@@ -22,6 +22,7 @@ import time
 import xattr
 import tempfile
 
+from autopkglib.StopProcessingIf import StopProcessingIf
 from autopkglib import Processor, ProcessorError
 try:
     from autopkglib import BUNDLE_ID
@@ -44,7 +45,7 @@ def getxattr(pathname, attr):
         return None
 
 
-class URLDownloader(Processor):
+class URLDownloader(StopProcessingIf):
     """Downloads a URL to the specified download_dir using curl."""
     description = __doc__
     input_variables = {
@@ -73,6 +74,14 @@ class URLDownloader(Processor):
         "filename": {
             "required": False,
             "description": "Filename to override the URL's tail.",
+        },
+        "STOP_IF_DOWNLOAD_UNCHANGED": {
+            "required": False,
+            "default": False,
+            "description":
+                ("NSPredicate-style comparison against an environment key. See "
+                 "http://developer.apple.com/library/mac/#documentation/"
+                 "Cocoa/Conceptual/Predicates/Articles/pSyntax.html"),
         },
         "CHECK_FILESIZE_ONLY": {
             "default": False,
@@ -116,6 +125,9 @@ class URLDownloader(Processor):
         },
         "url_downloader_summary_result": {
             "description": "Description of interesting results."
+        },
+        "stop_processing_recipe": {
+            "description": "Boolean. Should we stop processing the recipe?",
         },
     }
 
@@ -277,6 +289,12 @@ class URLDownloader(Processor):
 
             raise ProcessorError( "Curl failure: %s (exit code %s)" % (curlerr, retcode) )
 
+        # convert STOP_IF_DOWNLOAD_UNCHANGED to a predicate for
+        # StopProcessingIf processor
+        download_changed_predicate = 'FALSEPREDICATE'
+        if self.env["STOP_IF_DOWNLOAD_UNCHANGED"] == True:
+            download_changed_predicate = 'download_changed == False'
+
         # If Content-Length header is present and we had a cached
         # file, see if it matches the size of the cached file.
         # Useful for webservers that don't provide Last-Modified
@@ -293,6 +311,11 @@ class URLDownloader(Processor):
                             "fallback mechanism that does not guarantee "
                             "that a build is unchanged.")
                 self.output("Using existing %s" % pathname)
+
+                # Induce StopProcessingIf process
+                self.env["stop_processing_recipe"] = (
+                    self.predicate_evaluates_as_true(download_changed_predicate)
+                )
                 return
 
         if header['http_result_code'] == '304':
@@ -304,6 +327,10 @@ class URLDownloader(Processor):
             # Discard the temp file
             os.remove(pathname_temporary)
 
+            # Induce StopProcessingIf process
+            self.env["stop_processing_recipe"] = (
+                self.predicate_evaluates_as_true(download_changed_predicate)
+            )
             return
 
         self.env["download_changed"] = True
