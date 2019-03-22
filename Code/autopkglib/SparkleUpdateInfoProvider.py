@@ -71,6 +71,12 @@ class SparkleUpdateInfoProvider(Processor):
                             "Currently supported keys: %s." %
                             ", ".join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS))
         },
+        "urlencode_path_component" : {
+            "required": False,
+             "description": ("Boolean value to specify if the path component"
+                             "from the sparkle feed needs to be urlencoded. "
+                             "Defaults to True."),
+        },
         "PKG" : {
             "required": False,
             "description":
@@ -170,7 +176,10 @@ class SparkleUpdateInfoProvider(Processor):
                 # URL-quote the path component to handle spaces, etc.
                 # (Panic apps do this)
                 url_bits = urlparse.urlsplit(enclosure.get("url"))
-                encoded_path = urllib.quote(url_bits.path)
+                if self.env.get('urlencode_path_component', True):
+                    encoded_path = urllib.quote(url_bits.path)
+                else:
+                    encoded_path = url_bits.path
                 built_url = (
                     url_bits.scheme + "://" + url_bits.netloc + encoded_path)
                 if url_bits.query:
