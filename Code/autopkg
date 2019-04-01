@@ -811,6 +811,8 @@ def repo_update(argv):
                 repo_dirs.append(repo_path)
 
     for repo_dir in repo_dirs:
+        # resolve ~ and symlinks before passing to git
+        repo_dir = os.path.abspath(os.path.expanduser(repo_dir))
         log("Attempting git pull for %s..." % repo_dir)
         try:
             log(run_git(['pull'], git_directory=repo_dir))
