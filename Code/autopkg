@@ -1726,6 +1726,7 @@ def verify_trust_info(argv):
                              make_suggestions=True, search_github=False)
         if not recipe:
             log_err('%s: NOT FOUND' % recipe_name)
+            return_code = 1
             continue
         try:
             verify_parent_trust(
