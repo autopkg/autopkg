@@ -2392,6 +2392,58 @@ def audit(argv):
         log('    %s recipes triggered no audit flags' % recipe_no_issue_count)
 
 
+def new_recipe(argv):
+    """Makes a new recipe template"""
+    verb = argv[1]
+    parser = optparse.OptionParser()
+
+    parser.set_usage("Usage: %s %s [options] recipe_pathname\n"
+                     "Make a new template recipe." % ("%prog", verb))
+
+    # Parse arguments
+    parser.add_option("-i", "--identifier",
+                      help="Recipe identifier")
+    parser.add_option("-p", "--parent-identifier",
+                      help="Parent recipe identifier for this recipe.")
+
+    options, arguments = parser.parse_args(argv[2:])
+
+    if len(arguments) != 1:
+        log_err("Must specify exactly one recipe pathname!")
+        log_err(parser.get_usage())
+        return -1
+
+    filename = arguments[0]
+    name = os.path.basename(filename).split('.')[0]
+    identifier = options.identifier or "local." + name
+
+    recipe = {
+        "Description": "Recipe description",
+        "Identifier": identifier,
+        "Input": {
+            "NAME": name,
+        },
+        "MiniumumVersion": "1.0",
+        "Process": [
+            {
+                "Arguments": {
+                    "Argument1": "Value1",
+                    "Argument2": "Value2",
+                },
+                "Processor": "ProcessorName"
+            },
+        ],
+    }
+    if options.parent_identifier:
+        recipe["ParentRecipe"] = options.parent_identifier
+
+    try:
+        FoundationPlist.writePlist(recipe, filename)
+        log("Saved new recipe to %s" % filename)
+    except FoundationPlist.FoundationPlistException as err:
+        log_error("Failed to write recipe: %s" % err)
+
+
 def main(argv):
     """Main routine"""
     # define our subcommands ('verbs')
@@ -2419,6 +2471,9 @@ def main(argv):
         "make-override": {
             "function": make_override,
             "help": "Make a recipe override"},
+        "new-recipe": {
+            "function": new_recipe,
+            "help": "Make a new template recipe"},
         "processor-info": {
             "function": processor_info,
             "help": "Get information about a specific processor"},
