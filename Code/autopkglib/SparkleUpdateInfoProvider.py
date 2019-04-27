@@ -114,7 +114,7 @@ class SparkleUpdateInfoProvider(Processor):
         URLTextSearcher processor."""
 
         try:
-            cmd = [self.env['CURL_PATH'], '--location']
+            cmd = [self.env['CURL_PATH'], '--location', '--compress']
             if headers:
                 for header, value in headers.items():
                     cmd.extend(['--header', '%s: %s' % (header, value)])
