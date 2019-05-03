@@ -15,51 +15,51 @@
 # limitations under the License.
 """See docstring for AppDmgVersioner class"""
 
-import os.path
 import glob
-#pylint: disable=no-name-in-module
+import os.path
+
+from autopkglib import ProcessorError
+from autopkglib.DmgMounter import DmgMounter
+
+# pylint: disable=no-name-in-module
 try:
     from Foundation import NSData, NSPropertyListSerialization
     from Foundation import NSPropertyListMutableContainers
-except:
-    print "WARNING: Failed 'from Foundation import NSData, NSPropertyListSerialization' in " + __name__
-    print "WARNING: Failed 'from Foundation import NSPropertyListMutableContainers' in " + __name__
-#pylint: enable=no-name-in-module
-
-from autopkglib.DmgMounter import DmgMounter
-from autopkglib import ProcessorError
-
+except Exception:
+    print(
+        "WARNING: Failed 'from Foundation import NSData, NSPropertyListSerialization' in "
+        + __name__
+    )
+    print(
+        "WARNING: Failed 'from Foundation import NSPropertyListMutableContainers' in "
+        + __name__
+    )
+# pylint: enable=no-name-in-module
 
 __all__ = ["AppDmgVersioner"]
 
 
 class AppDmgVersioner(DmgMounter):
     # we dynamically set the docstring from the description (DRY), so:
-    #pylint: disable=missing-docstring
+    # pylint: disable=missing-docstring
     description = "Extracts bundle ID and version of app inside dmg."
     input_variables = {
         "dmg_path": {
             "required": True,
             "description": "Path to a dmg containing an app.",
-        },
+        }
     }
     output_variables = {
-        "app_name": {
-            "description": "Name of app found on the disk image."
-        },
-        "bundleid": {
-            "description": "Bundle identifier of the app.",
-        },
-        "version": {
-            "description": "Version of the app.",
-        },
+        "app_name": {"description": "Name of app found on the disk image."},
+        "bundleid": {"description": "Bundle identifier of the app."},
+        "version": {"description": "Version of the app."},
     }
 
     __doc__ = description
 
     def find_app(self, path):
         """Find app bundle at path."""
-        #pylint: disable=no-self-use
+        # pylint: disable=no-self-use
         apps = glob.glob(os.path.join(path, "*.app"))
         if len(apps) == 0:
             raise ProcessorError("No app found in dmg")
@@ -67,17 +67,17 @@ class AppDmgVersioner(DmgMounter):
 
     def read_bundle_info(self, path):
         """Read Contents/Info.plist inside a bundle."""
-        #pylint: disable=no-self-use
+        # pylint: disable=no-self-use
 
         plistpath = os.path.join(path, "Contents", "Info.plist")
-        #pylint: disable=line-too-long
-        info, _, error = (
-            NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
-                NSData.dataWithContentsOfFile_(plistpath),
-                NSPropertyListMutableContainers,
-                None,
-                None))
-        #pylint: enable=line-too-long
+        # pylint: disable=line-too-long
+        info, _, error = NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(  # noqa
+            NSData.dataWithContentsOfFile_(plistpath),
+            NSPropertyListMutableContainers,
+            None,
+            None,
+        )
+        # pylint: enable=line-too-long
 
         if error:
             raise ProcessorError("Can't read %s: %s" % (plistpath, error))
@@ -104,7 +104,6 @@ class AppDmgVersioner(DmgMounter):
             self.unmount(self.env["dmg_path"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = AppDmgVersioner()
     PROCESSOR.execute_shell()
-
