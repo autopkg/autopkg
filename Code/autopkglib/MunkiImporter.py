@@ -16,12 +16,11 @@
 """See docstring for MunkiImporter class"""
 
 import os
-import subprocess
-import FoundationPlist
 import shutil
+import subprocess
 
+import FoundationPlist
 from autopkglib import Processor, ProcessorError
-
 
 __all__ = ["MunkiImporter"]
 
@@ -120,7 +119,7 @@ class MunkiImporter(Processor):
         else:
             try:
                 catalogitems = FoundationPlist.readPlist(all_items_path)
-            except OSError, err:
+            except OSError as err:
                 raise ProcessorError(
                     "Error reading 'all' catalog from Munki repo: %s" % err)
 
@@ -151,9 +150,9 @@ class MunkiImporter(Processor):
             if 'installer_item_location' in item:
                 installer_item_name = os.path.basename(
                     item['installer_item_location'])
-                if not installer_item_name in installer_item_table:
+                if installer_item_name not in installer_item_table:
                     installer_item_table[installer_item_name] = {}
-                if not vers in installer_item_table[installer_item_name]:
+                if vers not in installer_item_table[installer_item_name]:
                     installer_item_table[installer_item_name][vers] = []
                 installer_item_table[
                     installer_item_name][vers].append(itemindex)
@@ -164,9 +163,9 @@ class MunkiImporter(Processor):
                     if 'packageid' in receipt and 'version' in receipt:
                         pkgid = receipt['packageid']
                         pkgvers = receipt['version']
-                        if not pkgid in pkgid_table:
+                        if pkgid not in pkgid_table:
                             pkgid_table[pkgid] = {}
-                        if not pkgvers in pkgid_table[pkgid]:
+                        if pkgvers not in pkgid_table[pkgid]:
                             pkgid_table[pkgid][pkgvers] = []
                         pkgid_table[pkgid][pkgvers].append(itemindex)
                 except TypeError:
@@ -184,9 +183,9 @@ class MunkiImporter(Processor):
                             else:
                                 app_version = (
                                     install['CFBundleShortVersionString'])
-                            if not install['path'] in app_table:
+                            if install['path'] not in app_table:
                                 app_table[install['path']] = {}
-                            if not vers in app_table[install['path']]:
+                            if vers not in app_table[install['path']]:
                                 app_table[install['path']][app_version] = []
                             app_table[
                                 install['path']][app_version].append(itemindex)
@@ -343,7 +342,6 @@ class MunkiImporter(Processor):
         # if we get here, we found no matches
         return None
 
-
     def copy_item_to_repo(self, pkginfo, uninstaller_pkg=False):
         """Copies an item to the appropriate place in the repo.
         If itempath is a path within the repo/pkgs directory, copies nothing.
@@ -366,7 +364,7 @@ class MunkiImporter(Processor):
         if not os.path.exists(destination_path):
             try:
                 os.makedirs(destination_path)
-            except OSError, err:
+            except OSError as err:
                 raise ProcessorError("Could not create %s: %s"
                                      % (destination_path, err.strerror))
 
@@ -397,7 +395,7 @@ class MunkiImporter(Processor):
 
         try:
             shutil.copy(itempath, destination_pathname)
-        except OSError, err:
+        except OSError as err:
             raise ProcessorError(
                 "Can't copy %s to %s: %s"
                 % (self.env["pkg_path"], destination_pathname, err.strerror))
@@ -415,7 +413,7 @@ class MunkiImporter(Processor):
         if not os.path.exists(destination_path):
             try:
                 os.makedirs(destination_path)
-            except OSError, err:
+            except OSError as err:
                 raise ProcessorError("Could not create %s: %s"
                                      % (destination_path, err.strerror))
 
@@ -435,7 +433,7 @@ class MunkiImporter(Processor):
 
         try:
             FoundationPlist.writePlist(pkginfo, pkginfo_path)
-        except OSError, err:
+        except OSError as err:
             raise ProcessorError("Could not write pkginfo %s: %s"
                                  % (pkginfo_path, err.strerror))
         return pkginfo_path
@@ -503,7 +501,7 @@ class MunkiImporter(Processor):
                 self.env["MUNKI_REPO"], "pkgs",
                 matchingitem['installer_item_location'])
             self.env["munki_info"] = {}
-            if not "munki_repo_changed" in self.env:
+            if "munki_repo_changed" not in self.env:
                 self.env["munki_repo_changed"] = False
 
             self.output("Item %s already exists in the munki repo as %s."
@@ -543,15 +541,16 @@ class MunkiImporter(Processor):
                 'name': pkginfo['name'],
                 'version': pkginfo['version'],
                 'catalogs': ','. join(pkginfo['catalogs']),
-                'pkginfo_path': 
+                'pkginfo_path':
                     self.env['pkginfo_repo_path'].partition('pkgsinfo/')[2],
-                'pkg_repo_path': 
+                'pkg_repo_path':
                     self.env['pkg_repo_path'].partition('pkgs/')[2]
             }
         }
 
         self.output("Copied pkginfo to %s" % self.env["pkginfo_repo_path"])
         self.output("Copied pkg to %s" % self.env["pkg_repo_path"])
+
 
 if __name__ == "__main__":
     PROCESSOR = MunkiImporter()
