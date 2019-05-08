@@ -84,6 +84,13 @@ class MunkiImporter(Processor):
                 "Extension for output pkginfo files. Default is 'plist'.",
             "required": False
         },
+        "metadata_additions": {
+            "description": (
+                "A dictionary that will be added directly into the _metadata "
+                "of the pkginfo"
+            ),
+            "required": False
+        },
     }
     output_variables = {
         "pkginfo_repo_path": {
@@ -479,6 +486,10 @@ class MunkiImporter(Processor):
         if "pkginfo" in self.env:
             for key in self.env["pkginfo"]:
                 pkginfo[key] = self.env["pkginfo"][key]
+
+        # copy any keys from metadata_additions
+        if "metadata_additions" in self.env:
+            pkginfo["_metadata"].update(self.env["metadata_additions"])
 
         # set an alternate version_comparison_key
         # if pkginfo has an installs item
