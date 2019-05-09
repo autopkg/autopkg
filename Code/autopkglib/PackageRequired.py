@@ -15,10 +15,12 @@
 # limitations under the License.
 """See docstring for PackageRequired class"""
 
-from autopkglib import Processor, ProcessorError
 import os
 
+from autopkglib import Processor, ProcessorError
+
 __all__ = ["PackageRequired"]
+
 
 class PackageRequired(Processor):
     '''Raises a ProcessorError if the PKG variable doesn't exist.
