@@ -16,8 +16,8 @@
 """Processor that creates a file"""
 
 import os
-from autopkglib import Processor, ProcessorError
 
+from autopkglib import Processor, ProcessorError
 
 __all__ = ["FileCreator"]
 
@@ -47,18 +47,18 @@ class FileCreator(Processor):
             with open(self.env['file_path'], "w") as fileref:
                 fileref.write(self.env['file_content'])
             self.output("Created file at %s" % self.env['file_path'])
-        except BaseException, err:
+        except BaseException as err:
             raise ProcessorError("Can't create file at %s: %s"
                                  % (self.env['file_path'], err))
         if 'file_mode' in self.env:
             try:
                 os.chmod(self.env['file_path'], int(self.env['file_mode'], 8))
-            except BaseException, err:
+            except BaseException as err:
                 raise ProcessorError(
                     "Can't set mode of %s to %s: %s"
                     % (self.env['file_path'], self.env['file_mode'], err))
 
+
 if __name__ == '__main__':
     PROCESSOR = FileCreator()
     PROCESSOR.execute_shell()
-
