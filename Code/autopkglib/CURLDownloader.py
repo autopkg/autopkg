@@ -13,11 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Stub that allows URLDownloader to be called as 'CURLDownloader' during the 
+"""Stub that allows URLDownloader to be called as 'CURLDownloader' during the
 deprecation period."""
 
 from autopkglib.URLDownloader import URLDownloader
-
 
 __all__ = ["CURLDownloader"]
 
