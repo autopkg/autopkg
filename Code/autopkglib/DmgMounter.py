@@ -15,12 +15,13 @@
 # limitations under the License.
 """See docstring for DmgMounter class"""
 
-import sys
+from __future__ import print_function
+
 import subprocess
+import sys
+
 import FoundationPlist
-
 from autopkglib import Processor, ProcessorError
-
 
 __all__ = ["DmgMounter"]
 
@@ -150,7 +151,7 @@ class DmgMounter(Processor):
         """Unmount previously mounted image."""
 
         # Don't try to unmount something we didn't mount.
-        if not pathname in self.mounts:
+        if pathname not in self.mounts:
             raise ProcessorError("%s is not mounted" % pathname)
 
         # Call hdiutil.
@@ -177,11 +178,10 @@ if __name__ == '__main__':
     try:
         DMGMOUNTER = DmgMounter()
         MOUNTPOINT = DMGMOUNTER.mount("Download/Firefox-sv-SE.dmg")
-        print "Mounted at %s" % MOUNTPOINT
+        print("Mounted at %s" % MOUNTPOINT)
         DMGMOUNTER.unmount("Download/Firefox-sv-SE.dmg")
     except ProcessorError as err:
-        print >> sys.stderr, "ProcessorError: %s" % err
+        print("ProcessorError: %s" % err, file=sys.stderr)
         sys.exit(10)
     else:
         sys.exit(0)
-
