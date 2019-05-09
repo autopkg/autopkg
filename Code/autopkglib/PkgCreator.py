@@ -17,12 +17,11 @@
 
 import os.path
 import socket
-import FoundationPlist
 import subprocess
 import xml.etree.ElementTree as ET
 
+import FoundationPlist
 from autopkglib import Processor, ProcessorError
-
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
 
@@ -113,13 +112,13 @@ class PkgCreator(Processor):
             self.output("Package already exists at path %s." % pkg_path)
             try:
                 self.xar_expand(pkg_path)
-            except ProcessorError, err:
+            except ProcessorError as err:
                 self.output(err)
                 # just remove the pkg and return False
                 self.output('Removing %s' % pkg_path)
                 try:
                     os.unlink(pkg_path)
-                except OSError, err:
+                except OSError as err:
                     raise ProcessorError(
                         "Could not remove %s: %s" % pkg_path, err)
                 return False
@@ -133,7 +132,7 @@ class PkgCreator(Processor):
                 self.output('Removing %s' % pkg_path)
                 try:
                     os.unlink(pkg_path)
-                except OSError, err:
+                except OSError as err:
                     raise ProcessorError(
                         "Could not remove %s: %s" % pkg_path, err)
                 return False
@@ -160,7 +159,7 @@ class PkgCreator(Processor):
             del self.env['pkg_creator_summary_result']
 
         request = self.env["pkg_request"]
-        if not 'pkgdir' in request:
+        if 'pkgdir' not in request:
             request['pkgdir'] = self.env['RECIPE_CACHE_DIR']
 
         # Set variables, and check that all keys are in request.
@@ -173,7 +172,7 @@ class PkgCreator(Processor):
                     "resources",
                     "options",
                     "scripts"):
-            if not key in request:
+            if key not in request:
                 if key in self.env:
                     request[key] = self.env[key]
                 elif key in ["infofile", "resources", "options", "scripts"]:
@@ -186,7 +185,7 @@ class PkgCreator(Processor):
                     raise ProcessorError("Request key %s missing" % key)
 
         # Make sure chown array is present.
-        if not "chown" in request:
+        if "chown" not in request:
             request["chown"] = []
 
         # Convert relative paths to absolute.
@@ -267,4 +266,3 @@ class PkgCreator(Processor):
 if __name__ == '__main__':
     PROCESSOR = PkgCreator()
     PROCESSOR.execute_shell()
-
