@@ -17,15 +17,12 @@
 
 import os.path
 import shutil
-
-import FoundationPlist
-
 from glob import glob
 
+import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 from autopkglib.PkgCreator import PkgCreator
-
 
 __all__ = ["AppPkgCreator"]
 
@@ -90,7 +87,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         plistpath = os.path.join(app_path, "Contents", "Info.plist")
         try:
             plist = FoundationPlist.readPlist(plistpath)
-        except FoundationPlist.FoundationPlistException, err:
+        except FoundationPlist.FoundationPlistException as err:
             raise ProcessorError("Can't read %s: %s" % (plistpath, err))
         return plist
 
@@ -148,12 +145,12 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                     shutil.rmtree(pkgroot)
                 else:
                     os.unlink(pkgroot)
-            except OSError, err:
+            except OSError as err:
                 raise ProcessorError(
                     "Can't remove %s: %s" % (pkgroot, err.strerror))
         try:
-            os.makedirs(os.path.join(pkgroot, 'Applications'), 0775)
-        except OSError, err:
+            os.makedirs(os.path.join(pkgroot, 'Applications'), 0o775)
+        except OSError as err:
             raise ProcessorError('Could not create pkgroot: %s' % err.strerror)
 
         app_name = os.path.basename(app_path)
@@ -167,7 +164,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             else:
                 shutil.copy(source_item, dest_item)
             self.output("Copied %s to %s" % (source_item, dest_item))
-        except OSError, err:
+        except OSError as err:
             raise ProcessorError(
                 "Can't copy %s to %s: %s"
                 % (source_item, dest_item, err.strerror))
@@ -256,4 +253,3 @@ class AppPkgCreator(DmgMounter, PkgCreator):
 if __name__ == '__main__':
     PROCESSOR = AppPkgCreator()
     PROCESSOR.execute_shell()
-
