@@ -16,13 +16,12 @@
 """See docstring for PkgExtractor class"""
 
 import os
-import FoundationPlist
 import shutil
 import subprocess
 
-from autopkglib.DmgMounter import DmgMounter
+import FoundationPlist
 from autopkglib import ProcessorError
-
+from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["PkgExtractor"]
 
@@ -49,7 +48,7 @@ class PkgExtractor(DmgMounter):
     def extract_payload(self, pkg_path, extract_root):
         '''Extract package contents to extract_root, preserving intended
          directory structure'''
-         #pylint: disable=no-self-use
+        #pylint: disable=no-self-use
         info_plist = os.path.join(pkg_path, "Contents/Info.plist")
         archive_path = os.path.join(pkg_path, "Contents/Archive.pax.gz")
         if not os.path.exists(info_plist):
@@ -60,19 +59,19 @@ class PkgExtractor(DmgMounter):
         if os.path.exists(extract_root):
             try:
                 shutil.rmtree(extract_root)
-            except (OSError, IOError), err:
+            except (OSError, IOError) as err:
                 raise ProcessorError("Failed to remove extract_root: %s" % err)
 
         try:
             info = FoundationPlist.readPlist(info_plist)
-        except FoundationPlist.FoundationPlistException, err:
+        except FoundationPlist.FoundationPlistException as err:
             raise ProcessorError("Failed to read Info.plist: %s" % err)
 
         install_target = info.get("IFPkgFlagDefaultLocation", "/").lstrip("/")
         extract_path = os.path.join(extract_root, install_target)
         try:
-            os.makedirs(extract_path, 0755)
-        except (OSError, IOError), err:
+            os.makedirs(extract_path, 0o755)
+        except (OSError, IOError) as err:
             raise ProcessorError("Failed to create extract_path: %s" % err)
 
         # Unpack payload.
@@ -109,6 +108,7 @@ class PkgExtractor(DmgMounter):
         finally:
             if dmg:
                 self.unmount(dmg_path)
+
 
 if __name__ == '__main__':
     PROCESSOR = PkgExtractor()
