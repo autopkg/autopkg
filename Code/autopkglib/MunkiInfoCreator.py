@@ -16,13 +16,12 @@
 """See docstring for MunkiInfoCreator class"""
 
 import os.path
-import subprocess
-import FoundationPlist
 import shutil
+import subprocess
 import tempfile
 
+import FoundationPlist
 from autopkglib import Processor, ProcessorError
-
 
 __all__ = ["MunkiInfoCreator"]
 
@@ -123,4 +122,3 @@ class MunkiInfoCreator(Processor):
 if __name__ == '__main__':
     PROCESSOR = MunkiInfoCreator()
     PROCESSOR.execute_shell()
-
