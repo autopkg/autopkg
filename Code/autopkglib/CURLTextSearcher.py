@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Stub that allows URLTextSearcher to be called as 'CURLTextSearcher' during 
+"""Stub that allows URLTextSearcher to be called as 'CURLTextSearcher' during
 the deprecation period."""
 
 from autopkglib.URLTextSearcher import URLTextSearcher
@@ -24,3 +24,4 @@ CURLTextSearcher = URLTextSearcher
 
 if __name__ == "__main__":
     PROCESSOR = CURLTextSearcher()
+    PROCESSOR.execute_shell()
