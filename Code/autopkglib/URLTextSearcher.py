@@ -23,6 +23,7 @@ from autopkglib import Processor, ProcessorError
 
 __all__ = ["URLTextSearcher"]
 
+
 class URLTextSearcher(Processor):
     '''Downloads a URL using curl and performs a regular expression match
     on the text.
