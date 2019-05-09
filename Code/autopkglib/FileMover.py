@@ -16,9 +16,11 @@
 """See docstring for FileMover class"""
 
 from os import rename
+
 from autopkglib import Processor
 
 __all__ = ["FileMover"]
+
 
 class FileMover(Processor):
     '''Moves/renames a file.
@@ -44,6 +46,7 @@ class FileMover(Processor):
         rename(self.env['source'], self.env['target'])
         self.output(
             'File %s moved to %s' % (self.env['source'], self.env['target']))
+
 
 if __name__ == '__main__':
     PROCESSOR = FileMover()
