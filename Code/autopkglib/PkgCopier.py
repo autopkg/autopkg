@@ -15,11 +15,10 @@
 # limitations under the License.
 """See docstring for PkgCopier class"""
 
-import os.path
 import glob
+import os.path
 
 from autopkglib.Copier import Copier
-
 
 __all__ = ["PkgCopier"]
 
@@ -68,8 +67,7 @@ class PkgCopier(Copier):
                 # Straight copy from file system.
                 source_pkg = self.env["source_pkg"]
 
-
-            # Prcess the path for globs
+            # Process the path for globs
             matches = glob.glob(source_pkg)
             matched_source_path = matches[0]
             if len(matches) > 1:
