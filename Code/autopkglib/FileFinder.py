@@ -16,12 +16,14 @@
 """See docstring for FileFinder class"""
 
 
-from glob import glob
-from autopkglib import Processor, ProcessorError
-from autopkglib.DmgMounter import DmgMounter
 import os.path
+from glob import glob
+
+from autopkglib import ProcessorError
+from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["FileFinder"]
+
 
 class FileFinder(DmgMounter):
     '''Finds a filename for use in other Processors.
