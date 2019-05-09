@@ -15,10 +15,10 @@
 # limitations under the License.
 """See docstring for PathDeleter class"""
 
-from autopkglib import Processor, ProcessorError
-import shutil
 import os
+import shutil
 
+from autopkglib import Processor, ProcessorError
 
 __all__ = ["PathDeleter"]
 
@@ -40,7 +40,7 @@ class PathDeleter(Processor):
     def main(self):
         # if recipe writer gave us a single string instead of a list of strings,
         # convert it to a list of strings
-        if isinstance(self.env["path_list"], basestring):
+        if isinstance(self.env["path_list"], str):
             self.env["path_list"] = [self.env["path_list"]]
 
         for path in self.env["path_list"]:
@@ -57,7 +57,7 @@ class PathDeleter(Processor):
                         "Could not remove %s - it is not a file, link, "
                         "or directory" % path)
                 self.output("Deleted %s" % path)
-            except OSError, err:
+            except OSError as err:
                 raise ProcessorError(
                     "Could not remove %s: %s" % (path, err))
 
