@@ -17,11 +17,10 @@
 
 import os.path
 import shutil
-
 from glob import glob
+
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
-
 
 __all__ = ["Copier"]
 
@@ -64,7 +63,7 @@ class Copier(DmgMounter):
                     shutil.rmtree(dest_item)
                 else:
                     os.unlink(dest_item)
-            except OSError, err:
+            except OSError as err:
                 raise ProcessorError(
                     "Can't remove %s: %s" % (dest_item, err.strerror))
 
@@ -77,7 +76,7 @@ class Copier(DmgMounter):
             else:
                 shutil.copy(source_item, dest_item)
             self.output("Copied %s to %s" % (source_item, dest_item))
-        except BaseException, err:
+        except BaseException as err:
             raise ProcessorError(
                 "Can't copy %s to %s: %s" % (source_item, dest_item, err))
 
@@ -118,4 +117,3 @@ class Copier(DmgMounter):
 if __name__ == '__main__':
     PROCESSOR = Copier()
     PROCESSOR.execute_shell()
-
