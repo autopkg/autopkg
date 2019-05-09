@@ -56,7 +56,6 @@ class BrewCaskInfoProvider(Processor):
 
     __doc__ = description
 
-
     def parse_formula(self, formula):
         """Return a dict containing attributes of the formula, ie. 'url',
         'version', etc. parsed from the formula .rb file."""
@@ -98,13 +97,13 @@ class BrewCaskInfoProvider(Processor):
         try:
             urlobj = urllib2.urlopen(cask_url)
         except urllib2.HTTPError as err:
-            raise ProcessorError("Error opening URL %s: %s"% (cask_url, err))
+            raise ProcessorError("Error opening URL %s: %s" % (cask_url, err))
 
         formula_data = urlobj.read()
         parsed = self.parse_formula(formula_data)
         parsed = self.interpolate_vars(parsed)
 
-        if not "url" in parsed.keys():
+        if "url" not in parsed.keys():
             raise ProcessorError("No 'url' parsed from Formula!")
         self.env["url"] = parsed["url"]
 
