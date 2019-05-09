@@ -17,9 +17,9 @@
 
 import os.path
 import socket
-import FoundationPlist
-
 from glob import glob
+
+import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
@@ -186,4 +186,3 @@ class Installer(DmgMounter):
 if __name__ == '__main__':
     PROCESSOR = Installer()
     PROCESSOR.execute_shell()
-
