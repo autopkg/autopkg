@@ -17,11 +17,15 @@
 """See docstring for MunkiSetDefaultCatalog class"""
 
 from autopkglib import Processor
+
 #pylint: disable=no-name-in-module
 try:
     from Foundation import CFPreferencesCopyAppValue
 except:
-    print "WARNING: Failed 'from Foundation import CFPreferencesCopyAppValue' in " + __name__
+    print(
+        "WARNING: Failed 'from Foundation import CFPreferencesCopyAppValue' "
+        "in " + __name__
+    )
 #pylint: enable=no-name-in-module
 
 __all__ = ["MunkiSetDefaultCatalog"]
@@ -56,6 +60,7 @@ class MunkiSetDefaultCatalog(Processor):
                         % default_catalog)
         else:
             self.output("No default catalogs found, nothing changed")
+
 
 if __name__ == "__main__":
     PROCESSOR = MunkiSetDefaultCatalog()
