@@ -16,11 +16,10 @@
 """See docstring for Unarchiver class"""
 
 import os
-import subprocess
 import shutil
+import subprocess
 
 from autopkglib import Processor, ProcessorError
-
 
 __all__ = ["Unarchiver"]
 
@@ -31,6 +30,7 @@ EXTNS = {
     'tar': ['tar'],
     'gzip': ['gzip'],
 }
+
 
 class Unarchiver(Processor):
     """Archive decompressor for zip and common tar-compressed formats."""
@@ -124,7 +124,7 @@ class Unarchiver(Processor):
                    archive_path,
                    destination_path]
         elif fmt == "gzip":
-           cmd = ["/usr/bin/ditto",
+            cmd = ["/usr/bin/ditto",
                   "--noqtn",
                   "-x",
                   archive_path,
@@ -158,7 +158,7 @@ class Unarchiver(Processor):
 
         self.output("Unarchived %s to %s" % (archive_path, destination_path))
 
+
 if __name__ == '__main__':
     PROCESSOR = Unarchiver()
     PROCESSOR.execute_shell()
-
