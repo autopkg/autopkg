@@ -16,13 +16,13 @@
 """See docstring for URLDownloader class"""
 
 import os.path
-import re
 import subprocess
-import time
-import xattr
 import tempfile
+import time
 
+import xattr
 from autopkglib import Processor, ProcessorError
+
 try:
     from autopkglib import BUNDLE_ID
 except ImportError:
@@ -134,7 +134,7 @@ class URLDownloader(Processor):
             self.output("Given %s, no download needed." % self.env["pathname"])
             return
 
-        if not "filename" in self.env:
+        if "filename" not in self.env:
             # Generate filename.
             filename = self.env["url"].rpartition("/")[2]
         else:
@@ -149,7 +149,7 @@ class URLDownloader(Processor):
         if not os.path.exists(download_dir):
             try:
                 os.makedirs(download_dir)
-            except OSError, err:
+            except OSError as err:
                 raise ProcessorError(
                     "Can't create %s: %s" % (download_dir, err.strerror))
 
@@ -162,7 +162,7 @@ class URLDownloader(Processor):
         # this can cause issues if this item is eventually copied to a Munki repo
         # with the same permissions and the file is inaccessible by (for example)
         # the webserver.
-        os.chmod(pathname_temporary, 0644)
+        os.chmod(pathname_temporary, 0o644)
 
         # construct curl command.
         curl_cmd = [self.env['CURL_PATH'],
@@ -259,7 +259,7 @@ class URLDownloader(Processor):
             else:
                 time.sleep(0.1)
 
-            if proc.poll() != None:
+            if proc.poll() is not None:
                 # For small download files curl may exit before all headers
                 # have been parsed, don't immediately exit.
                 maxheaders -= 1
@@ -267,7 +267,7 @@ class URLDownloader(Processor):
                     break
 
         retcode = proc.poll()
-        if retcode: # Non-zero exit code from curl => problem with download
+        if retcode:  # Non-zero exit code from curl => problem with download
             curlerr = ''
             try:
                 curlerr = proc.stderr.read().rstrip('\n')
@@ -275,15 +275,16 @@ class URLDownloader(Processor):
             except IndexError:
                 pass
 
-            raise ProcessorError( "Curl failure: %s (exit code %s)" % (curlerr, retcode) )
+            raise ProcessorError("Curl failure: %s (exit code %s)" % (curlerr, retcode))
 
         # If Content-Length header is present and we had a cached
         # file, see if it matches the size of the cached file.
         # Useful for webservers that don't provide Last-Modified
         # and ETag headers.
-        if (not header.get("etag") and \
-           not header.get("last-modified")) or \
-            self.env["CHECK_FILESIZE_ONLY"]:
+        if (
+            (not header.get("etag") and not header.get("last-modified"))
+            or self.env["CHECK_FILESIZE_ONLY"]
+        ):
             size_header = header.get("content-length")
             if size_header and int(size_header) == existing_file_size:
                 self.env["download_changed"] = False
