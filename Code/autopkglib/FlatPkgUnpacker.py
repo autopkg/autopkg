@@ -18,13 +18,12 @@
 """See docstring for FlatPkgUnpacker class"""
 
 import os.path
-import subprocess
 import shutil
-
+import subprocess
 from glob import glob
+
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
-
 
 __all__ = ["FlatPkgUnpacker"]
 
@@ -178,4 +177,3 @@ class FlatPkgUnpacker(DmgMounter):
 if __name__ == '__main__':
     PROCESSOR = FlatPkgUnpacker()
     PROCESSOR.execute_shell()
-
