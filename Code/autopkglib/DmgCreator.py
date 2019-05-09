@@ -20,12 +20,12 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["DmgCreator"]
 
 DEFAULT_DMG_FORMAT = "UDZO"
 DEFAULT_DMG_FILESYSTEM = "HFS+"
 DEFAULT_ZLIB_LEVEL = 5
+
 
 class DmgCreator(Processor):
     """Creates a disk image from a directory."""
@@ -70,7 +70,6 @@ class DmgCreator(Processor):
     output_variables = {
     }
 
-
     def main(self):
         # Remove existing dmg if it exists.
         if os.path.exists(self.env['dmg_path']):
@@ -79,16 +78,18 @@ class DmgCreator(Processor):
         # Determine the format.
         # allow a subset of the formats supported by hdiutil, those
         # which aren't obsolete or deprecated
-        valid_formats = ["UDRW",
-                         "UDRO",
-                         "UDCO",
-                         "UDZO",
-                         "UDBZ",
-                         "UFBI",
-                         "UDTO",
-                         "UDxx",
-                         "UDSP",
-                         "UDSB",]
+        valid_formats = [
+            "UDRW",
+            "UDRO",
+            "UDCO",
+            "UDZO",
+            "UDBZ",
+            "UFBI",
+            "UDTO",
+            "UDxx",
+            "UDSP",
+            "UDSB",
+        ]
 
         dmg_format = self.env.get("dmg_format", DEFAULT_DMG_FORMAT)
         if dmg_format not in valid_formats:
@@ -155,6 +156,7 @@ class DmgCreator(Processor):
 
         self.output("Created dmg from %s at %s"
                     % (self.env['dmg_root'], self.env['dmg_path']))
+
 
 if __name__ == '__main__':
     PROCESSOR = DmgCreator()
