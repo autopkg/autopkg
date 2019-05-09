@@ -162,7 +162,7 @@ class URLDownloader(Processor):
         # this can cause issues if this item is eventually copied to a Munki repo
         # with the same permissions and the file is inaccessible by (for example)
         # the webserver.
-        os.chmod(pathname_temporary, "0644")
+        os.chmod(pathname_temporary, 0o644)
 
         # construct curl command.
         curl_cmd = [self.env['CURL_PATH'],
