@@ -49,7 +49,7 @@ class FlatPkgPacker(Processor):
         try:
             subprocess.check_call(['/usr/sbin/pkgutil',
                                    '--flatten', source_dir, dest_pkg])
-        except subprocess.CalledProcessError, err:
+        except subprocess.CalledProcessError as err:
             raise ProcessorError("%s flattening %s" % (err, source_dir))
 
     def main(self):
@@ -60,6 +60,7 @@ class FlatPkgPacker(Processor):
 
         self.output("Flattened %s to %s"
                     % (source_dir, dest_pkg))
+
 
 if __name__ == '__main__':
     PROCESSOR = FlatPkgPacker()
