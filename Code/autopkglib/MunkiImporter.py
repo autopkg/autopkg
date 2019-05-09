@@ -86,8 +86,9 @@ class MunkiImporter(Processor):
         },
         "metadata_additions": {
             "description": (
-                "A dictionary that will be added directly into the _metadata "
-                "of the pkginfo"
+                "A dictionary that will be merged with the pkginfo _metadata.  "
+                "Unique keys will be added, but overlapping keys will replace "
+                "existing values."
             ),
             "required": False
         },
