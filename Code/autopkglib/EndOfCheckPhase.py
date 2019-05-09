@@ -18,7 +18,6 @@ phase"""
 
 from autopkglib import Processor
 
-
 __all__ = ["EndOfCheckPhase"]
 
 
@@ -29,7 +28,6 @@ class EndOfCheckPhase(Processor):
     output_variables = {
     }
     description = __doc__
-
 
     def main(self):
         return
