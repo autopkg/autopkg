@@ -15,20 +15,28 @@
 # limitations under the License.
 """See docstring for AppDmgVersioner class"""
 
-import os.path
+from __future__ import print_function
+
 import glob
+import os.path
+
+from autopkglib import ProcessorError
+from autopkglib.DmgMounter import DmgMounter
+
 #pylint: disable=no-name-in-module
 try:
     from Foundation import NSData, NSPropertyListSerialization
     from Foundation import NSPropertyListMutableContainers
 except:
-    print "WARNING: Failed 'from Foundation import NSData, NSPropertyListSerialization' in " + __name__
-    print "WARNING: Failed 'from Foundation import NSPropertyListMutableContainers' in " + __name__
+    print(
+        "WARNING: Failed 'from Foundation import NSData, "
+        "NSPropertyListSerialization' in " + __name__
+    )
+    print(
+        "WARNING: Failed 'from Foundation import "
+        "NSPropertyListMutableContainers' in " + __name__
+    )
 #pylint: enable=no-name-in-module
-
-from autopkglib.DmgMounter import DmgMounter
-from autopkglib import ProcessorError
-
 
 __all__ = ["AppDmgVersioner"]
 
@@ -107,4 +115,3 @@ class AppDmgVersioner(DmgMounter):
 if __name__ == '__main__':
     PROCESSOR = AppDmgVersioner()
     PROCESSOR.execute_shell()
-
