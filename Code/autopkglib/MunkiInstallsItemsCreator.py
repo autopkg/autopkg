@@ -15,15 +15,20 @@
 # limitations under the License.
 """See docstring for MunkiInstallsItemsCreator class"""
 
-import FoundationPlist
+from __future__ import print_function
+
 import subprocess
 
+import FoundationPlist
 from autopkglib import Processor, ProcessorError
+
 #pylint: disable=no-name-in-module
 try:
     from Foundation import NSDictionary
 except:
-    print "WARNING: Failed 'from Foundation import NSDictionary' in " + __name__
+    print(
+        "WARNING: Failed 'from Foundation import NSDictionary' in " + __name__
+    )
 #pylint: enable=no-name-in-module
 
 __all__ = ["MunkiInstallsItemsCreator"]
@@ -100,7 +105,7 @@ class MunkiInstallsItemsCreator(Processor):
             for item in installs_array:
                 cmp_key = None
                 # If it's a string, set it for all installs items
-                if isinstance(self.env["version_comparison_key"], basestring):
+                if isinstance(self.env["version_comparison_key"], str):
                     cmp_key = self.env["version_comparison_key"]
                 # It it's a dict, find if there's a key that matches a path
                 elif isinstance(
@@ -119,10 +124,9 @@ class MunkiInstallsItemsCreator(Processor):
                             "the installs item for path '%s'"
                             % (cmp_key, item["path"]))
 
-        if not "additional_pkginfo" in self.env:
+        if "additional_pkginfo" not in self.env:
             self.env["additional_pkginfo"] = {}
         self.env["additional_pkginfo"]["installs"] = installs_array
-
 
     def main(self):
         self.create_installs_items()
