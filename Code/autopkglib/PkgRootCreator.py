@@ -20,7 +20,6 @@ import shutil
 
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["PkgRootCreator"]
 
 
@@ -29,7 +28,7 @@ CHUNK_SIZE = 256 * 1024
 
 
 class PkgRootCreator(Processor):
-    """Creates a package root and a directory structure. 
+    """Creates a package root and a directory structure.
     (Can also be used to create directory structures for other purposes.)"""
     description = __doc__
     input_variables = {
@@ -94,4 +93,3 @@ class PkgRootCreator(Processor):
 if __name__ == '__main__':
     PROCESSOR = PkgRootCreator()
     PROCESSOR.execute_shell()
-
