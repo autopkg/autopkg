@@ -15,13 +15,15 @@
 # limitations under the License.
 """See docstring for StopProcessingIf class"""
 
+from __future__ import print_function
+
 from autopkglib import Processor, ProcessorError
 
 #pylint: disable=no-name-in-module
 try:
     from Foundation import NSPredicate
 except:
-    print "WARNING: Failed 'from Foundation import NSPredicate' in " + __name__
+    print("WARNING: Failed 'from Foundation import NSPredicate' in " + __name__)
 #pylint: disable=no-name-in-module
 
 __all__ = ["StopProcessingIf"]
@@ -50,7 +52,7 @@ class StopProcessingIf(Processor):
         '''Evaluates predicate against our environment dictionary'''
         try:
             predicate = NSPredicate.predicateWithFormat_(predicate_string)
-        except Exception, err:
+        except Exception as err:
             raise ProcessorError(
                 "Predicate error for '%s': %s"
                 % (predicate_string, err))
