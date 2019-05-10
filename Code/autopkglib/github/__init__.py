@@ -15,11 +15,14 @@
 # limitations under the License.
 """Routines for working with the GitHub API"""
 
+from __future__ import print_function
+
 import json
 import os
-import sys
 import re
 import subprocess
+import sys
+
 from autopkglib import curl_cmd, get_pref
 
 BASE_URL = "https://api.github.com"
@@ -37,9 +40,11 @@ class GitHubSession(object):
                 with open(TOKEN_LOCATION, "r") as tokenf:
                     self.token = tokenf.read()
             except IOError as err:
-                print >> sys.stderr, (
+                print(
                     "Couldn't read token file at %s! Error: %s"
-                    % (TOKEN_LOCATION, err))
+                    % (TOKEN_LOCATION, err),
+                    file=sys.stderr
+                )
                 self.token = None
         else:
             self.token = None
@@ -50,39 +55,42 @@ class GitHubSession(object):
         if it exists."""
 
         if not os.path.exists(TOKEN_LOCATION):
-            print """Create a new token in your GitHub settings page:
+            print("""Create a new token in your GitHub settings page:
 
     https://github.com/settings/tokens
 
-To save the token, paste it to the following prompt."""
+To save the token, paste it to the following prompt.""")
 
             token = raw_input("Token: ")
             if token:
-                print """Writing token file %s.""" % TOKEN_LOCATION
+                print("""Writing token file %s.""" % TOKEN_LOCATION)
                 try:
                     with open(TOKEN_LOCATION, "w") as tokenf:
                         tokenf.write(token)
-                    os.chmod(TOKEN_LOCATION, 0600)
+                    os.chmod(TOKEN_LOCATION, 0o600)
                 except IOError as err:
-                    print >> sys.stderr, (
+                    print(
                         "Couldn't write token file at %s! Error: %s"
-                        % (TOKEN_LOCATION, err))
+                        % (TOKEN_LOCATION, err),
+                        file=sys.stderr
+                    )
             else:
-                print >> sys.stderr, ("Skipping token file creation.")
+                print("Skipping token file creation.")
         else:
             try:
                 with open(TOKEN_LOCATION, "r") as tokenf:
                     token = tokenf.read()
             except IOError as err:
-                print >> sys.stderr, (
+                print(
                     "Couldn't read token file at %s! Error: %s"
-                    % (TOKEN_LOCATION, err))
+                    % (TOKEN_LOCATION, err),
+                    file=sys.stderr
+                )
 
             # TODO: validate token given we found one but haven't checked its
             # auth status
 
         self.token = token
-
 
     def call_api(self, endpoint, method="GET", query=None, data=None,
                  headers=None, accept="application/vnd.github.v3+json"):
@@ -101,7 +109,7 @@ To save the token, paste it to the following prompt."""
         # Compose the URL
         url = BASE_URL + endpoint
         if query:
-            url += "?" + query 
+            url += "?" + query
 
         try:
             # Compose the curl command
@@ -136,7 +144,7 @@ To save the token, paste it to the following prompt."""
 
             # Final argument to curl is the URL
             cmd.append(url)
-            
+
             # Start the curl process
             proc = subprocess.Popen(
                 cmd,
@@ -145,13 +153,13 @@ To save the token, paste it to the following prompt."""
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-            
+
             header = {}
             header['http_result_code'] = '000'
             header['http_result_description'] = ''
             donewithheaders = False
             maxheaders = 15
-    
+
             page_content = ""
 
             # Parse the headers and the JSON from curl output
@@ -179,7 +187,7 @@ To save the token, paste it to the following prompt."""
                 else:
                     page_content += info
 
-                if (proc.poll() != None):
+                if (proc.poll() is not None):
                     # For small download files curl may exit before all headers
                     # have been parsed, don't immediately exit.
                     maxheaders -= 1
@@ -203,17 +211,16 @@ To save the token, paste it to the following prompt."""
                         m = re.match(r".* (?P<status_code>\d+) .*", curlerr)
                         if m.group('status_code'):
                             header['http_result_code'] = m.group('status_code')
-                print >> sys.stderr, 'Could not retrieve URL %s: %s' % (url, curlerr)
-            
+                print('Could not retrieve URL %s: %s' % (url, curlerr))
+
             if page_content:
                 resp_data = json.loads(page_content)
             else:
                 resp_data = None
 
         except OSError:
-            print >> sys.stderr, 'Could not retrieve URL: %s' % url
+            print('Could not retrieve URL: %s' % url)
             resp_data = None
-        
+
         http_result_code = int(header.get('http_result_code'))
         return (resp_data, http_result_code)
-
