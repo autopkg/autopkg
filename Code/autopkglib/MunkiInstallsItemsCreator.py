@@ -105,7 +105,7 @@ class MunkiInstallsItemsCreator(Processor):
             for item in installs_array:
                 cmp_key = None
                 # If it's a string, set it for all installs items
-                if isinstance(self.env["version_comparison_key"], str):
+                if isinstance(self.env["version_comparison_key"], basestring):
                     cmp_key = self.env["version_comparison_key"]
                 # It it's a dict, find if there's a key that matches a path
                 elif isinstance(
