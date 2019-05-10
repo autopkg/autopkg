@@ -17,9 +17,9 @@
 
 import os.path
 
+import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
-import FoundationPlist
 
 __all__ = ["Versioner"]
 
@@ -72,7 +72,7 @@ class Versioner(DmgMounter):
                 self.env['version'] = plist.get(version_key, "UNKNOWN_VERSION")
                 self.output("Found version %s in file %s"
                             % (self.env['version'], input_plist_path))
-            except FoundationPlist.FoundationPlistException, err:
+            except FoundationPlist.FoundationPlistException as err:
                 raise ProcessorError(err)
 
         finally:
@@ -83,4 +83,3 @@ class Versioner(DmgMounter):
 if __name__ == '__main__':
     PROCESSOR = Versioner()
     PROCESSOR.execute_shell()
-
