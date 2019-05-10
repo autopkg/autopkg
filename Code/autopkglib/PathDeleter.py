@@ -15,10 +15,10 @@
 # limitations under the License.
 """See docstring for PathDeleter class"""
 
-from autopkglib import Processor, ProcessorError
-import shutil
 import os
+import shutil
 
+from autopkglib import Processor, ProcessorError
 
 __all__ = ["PathDeleter"]
 
@@ -57,7 +57,7 @@ class PathDeleter(Processor):
                         "Could not remove %s - it is not a file, link, "
                         "or directory" % path)
                 self.output("Deleted %s" % path)
-            except OSError, err:
+            except OSError as err:
                 raise ProcessorError(
                     "Could not remove %s: %s" % (path, err))
 
