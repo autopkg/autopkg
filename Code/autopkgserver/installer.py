@@ -18,6 +18,7 @@ disk image file.'''
 
 import subprocess
 
+
 class InstallerError(Exception):
     '''Base error for Installer errors'''
     pass
@@ -38,12 +39,11 @@ class Installer(object):
         self.socket = socket
         self.request = request
 
-
     def verify_request(self):
         '''Make sure copy request has everything we need'''
         self.log.debug("Verifying install request")
         for key in ["package"]:
-            if not key in self.request:
+            if key not in self.request:
                 raise InstallerError("ERROR:No %s in request" % key)
 
     def do_install(self):
@@ -58,7 +58,7 @@ class Installer(object):
                                     stderr=subprocess.STDOUT)
             while True:
                 output = proc.stdout.readline().decode('UTF-8')
-                if not output and (proc.poll() != None):
+                if not output and (proc.poll() is not None):
                     break
                 self.socket.send("STATUS:%s" % output.encode('UTF-8'))
                 self.log.info(output.rstrip())
