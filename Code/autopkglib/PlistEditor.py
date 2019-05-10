@@ -15,9 +15,8 @@
 # limitations under the License.
 """See docstring for PlistEditor class"""
 
-from autopkglib import Processor, ProcessorError
 import FoundationPlist
-
+from autopkglib import Processor, ProcessorError
 
 __all__ = ["PlistEditor"]
 
@@ -57,7 +56,7 @@ class PlistEditor(Processor):
             return {}
         try:
             return FoundationPlist.readPlist(pathname)
-        except Exception, err:
+        except Exception as err:
             raise ProcessorError(
                 'Could not read %s: %s' % (pathname, err))
 
@@ -66,7 +65,7 @@ class PlistEditor(Processor):
         #pylint: disable=no-self-use
         try:
             FoundationPlist.writePlist(data, pathname)
-        except Exception, err:
+        except Exception as err:
             raise ProcessorError(
                 'Could not write %s: %s' % (pathname, err))
 
@@ -82,6 +81,7 @@ class PlistEditor(Processor):
         # write changed plist
         self.write_plist(working_plist, self.env["output_plist_path"])
         self.output("Updated plist at %s" % self.env["output_plist_path"])
+
 
 if __name__ == '__main__':
     PROCESSOR = PlistEditor()
