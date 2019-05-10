@@ -233,6 +233,10 @@ class SparkleUpdateInfoProvider(Processor):
         """Get URL for latest version in update feed"""
         def compare_version(this, that):
             """Compare loose versions"""
+            # cmp() doesn't exist in Python3, so this uses the suggested
+            # solutions from What's New In Python 3.0:
+            # https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
+            # This will be refactored in Python 3.
             this_comparison = LooseVersion(this) > LooseVersion(that)
             that_comparison = LooseVersion(this) < LooseVersion(that)
             return this_comparison - that_comparison
