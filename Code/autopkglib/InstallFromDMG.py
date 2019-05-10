@@ -44,7 +44,7 @@ class InstallFromDMG(DmgMounter):
                 "Each item should contain 'source_item' and "
                 "'destination_path', and may optionally include: "
                 "'destination_item' to rename the item on copy, and "
-                "'user', 'group' and 'mode' to explictly set those items.")
+                "'user', 'group' and 'mode' to explicitly set those items.")
         },
         "download_changed": {
             "required": False,
