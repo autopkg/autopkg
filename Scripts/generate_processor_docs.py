@@ -23,6 +23,7 @@ import optparse
 import os
 import sys
 from tempfile import mkdtemp
+from textwrap import dedent
 
 #pylint: disable=import-error
 # Grabbing some functions from the Code directory
@@ -98,18 +99,22 @@ def indent_length(line_str):
 
 def main(_):
     """Do it all"""
-    usage = """%prog VERSION
+    usage = dedent("""%prog VERSION
 
-..where VERSION is the release version for which docs are being generated."""
+    ..where VERSION is the release version for which docs are being generated.""")
     parser = optparse.OptionParser(usage=usage)
     parser.description = (
         "Generate GitHub Wiki documentation from the core processors present "
         "in autopkglib. The autopkg.wiki repo is cloned locally, changes are "
         "committed, a diff shown and the user is interactively given the "
         "option to push to the remote.")
-    parser.add_option("-d", "--directory", metavar="CLONEDIRECTORY",
-                      help=("Directory path in which to clone the repo. If not "
-                            "specified, a temporary directory will be used."))
+    parser.add_option(
+        "-d", "--directory", metavar="CLONEDIRECTORY",
+        help=(
+            "Directory path in which to clone the repo. If not "
+            "specified, a temporary directory will be used."
+        )
+    )
     options, arguments = parser.parse_args()
     if len(arguments) < 1:
         parser.print_usage()
@@ -167,7 +172,7 @@ def main(_):
     processor_heading = "  * **Processor Reference**"
     toc_string = ""
     toc_string += processor_heading + "\n"
-    for processor_name in processor_names():
+    for processor_name in sorted(processor_names()):
         page_name = "Processor-%s" % processor_name
         page_name.replace(" ", "-")
         toc_string += "      * [[%s|%s]]\n" % (processor_name, page_name)
