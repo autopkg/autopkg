@@ -20,12 +20,12 @@
 #pylint: disable=e1101,f0401
 
 import re
-import urllib2
 
 import autopkglib.github
 from autopkglib import Processor, ProcessorError
 
 __all__ = ["GitHubReleasesInfoProvider"]
+
 
 class GitHubReleasesInfoProvider(Processor):
     #pylint: disable=missing-docstring
@@ -74,7 +74,6 @@ class GitHubReleasesInfoProvider(Processor):
 
     __doc__ = description
 
-
     def get_releases(self, repo):
         """Return a list of releases dicts for a given GitHub repo. repo must
         be of the form 'user/repo'"""
@@ -91,7 +90,6 @@ class GitHubReleasesInfoProvider(Processor):
             raise ProcessorError("No releases found for repo '%s'" % repo)
 
         return releases
-
 
     def select_asset(self, releases, regex):
         """Iterates through the releases in order and determines the first
@@ -135,7 +133,6 @@ class GitHubReleasesInfoProvider(Processor):
                     (self.selected_asset["name"],
                      self.selected_release["name"]))
 
-
     def process_release_asset(self):
         """Extract what we need from the release and chosen asset, set env
         variables"""
@@ -147,7 +144,6 @@ class GitHubReleasesInfoProvider(Processor):
         self.env["url"] = self.selected_asset["browser_download_url"]
         self.env["version"] = tag
 
-
     def main(self):
         # Get our list of releases
         releases = self.get_releases(self.env["github_repo"])
@@ -155,8 +151,14 @@ class GitHubReleasesInfoProvider(Processor):
             from operator import itemgetter
 
             def loose_compare(this, that):
+                # cmp() doesn't exist in Python3, so this uses the suggested
+                # solutions from What's New In Python 3.0:
+                # https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
+                # This will be refactored in Python 3.
                 from distutils.version import LooseVersion
-                return cmp(LooseVersion(this), LooseVersion(that))
+                this_comparison = LooseVersion(this) > LooseVersion(that)
+                that_comparison = LooseVersion(this) < LooseVersion(that)
+                return this_comparison - that_comparison
 
             releases = sorted(releases,
                               key=itemgetter("tag_name"),
