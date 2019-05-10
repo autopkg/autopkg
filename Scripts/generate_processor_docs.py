@@ -24,18 +24,25 @@ import os
 import sys
 from tempfile import mkdtemp
 
-from autopkg import run_git
-from autopkglib import get_processor, processor_names
-
 #pylint: disable=import-error
 # Grabbing some functions from the Code directory
-CODE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../Code"))
-sys.path.append(CODE_DIR)
+try:
+    CODE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../Code"))
+    sys.path.append(CODE_DIR)
+    from autopkglib import get_processor, processor_names
+except ImportError:
+    print("Unable to import code from autopkglib!", file=sys.stderr)
+    sys.exit(1)
 
 # Additional helper function(s) from the CLI tool
 # Don't make an "autopkgc" file
-sys.dont_write_bytecode = True
-imp.load_source("autopkg", os.path.join(CODE_DIR, "autopkg"))
+try:
+    sys.dont_write_bytecode = True
+    imp.load_source("autopkg", os.path.join(CODE_DIR, "autopkg"))
+    from autopkg import run_git
+except ImportError:
+    print("Unable to import code from autopkg!", file=sys.stderr)
+    sys.exit(1)
 #pylint: enable=import-error
 
 
