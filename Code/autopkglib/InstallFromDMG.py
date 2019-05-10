@@ -17,11 +17,10 @@
 
 import os.path
 import socket
-import FoundationPlist
 
+import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
-
 
 AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
 
@@ -156,4 +155,3 @@ class InstallFromDMG(DmgMounter):
 if __name__ == '__main__':
     PROCESSOR = InstallFromDMG()
     PROCESSOR.execute_shell()
-
