@@ -151,6 +151,10 @@ class GitHubReleasesInfoProvider(Processor):
             from operator import itemgetter
 
             def loose_compare(this, that):
+                # cmp() doesn't exist in Python3, so this uses the suggested
+                # solutions from What's New In Python 3.0:
+                # https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
+                # This will be refactored in Python 3.
                 from distutils.version import LooseVersion
                 this_comparison = LooseVersion(this) > LooseVersion(that)
                 that_comparison = LooseVersion(this) < LooseVersion(that)
