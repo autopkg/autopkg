@@ -40,7 +40,7 @@ imp.load_source("autopkg", os.path.join(CODE_DIR, "autopkg"))
 
 
 def writefile(stringdata, path):
-    '''Writes string data to path.'''
+    """Writes string data to path."""
     try:
         fileobject = open(path, mode='w', buffering=1)
         print(stringdata.encode('UTF-8'), file=fileobject)
@@ -50,8 +50,8 @@ def writefile(stringdata, path):
 
 
 def escape(thing):
-    '''Returns string with underscores and asterisks escaped
-    for use with Markdown'''
+    """Returns string with underscores and asterisks escaped
+    for use with Markdown"""
     string = str(thing)
     string = string.replace("_", r"\_")
     string = string.replace("*", r"\*")
@@ -59,7 +59,7 @@ def escape(thing):
 
 
 def generate_markdown(dict_data, indent=0):
-    '''Returns a string with Markup-style formatting of dict_data'''
+    """Returns a string with Markup-style formatting of dict_data"""
     string = ""
     for key, value in dict_data.items():
         if isinstance(value, dict):
@@ -72,9 +72,9 @@ def generate_markdown(dict_data, indent=0):
 
 
 def clone_wiki_dir(clone_dir=None):
-    '''Clone the AutoPkg GitHub repo and return the path to where it was
+    """Clone the AutoPkg GitHub repo and return the path to where it was
     cloned. The path can be specified with 'clone_dir', otherwise a
-    temporary directory will be used.'''
+    temporary directory will be used."""
 
     if not clone_dir:
         outdir = mkdtemp()
@@ -85,7 +85,7 @@ def clone_wiki_dir(clone_dir=None):
 
 
 def indent_length(line_str):
-    '''Returns the indent length of a given string as an integer.'''
+    """Returns the indent length of a given string as an integer."""
     return len(line_str) - len(line_str.lstrip())
 
 
