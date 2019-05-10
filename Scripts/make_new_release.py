@@ -13,7 +13,9 @@
 # Requires an OAuth token with push access to the repo. Currently the GitHub
 # Releases API is in a 'preview' status, and this script does very little error
 # handling.
-'''See docstring for main() function'''
+"""See docstring for main() function"""
+
+from __future__ import print_function
 
 import json
 import optparse
@@ -24,26 +26,26 @@ import subprocess
 import sys
 import tempfile
 import urllib2
-
 from distutils.version import LooseVersion
 from pprint import pprint
 from shutil import rmtree
 from time import strftime
 
+
 class GitHubAPIError(BaseException):
-    '''Base error for GitHub API interactions'''
+    """Base error for GitHub API interactions"""
     pass
 
 
 def api_call(endpoint, token, baseurl='https://api.github.com', data=None,
              json_data=True, additional_headers=None):
-    '''endpoint: of the form '/repos/username/repo/etc'.
+    """endpoint: of the form '/repos/username/repo/etc'.
     token: the API token for Authorization.
     baseurl: the base URL for the API endpoint. for asset uploads this ends up
              needing to be overridden.
     data: takes a standard python object and serializes to json for a POST,
           unless json_data is False.
-    additional_headers: a dict of additional headers for the API call'''
+    additional_headers: a dict of additional headers for the API call"""
     if data and json_data:
         data = json.dumps(data, ensure_ascii=False)
     headers = {'Accept': 'application/vnd.github.v3+json',
@@ -56,38 +58,39 @@ def api_call(endpoint, token, baseurl='https://api.github.com', data=None,
     try:
         results = urllib2.urlopen(req, data=data)
     except urllib2.HTTPError as err:
-        print >> sys.stderr, "HTTP error making API call!"
-        print >> sys.stderr, err
+        print("HTTP error making API call!", file=sys.stderr)
+        print(err, file=sys.stderr)
         error_json = err.read()
         error = json.loads(error_json)
-        print >> sys.stderr, "API message: %s" % error['message']
+        print("API message: %s" % error['message'], file=sys.stderr)
         sys.exit(1)
     if results:
         try:
             parsed = json.loads(results.read())
             return parsed
         except BaseException as err:
-            print >> sys.stderr, err
+            print(err, file=sys.stderr)
             raise GitHubAPIError
     return None
 
 
 def main():
-    """Builds and pushes a new AutoPkg release from an existing Git clone
-of AutoPkg.
+    """
+    Builds and pushes a new AutoPkg release from an existing Git clone
+    of AutoPkg.
 
-Requirements:
+    Requirements:
 
-API token:
-You'll need an API OAuth token with push access to the repo. You can create a
-Personal Access Token in your user's Account Settings:
-https://github.com/settings/applications
+    API token:
+    You'll need an API OAuth token with push access to the repo. You can create a
+    Personal Access Token in your user's Account Settings:
+    https://github.com/settings/applications
 
-autopkgserver components:
-This script does not perform the bootstrap steps performed by the install.sh
-script, which are needed to have a working pkgserver component. This must
-be done as root, so it's best done as a separate process.
-"""
+    autopkgserver components:
+    This script does not perform the bootstrap steps performed by the install.sh
+    script, which are needed to have a working pkgserver component. This must
+    be done as root, so it's best done as a separate process.
+    """
     usage = __doc__
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('-t', '--token',
@@ -116,7 +119,7 @@ be done as root, so it's best done as a separate process.
         sys.exit("Option --token is required!")
     next_version = opts.next_version
     if opts.dry_run:
-        print "Running in 'dry-run' mode.."
+        print("Running in 'dry-run' mode..")
     publish_user, publish_repo = opts.user_repo.split('/')
     token = opts.token
 
@@ -142,7 +145,7 @@ be done as root, so it's best done as a separate process.
         current_version = plist['Version']
     except BaseException:
         sys.exit("Couldn't determine current autopkg version!")
-    print "Current AutoPkg version: %s" % current_version
+    print("Current AutoPkg version: %s" % current_version)
     if LooseVersion(next_version) <= LooseVersion(current_version):
         sys.exit(
             "Next version (gave %s) must be greater than current version %s!"
@@ -155,10 +158,12 @@ be done as root, so it's best done as a separate process.
         '/repos/%s/%s/releases' % (publish_user, publish_repo), token)
     for rel in published_releases:
         if rel['tag_name'] == tag_name:
-            print >> sys.stderr, (
+            print(
                 "There's already a published release on GitHub with the tag "
                 "{0}. It should first be manually removed. "
-                "Release data printed below:".format(tag_name))
+                "Release data printed below:".format(tag_name),
+                file=sys.stderr
+            )
             pprint(rel, stream=sys.stderr)
             sys.exit()
 
@@ -203,13 +208,15 @@ be done as root, so it's best done as a separate process.
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
     out, err = proc.communicate()
-    print out
-    print >> sys.stderr, err
+    print(out)
+    print(err, file=sys.stderr)
     try:
         report = plistlib.readPlist(report_plist_path)
     except BaseException as err:
-        print >> sys.stderr, (
-            "Couldn't parse a valid report plist from the autopkg run!")
+        print(
+            "Couldn't parse a valid report plist from the autopkg run!",
+            file=sys.stderr
+        )
         sys.exit(err)
     os.remove(report_plist_path)
 
@@ -240,9 +247,9 @@ be done as root, so it's best done as a separate process.
             token,
             data=release_data)
         if create_release:
-            print "Release successfully created. Server response:"
+            print("Release successfully created. Server response:")
             pprint(create_release)
-            print
+            print()
 
             # upload the pkg as a release asset
             new_release_id = create_release['id']
@@ -259,13 +266,14 @@ be done as root, so it's best done as a separate process.
                 json_data=False,
                 additional_headers={'Content-Type': 'application/octet-stream'})
             if upload_asset:
-                print ("Successfully attached .pkg release asset. Server "
-                       "response:")
+                print(
+                    "Successfully attached .pkg release asset. Server response:"
+                )
                 pprint(upload_asset)
-                print
+                print()
 
     # increment version
-    print "Incrementing version to %s.." % next_version
+    print("Incrementing version to %s.." % next_version)
     plist['Version'] = next_version
     plistlib.writePlist(plist, version_plist_path)
 
@@ -286,8 +294,10 @@ be done as root, so it's best done as a separate process.
     if not opts.dry_run:
         subprocess.check_call(['git', 'push', 'origin', 'master'])
     else:
-        print ("Ended dry-run mode. Final state of the AutoPkg repo can be "
-               "found at: %s" % autopkg_root)
+        print(
+            "Ended dry-run mode. Final state of the AutoPkg repo can be "
+            "found at: %s" % autopkg_root
+        )
     # clean up
     rmtree(recipes_dir)
 
