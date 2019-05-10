@@ -16,24 +16,26 @@
 """A utility to export info from autopkg processors and upload it as processor
 documentation for the GitHub autopkg wiki"""
 
-import imp
-import os
-import optparse
-import sys
+from __future__ import print_function
 
+import imp
+import optparse
+import os
+import sys
 from tempfile import mkdtemp
+
+from autopkg import run_git
+from autopkglib import get_processor, processor_names
 
 #pylint: disable=import-error
 # Grabbing some functions from the Code directory
 CODE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../Code"))
 sys.path.append(CODE_DIR)
-from autopkglib import get_processor, processor_names
 
 # Additional helper function(s) from the CLI tool
 # Don't make an "autopkgc" file
 sys.dont_write_bytecode = True
 imp.load_source("autopkg", os.path.join(CODE_DIR, "autopkg"))
-from autopkg import run_git
 #pylint: enable=import-error
 
 
@@ -41,10 +43,10 @@ def writefile(stringdata, path):
     '''Writes string data to path.'''
     try:
         fileobject = open(path, mode='w', buffering=1)
-        print >> fileobject, stringdata.encode('UTF-8')
+        print(stringdata.encode('UTF-8'), file=fileobject)
         fileobject.close()
     except (OSError, IOError):
-        print >> sys.stderr, "Couldn't write to %s" % path
+        print("Couldn't write to %s" % path, file=fileobject)
 
 
 def escape(thing):
@@ -109,18 +111,17 @@ def main(_):
     # Grab the version for the commit log.
     version = arguments[0]
 
-    print "Cloning AutoPkg wiki.."
-    print
+    print("Cloning AutoPkg wiki..")
+    print()
 
     if options.directory:
         output_dir = clone_wiki_dir(clone_dir=options.directory)
     else:
         output_dir = clone_wiki_dir()
 
-    print "Cloned to %s." % output_dir
-    print
-    print
-
+    print("Cloned to %s." % output_dir)
+    print()
+    print()
 
     # Generate markdown pages for each processor attributes
     for processor_name in processor_names():
@@ -164,7 +165,6 @@ def main(_):
         page_name.replace(" ", "-")
         toc_string += "      * [[%s|%s]]\n" % (processor_name, page_name)
 
-
     # Merge in the new stuff!
     # - Scrape through the current _Sidebar.md, look for where the existing
     # processors block starts and ends
@@ -184,8 +184,10 @@ def main(_):
         if line == processor_heading:
             past_processors_section = True
             processors_start = index
-        if (indent_length(line) <= section_indent) and \
-        past_processors_section:
+        if (
+            (indent_length(line) <= section_indent)
+            and past_processors_section
+        ):
             processors_end = index
 
     # Build the new sidebar
@@ -203,12 +205,12 @@ def main(_):
     run_git(["commit", "-m", "Updating Wiki docs for release %s" % version])
 
     # Show the full diff
-    print run_git(["log", "-p", "--color", "-1"])
+    print(run_git(["log", "-p", "--color", "-1"]))
 
     # Do we accept?
-    print "-------------------------------------------------------------------"
-    print
-    print (
+    print("-------------------------------------------------------------------")
+    print()
+    print(
         "Shown above is the commit log for the changes to the wiki markdown. \n"
         "Type 'push' to accept and push the changes to GitHub. The wiki repo \n"
         "local clone can be also inspected at:\n"
@@ -217,6 +219,7 @@ def main(_):
     push_commit = raw_input()
     if push_commit == "push":
         run_git(["push", "origin", "master"])
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))
