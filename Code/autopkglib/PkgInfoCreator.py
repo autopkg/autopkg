@@ -15,13 +15,12 @@
 # limitations under the License.
 """See docstring for PkgInfoCreator class"""
 
-import os
-import FoundationPlist
 import math
+import os
 from xml.etree import ElementTree
 
+import FoundationPlist
 from autopkglib import Processor, ProcessorError
-
 
 __all__ = ["PkgInfoCreator"]
 
@@ -55,8 +54,8 @@ class PkgInfoCreator(Processor):
     }
 
     def find_template(self):
-        '''Searches for the template, looking in the recipe directory
-        and parent recipe directories if needed.'''
+        """Searches for the template, looking in the recipe directory
+        and parent recipe directories if needed."""
         template_path = self.env['template_path']
         if os.path.exists(template_path):
             return template_path
@@ -85,7 +84,7 @@ class PkgInfoCreator(Processor):
             self.create_flat_info(template)
 
     def convert_bundle_info_to_flat(self, info):
-        '''Converts pkg info from bundle format to flat format'''
+        """Converts pkg info from bundle format to flat format"""
         #pylint: disable=no-self-use
         # Since we now only support flat packages, we might be able to
         # get rid of this in the near future, but all existing recipes
@@ -122,7 +121,7 @@ class PkgInfoCreator(Processor):
         return ElementTree.ElementTree(pkg_info)
 
     def convert_flat_info_to_bundle(self, info):
-        '''Converts pkg info from flat format to bundle format'''
+        """Converts pkg info from flat format to bundle format"""
         # since we now only support flat packages, just raise an exception
         #pylint: disable=unused-argument
         #pylint: disable=no-self-use
@@ -194,14 +193,14 @@ class PkgInfoCreator(Processor):
         info.write(self.env['infofile'])
 
     def create_bundle_info(self, template):
-        '''create Info.plist data for bundle-style pkg'''
+        """Create Info.plist data for bundle-style pkg"""
         # We don't support the creation of bundle-style pkgs
         # any longer, so raise an exception
         #pylint: disable=unused-argument
         #pylint: disable=no-self-use
         raise ProcessorError("Bundle package creation no longer supported!")
 
+
 if __name__ == '__main__':
     PROCESSOR = PkgInfoCreator()
     PROCESSOR.execute_shell()
-
