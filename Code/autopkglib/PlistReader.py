@@ -17,13 +17,12 @@
 # limitations under the License.
 """See docstring for PlistReader class"""
 
-import os.path
 import glob
+import os.path
+
 import FoundationPlist
-
-from autopkglib.DmgMounter import DmgMounter
 from autopkglib import ProcessorError
-
+from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["PlistReader"]
 
@@ -81,16 +80,18 @@ class PlistReader(DmgMounter):
         # filter out any symlinks that don't have extensions
         # - common case is a symlink to 'Applications', which
         #   we don't want to exhaustively search
-        filtered = [f for f in files
-                    if not(os.path.islink(f) and
-                           not os.path.splitext(os.path.basename(f))[1])]
+        filtered = [
+            f for f in files if not (
+                os.path.islink(f)
+                and not os.path.splitext(os.path.basename(f))[1]
+            )
+        ]
 
         for test_bundle in filtered:
             bundle_path = self.get_bundle_info_path(test_bundle)
             if bundle_path:
                 return bundle_path
         return None
-
 
     def get_bundle_info_path(self, path):
         """Return full path to an Info.plist if 'path' is actually a bundle,
@@ -110,7 +111,6 @@ class PlistReader(DmgMounter):
                 if plist:
                     bundle_info_path = test_info_path
         return bundle_info_path
-
 
     def main(self):
         keys = self.env.get('plist_keys')
