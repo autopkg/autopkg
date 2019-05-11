@@ -2133,11 +2133,15 @@ def run_recipes(argv):
                     if key not in summary_results:
                         summary_results[key] = {}
                         summary_results[key]['summary_text'] = summary_text
-                        if type(data).__name__ in ['dict', '__NSCFDictionary']:
+                        if type(data).__name__ != 'list':
+                            data = [data]
+                        if type(data[0]).__name__ in ['dict', '__NSCFDictionary']:
                             summary_results[key]['header'] = (
-                                result.get('report_fields') or data.keys())
-                        summary_results[key]['data_rows'] = []
-                    summary_results[key]['data_rows'].append(data)
+                                result.get('report_fields') or data[0].keys())
+                        if not 'data_rows' in summary_results[key]:
+                            summary_results[key]['data_rows'] = []
+                        for item in data:
+                            summary_results[key]['data_rows'].append(item)
 
         # save receipt
         if os.path.exists(receipt_dir):
