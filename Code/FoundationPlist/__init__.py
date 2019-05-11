@@ -8,3 +8,5 @@ except:
         "WARNING: using 'from plistlib import *' instead of 'from "
         "FoundationPlist import *' in " + __name__
     )
+    from plistlib import *
+
