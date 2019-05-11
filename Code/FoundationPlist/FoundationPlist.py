@@ -43,10 +43,9 @@ and writePlistToString().
 
 import os
 
-from Foundation import NSData, \
-                       NSPropertyListSerialization, \
-                       NSPropertyListMutableContainersAndLeaves, \
-                       NSPropertyListXMLFormat_v1_0
+from Foundation import (NSData, NSPropertyListMutableContainersAndLeaves,
+                        NSPropertyListSerialization,
+                        NSPropertyListXMLFormat_v1_0)
 
 
 class FoundationPlistException(Exception):
@@ -79,7 +78,9 @@ def _dataToPlist(data):
         # so use the older NSPropertyListSerialization function
         (plistObject, plistFormat, error) = (
             NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
-                         data, NSPropertyListMutableContainersAndLeaves, None, None))
+                data, NSPropertyListMutableContainersAndLeaves, None, None
+            )
+        )
     if plistObject is None:
         if error is None:
             error = "Plist data is invalid and could not be deserialized."
@@ -113,7 +114,7 @@ def readPlist(filepath):
     (which is usually a dictionary).'''
     try:
         data = NSData.dataWithContentsOfFile_(filepath)
-    except NSPropertyListSerializationException, error:
+    except NSPropertyListSerializationException as error:
         # insert filepath info into error message
         errmsg = (u'%s in %s' % (error, filepath))
         raise NSPropertyListSerializationException(errmsg)
