@@ -172,7 +172,7 @@ def main(_):
     processor_heading = "  * **Processor Reference**"
     toc_string = ""
     toc_string += processor_heading + "\n"
-    for processor_name in sorted(processor_names()):
+    for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
         page_name = "Processor-%s" % processor_name
         page_name.replace(" ", "-")
         toc_string += "      * [[%s|%s]]\n" % (processor_name, page_name)
