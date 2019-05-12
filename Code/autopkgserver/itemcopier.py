@@ -14,23 +14,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-'''Copies stuff from a diskimage to the current boot disk. Really useful for
+"""Copies stuff from a diskimage to the current boot disk. Really useful for
 drag-n-drop vendor disk images so we don't have to package it first to install
-it'''
+it"""
 
 import os
 import stat
 import subprocess
+
 import xattr
 
 
 class ItemCopierError(Exception):
-    '''Base error for ItemCopier errors'''
+    """Base error for ItemCopier errors"""
     pass
 
 
 class ItemCopier(object):
-    '''Copies items from a mount_point to the current root volume'''
+    """Copies items from a mount_point to the current root volume"""
 
     def __init__(self, log, socket, request):
         """Arguments:
@@ -45,21 +46,21 @@ class ItemCopier(object):
         self.request = request
 
     def verify_request(self):
-        '''Make sure copy request has everything we need'''
+        """Make sure copy request has everything we need"""
         self.log.debug("Verifying copy_from_dmg request")
         for key in ["mount_point", "items_to_copy"]:
-            if not key in self.request:
+            if key not in self.request:
                 raise ItemCopierError("No %s in request" % key)
         for item in self.request["items_to_copy"]:
-            if not "source_item" in item:
+            if "source_item" not in item:
                 raise ItemCopierError(
                     "Missing source_item in items_to_copy item")
-            if not "destination_path" in item:
+            if "destination_path" not in item:
                 raise ItemCopierError(
                     "Missing destination_path in items_to_copy item")
 
     def copy_items(self):
-        '''copies items from the mountpoint to the startup disk
+        """copies items from the mountpoint to the startup disk
         Returns 0 if no issues; some error code otherwise.
 
         self.request['items_to_copy'] is a list of dictionaries;
@@ -67,7 +68,7 @@ class ItemCopier(object):
         may optionally include:
         destination_item to rename the item on copy
         user, group and mode to explictly set those items
-        '''
+        """
         mountpoint = self.request['mount_point']
         for item in self.request['items_to_copy']:
 
