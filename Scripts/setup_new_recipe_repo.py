@@ -20,13 +20,14 @@
 create a new team specifically for the duplicate repo, and assign the source
 repo author to this team."""
 
+from __future__ import print_function
+
 import json
 import optparse
 import os
 import subprocess
 import sys
 import urllib2
-
 from pprint import pprint
 from tempfile import mkdtemp
 
@@ -85,13 +86,13 @@ def call_api(endpoint, method="GET", query=None, data=None, headers=None,
             resp_data = json.loads(response)
     except urllib2.HTTPError as err:
         status = err.code
-        print >> sys.stderr, "API error: %s" % err
+        print("API error: %s" % err, file=sys.stderr)
         try:
             error_json = json.loads(err.read())
-            print >> sys.stderr, "Server response:"
+            print("Server response:", file=sys.stderr)
             pprint(error_json, stream=sys.stderr)
         except BaseException:
-            print >> sys.stderr, err.read()
+            print(err.read(), file=sys.stderr)
     return (resp_data, status)
 
 
@@ -154,12 +155,12 @@ def main():
     repo_components = repo_arg.split("/")
     source_repo_user = repo_components[-2]
     source_repo_name = repo_components[-1]
-    print ("Using source repo: user %s, repo %s"
+    print("Using source repo: user %s, repo %s"
            % (source_repo_user, source_repo_name))
     destination_repo_name = (opts.destination_repo_name
                              or source_repo_user + "-recipes")
     dest_org = opts.destination_org
-    print "Will clone to %s/%s.." % (dest_org, destination_repo_name)
+    print("Will clone to %s/%s.." % (dest_org, destination_repo_name))
     global TOKEN
     TOKEN = opts.token
 
@@ -175,7 +176,10 @@ def main():
     # Pick who's going to be the new team member
     new_team_member = source_repo_user
     if src_repo["owner"]["type"] == "Organization":
-        print "The source repo '%s' is owned by an organization." % source_repo_name
+        print(
+            "The source repo '%s' is owned by an organization." %
+            source_repo_name
+        )
         if not opts.org_team_member:
             sys.exit("You must also specify the '--org-team-member' option to "
                      "specify the user that will be added to the new team.")
@@ -188,7 +192,7 @@ def main():
 
     # Get the existing repos of the destination user or org
     dest_repos = []
-    print "Fetching %s's public repos.." % dest_org
+    print("Fetching %s's public repos.." % dest_org)
     dest_repos_result, code = call_api("/users/%s/repos" % dest_org)
     if dest_repos_result:
         dest_repos = [r["name"] for r in dest_repos_result]
@@ -227,7 +231,7 @@ Type 'yes' to proceed: """ % (repo_arg,
                        data=new_repo_data)
 
     # Create new team in the org for use with this repo
-    print "Creating new team: %s.." % new_team_name
+    print("Creating new team: %s.." % new_team_name)
     new_team_data = {
         "name": new_team_name,
         "permission": opts.permission_level,
@@ -244,12 +248,14 @@ Type 'yes' to proceed: """ % (repo_arg,
                               % (new_team["id"], auth_user))
     _, code = call_api(remove_member_endpoint, method="DELETE")
     if code != 204:
-        print >> sys.stderr, ("Warning: Unexpected HTTP result on removing "
-                              "%s from new team." % auth_user)
+        print(
+            "Warning: Unexpected HTTP result on removing "
+            "%s from new team." % auth_user, file=sys.stderr
+        )
 
     # Add the user to the new team
     # https://developer.github.com/v3/orgs/teams/#add-team-membership
-    print "Adding %s to new team.." % new_team_member
+    print("Adding %s to new team.." % new_team_member)
     user_add_team_endpoint = ("/teams/%s/memberships/%s"
                               % (new_team["id"], new_team_member))
     # We need to explicitly set a Content-Length of 0, otherwise
@@ -258,7 +264,7 @@ Type 'yes' to proceed: """ % (repo_arg,
                               headers={"Content-Length": 0},
                               method="PUT")
     if code == 200:
-        print "User membership of team is now %s" % response["state"]
+        print("User membership of team is now %s" % response["state"])
     else:
         sys.exit("Error adding team member %s to new team, "
                  "HTTP status code %s." % (new_team_member, code))
