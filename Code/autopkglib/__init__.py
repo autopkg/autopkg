@@ -16,14 +16,18 @@
 
 """Core/shared autopkglib functions"""
 
-import os
-import sys
+from __future__ import print_function
+
+import glob
 import imp
-import FoundationPlist
+import os
 import pprint
 import re
 import subprocess
-import glob
+import sys
+from distutils.version import LooseVersion
+
+import FoundationPlist
 
 #pylint: disable=no-name-in-module
 try:
@@ -37,15 +41,21 @@ try:
                                kCFPreferencesCurrentUser, \
                                kCFPreferencesCurrentHost
 except:
-    print "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
-    print "WARNING: Failed 'from CoreFoundation import CFPreferencesAppSynchronize, ...' in " + __name__
+    print(
+        "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in "
+        + __name__
+    )
+    print(
+        "WARNING: Failed 'from CoreFoundation import "
+        "CFPreferencesAppSynchronize, ...' in " + __name__
+    )
 #pylint: enable=no-name-in-module
 
-from distutils.version import LooseVersion
 
 BUNDLE_ID = "com.github.autopkg"
 
 RE_KEYREF = re.compile(r'%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%')
+
 
 class PreferenceError(Exception):
     """Preference exception"""
@@ -73,7 +83,7 @@ def set_pref(key, value, domain=BUNDLE_ID):
         if not CFPreferencesAppSynchronize(domain):
             raise PreferenceError(
                 "Could not synchronize %s preference: %s" % key)
-    except Exception, err:
+    except Exception as err:
         raise PreferenceError(
             "Could not set %s preference: %s" % (key, err))
 
@@ -121,9 +131,17 @@ def get_identifier_from_recipe_file(filename):
     try:
         # make sure we can read it
         recipe_plist = FoundationPlist.readPlist(filename)
-    except FoundationPlist.FoundationPlistException, err:
-        print >> sys.stderr, (
-            "WARNING: plist error for %s: %s" % (filename, unicode(err)))
+    except FoundationPlist.FoundationPlistException as err:
+        # unicode() doesn't exist in Python3, and we'd have to
+        # change the behavior by importing unicode_literals from
+        # __future__, which is a significant change requiring a lot of
+        # testing. For now, we're going to leave this as-is until
+        # the conversion to python3 is more mature.
+        print(
+            "WARNING: plist error for %s: %s"
+            % (filename, unicode(err)), # noqa TODO
+            file=sys.stderr
+        )
         return None
     return get_identifier(recipe_plist)
 
@@ -178,10 +196,10 @@ def update_data(a_dict, key, value):
         if isinstance(item, basestring):
             try:
                 item = RE_KEYREF.sub(getdata, item)
-            except KeyError, err:
-                print >> sys.stderr, (
+            except KeyError as err:
+                print(
                     "Use of undefined key in variable substitution: %s"
-                    % err)
+                    % err, file=sys.stderr)
         elif isinstance(item, (list, NSArray)):
             for index in range(len(item)):
                 item[index] = do_variable_substitution(item[index])
@@ -233,9 +251,11 @@ def curl_cmd():
 
 # Processor and ProcessorError base class definitions
 
+
 class ProcessorError(Exception):
     """Base Error class"""
     pass
+
 
 class Processor(object):
     """Processor base class.
@@ -259,7 +279,7 @@ class Processor(object):
     def output(self, msg, verbose_level=1):
         """Print a message if verbosity is >= verbose_level"""
         if self.env.get('verbose', 0) >= verbose_level:
-            print "%s: %s" % (self.__class__.__name__, msg)
+            print("%s: %s" % (self.__class__.__name__, msg))
 
     def main(self):
         """Stub method"""
@@ -359,16 +379,18 @@ class Processor(object):
             self.main()
             self.write_output_plist()
         except ProcessorError as err:
-            print >> sys.stderr, "ProcessorError: %s" % err
+            print("ProcessorError: %s" % err, file=sys.stderr)
             sys.exit(10)
         else:
             sys.exit(0)
 
 # AutoPackager class defintion
 
+
 class AutoPackagerError(Exception):
     """Error class"""
     pass
+
 
 class AutoPackager(object):
     """Instantiate and execute processors from a recipe."""
@@ -382,14 +404,14 @@ class AutoPackager(object):
     def output(self, msg, verbose_level=1):
         """Print msg if verbosity is >= than verbose_level"""
         if self.verbose >= verbose_level:
-            print msg
+            print(msg)
 
     def get_recipe_identifier(self, recipe):
         """Return the identifier given an input recipe plist."""
-        identifier = (recipe.get("Identifier") or
-                      recipe["Input"].get("IDENTIFIER"))
+        identifier = (recipe.get("Identifier")
+            or recipe["Input"].get("IDENTIFIER"))
         if not identifier:
-            print "ID NOT FOUND"
+            print("ID NOT FOUND")
             # build a pseudo-identifier based on the recipe pathname
             recipe_path = self.env.get("RECIPE_PATH")
             # get rid of filename extension
@@ -471,7 +493,7 @@ class AutoPackager(object):
         if not os.path.exists(self.env["RECIPE_CACHE_DIR"]):
             try:
                 os.makedirs(self.env["RECIPE_CACHE_DIR"])
-            except OSError, err:
+            except OSError as err:
                 raise AutoPackagerError(
                     "Could not create RECIPE_CACHE_DIR %s: %s"
                     % (self.env["RECIPE_CACHE_DIR"], err))
@@ -482,7 +504,7 @@ class AutoPackager(object):
         for step in recipe["Process"]:
 
             if self.verbose:
-                print step["Processor"]
+                print(step["Processor"])
 
             processor_name = extract_processor_name_with_recipe_identifier(
                 step["Processor"])[0]
@@ -507,10 +529,10 @@ class AutoPackager(object):
                 # here to ensure that unexpected/unhandled exceptions
                 # from one processor do not prevent execution of
                 # subsequent recipes.
-                print >> sys.stderr, unicode(err)
+                print(unicode(err), file=sys.stderr)  # noqa TODO
                 raise AutoPackagerError(
                     "Error in %s: Processor: %s: Error: %s"
-                    % (identifier, step["Processor"], unicode(err)))
+                    % (identifier, step["Processor"], unicode(err)))  # noqa TODO
 
             output_dict = {}
             for key in processor.output_variables.keys():
@@ -536,8 +558,11 @@ class AutoPackager(object):
         if self.verbose > 2:
             pprint.pprint(self.env)
 
+
 _CORE_PROCESSOR_NAMES = []
 _PROCESSOR_NAMES = []
+
+
 def import_processors():
     '''Imports processors from the directory this init file is in'''
     # get the directory this __init__.py file is in
@@ -571,7 +596,7 @@ def import_processors():
 def add_processor(name, processor_object):
     '''Adds a Processor to the autopkglib namespace'''
     globals()[name] = processor_object
-    if not name in _PROCESSOR_NAMES:
+    if name not in _PROCESSOR_NAMES:
         _PROCESSOR_NAMES.append(name)
 
 
@@ -638,11 +663,13 @@ def get_processor(processor_name, recipe=None, env=None):
                     add_processor(processor_name, _processor)
                     # we've added a Processor, so stop searching
                     break
-                except (ImportError, AttributeError), err:
+                except (ImportError, AttributeError) as err:
                     # if we aren't successful, that might be OK, we're
                     # going see if the processor was already imported
-                    print >> sys.stderr, (
-                        "WARNING: %s: %s" % (processor_filename, err))
+                    print(
+                        "WARNING: %s: %s" % (processor_filename, err),
+                        file=sys.stderr
+                    )
 
     return globals()[processor_name]
 
@@ -658,4 +685,6 @@ def core_processor_names():
 
 # when importing autopkglib, need to also import all the processors
 # in this same directory
+
+
 import_processors()

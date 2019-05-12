@@ -12,7 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from ctypes import *
+
 libc = CDLL("/usr/lib/libc.dylib")
 
 
@@ -251,4 +253,3 @@ def get_launchd_socket_fds():
             launch_data_free(checkin_response)
         if checkin_request is not None:
             launch_data_free(checkin_request)
-
