@@ -78,10 +78,8 @@ try:
         kCFPreferencesCurrentHost,
     )
 except:
-    print(
-        "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
-    )
-    print(
+    log("WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__)
+    log(
         "WARNING: Failed 'from CoreFoundation import "
         "CFPreferencesAppSynchronize, ...' in " + __name__
     )
@@ -187,9 +185,8 @@ def get_identifier_from_recipe_file(filename):
         # __future__, which is a significant change requiring a lot of
         # testing. For now, we're going to leave this as-is until
         # the conversion to python3 is more mature.
-        print(
-            "WARNING: plist error for %s: %s" % (filename, unicode(err)),  # noqa TODO
-            file=sys.stderr,
+        log_err(
+            "WARNING: plist error for %s: %s" % (filename, unicode(err))  # noqa TODO
         )
         return None
     return get_identifier(recipe_plist)
@@ -247,10 +244,7 @@ def update_data(a_dict, key, value):
             try:
                 item = RE_KEYREF.sub(getdata, item)
             except KeyError as err:
-                print(
-                    "Use of undefined key in variable substitution: %s" % err,
-                    file=sys.stderr,
-                )
+                log_err("Use of undefined key in variable substitution: %s" % err)
         elif isinstance(item, (list, NSArray)):
             for index in range(len(item)):
                 item[index] = do_variable_substitution(item[index])
@@ -434,7 +428,7 @@ class Processor(object):
             self.main()
             self.write_output_plist()
         except ProcessorError as err:
-            print("ProcessorError: %s" % err, file=sys.stderr)
+            log_err("ProcessorError: %s" % err)
             sys.exit(10)
         else:
             sys.exit(0)
@@ -467,7 +461,7 @@ class AutoPackager(object):
         """Return the identifier given an input recipe plist."""
         identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
         if not identifier:
-            print("ID NOT FOUND")
+            log("ID NOT FOUND")
             # build a pseudo-identifier based on the recipe pathname
             recipe_path = self.env.get("RECIPE_PATH")
             # get rid of filename extension
@@ -592,7 +586,7 @@ class AutoPackager(object):
                 # here to ensure that unexpected/unhandled exceptions
                 # from one processor do not prevent execution of
                 # subsequent recipes.
-                print(unicode(err), file=sys.stderr)  # noqa TODO
+                log_err(unicode(err))  # noqa TODO
                 raise AutoPackagerError(
                     "Error in %s: Processor: %s: Error: %s"
                     % (identifier, step["Processor"], unicode(err))
@@ -740,9 +734,7 @@ def get_processor(processor_name, recipe=None, env=None):
                 except (ImportError, AttributeError) as err:
                     # if we aren't successful, that might be OK, we're
                     # going see if the processor was already imported
-                    print(
-                        "WARNING: %s: %s" % (processor_filename, err), file=sys.stderr
-                    )
+                    log_err("WARNING: %s: %s" % (processor_filename, err))
 
     return globals()[processor_name]
 

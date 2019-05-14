@@ -21,8 +21,7 @@ import subprocess
 import sys
 
 import FoundationPlist
-from autopkglib import Processor, ProcessorError
-
+from autopkglib import Processor, ProcessorError, log, log_err
 
 __all__ = ["DmgMounter"]
 
@@ -191,10 +190,10 @@ if __name__ == "__main__":
     try:
         DMGMOUNTER = DmgMounter()
         MOUNTPOINT = DMGMOUNTER.mount("Download/Firefox-sv-SE.dmg")
-        print("Mounted at %s" % MOUNTPOINT)
+        log("Mounted at %s" % MOUNTPOINT)
         DMGMOUNTER.unmount("Download/Firefox-sv-SE.dmg")
     except ProcessorError as err:
-        print("ProcessorError: %s" % err, file=sys.stderr)
+        log_err("ProcessorError: %s" % err)
         sys.exit(10)
     else:
         sys.exit(0)

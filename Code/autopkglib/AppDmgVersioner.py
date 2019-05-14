@@ -20,20 +20,19 @@ from __future__ import print_function
 import glob
 import os.path
 
-from autopkglib import ProcessorError
+from autopkglib import ProcessorError, log
 from autopkglib.DmgMounter import DmgMounter
-
 
 # pylint: disable=no-name-in-module
 try:
     from Foundation import NSData, NSPropertyListSerialization
     from Foundation import NSPropertyListMutableContainers
 except:
-    print(
+    log(
         "WARNING: Failed 'from Foundation import NSData, "
         "NSPropertyListSerialization' in " + __name__
     )
-    print(
+    log(
         "WARNING: Failed 'from Foundation import "
         "NSPropertyListMutableContainers' in " + __name__
     )
