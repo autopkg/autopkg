@@ -205,6 +205,15 @@ def main(_):
         output += "\n"
         writefile(output, pathname)
 
+    # Generate the Processors section of the Sidebar
+    processor_heading = "  * **Processor Reference**"
+    toc_string = ""
+    toc_string += processor_heading + "\n"
+    for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
+        page_name = "Processor-%s" % processor_name
+        page_name.replace(" ", "-")
+        toc_string += "      * [[%s|%s]]\n" % (processor_name, page_name)
+
     # Merge in the new stuff!
     # - Scrape through the current _Sidebar.md, look for where the existing
     # processors block starts and ends
