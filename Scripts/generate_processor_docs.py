@@ -97,6 +97,43 @@ def indent_length(line_str):
     return len(line_str) - len(line_str.lstrip())
 
 
+def generate_sidebar(sidebar_path):
+    """Generate new _Sidebar.md contents."""
+    # Generate the Processors section of the Sidebar
+    processor_heading = "  * **Processor Reference**"
+    toc_string = ""
+    toc_string += processor_heading + "\n"
+    for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
+        page_name = "Processor-%s" % processor_name
+        page_name.replace(" ", "-")
+        toc_string += "      * [[%s|%s]]\n" % (processor_name, page_name)
+
+    with open(sidebar_path, "r") as fdesc:
+        current_sidebar_lines = fdesc.read().splitlines()
+
+    # Determine our indent amount
+    section_indent = indent_length(processor_heading)
+
+    past_processors_section = False
+    for index, line in enumerate(current_sidebar_lines):
+        if line == processor_heading:
+            past_processors_section = True
+            processors_start = index
+        if (
+            (indent_length(line) <= section_indent)
+            and past_processors_section
+        ):
+            processors_end = index
+
+    # Build the new sidebar
+    new_sidebar = ""
+    new_sidebar += "\n".join(current_sidebar_lines[0:processors_start]) + "\n"
+    new_sidebar += toc_string
+    new_sidebar += "\n".join(current_sidebar_lines[processors_end:]) + "\n"
+
+    return new_sidebar
+
+
 def main(_):
     """Do it all"""
     usage = dedent("""%prog VERSION
@@ -168,15 +205,6 @@ def main(_):
         output += "\n"
         writefile(output, pathname)
 
-    # Generate the Processors section of the Sidebar
-    processor_heading = "  * **Processor Reference**"
-    toc_string = ""
-    toc_string += processor_heading + "\n"
-    for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
-        page_name = "Processor-%s" % processor_name
-        page_name.replace(" ", "-")
-        toc_string += "      * [[%s|%s]]\n" % (processor_name, page_name)
-
     # Merge in the new stuff!
     # - Scrape through the current _Sidebar.md, look for where the existing
     # processors block starts and ends
@@ -185,29 +213,8 @@ def main(_):
     # - Copy the lines following the Processors section
 
     sidebar_path = os.path.join(output_dir, "_Sidebar.md")
-    with open(sidebar_path, "r") as fdesc:
-        current_sidebar_lines = fdesc.read().splitlines()
 
-    # Determine our indent amount
-    section_indent = indent_length(processor_heading)
-
-    past_processors_section = False
-    for index, line in enumerate(current_sidebar_lines):
-        if line == processor_heading:
-            past_processors_section = True
-            processors_start = index
-        if (
-            (indent_length(line) <= section_indent)
-            and past_processors_section
-        ):
-            processors_end = index
-
-    # Build the new sidebar
-    new_sidebar = ""
-    new_sidebar += "\n".join(current_sidebar_lines[0:processors_start]) + "\n"
-    new_sidebar += toc_string
-    new_sidebar += "\n".join(current_sidebar_lines[processors_end:]) + "\n"
-
+    new_sidebar = generate_sidebar(sidebar_path)
     with open(sidebar_path, "w") as fdesc:
         fdesc.write(new_sidebar)
 
