@@ -22,6 +22,7 @@ import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
+
 AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
 
 
@@ -31,12 +32,10 @@ __all__ = ["InstallFromDMG"]
 class InstallFromDMG(DmgMounter):
     """Calls autopkginstalld to copy items from a disk image to the root
     filesystem."""
+
     description = __doc__
     input_variables = {
-        "dmg_path": {
-            "required": True,
-            "description": "Path to the disk image."
-        },
+        "dmg_path": {"required": True, "description": "Path to the disk image."},
         "items_to_copy": {
             "required": True,
             "description": (
@@ -44,7 +43,8 @@ class InstallFromDMG(DmgMounter):
                 "Each item should contain 'source_item' and "
                 "'destination_path', and may optionally include: "
                 "'destination_item' to rename the item on copy, and "
-                "'user', 'group' and 'mode' to explicitly set those items.")
+                "'user', 'group' and 'mode' to explicitly set those items."
+            ),
         },
         "download_changed": {
             "required": False,
@@ -52,36 +52,37 @@ class InstallFromDMG(DmgMounter):
                 "download_changed is set by the URLDownloader processor to "
                 "indicate that a new file was downloaded. If this key is set "
                 "in the environment and is False or empty the installation "
-                "will be skipped.")
+                "will be skipped."
+            ),
         },
     }
     output_variables = {
-        "install_result": {
-            "description": "Result of install request."
-        },
+        "install_result": {"description": "Result of install request."},
         "install_from_dmg_summary_result": {
             "description": "Description of interesting results."
-        }
+        },
     }
 
     def install(self):
-        '''Build an ItemCopier request, send it to autopkginstalld'''
+        """Build an ItemCopier request, send it to autopkginstalld"""
         # clear any pre-exising summary result
-        if 'install_from_dmg_summary_result' in self.env:
-            del self.env['install_from_dmg_summary_result']
-        
+        if "install_from_dmg_summary_result" in self.env:
+            del self.env["install_from_dmg_summary_result"]
+
         if "download_changed" in self.env:
             if not self.env["download_changed"]:
-                # URLDownloader did not download something new, 
+                # URLDownloader did not download something new,
                 # so skip the install
                 self.output("Skipping installation: no new download.")
                 self.env["install_result"] = "SKIPPED"
                 return
         try:
-            mount_point = self.mount(self.env['dmg_path'])
+            mount_point = self.mount(self.env["dmg_path"])
 
-            request = {'mount_point': mount_point,
-                       'items_to_copy': self.env["items_to_copy"]}
+            request = {
+                "mount_point": mount_point,
+                "items_to_copy": self.env["items_to_copy"],
+            }
             result = None
             # Send install request.
             try:
@@ -98,30 +99,31 @@ class InstallFromDMG(DmgMounter):
             # Return result.
             self.output("Result: %s" % result)
             self.env["install_result"] = result
-            if result == 'DONE':
-                self.env['install_from_dmg_summary_result'] = {
-                    'summary_text': ('Items from the following disk images '
-                                     'were successfully installed:'),
-                    'data': {
-                        'dmg_path': self.env['dmg_path'],
-                    }
+            if result == "DONE":
+                self.env["install_from_dmg_summary_result"] = {
+                    "summary_text": (
+                        "Items from the following disk images "
+                        "were successfully installed:"
+                    ),
+                    "data": {"dmg_path": self.env["dmg_path"]},
                 }
         finally:
-            self.unmount(self.env['dmg_path'])
+            self.unmount(self.env["dmg_path"])
 
     def connect(self):
-        '''Connect to autopkginstalld'''
+        """Connect to autopkginstalld"""
         try:
-            #pylint: disable=attribute-defined-outside-init
+            # pylint: disable=attribute-defined-outside-init
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            #pylint: enable=attribute-defined-outside-init
+            # pylint: enable=attribute-defined-outside-init
             self.socket.connect(AUTOPKGINSTALLD_SOCKET)
         except socket.error as err:
             raise ProcessorError(
-                "Couldn't connect to autopkginstalld: %s" % err.strerror)
+                "Couldn't connect to autopkginstalld: %s" % err.strerror
+            )
 
     def send_request(self, request):
-        '''Send an install request to autopkginstalld'''
+        """Send an install request to autopkginstalld"""
         self.socket.send(FoundationPlist.writePlistToString(request))
         with os.fdopen(self.socket.fileno()) as fileref:
             while True:
@@ -138,20 +140,20 @@ class InstallFromDMG(DmgMounter):
 
         errors = data.rstrip().split("\n")
         if not errors:
-            errors = ["ERROR:No reply from autopkginstalld (crash?), "
-                      "check system logs"]
-        raise ProcessorError(
-            ", ".join([s.replace("ERROR:", "") for s in errors]))
+            errors = [
+                "ERROR:No reply from autopkginstalld (crash?), " "check system logs"
+            ]
+        raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
     def disconnect(self):
-        '''Disconnect from autopkginstalld'''
+        """Disconnect from autopkginstalld"""
         self.socket.close()
 
     def main(self):
-        '''Install something!'''
+        """Install something!"""
         self.install()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = InstallFromDMG()
     PROCESSOR.execute_shell()

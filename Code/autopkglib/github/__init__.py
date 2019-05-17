@@ -25,14 +25,16 @@ import sys
 
 from autopkglib import curl_cmd, get_pref
 
+
 BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 
 
 class GitHubSession(object):
     """Handles a session with the GitHub API"""
+
     def __init__(self):
-        token = get_pref('GITHUB_TOKEN')
+        token = get_pref("GITHUB_TOKEN")
         if token:
             self.token = token
         elif os.path.exists(TOKEN_LOCATION):
@@ -41,8 +43,9 @@ class GitHubSession(object):
                     self.token = tokenf.read()
             except IOError as err:
                 print(
-                    "Couldn't read token file at %s! Error: %s"
-                    % (TOKEN_LOCATION, err), file=sys.stderr)
+                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err),
+                    file=sys.stderr,
+                )
                 self.token = None
         else:
             self.token = None
@@ -53,11 +56,13 @@ class GitHubSession(object):
         if it exists."""
 
         if not os.path.exists(TOKEN_LOCATION):
-            print("""Create a new token in your GitHub settings page:
+            print(
+                """Create a new token in your GitHub settings page:
 
     https://github.com/settings/tokens
 
-To save the token, paste it to the following prompt.""")
+To save the token, paste it to the following prompt."""
+            )
 
             token = raw_input("Token: ")
             if token:
@@ -69,7 +74,9 @@ To save the token, paste it to the following prompt.""")
                 except IOError as err:
                     print(
                         "Couldn't write token file at %s! Error: %s"
-                        % (TOKEN_LOCATION, err), file=sys.stderr)
+                        % (TOKEN_LOCATION, err),
+                        file=sys.stderr,
+                    )
             else:
                 print("Skipping token file creation.", file=sys.stderr)
         else:
@@ -78,16 +85,24 @@ To save the token, paste it to the following prompt.""")
                     token = tokenf.read()
             except IOError as err:
                 print(
-                    "Couldn't read token file at %s! Error: %s"
-                    % (TOKEN_LOCATION, err), file=sys.stderr)
+                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err),
+                    file=sys.stderr,
+                )
 
             # TODO: validate token given we found one but haven't checked its
             # auth status
 
         self.token = token
 
-    def call_api(self, endpoint, method="GET", query=None, data=None,
-                 headers=None, accept="application/vnd.github.v3+json"):
+    def call_api(
+        self,
+        endpoint,
+        method="GET",
+        query=None,
+        data=None,
+        headers=None,
+        accept="application/vnd.github.v3+json",
+    ):
         """Return a tuple of a serialized JSON response and HTTP status code
         from a call to a GitHub API endpoint. Certain APIs return no JSON
         result and so the first item in the tuple (the response) will be None.
@@ -112,29 +127,32 @@ To save the token, paste it to the following prompt.""")
                 return (None, None)
             cmd = [
                 curl_path,
-                '--location',
-                '--silent',
-                '--show-error',
-                '--fail',
-                '--dump-header', '-'
+                "--location",
+                "--silent",
+                "--show-error",
+                "--fail",
+                "--dump-header",
+                "-",
             ]
-            cmd.extend(['-X', method])
-            cmd.extend(['--header', '%s: %s' % ("User-Agent", "AutoPkg")])
-            cmd.extend(['--header', '%s: %s' % ("Accept", accept)])
+            cmd.extend(["-X", method])
+            cmd.extend(["--header", "%s: %s" % ("User-Agent", "AutoPkg")])
+            cmd.extend(["--header", "%s: %s" % ("Accept", accept)])
 
             # Pass the GitHub token as a header
             if self.token:
-                cmd.extend(['--header', '%s: %s' % ("Authorization", "token %s" % self.token)])
+                cmd.extend(
+                    ["--header", "%s: %s" % ("Authorization", "token %s" % self.token)]
+                )
 
             # Additional headers if defined
             if headers:
                 for header, value in headers.items():
-                    cmd.extend(['--header', '%s: %s' % (header, value)])
+                    cmd.extend(["--header", "%s: %s" % (header, value)])
 
             # Set the data header if defined
             if data:
                 data = json.dumps(data)
-                cmd.extend(['-d', data, '--header', 'Content-Type: application/json'])
+                cmd.extend(["-d", data, "--header", "Content-Type: application/json"])
 
             # Final argument to curl is the URL
             cmd.append(url)
@@ -145,12 +163,12 @@ To save the token, paste it to the following prompt.""")
                 shell=False,
                 bufsize=1,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
             )
 
             header = {}
-            header['http_result_code'] = '000'
-            header['http_result_description'] = ''
+            header["http_result_code"] = "000"
+            header["http_result_description"] = ""
             donewithheaders = False
             maxheaders = 15
 
@@ -160,18 +178,18 @@ To save the token, paste it to the following prompt.""")
             while True:
                 info = proc.stdout.readline()
                 if not donewithheaders:
-                    info = info.strip('\r\n')
+                    info = info.strip("\r\n")
                     if info:
-                        if info.startswith('HTTP/'):
+                        if info.startswith("HTTP/"):
                             part = info.split(None, 2)
-                            header['http_result_code'] = part[1]
+                            header["http_result_code"] = part[1]
                             try:
-                                header['http_result_description'] = part[2]
+                                header["http_result_description"] = part[2]
                             except IndexError:
                                 pass
-                        elif ': ' in info:
+                        elif ": " in info:
                             part = info.split(None, 1)
-                            fieldname = part[0].rstrip(':').lower()
+                            fieldname = part[0].rstrip(":").lower()
                             try:
                                 header[fieldname] = part[1]
                             except IndexError:
@@ -181,7 +199,7 @@ To save the token, paste it to the following prompt.""")
                 else:
                     page_content += info
 
-                if (proc.poll() is not None):
+                if proc.poll() is not None:
                     # For small download files curl may exit before all headers
                     # have been parsed, don't immediately exit.
                     maxheaders -= 1
@@ -191,9 +209,9 @@ To save the token, paste it to the following prompt.""")
             # All curl output should now be parsed
             retcode = proc.poll()
             if retcode:
-                curlerr = ''
+                curlerr = ""
                 try:
-                    curlerr = proc.stderr.read().rstrip('\n')
+                    curlerr = proc.stderr.read().rstrip("\n")
                     curlerr = curlerr.split(None, 2)[2]
                 except IndexError:
                     pass
@@ -201,14 +219,11 @@ To save the token, paste it to the following prompt.""")
                     # 22 means any 400 series return code. Note: header seems not to
                     # be dumped to STDOUT for immediate failures. Hence
                     # http_result_code is likely blank/000. Read it from stderr.
-                    if re.search(r'URL returned error: [0-9]+', curlerr):
+                    if re.search(r"URL returned error: [0-9]+", curlerr):
                         m = re.match(r".* (?P<status_code>\d+) .*", curlerr)
-                        if m.group('status_code'):
-                            header['http_result_code'] = m.group('status_code')
-                print(
-                    'Could not retrieve URL %s: %s' % (url, curlerr),
-                    file=sys.stderr
-                )
+                        if m.group("status_code"):
+                            header["http_result_code"] = m.group("status_code")
+                print("Could not retrieve URL %s: %s" % (url, curlerr), file=sys.stderr)
 
             if page_content:
                 resp_data = json.loads(page_content)
@@ -216,8 +231,8 @@ To save the token, paste it to the following prompt.""")
                 resp_data = None
 
         except OSError:
-            print('Could not retrieve URL: %s' % url, file=sys.stderr)
+            print("Could not retrieve URL: %s" % url, file=sys.stderr)
             resp_data = None
 
-        http_result_code = int(header.get('http_result_code'))
+        http_result_code = int(header.get("http_result_code"))
         return (resp_data, http_result_code)

@@ -19,24 +19,23 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["MunkiCatalogBuilder"]
 
 
 class MunkiCatalogBuilder(Processor):
     """Rebuilds Munki catalogs."""
+
     input_variables = {
-        "MUNKI_REPO": {
-            "required": True,
-            "description": "Path to the Munki repo.",
-        },
+        "MUNKI_REPO": {"required": True, "description": "Path to the Munki repo."},
         "munki_repo_changed": {
             "required": False,
-            "description": ("If not defined or False, causes running "
-                            "makecatalogs to be skipped."),
+            "description": (
+                "If not defined or False, causes running " "makecatalogs to be skipped."
+            ),
         },
     }
-    output_variables = {
-    }
+    output_variables = {}
     description = __doc__
 
     def main(self):
@@ -53,15 +52,16 @@ class MunkiCatalogBuilder(Processor):
         # Call makecatalogs.
         try:
             proc = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
             (_, err_out) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 "makecatalog execution failed with error code %d: %s"
-                % (err.errno, err.strerror))
+                % (err.errno, err.strerror)
+            )
         if proc.returncode != 0:
-            raise ProcessorError(
-                "makecatalogs failed: %s" % err_out)
+            raise ProcessorError("makecatalogs failed: %s" % err_out)
         self.output("Munki catalogs rebuilt!")
 
 

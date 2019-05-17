@@ -24,6 +24,7 @@ import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
+
 __all__ = ["PlistReader"]
 
 
@@ -46,16 +47,19 @@ class PlistReader(DmgMounter):
                 "(ie. a .app) is given, its Info.plist will be found and used. "
                 "If the path is a folder, it will be searched and the first "
                 "found bundle will be used. The path can also "
-                "contain a dmg/iso file and it will be mounted."),
+                "contain a dmg/iso file and it will be mounted."
+            ),
         },
         "plist_keys": {
             "required": False,
-            "default": {'CFBundleShortVersionString': 'version'},
-            "description": ("Dictionary of plist values to query. Key names "
-                            "should match a top-level key to read. Values "
-                            "should be the desired output variable name. "
-                            "Defaults to: ",
-                            "{'CFBundleShortVersionString': 'version'}")
+            "default": {"CFBundleShortVersionString": "version"},
+            "description": (
+                "Dictionary of plist values to query. Key names "
+                "should match a top-level key to read. Values "
+                "should be the desired output variable name. "
+                "Defaults to: ",
+                "{'CFBundleShortVersionString': 'version'}",
+            ),
         },
     }
     output_variables = {
@@ -66,8 +70,9 @@ class PlistReader(DmgMounter):
                 "placeholder for documentation and for auditing purposes. "
                 "One should use the actual named output variables as given "
                 "as values to 'plist_keys' to refer to the output of this "
-                "processor.")
-        },
+                "processor."
+            )
+        }
     }
 
     def find_bundle(self, path):
@@ -81,10 +86,9 @@ class PlistReader(DmgMounter):
         # - common case is a symlink to 'Applications', which
         #   we don't want to exhaustively search
         filtered = [
-            f for f in files if not (
-                os.path.islink(f)
-                and not os.path.splitext(os.path.basename(f))[1]
-            )
+            f
+            for f in files
+            if not (os.path.islink(f) and not os.path.splitext(os.path.basename(f))[1])
         ]
 
         for test_bundle in filtered:
@@ -96,27 +100,30 @@ class PlistReader(DmgMounter):
     def get_bundle_info_path(self, path):
         """Return full path to an Info.plist if 'path' is actually a bundle,
         otherwise None."""
-        #pylint: disable=no-self-use
+        # pylint: disable=no-self-use
         bundle_info_path = None
         if os.path.isdir(path):
-            test_info_path = os.path.join(path, 'Contents/Info.plist')
+            test_info_path = os.path.join(path, "Contents/Info.plist")
             if os.path.exists(test_info_path):
                 try:
                     plist = FoundationPlist.readPlist(test_info_path)
-                except (FoundationPlist.NSPropertyListSerializationException,
-                        UnicodeEncodeError):
+                except (
+                    FoundationPlist.NSPropertyListSerializationException,
+                    UnicodeEncodeError,
+                ):
                     raise ProcessorError(
                         "File %s looks like a bundle, but its "
-                        "'Contents/Info.plist' file cannot be parsed." % path)
+                        "'Contents/Info.plist' file cannot be parsed." % path
+                    )
                 if plist:
                     bundle_info_path = test_info_path
         return bundle_info_path
 
     def main(self):
-        keys = self.env.get('plist_keys')
+        keys = self.env.get("plist_keys")
 
         # Many types of paths are accepted. Figure out which kind we have.
-        path = os.path.normpath(self.env['info_path'])
+        path = os.path.normpath(self.env["info_path"])
 
         try:
             # Wrap all other actions in a try/finally so if we mount an image,
@@ -126,7 +133,7 @@ class PlistReader(DmgMounter):
             (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(path)
             if dmg:
                 mount_point = self.mount(dmg_path)
-                path = os.path.join(mount_point, dmg_source_path.lstrip('/'))
+                path = os.path.join(mount_point, dmg_source_path.lstrip("/"))
 
             # Finally check whether this is at least a valid path
             if not os.path.exists(path):
@@ -139,7 +146,7 @@ class PlistReader(DmgMounter):
 
             # Does it have a 'plist' extension
             # (naively assuming 'plist' only names, for now)
-            elif path.endswith('.plist'):
+            elif path.endswith(".plist"):
                 # Full path to a plist was supplied, move on.
                 pass
 
@@ -151,8 +158,10 @@ class PlistReader(DmgMounter):
             self.output("Reading: %s" % path)
             try:
                 info = FoundationPlist.readPlist(path)
-            except (FoundationPlist.NSPropertyListSerializationException,
-                    UnicodeEncodeError) as err:
+            except (
+                FoundationPlist.NSPropertyListSerializationException,
+                UnicodeEncodeError,
+            ) as err:
                 raise ProcessorError(err)
 
             # Copy each plist_keys' values and assign to new env variables
@@ -162,20 +171,20 @@ class PlistReader(DmgMounter):
                     self.env[val] = info[key]
                     self.output(
                         "Assigning value of '%s' to output variable '%s'"
-                        % (self.env[val], val))
+                        % (self.env[val], val)
+                    )
                     # This one is for documentation/recordkeeping
-                    self.env["plist_reader_output_variables"][val] = (
-                        self.env[val])
+                    self.env["plist_reader_output_variables"][val] = self.env[val]
                 except KeyError:
                     raise ProcessorError(
-                        "Key '%s' could not be found in the plist %s!"
-                        % (key, path))
+                        "Key '%s' could not be found in the plist %s!" % (key, path)
+                    )
 
         finally:
             if dmg:
                 self.unmount(dmg_path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = PlistReader()
     PROCESSOR.execute_shell()

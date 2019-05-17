@@ -21,45 +21,51 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["URLTextSearcher"]
 
 
 class URLTextSearcher(Processor):
-    '''Downloads a URL using curl and performs a regular expression match
+    """Downloads a URL using curl and performs a regular expression match
     on the text.
 
-    Requires version 0.2.9.'''
+    Requires version 0.2.9."""
 
     input_variables = {
-        're_pattern': {
-            'description': 'Regular expression (Python) to match against page.',
-            'required': True,
+        "re_pattern": {
+            "description": "Regular expression (Python) to match against page.",
+            "required": True,
         },
-        'url': {
-            'description': 'URL to download',
-            'required': True,
+        "url": {"description": "URL to download", "required": True},
+        "result_output_var_name": {
+            "description": (
+                "The name of the output variable that is returned "
+                "by the match. If not specified then a default of "
+                '"match" will be used.'
+            ),
+            "required": False,
+            "default": "match",
         },
-        'result_output_var_name': {
-            'description': ('The name of the output variable that is returned '
-                            'by the match. If not specified then a default of '
-                            '"match" will be used.'),
-            'required': False,
-            'default': 'match',
+        "request_headers": {
+            "description": (
+                "Optional dictionary of headers to include with "
+                "the download request."
+            ),
+            "required": False,
         },
-        'request_headers': {
-            'description': ('Optional dictionary of headers to include with '
-                            'the download request.'),
-            'required': False,
+        "curl_opts": {
+            "description": (
+                "Optional array of curl options to include with "
+                "the download request."
+            ),
+            "required": False,
         },
-        'curl_opts': {
-            'description': ('Optional array of curl options to include with '
-                            'the download request.'),
-            'required': False,
-        },
-        're_flags': {
-            'description': ('Optional array of strings of Python regular '
-                            'expression flags. E.g. IGNORECASE.'),
-            'required': False,
+        "re_flags": {
+            "description": (
+                "Optional array of strings of Python regular "
+                "expression flags. E.g. IGNORECASE."
+            ),
+            "required": False,
         },
         "CURL_PATH": {
             "required": False,
@@ -68,20 +74,21 @@ class URLTextSearcher(Processor):
         },
     }
     output_variables = {
-        'result_output_var_name': {
-            'description': (
-                'First matched sub-pattern from input found on the fetched '
-                'URL. Note the actual name of variable depends on the input '
+        "result_output_var_name": {
+            "description": (
+                "First matched sub-pattern from input found on the fetched "
+                "URL. Note the actual name of variable depends on the input "
                 'variable "result_output_var_name" or is assigned a default of '
-                '"match."')
+                '"match."'
+            )
         }
     }
 
     description = __doc__
 
     def get_url_and_search(self, url, re_pattern, headers=None, flags=None, opts=None):
-        '''Get data from url and search for re_pattern'''
-        #pylint: disable=no-self-use
+        """Get data from url and search for re_pattern"""
+        # pylint: disable=no-self-use
         flag_accumulator = 0
         if flags:
             for flag in flags:
@@ -91,42 +98,41 @@ class URLTextSearcher(Processor):
         re_pattern = re.compile(re_pattern, flags=flag_accumulator)
 
         try:
-            cmd = [self.env['CURL_PATH'], '--location', '--compress']
+            cmd = [self.env["CURL_PATH"], "--location", "--compress"]
             if headers:
                 for header, value in headers.items():
-                    cmd.extend(['--header', '%s: %s' % (header, value)])
+                    cmd.extend(["--header", "%s: %s" % (header, value)])
             if opts:
                 for item in opts:
                     cmd.extend([item])
             cmd.append(url)
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (content, stderr) = proc.communicate()
             if proc.returncode:
-                raise ProcessorError(
-                    'Could not retrieve URL %s: %s' % (url, stderr))
+                raise ProcessorError("Could not retrieve URL %s: %s" % (url, stderr))
         except OSError:
-            raise ProcessorError('Could not retrieve URL: %s' % url)
+            raise ProcessorError("Could not retrieve URL: %s" % url)
 
         match = re_pattern.search(content)
 
         if not match:
-            raise ProcessorError('No match found on URL: %s' % url)
+            raise ProcessorError("No match found on URL: %s" % url)
 
         # return the last matched group with the dict of named groups
-        return (match.group(match.lastindex or 0), match.groupdict(), )
+        return (match.group(match.lastindex or 0), match.groupdict())
 
     def main(self):
-        output_var_name = self.env['result_output_var_name']
+        output_var_name = self.env["result_output_var_name"]
 
-        headers = self.env.get('request_headers', {})
+        headers = self.env.get("request_headers", {})
 
-        flags = self.env.get('re_flags', {})
+        flags = self.env.get("re_flags", {})
 
-        opts = self.env.get('curl_opts', [])
+        opts = self.env.get("curl_opts", [])
 
         groupmatch, groupdict = self.get_url_and_search(
-            self.env['url'], self.env['re_pattern'], headers, flags, opts)
+            self.env["url"], self.env["re_pattern"], headers, flags, opts
+        )
 
         # favor a named group over a normal group match
         if output_var_name not in groupdict.keys():
@@ -135,11 +141,12 @@ class URLTextSearcher(Processor):
         self.output_variables = {}
         for key in groupdict.keys():
             self.env[key] = groupdict[key]
-            self.output('Found matching text (%s): %s' % (key, self.env[key], ))
+            self.output("Found matching text (%s): %s" % (key, self.env[key]))
             self.output_variables[key] = {
-                'description': 'Matched regular expression group'}
+                "description": "Matched regular expression group"
+            }
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = URLTextSearcher()
     PROCESSOR.execute_shell()

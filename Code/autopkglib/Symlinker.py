@@ -19,53 +19,51 @@ import os
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["Symlinker"]
 
 
 class Symlinker(Processor):
     """Copies source_path to destination_path."""
+
     description = __doc__
     input_variables = {
         "source_path": {
             "required": True,
             "description": "Path to a file or directory to symlink.",
         },
-        "destination_path": {
-            "required": True,
-            "description": "Path to destination.",
-        },
+        "destination_path": {"required": True, "description": "Path to destination."},
         "overwrite": {
             "required": False,
-            "description":
-                "Whether the destination will be overwritten if necessary.",
+            "description": "Whether the destination will be overwritten if necessary.",
         },
     }
-    output_variables = {
-    }
+    output_variables = {}
 
     def main(self):
-        source_path = self.env['source_path']
-        destination_path = self.env['destination_path']
+        source_path = self.env["source_path"]
+        destination_path = self.env["destination_path"]
 
         # Remove destination if needed.
         if os.path.exists(destination_path):
-            if "overwrite" in self.env and self.env['overwrite']:
+            if "overwrite" in self.env and self.env["overwrite"]:
                 try:
                     os.unlink(destination_path)
                 except OSError as err:
-                    raise ProcessorError("Can't remove %s: %s"
-                                         % (destination_path, err.strerror))
+                    raise ProcessorError(
+                        "Can't remove %s: %s" % (destination_path, err.strerror)
+                    )
 
         # Make symlink.
         try:
             os.symlink(source_path, destination_path)
-            self.output("Symlinked %s to %s"
-                        % (source_path, destination_path))
+            self.output("Symlinked %s to %s" % (source_path, destination_path))
         except BaseException as err:
-            raise ProcessorError("Can't symlink %s to %s: %s"
-                                 % (source_path, destination_path, err))
+            raise ProcessorError(
+                "Can't symlink %s to %s: %s" % (source_path, destination_path, err)
+            )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = Symlinker()
     PROCESSOR.execute_shell()

@@ -14,27 +14,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-'''A server that installs Apple packages'''
+"""A server that installs Apple packages"""
 
+import logging
+import logging.handlers
 import os
+import platform
+import plistlib
+import socket
+import SocketServer
+import stat
+import struct
 import sys
 import time
-import stat
-import logging, logging.handlers
-import SocketServer
-import socket
-import plistlib
-import struct
-import platform
 
-from itemcopier import ItemCopier, ItemCopierError
 from installer import Installer, InstallerError
+from itemcopier import ItemCopier, ItemCopierError
+
 
 APPNAME = "autopkginstalld"
 VERSION = "0.2"
 
+
 class RunHandler(SocketServer.StreamRequestHandler):
-    '''Handler for autopkginstalld run requests'''
+    """Handler for autopkginstalld run requests"""
 
     def verify_request_syntax(self, plist):
         """Verify the basic syntax of an installation request plist."""
@@ -49,7 +52,7 @@ class RunHandler(SocketServer.StreamRequestHandler):
             return False, errors
 
         syntax_ok = True
-        for key in ['package']:
+        for key in ["package"]:
             if not key in plist:
                 syntax_ok = False
                 errors.append("Request does not contain %s" % key)
@@ -82,13 +85,13 @@ class RunHandler(SocketServer.StreamRequestHandler):
         xucred_fmt = "IIh%dI" % NGROUPS
         res = struct.unpack(
             xucred_fmt,
-            self.request.getsockopt(
-                0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)))
+            self.request.getsockopt(0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)),
+        )
 
         if res[cr_version] != XUCRED_VERSION:
             raise OSError("Incompatible struct xucred version")
 
-        return res[cr_uid], res[cr_groups:cr_groups + res[cr_ngroups]]
+        return res[cr_uid], res[cr_groups : cr_groups + res[cr_ngroups]]
 
     def handle(self):
         """Handle an incoming run request."""
@@ -101,8 +104,7 @@ class RunHandler(SocketServer.StreamRequestHandler):
             # Get uid and primary gid of connecting peer.
             uid, gids = self.getpeerid()
             gid = gids[0]
-            self.log.debug(
-                "Got run request from uid %d gid %d" % (uid, gid))
+            self.log.debug("Got run request from uid %d gid %d" % (uid, gid))
 
             # Receive a plist.
             plist_string = self.request.recv(8192)
@@ -116,10 +118,11 @@ class RunHandler(SocketServer.StreamRequestHandler):
                 return
             self.log.debug("Parsed request plist")
 
-            if 'package' in plist:
+            if "package" in plist:
                 self.log.info(
                     "Dispatching Installer worker to process request for "
-                    "user %d" % uid)
+                    "user %d" % uid
+                )
                 try:
                     installer = Installer(self.log, self.request, plist)
                     installer.install()
@@ -127,10 +130,11 @@ class RunHandler(SocketServer.StreamRequestHandler):
                 except InstallerError as err:
                     self.log.error("Installing failed: %s" % err)
                     self.request.send(str(err) + "\n")
-            elif 'mount_point' in plist:
+            elif "mount_point" in plist:
                 self.log.info(
                     "Dispatching ItemCopier worker to process request for "
-                    "user %d" % uid)
+                    "user %d" % uid
+                )
                 try:
                     copier = ItemCopier(self.log, self.request, plist)
                     copier.copy()
@@ -149,6 +153,7 @@ class RunHandler(SocketServer.StreamRequestHandler):
 
 class AutoPkgInstallDaemonError(Exception):
     """Exception class for AutoPkgInstallDaemon errors"""
+
     pass
 
 
@@ -163,12 +168,11 @@ class AutoPkgInstallDaemon(SocketServer.UnixStreamServer):
     def __init__(self, socket_fd, RequestHandlerClass):
         # Avoid initialization of UnixStreamServer as we need to open the
         # socket from a file descriptor instead of creating our own.
-        self.socket = socket.fromfd(
-            socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
+        self.socket = socket.fromfd(socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
         self.socket.listen(self.request_queue_size)
-        SocketServer.BaseServer.__init__(self,
-                                         self.socket.getsockname(),
-                                         RequestHandlerClass)
+        SocketServer.BaseServer.__init__(
+            self, self.socket.getsockname(), RequestHandlerClass
+        )
         self.timed_out = False
 
     def setup_logging(self):
@@ -180,17 +184,14 @@ class AutoPkgInstallDaemon(SocketServer.UnixStreamServer):
             log_console = logging.StreamHandler()
             log_console.setLevel(logging.DEBUG)
             log_file = logging.handlers.RotatingFileHandler(
-                "/private/var/log/%s" % APPNAME,
-                "a",
-                100000,
-                9,
-                "utf-8")
+                "/private/var/log/%s" % APPNAME, "a", 100000, 9, "utf-8"
+            )
             log_file.setLevel(logging.DEBUG)
 
             console_formatter = logging.Formatter("%(message)s")
             file_formatter = logging.Formatter(
-                "%(asctime)s %(module)s[%(process)d]: "
-                "%(message)s   (%(funcName)s)")
+                "%(asctime)s %(module)s[%(process)d]: " "%(message)s   (%(funcName)s)"
+            )
 
             log_console.setFormatter(console_formatter)
             log_file.setFormatter(file_formatter)
@@ -198,8 +199,7 @@ class AutoPkgInstallDaemon(SocketServer.UnixStreamServer):
             self.log.addHandler(log_console)
             self.log.addHandler(log_file)
         except (OSError, IOError) as err:
-            raise AutoPkgInstallDaemonError(
-                "Can't open log: %s" % (err.strerror))
+            raise AutoPkgInstallDaemonError("Can't open log: %s" % (err.strerror))
 
     def handle_timeout(self):
         self.timed_out = True
@@ -208,7 +208,7 @@ class AutoPkgInstallDaemon(SocketServer.UnixStreamServer):
 def main(argv):
     # Make sure we're launched as root
     if os.geteuid() != 0:
-        print >> sys.stderr, "%s must be run as root." % APPNAME
+        print >>sys.stderr, "%s must be run as root." % APPNAME
         # Sleep to avoid respawn.
         time.sleep(10)
         return 1
@@ -224,13 +224,13 @@ def main(argv):
     while True:
         info = os.stat(exepath)
         if info.st_uid != root_uid:
-            print >> sys.stderr, "%s must be owned by root." % exepath
+            print >>sys.stderr, "%s must be owned by root." % exepath
             path_ok = False
         if info.st_gid not in (wheel_gid, admin_gid):
-            print >> sys.stderr, "%s must have group wheel or admin." % exepath
+            print >>sys.stderr, "%s must have group wheel or admin." % exepath
             path_ok = False
         if info.st_mode & stat.S_IWOTH:
-            print >> sys.stderr, "%s mustn't be world writeable." % exepath
+            print >>sys.stderr, "%s mustn't be world writeable." % exepath
             path_ok = False
         exepath = os.path.dirname(exepath)
         if exepath == "/":
@@ -247,6 +247,7 @@ def main(argv):
     # Get socket file descriptors from launchd.
     if int(platform.mac_ver()[0].split(u".")[1]) >= 10:
         import launch2
+
         try:
             sockets = launch2.launch_activate_socket("autopkginstalld")
         except launch2.LaunchDError as err:
@@ -258,6 +259,7 @@ def main(argv):
 
     else:
         import launch
+
         try:
             sockets = launch.get_launchd_socket_fds()
         except launch.LaunchDCheckInError as err:
@@ -289,13 +291,15 @@ def main(argv):
         if run_time < 10.0:
             # Only sleep for a short while in case new requests pop up.
             sleep_time = min(1.0, 10.0 - run_time)
-            daemon.log.debug( \
-                "sleeping for %f seconds to make launchd happy" % sleep_time)
+            daemon.log.debug(
+                "sleeping for %f seconds to make launchd happy" % sleep_time
+            )
             time.sleep(sleep_time)
         else:
             break
 
     return 0
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(main(sys.argv))

@@ -17,29 +17,24 @@
 
 from autopkglib import Processor
 
+
 __all__ = ["MunkiPkginfoMerger"]
 
 
 class MunkiPkginfoMerger(Processor):
     """Merges two pkginfo dictionaries."""
+
     input_variables = {
-        "pkginfo": {
-            "required": False,
-            "description": "Dictionary of Munki pkginfo.",
-        },
+        "pkginfo": {"required": False, "description": "Dictionary of Munki pkginfo."},
         "additional_pkginfo": {
             "required": True,
             "description": (
                 "Dictionary containing additional Munki pkginfo. "
-                "This will be added to or replace keys in the pkginfo."),
-        },
-
-    }
-    output_variables = {
-        "pkginfo": {
-            "description": "Merged pkginfo.",
+                "This will be added to or replace keys in the pkginfo."
+            ),
         },
     }
+    output_variables = {"pkginfo": {"description": "Merged pkginfo."}}
     description = __doc__
 
     def main(self):
