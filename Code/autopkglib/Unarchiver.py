@@ -21,7 +21,6 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["Unarchiver"]
 
 EXTNS = {
@@ -83,13 +82,20 @@ class Unarchiver(Processor):
         archive_path = self.env.get("archive_path", self.env.get("pathname"))
         if not archive_path:
             raise ProcessorError(
-                "Expected an 'archive_path' input variable but none is set!"
+                "Expected an 'archive_path' input variable, but none is set and "
+                "no 'pathname' available!"
             )
-        destination_path = self.env.get(
-            "destination_path",
-            os.path.join(self.env["RECIPE_CACHE_DIR"], self.env["NAME"]),
-        )
-
+        destination_path = self.env.get("destination_path")
+        if not destination_path and not self.env.get("NAME"):
+            self.output(
+                "No destination path provided and NAME is empty, "
+                "using %RECIPE_CACHE_DIR%/Unpack instead!"
+            )
+            destination_path = os.path.join(self.env["RECIPE_CACHE_DIR"], "Unpack")
+        elif not destination_path:
+            destination_path = os.path.join(
+                self.env["RECIPE_CACHE_DIR"], self.env["NAME"]
+            )
         # Create the directory if needed.
         if not os.path.exists(destination_path):
             try:
@@ -110,7 +116,7 @@ class Unarchiver(Processor):
                     raise ProcessorError("Can't remove %s: %s" % (path, err.strerror))
 
         fmt = self.env.get("archive_format")
-        if fmt is None:
+        if not fmt:
             fmt = self.get_archive_format(archive_path)
             if not fmt:
                 raise ProcessorError(
