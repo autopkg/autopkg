@@ -72,17 +72,18 @@ Request format:
 
 """
 
+import logging
+import logging.handlers
 import os
-import sys
-import time
-import stat
-import logging, logging.handlers
-import SocketServer
-import socket
+import platform
 import plistlib
 import re
+import socket
+import SocketServer
+import stat
 import struct
-import platform
+import sys
+import time
 
 from packager import Packager, PackagerError
 
@@ -107,14 +108,9 @@ request_structure = {
     "infofile": str,
     "resources": str,
     "chown": list,
-    "scripts": str
+    "scripts": str,
 }
-chown_structure = {
-    "path": str,
-    "user": (str, int),
-    "group": (str, int),
-    "mode": str
-}
+chown_structure = {"path": str, "user": (str, int), "group": (str, int), "mode": str}
 
 
 #################
@@ -123,23 +119,24 @@ chown_structure = {
 
 
 # Set up signal handlers.
-#def sig_handler(num, frame):
+# def sig_handler(num, frame):
 #    log.error("%s aborted with signal %d" % (APPNAME, num))
 #
-#signal.signal(signal.SIGHUP, sig_handler)
-#signal.signal(signal.SIGINT, sig_handler)
-#signal.signal(signal.SIGTERM, sig_handler)
+# signal.signal(signal.SIGHUP, sig_handler)
+# signal.signal(signal.SIGINT, sig_handler)
+# signal.signal(signal.SIGTERM, sig_handler)
 
 
 class AutoPkgServerError(Exception):
     """Exception class for AutoPkgServer errors"""
+
     pass
+
 
 class PkgHandler(SocketServer.StreamRequestHandler):
     """Handler for packaging requests."""
 
-    re_uid_gid = re.compile(
-        r'^AUTH:AUTHENTICATE (?P<uid>\d{1,10}):(?P<gid>\d{1,10})$')
+    re_uid_gid = re.compile(r"^AUTH:AUTHENTICATE (?P<uid>\d{1,10}):(?P<gid>\d{1,10})$")
 
     def verify_request_syntax(self, plist):
         """Verify the basic syntax of request plist."""
@@ -162,9 +159,9 @@ class PkgHandler(SocketServer.StreamRequestHandler):
                 syntax_ok = False
             else:
                 if not isinstance(plist[key], keytype):
-                    errors.append( \
-                        "Request key %s is not of type %s" % \
-                        (key, str(keytype)))
+                    errors.append(
+                        "Request key %s is not of type %s" % (key, str(keytype))
+                    )
                     syntax_ok = False
 
         if syntax_ok:
@@ -185,9 +182,10 @@ class PkgHandler(SocketServer.StreamRequestHandler):
                         errors.append("chown entry is missing %s" % key)
                     else:
                         if not isinstance(chown_entry[key], keytype):
-                            errors.append( \
-                                "Request key chown.%s is not of type %s" % \
-                                (key, str(keytype)))
+                            errors.append(
+                                "Request key chown.%s is not of type %s"
+                                % (key, str(keytype))
+                            )
                             syntax_ok = False
 
         return (syntax_ok, errors)
@@ -218,13 +216,13 @@ class PkgHandler(SocketServer.StreamRequestHandler):
         xucred_fmt = "IIh%dI" % NGROUPS
         res = struct.unpack(
             xucred_fmt,
-            self.request.getsockopt(
-                0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)))
+            self.request.getsockopt(0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)),
+        )
 
         if res[cr_version] != XUCRED_VERSION:
             raise OSError("Incompatible struct xucred version")
 
-        return res[cr_uid], res[cr_groups:cr_groups + res[cr_ngroups]]
+        return res[cr_uid], res[cr_groups : cr_groups + res[cr_ngroups]]
 
     def handle(self):
         """Handle an incoming packaging request."""
@@ -237,8 +235,7 @@ class PkgHandler(SocketServer.StreamRequestHandler):
             # Get uid and primary gid of connecting peer.
             uid, gids = self.getpeerid()
             gid = gids[0]
-            self.log.debug(
-                "Got packaging request from uid %d gid %d" % (uid, gid))
+            self.log.debug("Got packaging request from uid %d gid %d" % (uid, gid))
 
             # Receive a plist.
             plist_string = self.request.recv(8192)
@@ -265,8 +262,7 @@ class PkgHandler(SocketServer.StreamRequestHandler):
                 self.request.send("ERROR:Can't find pkgroot")
                 return
 
-            self.log.info(
-                "Dispatching worker to process request for user %d" % (uid))
+            self.log.info("Dispatching worker to process request for user %d" % (uid))
             try:
                 pkgr = Packager(self.log, plist, name, uid, gid)
                 pkgpath = pkgr.package()
@@ -293,15 +289,14 @@ class AutoPkgServer(SocketServer.UnixStreamServer):
     def __init__(self, socket_fd, RequestHandlerClass):
         # Avoid initialization of UnixStreamServer as we need to open the
         # socket from a file descriptor instead of creating our own.
-        self.socket = socket.fromfd(
-            socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
+        self.socket = socket.fromfd(socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
         self.socket.listen(self.request_queue_size)
-        SocketServer.BaseServer.__init__(self,
-                                         self.socket.getsockname(),
-                                         RequestHandlerClass)
+        SocketServer.BaseServer.__init__(
+            self, self.socket.getsockname(), RequestHandlerClass
+        )
         self.timed_out = False
 
-    #def server_bind(self):
+    # def server_bind(self):
     #    """Override binding to inherit socket from launchd."""
     #
 
@@ -313,17 +308,14 @@ class AutoPkgServer(SocketServer.UnixStreamServer):
             log_console = logging.StreamHandler()
             log_console.setLevel(logging.DEBUG)
             log_file = logging.handlers.RotatingFileHandler(
-                "/private/var/log/%s" % APPNAME,
-                "a",
-                100000,
-                9,
-                "utf-8")
+                "/private/var/log/%s" % APPNAME, "a", 100000, 9, "utf-8"
+            )
             log_file.setLevel(logging.DEBUG)
 
             console_formatter = logging.Formatter("%(message)s")
-            file_formatter = \
-                logging.Formatter("%(asctime)s %(module)s[%(process)d]: " + \
-                                  "%(message)s   (%(funcName)s)")
+            file_formatter = logging.Formatter(
+                "%(asctime)s %(module)s[%(process)d]: " + "%(message)s   (%(funcName)s)"
+            )
 
             log_console.setFormatter(console_formatter)
             log_file.setFormatter(file_formatter)
@@ -379,6 +371,7 @@ def main(argv):
     # Get socket file descriptors from launchd.
     if int(platform.mac_ver()[0].split(u".")[1]) >= 10:
         import launch2
+
         try:
             sockets = launch2.launch_activate_socket("AutoPkgServer")
         except launch2.LaunchDError as err:
@@ -390,6 +383,7 @@ def main(argv):
 
     else:
         import launch
+
         try:
             sockets = launch.get_launchd_socket_fds()
         except launch.LaunchDCheckInError as err:
@@ -425,17 +419,18 @@ def main(argv):
                 # Only sleep for a short while in case new requests pop up.
                 sleep_time = min(1.0, 10.0 - run_time)
                 server.log.debug(
-                    "sleeping for %f seconds to make launchd happy"
-                    % sleep_time)
+                    "sleeping for %f seconds to make launchd happy" % sleep_time
+                )
                 time.sleep(sleep_time)
             else:
                 break
     finally:
         # Make sure the socket is removed.
-        #os.unlink(SOCKET)
+        # os.unlink(SOCKET)
         pass
 
     return 0
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     sys.exit(main(sys.argv))

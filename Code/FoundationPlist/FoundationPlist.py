@@ -43,43 +43,55 @@ and writePlistToString().
 
 import os
 
-from Foundation import (NSData, NSPropertyListMutableContainersAndLeaves,
-                        NSPropertyListSerialization,
-                        NSPropertyListXMLFormat_v1_0)
+from Foundation import (
+    NSData,
+    NSPropertyListMutableContainersAndLeaves,
+    NSPropertyListSerialization,
+    NSPropertyListXMLFormat_v1_0,
+)
 
 
 class FoundationPlistException(Exception):
-    '''Base error for this module'''
+    """Base error for this module"""
+
     pass
 
 
 class NSPropertyListSerializationException(FoundationPlistException):
-    '''Read error for this module'''
+    """Read error for this module"""
+
     pass
 
 
 class NSPropertyListWriteException(FoundationPlistException):
-    '''Write error for this module'''
+    """Write error for this module"""
+
     pass
 
 
 # private functions
 def _dataToPlist(data):
-    '''low-level function that parses a data object into a propertyList object'''
-    darwin_vers = int(os.uname()[2].split('.')[0])
+    """low-level function that parses a data object into a propertyList object"""
+    darwin_vers = int(os.uname()[2].split(".")[0])
     if darwin_vers > 10:
-        (plistObject, plistFormat, error) = (
-            NSPropertyListSerialization.propertyListWithData_options_format_error_(
-                data, NSPropertyListMutableContainersAndLeaves, None, None))
+        (
+            plistObject,
+            plistFormat,
+            error,
+        ) = NSPropertyListSerialization.propertyListWithData_options_format_error_(
+            data, NSPropertyListMutableContainersAndLeaves, None, None
+        )
     else:
         # 10.5 doesn't support propertyListWithData:options:format:error:
         # 10.6's PyObjC wrapper for propertyListWithData:options:format:error:
         #        is broken
         # so use the older NSPropertyListSerialization function
-        (plistObject, plistFormat, error) = (
-            NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
-                data, NSPropertyListMutableContainersAndLeaves, None, None
-            )
+        (
+            plistObject,
+            plistFormat,
+            error,
+        ) = NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
+            data, NSPropertyListMutableContainersAndLeaves, None, None
         )
     if plistObject is None:
         if error is None:
@@ -90,17 +102,23 @@ def _dataToPlist(data):
 
 
 def _plistToData(plistObject):
-    '''low-level function that creates NSData from a plist object'''
-    darwin_vers = int(os.uname()[2].split('.')[0])
+    """low-level function that creates NSData from a plist object"""
+    darwin_vers = int(os.uname()[2].split(".")[0])
     if darwin_vers > 10:
-        (data, error) = (
-            NSPropertyListSerialization.dataWithPropertyList_format_options_error_(
-                plistObject, NSPropertyListXMLFormat_v1_0, 0, None))
+        (
+            data,
+            error,
+        ) = NSPropertyListSerialization.dataWithPropertyList_format_options_error_(
+            plistObject, NSPropertyListXMLFormat_v1_0, 0, None
+        )
     else:
         # use the older NSPropertyListSerialization function on 10.6 and 10.5
-        (data, error) = (
-            NSPropertyListSerialization.dataFromPropertyList_format_errorDescription_(
-                plistObject, NSPropertyListXMLFormat_v1_0, None))
+        (
+            data,
+            error,
+        ) = NSPropertyListSerialization.dataFromPropertyList_format_errorDescription_(
+            plistObject, NSPropertyListXMLFormat_v1_0, None
+        )
     if data is None:
         if error is None:
             error = "Property list invalid for format."
@@ -110,33 +128,34 @@ def _plistToData(plistObject):
 
 # public functions
 def readPlist(filepath):
-    '''Read a .plist file from filepath.  Return the unpacked root object
-    (which is usually a dictionary).'''
+    """Read a .plist file from filepath.  Return the unpacked root object
+    (which is usually a dictionary)."""
     try:
         data = NSData.dataWithContentsOfFile_(filepath)
     except NSPropertyListSerializationException as error:
         # insert filepath info into error message
-        errmsg = (u'%s in %s' % (error, filepath))
+        errmsg = u"%s in %s" % (error, filepath)
         raise NSPropertyListSerializationException(errmsg)
     return _dataToPlist(data)
 
 
 def readPlistFromString(aString):
-    '''Read a plist data from a string. Return the root object.'''
+    """Read a plist data from a string. Return the root object."""
     data = buffer(aString)
     return _dataToPlist(data)
 
 
 def writePlist(plistObject, filepath):
-    '''Write 'plistObject' as a plist to filepath.'''
+    """Write 'plistObject' as a plist to filepath."""
     plistData = _plistToData(plistObject)
     if plistData.writeToFile_atomically_(filepath, True):
         return
     else:
         raise NSPropertyListWriteException(
-            u"Failed to write plist data to %s" % filepath)
+            u"Failed to write plist data to %s" % filepath
+        )
 
 
 def writePlistToString(plistObject):
-    '''Create a plist-formatted string from plistObject.'''
+    """Create a plist-formatted string from plistObject."""
     return str(_plistToData(plistObject))

@@ -21,76 +21,80 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["PkgPayloadUnpacker"]
 
 
 class PkgPayloadUnpacker(Processor):
     """Unpacks a package payload."""
+
     input_variables = {
         "pkg_payload_path": {
             "required": True,
-            "description":
-                ("Path to a payload from an expanded flat package or "
-                 "Archive.pax.gz in a bundle package."),
+            "description": (
+                "Path to a payload from an expanded flat package or "
+                "Archive.pax.gz in a bundle package."
+            ),
         },
-        "destination_path": {
-            "required": True,
-            "description": "Destination directory.",
-        },
+        "destination_path": {"required": True, "description": "Destination directory."},
         "purge_destination": {
             "required": False,
-            "description":
-                ("Whether the contents of the destination directory will "
-                 "be removed before unpacking."),
+            "description": (
+                "Whether the contents of the destination directory will "
+                "be removed before unpacking."
+            ),
         },
     }
-    output_variables = {
-    }
+    output_variables = {}
     description = __doc__
 
     def unpack_pkg_payload(self):
         """Uses ditto to unpack a package payload into destination_path"""
         # Create the destination directory if needed.
-        if not os.path.exists(self.env['destination_path']):
+        if not os.path.exists(self.env["destination_path"]):
             try:
-                os.makedirs(self.env['destination_path'])
+                os.makedirs(self.env["destination_path"])
             except OSError as err:
                 raise ProcessorError(
-                    "Can't create %s: %s"
-                    % (self.env['destination_path'], err.strerror))
-        elif self.env.get('purge_destination'):
-            for entry in os.listdir(self.env['destination_path']):
-                path = os.path.join(self.env['destination_path'], entry)
+                    "Can't create %s: %s" % (self.env["destination_path"], err.strerror)
+                )
+        elif self.env.get("purge_destination"):
+            for entry in os.listdir(self.env["destination_path"]):
+                path = os.path.join(self.env["destination_path"], entry)
                 try:
                     if os.path.isdir(path) and not os.path.islink(path):
                         shutil.rmtree(path)
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError(
-                        "Can't remove %s: %s" % (path, err.strerror))
+                    raise ProcessorError("Can't remove %s: %s" % (path, err.strerror))
 
         try:
-            dittocmd = ["/usr/bin/ditto",
-                        "-x",
-                        "-z",
-                        self.env["pkg_payload_path"],
-                        self.env["destination_path"]]
-            proc = subprocess.Popen(dittocmd,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
+            dittocmd = [
+                "/usr/bin/ditto",
+                "-x",
+                "-z",
+                self.env["pkg_payload_path"],
+                self.env["destination_path"],
+            ]
+            proc = subprocess.Popen(
+                dittocmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
             (_, err_out) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 "ditto execution failed with error code %d: %s"
-                % (err.errno, err.strerror))
+                % (err.errno, err.strerror)
+            )
         if proc.returncode != 0:
             raise ProcessorError(
                 "extraction of %s with ditto failed: %s"
-                % (self.env['pkg_payload_path'], err_out))
+                % (self.env["pkg_payload_path"], err_out)
+            )
         self.output(
             "Unpacked %s to %s"
-            % (self.env["pkg_payload_path"], self.env["destination_path"]))
+            % (self.env["pkg_payload_path"], self.env["destination_path"])
+        )
 
     def main(self):
         self.unpack_pkg_payload()

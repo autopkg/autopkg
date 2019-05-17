@@ -23,32 +23,28 @@ import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
+
 __all__ = ["PkgExtractor"]
 
 
 class PkgExtractor(DmgMounter):
     """Extracts the contents of a bundle-style pkg (possibly on a disk image)
     to pkgroot."""
+
     description = __doc__
     input_variables = {
-        "pkg_path": {
-            "required": True,
-            "description":
-                "Path to a package.",
-        },
+        "pkg_path": {"required": True, "description": "Path to a package."},
         "extract_root": {
             "required": True,
-            "description":
-                "Path to where the new package root will be created.",
+            "description": "Path to where the new package root will be created.",
         },
     }
-    output_variables = {
-    }
+    output_variables = {}
 
     def extract_payload(self, pkg_path, extract_root):
-        '''Extract package contents to extract_root, preserving intended
-         directory structure'''
-        #pylint: disable=no-self-use
+        """Extract package contents to extract_root, preserving intended
+         directory structure"""
+        # pylint: disable=no-self-use
         info_plist = os.path.join(pkg_path, "Contents/Info.plist")
         archive_path = os.path.join(pkg_path, "Contents/Archive.pax.gz")
         if not os.path.exists(info_plist):
@@ -76,25 +72,23 @@ class PkgExtractor(DmgMounter):
 
         # Unpack payload.
         try:
-            proc = subprocess.Popen(("/usr/bin/ditto",
-                                     "-x",
-                                     "-z",
-                                     archive_path,
-                                     extract_path),
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
+            proc = subprocess.Popen(
+                ("/usr/bin/ditto", "-x", "-z", archive_path, extract_path),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
             (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 "ditto execution failed with error code %d: %s"
-                % (err.errno, err.strerror))
+                % (err.errno, err.strerror)
+            )
         if proc.returncode != 0:
             raise ProcessorError("Unpacking payload failed: %s" % stderr)
 
     def main(self):
         # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = (
-            self.parsePathForDMG(self.env['pkg_path']))
+        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(self.env["pkg_path"])
         try:
             if dmg:
                 # Mount dmg and copy path inside.
@@ -102,7 +96,7 @@ class PkgExtractor(DmgMounter):
                 pkg_path = os.path.join(mount_point, dmg_source_path)
             else:
                 # just use the given path
-                pkg_path = self.env['pkg_path']
+                pkg_path = self.env["pkg_path"]
             self.extract_payload(pkg_path, self.env["extract_root"])
 
         finally:
@@ -110,6 +104,6 @@ class PkgExtractor(DmgMounter):
                 self.unmount(dmg_path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = PkgExtractor()
     PROCESSOR.execute_shell()

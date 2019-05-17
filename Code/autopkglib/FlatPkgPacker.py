@@ -19,25 +19,26 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["FlatPkgPacker"]
 
 
 class FlatPkgPacker(Processor):
-    '''Flatten an expanded package using pkgutil.
+    """Flatten an expanded package using pkgutil.
 
     Requires version 0.2.4.
-    '''
+    """
 
     description = __doc__
 
     input_variables = {
-        'source_flatpkg_dir': {
-            'description': 'Path to an extracted flat package',
-            'required': True,
+        "source_flatpkg_dir": {
+            "description": "Path to an extracted flat package",
+            "required": True,
         },
-        'destination_pkg': {
-            'description': 'Name of destination pkg to be flattened',
-            'required': True,
+        "destination_pkg": {
+            "description": "Name of destination pkg to be flattened",
+            "required": True,
         },
     }
 
@@ -45,23 +46,23 @@ class FlatPkgPacker(Processor):
 
     def flatten(self, source_dir, dest_pkg):
         """Flattens a previously expanded flat package"""
-        #pylint: disable=no-self-use
+        # pylint: disable=no-self-use
         try:
-            subprocess.check_call(['/usr/sbin/pkgutil',
-                                   '--flatten', source_dir, dest_pkg])
+            subprocess.check_call(
+                ["/usr/sbin/pkgutil", "--flatten", source_dir, dest_pkg]
+            )
         except subprocess.CalledProcessError as err:
             raise ProcessorError("%s flattening %s" % (err, source_dir))
 
     def main(self):
-        source_dir = self.env.get('source_flatpkg_dir')
-        dest_pkg = self.env.get('destination_pkg')
+        source_dir = self.env.get("source_flatpkg_dir")
+        dest_pkg = self.env.get("destination_pkg")
 
         self.flatten(source_dir, dest_pkg)
 
-        self.output("Flattened %s to %s"
-                    % (source_dir, dest_pkg))
+        self.output("Flattened %s to %s" % (source_dir, dest_pkg))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = FlatPkgPacker()
     PROCESSOR.execute_shell()

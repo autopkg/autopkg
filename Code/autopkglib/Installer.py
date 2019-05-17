@@ -23,6 +23,7 @@ import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
+
 AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
 
 
@@ -31,13 +32,14 @@ __all__ = ["Installer"]
 
 class Installer(DmgMounter):
     """Calls autopkginstalld to install a package."""
+
     description = __doc__
     input_variables = {
         "pkg_path": {
             "required": True,
             "description": (
-                "Path to the package to be installed. Can be inside a disk "
-                "image.")
+                "Path to the package to be installed. Can be inside a disk " "image."
+            ),
         },
         "new_package_request": {
             "required": False,
@@ -45,7 +47,8 @@ class Installer(DmgMounter):
                 "new_package_request is set by the PkgCreator processor to "
                 "indicate that a new package was built. If this key is set in "
                 "the environment and is False or empty the installation will "
-                "be skipped.")
+                "be skipped."
+            ),
         },
         "download_changed": {
             "required": False,
@@ -53,24 +56,23 @@ class Installer(DmgMounter):
                 "download_changed is set by the URLDownloader processor to "
                 "indicate that a new file was downloaded. If this key is set "
                 "in the environment and is False or empty the installation "
-                "will be skipped, unless new_package_request is non-False.")
+                "will be skipped, unless new_package_request is non-False."
+            ),
         },
     }
     output_variables = {
-        "install_result": {
-            "description": "Result of install request."
-        },
+        "install_result": {"description": "Result of install request."},
         "installer_summary_result": {
             "description": "Description of interesting results."
-        }
+        },
     }
 
     def install(self):
-        '''Build an installation request, send it to autopkginstalld'''
+        """Build an installation request, send it to autopkginstalld"""
         # clear any pre-exising summary result
-        if 'installer_summary_result' in self.env:
-            del self.env['installer_summary_result']
-        
+        if "installer_summary_result" in self.env:
+            del self.env["installer_summary_result"]
+
         if "new_package_request" in self.env:
             if not self.env["new_package_request"]:
                 # PkgCreator did not build a new package, so skip the install
@@ -97,20 +99,23 @@ class Installer(DmgMounter):
             matches = glob(pkg_path)
             if len(matches) == 0:
                 raise ProcessorError(
-                    "Error processing path '%s' with glob. " % pkg_path)
+                    "Error processing path '%s' with glob. " % pkg_path
+                )
             matched_pkg_path = matches[0]
             if len(matches) > 1:
                 self.output(
-                    "WARNING: Multiple paths match 'pkg_path' glob '%s':"
-                    % pkg_path)
+                    "WARNING: Multiple paths match 'pkg_path' glob '%s':" % pkg_path
+                )
                 for match in matches:
                     self.output("  - %s" % match)
 
-            if [c for c in '*?[]!' if c in pkg_path]:
-                self.output("Using path '%s' matched from globbed '%s'."
-                            % (matched_pkg_path, pkg_path))
+            if [c for c in "*?[]!" if c in pkg_path]:
+                self.output(
+                    "Using path '%s' matched from globbed '%s'."
+                    % (matched_pkg_path, pkg_path)
+                )
 
-            request = {'package': matched_pkg_path}
+            request = {"package": matched_pkg_path}
             result = None
             # Send install request.
             try:
@@ -127,13 +132,12 @@ class Installer(DmgMounter):
             # Return result.
             self.output("Result: %s" % result)
             self.env["install_result"] = result
-            if result == 'DONE':
-                self.env['installer_summary_result'] = {
-                    'summary_text': ('The following pkgs '
-                                     'were successfully installed:'),
-                    'data': {
-                        'pkg_path': matched_pkg_path,
-                    }
+            if result == "DONE":
+                self.env["installer_summary_result"] = {
+                    "summary_text": (
+                        "The following pkgs " "were successfully installed:"
+                    ),
+                    "data": {"pkg_path": matched_pkg_path},
                 }
 
         finally:
@@ -141,18 +145,19 @@ class Installer(DmgMounter):
                 self.unmount(dmg_path)
 
     def connect(self):
-        '''Connect to autopkginstalld'''
+        """Connect to autopkginstalld"""
         try:
-            #pylint: disable=attribute-defined-outside-init
+            # pylint: disable=attribute-defined-outside-init
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            #pylint: enable=attribute-defined-outside-init
+            # pylint: enable=attribute-defined-outside-init
             self.socket.connect(AUTOPKGINSTALLD_SOCKET)
         except socket.error as err:
             raise ProcessorError(
-                "Couldn't connect to autopkginstalld: %s" % err.strerror)
+                "Couldn't connect to autopkginstalld: %s" % err.strerror
+            )
 
     def send_request(self, request):
-        '''Send an install request to autopkginstalld'''
+        """Send an install request to autopkginstalld"""
         self.socket.send(FoundationPlist.writePlistToString(request))
         with os.fdopen(self.socket.fileno()) as fileref:
             while True:
@@ -169,20 +174,20 @@ class Installer(DmgMounter):
 
         errors = data.rstrip().split("\n")
         if not errors:
-            errors = ["ERROR:No reply from autopkginstalld (crash?), "
-                      "check system logs"]
-        raise ProcessorError(
-            ", ".join([s.replace("ERROR:", "") for s in errors]))
+            errors = [
+                "ERROR:No reply from autopkginstalld (crash?), " "check system logs"
+            ]
+        raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
     def disconnect(self):
-        '''Disconnect from autopkginstalld'''
+        """Disconnect from autopkginstalld"""
         self.socket.close()
 
     def main(self):
-        '''Install something!'''
+        """Install something!"""
         self.install()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = Installer()
     PROCESSOR.execute_shell()

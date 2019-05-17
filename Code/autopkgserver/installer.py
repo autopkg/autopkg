@@ -13,19 +13,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-'''Runs installer to install a package. Can install a package located inside a
-disk image file.'''
+"""Runs installer to install a package. Can install a package located inside a
+disk image file."""
 
 import subprocess
 
 
 class InstallerError(Exception):
-    '''Base error for Installer errors'''
+    """Base error for Installer errors"""
+
     pass
 
 
 class Installer(object):
-    '''Runs /usr/sbin/installer to install a package'''
+    """Runs /usr/sbin/installer to install a package"""
 
     def __init__(self, log, socket, request):
         """Arguments:
@@ -40,32 +41,35 @@ class Installer(object):
         self.request = request
 
     def verify_request(self):
-        '''Make sure copy request has everything we need'''
+        """Make sure copy request has everything we need"""
         self.log.debug("Verifying install request")
         for key in ["package"]:
             if key not in self.request:
                 raise InstallerError("ERROR:No %s in request" % key)
 
     def do_install(self):
-        '''Call /usr/sbin/installer'''
-        pkg_path = self.request['package']
+        """Call /usr/sbin/installer"""
+        pkg_path = self.request["package"]
         try:
-            cmd = ['/usr/sbin/installer', '-verboseR',
-                   '-pkg', pkg_path, '-target', '/']
-            proc = subprocess.Popen(cmd, shell=False, bufsize=-1,
-                                    stdin=subprocess.PIPE,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT)
+            cmd = ["/usr/sbin/installer", "-verboseR", "-pkg", pkg_path, "-target", "/"]
+            proc = subprocess.Popen(
+                cmd,
+                shell=False,
+                bufsize=-1,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
             while True:
-                output = proc.stdout.readline().decode('UTF-8')
+                output = proc.stdout.readline().decode("UTF-8")
                 if not output and (proc.poll() is not None):
                     break
-                self.socket.send("STATUS:%s" % output.encode('UTF-8'))
+                self.socket.send("STATUS:%s" % output.encode("UTF-8"))
                 self.log.info(output.rstrip())
 
             if proc.returncode != 0:
                 raise InstallerError("ERROR:%s\n" % proc.returncode)
-            self.log.info('install request completed.')
+            self.log.info("install request completed.")
             return True
         except BaseException as err:
             self.log.error("Install failed: %s" % err)

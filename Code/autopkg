@@ -35,26 +35,38 @@ from urllib import quote
 from urlparse import urlparse
 
 import autopkglib.github
-from autopkglib import (AutoPackager, AutoPackagerError, PreferenceError,
-                        core_processor_names,
-                        extract_processor_name_with_recipe_identifier,
-                        find_recipe_by_identifier, get_all_prefs,
-                        get_autopkg_version, get_identifier, get_pref,
-                        get_processor, processor_names, set_pref,
-                        version_equal_or_greater)
+from autopkglib import (
+    AutoPackager,
+    AutoPackagerError,
+    PreferenceError,
+    core_processor_names,
+    extract_processor_name_with_recipe_identifier,
+    find_recipe_by_identifier,
+    get_all_prefs,
+    get_autopkg_version,
+    get_identifier,
+    get_pref,
+    get_processor,
+    processor_names,
+    set_pref,
+    version_equal_or_greater,
+)
 
-if sys.platform != 'darwin':
-    print("""
+
+if sys.platform != "darwin":
+    print(
+        """
 --------------------------------------------------------------------------------
 -- WARNING: AutoPkg is not completely functional on platforms other than OS X --
 --------------------------------------------------------------------------------
-""")
+"""
+    )
 
 try:
     import FoundationPlist
 except:
-    print('WARNING: importing plistlib as FoundationPlist;')
-    print('WARNING: some plist formats will be unsupported')
+    print("WARNING: importing plistlib as FoundationPlist;")
+    print("WARNING: some plist formats will be unsupported")
     import plistlib as FoundationPlist
 
 # If any recipe fails during 'autopkg run', return this exit code
@@ -62,28 +74,28 @@ RECIPE_FAILED_CODE = 70
 
 
 def log(msg, error=False):
-    '''Message logger, prints to stdout/stderr.'''
+    """Message logger, prints to stdout/stderr."""
     if error:
-        print(unicode(msg).encode('UTF-8'), file=sys.stderr)
+        print(unicode(msg).encode("UTF-8"), file=sys.stderr)
     else:
-        print(unicode(msg).encode('UTF-8'), file=sys.stderr)
+        print(unicode(msg).encode("UTF-8"), file=sys.stderr)
 
 
 def log_err(msg):
-    '''Message logger for errors.'''
+    """Message logger for errors."""
     log(msg, error=True)
 
 
 def print_version(argv):
-    '''Prints autopkg version'''
+    """Prints autopkg version"""
     # make PyLint happy here since all our verb functions are passed argv
     _ = argv[1]
     print(get_autopkg_version())
 
 
 def recipe_has_step_processor(recipe, processor):
-    '''Does the recipe object contain at least one step with the
-    named Processor?'''
+    """Does the recipe object contain at least one step with the
+    named Processor?"""
     if "Process" in recipe:
         processors = [step.get("Processor") for step in recipe["Process"]]
         if processor in processors:
@@ -92,36 +104,35 @@ def recipe_has_step_processor(recipe, processor):
 
 
 def has_munkiimporter_step(recipe):
-    '''Does the recipe have a MunkiImporter step?'''
+    """Does the recipe have a MunkiImporter step?"""
     return recipe_has_step_processor(recipe, "MunkiImporter")
 
 
 def has_check_phase(recipe):
-    '''Does the recipe have a "check" phase?'''
+    """Does the recipe have a "check" phase?"""
     return recipe_has_step_processor(recipe, "EndOfCheckPhase")
 
 
 def builds_a_package(recipe):
-    '''Does this recipe build any packages?'''
+    """Does this recipe build any packages?"""
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
 def recipe_plist_from_file(filename):
-    '''Create a recipe plist from a file. Handle exceptions and log'''
+    """Create a recipe plist from a file. Handle exceptions and log"""
     if os.path.isfile(filename):
         try:
             # make sure we can read it
             recipe_plist = FoundationPlist.readPlist(filename)
         except FoundationPlist.FoundationPlistException as err:
-            log_err(
-                "WARNING: plist error for %s: %s" % (filename, unicode(err)))
+            log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
             return
         return recipe_plist
 
 
 def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
-    '''Attempts to read a plist and ensures the keys in
-    keys_to_verify exist. Returns False on any failure, True otherwise.'''
+    """Attempts to read a plist and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise."""
     if recipe_plist:
         for key in keys_to_verify:
             if key not in recipe_plist:
@@ -132,15 +143,15 @@ def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
 
 
 def valid_plist_with_keys(filename, keys_to_verify):
-    '''Attempts to read a plist file and ensures the keys in
-    keys_to_verify exist. Returns False on any failure, True otherwise.'''
+    """Attempts to read a plist file and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise."""
     recipe_plist = recipe_plist_from_file(filename)
     return valid_plist_with_keys(recipe_plist, keys_to_verify)
 
 
 def valid_recipe_plist(recipe_plist):
-    '''Returns True if recipe plist is a valid recipe,
-    otherwise returns False'''
+    """Returns True if recipe plist is a valid recipe,
+    otherwise returns False"""
     return (
         valid_recipe_plist_with_keys(recipe_plist, ["Input", "Process"])
         or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
@@ -149,29 +160,29 @@ def valid_recipe_plist(recipe_plist):
 
 
 def valid_recipe_file(filename):
-    '''Returns True if filename contains a valid recipe,
-    otherwise returns False'''
+    """Returns True if filename contains a valid recipe,
+    otherwise returns False"""
     recipe_plist = recipe_plist_from_file(filename)
     return valid_recipe_plist(recipe_plist)
 
 
 def valid_override_plist(recipe_plist):
-    '''Returns True if the recipe is a valid override,
-    otherwise returns False'''
-    return (
-        valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
-        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"]))
+    """Returns True if the recipe is a valid override,
+    otherwise returns False"""
+    return valid_recipe_plist_with_keys(
+        recipe_plist, ["Input", "ParentRecipe"]
+    ) or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
 
 
 def valid_override_file(filename):
-    '''Returns True if filename contains a valid override,
-    otherwise returns False'''
+    """Returns True if filename contains a valid override,
+    otherwise returns False"""
     override_plist = recipe_plist_from_file(filename)
     return valid_override_plist(override_plist)
 
 
 def find_recipe_by_name(name, search_dirs):
-    '''Search search_dirs for a recipe by file/directory naming rules'''
+    """Search search_dirs for a recipe by file/directory naming rules"""
     if name.endswith(".recipe"):
         # drop ".recipe" from the end of the name because we're
         # going to add it back on...
@@ -181,7 +192,7 @@ def find_recipe_by_name(name, search_dirs):
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         patterns = [
             os.path.join(normalized_dir, "%s.recipe" % name),
-            os.path.join(normalized_dir, "*/%s.recipe" % name)
+            os.path.join(normalized_dir, "*/%s.recipe" % name),
         ]
         for pattern in patterns:
             matches = glob.glob(pattern)
@@ -193,42 +204,46 @@ def find_recipe_by_name(name, search_dirs):
 
 
 def find_recipe(id_or_name, search_dirs):
-    '''find a recipe based on a string that might be an identifier
-    or a name'''
-    return (find_recipe_by_identifier(id_or_name, search_dirs) or
-            find_recipe_by_name(id_or_name, search_dirs))
+    """find a recipe based on a string that might be an identifier
+    or a name"""
+    return find_recipe_by_identifier(id_or_name, search_dirs) or find_recipe_by_name(
+        id_or_name, search_dirs
+    )
 
 
 def get_identifier_from_override(override):
-    '''Return the identifier from an override, falling back with a
-    warning to just the 'name' of the recipe.'''
+    """Return the identifier from an override, falling back with a
+    warning to just the 'name' of the recipe."""
     # prefer ParentRecipe
-    identifier = override.get('ParentRecipe')
+    identifier = override.get("ParentRecipe")
     if identifier:
         return identifier
-    identifier = override['Recipe'].get("identifier")
+    identifier = override["Recipe"].get("identifier")
     if identifier:
         return identifier
     else:
-        name = override['Recipe'].get("name")
-        log_err("WARNING: Override contains no identifier. Will fall "
-                "back to matching it by name using search rules. It's "
-                "recommended to give the original recipe identifier "
-                "in the override's 'Recipes' dict to ensure the same "
-                "recipe is always used for this override.")
+        name = override["Recipe"].get("name")
+        log_err(
+            "WARNING: Override contains no identifier. Will fall "
+            "back to matching it by name using search rules. It's "
+            "recommended to give the original recipe identifier "
+            "in the override's 'Recipes' dict to ensure the same "
+            "recipe is always used for this override."
+        )
     return name
 
 
-def locate_recipe(name, override_dirs, recipe_dirs,
-                  make_suggestions=True, search_github=True):
-    '''Locates a recipe by name. If the name is the pathname to a file on disk,
+def locate_recipe(
+    name, override_dirs, recipe_dirs, make_suggestions=True, search_github=True
+):
+    """Locates a recipe by name. If the name is the pathname to a file on disk,
     we attempt to load that file and use it as recipe. If a parent recipe
     is required we first add the child recipe's directory to the search path
     so that the parent can be found, assuming it is in the same directory.
 
     Otherwise, we treat name as a recipe name or identifier and search first
     the override directories, then the recipe directories for a matching
-    recipe.'''
+    recipe."""
 
     recipe_file = None
     if os.path.isfile(name):
@@ -243,7 +258,7 @@ def locate_recipe(name, override_dirs, recipe_dirs,
         recipe_file = find_recipe(name, override_dirs + recipe_dirs)
 
     if not recipe_file and make_suggestions:
-        print(u"Didn't find a recipe for %s." % name.encode('UTF-8'))
+        print(u"Didn't find a recipe for %s." % name.encode("UTF-8"))
         make_suggestions_for(name)
 
     if not recipe_file and search_github:
@@ -252,15 +267,16 @@ def locate_recipe(name, override_dirs, recipe_dirs,
             indef_article = "an"
         answer = raw_input(
             "Search GitHub AutoPkg repos for %s %s recipe? [y/n]: "
-            % (indef_article, name))
-        if answer.lower().startswith('y'):
+            % (indef_article, name)
+        )
+        if answer.lower().startswith("y"):
             results_limit = 100
             query = "q=%s+extension:recipe+user:autopkg+in:file,path" % name
             query += "&per_page=%s" % results_limit
 
             results = do_gh_code_search(query, use_token=False)
 
-            if not results or not results.get('total_count'):
+            if not results or not results.get("total_count"):
                 print("Nothing found.")
                 return None
 
@@ -272,14 +288,14 @@ def locate_recipe(name, override_dirs, recipe_dirs,
             #
             ## filter out any results that are in repos we already have added
             ## locally
-            #recipe_repo_urls = []
-            #recipe_repos = get_pref("RECIPE_REPOS") or {}
-            #for key in recipe_repos.keys():
+            # recipe_repo_urls = []
+            # recipe_repos = get_pref("RECIPE_REPOS") or {}
+            # for key in recipe_repos.keys():
             #    recipe_repo_urls.append(recipe_repos[key]['URL'])
-            #results_items = [
+            # results_items = [
             #    item for item in results_items
             #    if item['repository']['html_url'] not in recipe_repo_urls]
-            #if len(results_items) > 1:
+            # if len(results_items) > 1:
             #    # filter results items by matching filenames.
             #    # this works around the fact that we can't do a
             #    # case-insensitive filename search with the GitHub API
@@ -295,7 +311,7 @@ def locate_recipe(name, override_dirs, recipe_dirs,
             # make a list of unique repo names
             repo_names = []
             for item in results_items:
-                repo_name = item["repository"]['name']
+                repo_name = item["repository"]["name"]
                 if repo_name not in repo_names:
                     repo_names.append(repo_name)
 
@@ -303,44 +319,56 @@ def locate_recipe(name, override_dirs, recipe_dirs,
                 # we found results in a single repo, so offer to add it
                 repo = results_items[0]["repository"]
                 print()
-                answer = raw_input(
-                    "Add recipe repo '%s'? [y/n]: " % repo['name'])
-                if answer.lower().startswith('y'):
-                    repo_add([None, 'repo-add', repo['name']])
+                answer = raw_input("Add recipe repo '%s'? [y/n]: " % repo["name"])
+                if answer.lower().startswith("y"):
+                    repo_add([None, "repo-add", repo["name"]])
                     # try once again to locate the recipe, but don't
                     # search GitHub again!
                     print
                     recipe_dirs = get_search_dirs()
                     recipe_file = locate_recipe(
-                        name, override_dirs, recipe_dirs,
-                        make_suggestions=True, search_github=False)
+                        name,
+                        override_dirs,
+                        recipe_dirs,
+                        make_suggestions=True,
+                        search_github=False,
+                    )
             elif len(repo_names) > 1:
                 print()
-                print("To add a new recipe repo, use 'autopkg repo-add "
-                       "<repo name>'")
+                print("To add a new recipe repo, use 'autopkg repo-add " "<repo name>'")
                 return None
 
     return recipe_file
 
 
-def load_recipe(name, override_dirs, recipe_dirs,
-                preprocessors=None, postprocessors=None,
-                make_suggestions=True, search_github=True):
-    '''Loads a recipe, first locating it by name.
+def load_recipe(
+    name,
+    override_dirs,
+    recipe_dirs,
+    preprocessors=None,
+    postprocessors=None,
+    make_suggestions=True,
+    search_github=True,
+):
+    """Loads a recipe, first locating it by name.
     If we find one, we load it and return the plist object (which
     should be functionally equivelent to a dictionary). If an override file is
     used, it prefers finding the original recipe by identifier rather than
     name, so that if recipe names shift with updated recipe repos, the
-    override still applies to the recipe from which it was derived.'''
+    override still applies to the recipe from which it was derived."""
 
     if override_dirs is None:
         override_dirs = []
     if recipe_dirs is None:
         recipe_dirs = []
     recipe = None
-    recipe_file = locate_recipe(name, override_dirs, recipe_dirs,
-                                make_suggestions=make_suggestions,
-                                search_github=search_github)
+    recipe_file = locate_recipe(
+        name,
+        override_dirs,
+        recipe_dirs,
+        make_suggestions=make_suggestions,
+        search_github=search_github,
+    )
 
     if recipe_file:
         # read it
@@ -348,9 +376,8 @@ def load_recipe(name, override_dirs, recipe_dirs,
 
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
-            parent_trust_info = recipe.get('ParentRecipeTrustInfo')
-            override_parent = (recipe.get("ParentRecipe")
-                               or recipe.get("Recipe"))
+            parent_trust_info = recipe.get("ParentRecipeTrustInfo")
+            override_parent = recipe.get("ParentRecipe") or recipe.get("Recipe")
         else:
             parent_trust_info = None
 
@@ -363,35 +390,42 @@ def load_recipe(name, override_dirs, recipe_dirs,
             # so that we'll be able to locate the parent
             recipe_dirs.append(os.path.dirname(recipe_file))
             # load its parent, this time not looking in override directories
-            recipe = load_recipe(parent_id, [], recipe_dirs,
-                                 make_suggestions=make_suggestions,
-                                 search_github=search_github)
+            recipe = load_recipe(
+                parent_id,
+                [],
+                recipe_dirs,
+                make_suggestions=make_suggestions,
+                search_github=search_github,
+            )
             if recipe:
                 # merge child_recipe
                 recipe["Identifier"] = get_identifier(child_recipe)
                 recipe["Description"] = child_recipe.get(
-                    "Description", recipe.get("Description", ""))
+                    "Description", recipe.get("Description", "")
+                )
                 for key in child_recipe["Input"].keys():
                     recipe["Input"][key] = child_recipe["Input"][key]
 
                 # take the highest of the two MinimumVersion keys, if they exist
                 for candidate_recipe in [recipe, child_recipe]:
-                    if 'MinimumVersion' not in candidate_recipe.keys():
-                        candidate_recipe['MinimumVersion'] = '0'
-                if version_equal_or_greater(child_recipe['MinimumVersion'],
-                                            recipe['MinimumVersion']):
-                    recipe['MinimumVersion'] = child_recipe['MinimumVersion']
+                    if "MinimumVersion" not in candidate_recipe.keys():
+                        candidate_recipe["MinimumVersion"] = "0"
+                if version_equal_or_greater(
+                    child_recipe["MinimumVersion"], recipe["MinimumVersion"]
+                ):
+                    recipe["MinimumVersion"] = child_recipe["MinimumVersion"]
 
                 recipe["Process"].extend(child_recipe.get("Process", []))
                 if recipe.get("RECIPE_PATH"):
                     if "PARENT_RECIPES" not in recipe:
                         recipe["PARENT_RECIPES"] = []
-                    recipe["PARENT_RECIPES"] = (
-                        [recipe["RECIPE_PATH"]] + recipe["PARENT_RECIPES"])
+                    recipe["PARENT_RECIPES"] = [recipe["RECIPE_PATH"]] + recipe[
+                        "PARENT_RECIPES"
+                    ]
                 recipe["RECIPE_PATH"] = recipe_file
             else:
                 # no parent recipe, so the current recipe is invalid
-                log_err('Could not find parent recipe for %s' % name)
+                log_err("Could not find parent recipe for %s" % name)
         else:
             recipe["RECIPE_PATH"] = recipe_file
 
@@ -399,17 +433,17 @@ def load_recipe(name, override_dirs, recipe_dirs,
         # up from a parent recipe
         if recipe:
             if parent_trust_info:
-                recipe['ParentRecipeTrustInfo'] = parent_trust_info
+                recipe["ParentRecipeTrustInfo"] = parent_trust_info
                 if override_parent:
-                    recipe['ParentRecipe'] = override_parent
+                    recipe["ParentRecipe"] = override_parent
                 else:
-                    log_err('No parent recipe specified for %s' % name)
-            elif 'ParentRecipeTrustInfo' in recipe:
-                del recipe['ParentRecipeTrustInfo']
+                    log_err("No parent recipe specified for %s" % name)
+            elif "ParentRecipeTrustInfo" in recipe:
+                del recipe["ParentRecipeTrustInfo"]
 
     if recipe:
         # store the name the user used to locate this recipe
-        recipe['name'] = name
+        recipe["name"] = name
 
     if recipe and preprocessors:
         steps = []
@@ -427,24 +461,32 @@ def load_recipe(name, override_dirs, recipe_dirs,
     return recipe
 
 
-def get_recipe_info(recipe_name, override_dirs, recipe_dirs,
-                    make_suggestions=True, search_github=True):
-    '''Loads a recipe, then prints some information about it. Override aware.'''
-    recipe = load_recipe(recipe_name, override_dirs, recipe_dirs,
-                         make_suggestions=make_suggestions,
-                         search_github=search_github)
+def get_recipe_info(
+    recipe_name, override_dirs, recipe_dirs, make_suggestions=True, search_github=True
+):
+    """Loads a recipe, then prints some information about it. Override aware."""
+    recipe = load_recipe(
+        recipe_name,
+        override_dirs,
+        recipe_dirs,
+        make_suggestions=make_suggestions,
+        search_github=search_github,
+    )
     if recipe:
-        log("Description:         %s" %
-            "\n                     "
-            .join(recipe.get("Description", "").splitlines()))
+        log(
+            "Description:         %s"
+            % "\n                     ".join(recipe.get("Description", "").splitlines())
+        )
         log("Identifier:          %s" % get_identifier(recipe))
         log("Munki import recipe: %s" % has_munkiimporter_step(recipe))
         log("Has check phase:     %s" % has_check_phase(recipe))
         log("Builds package:      %s" % builds_a_package(recipe))
         log("Recipe file path:    %s" % recipe["RECIPE_PATH"])
         if recipe.get("PARENT_RECIPES"):
-            log("Parent recipe(s):    %s"
-                % "\n                     ".join(recipe["PARENT_RECIPES"]))
+            log(
+                "Parent recipe(s):    %s"
+                % "\n                     ".join(recipe["PARENT_RECIPES"])
+            )
         log("Input values: ")
         output = pprint.pformat(recipe.get("Input", {}), indent=4)
         log(" " + output[1:-1])
@@ -463,7 +505,7 @@ def git_cmd():
     """
 
     def is_executable(exe_path):
-        '''Is exe_path executable?'''
+        """Is exe_path executable?"""
         return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
 
     git_path_pref = get_pref("GIT_PATH")
@@ -472,9 +514,11 @@ def git_cmd():
             # take a GIT_PATH pref
             return git_path_pref
         else:
-            log_err("WARNING: Git path given in the 'GIT_PATH' preference:'%s' "
-                    "either doesn't exist or is not executable! Falling back "
-                    "to one set in PATH, or /usr/bin/git." % git_path_pref)
+            log_err(
+                "WARNING: Git path given in the 'GIT_PATH' preference:'%s' "
+                "either doesn't exist or is not executable! Falling back "
+                "to one set in PATH, or /usr/bin/git." % git_path_pref
+            )
     for path_env in os.environ["PATH"].split(":"):
         gitbin = os.path.join(path_env, "git")
         if is_executable(gitbin):
@@ -487,13 +531,14 @@ def git_cmd():
 
 
 class GitError(Exception):
-    '''Exception to throw if git fails'''
+    """Exception to throw if git fails"""
+
     pass
 
 
 def run_git(git_options_and_arguments, git_directory=None):
-    '''Run a git command and return its output if successful;
-       raise GitError if unsuccessful.'''
+    """Run a git command and return its output if successful;
+       raise GitError if unsuccessful."""
     gitcmd = git_cmd()
     if not gitcmd:
         raise GitError("ERROR: git is not installed!")
@@ -501,16 +546,18 @@ def run_git(git_options_and_arguments, git_directory=None):
     cmd.extend(git_options_and_arguments)
     try:
         proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            cwd=git_directory)
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=git_directory
+        )
         (cmd_out, cmd_err) = proc.communicate()
     except OSError as err:
-        raise GitError("ERROR: git execution failed with error code %d: %s"
-                       % (err.errno, err.strerror))
+        raise GitError(
+            "ERROR: git execution failed with error code %d: %s"
+            % (err.errno, err.strerror)
+        )
     if proc.returncode != 0:
         raise GitError("ERROR: %s" % cmd_err)
     else:
-        return cmd_out.decode('UTF-8')
+        return cmd_out.decode("UTF-8")
 
 
 def get_recipe_repo(git_path):
@@ -520,13 +567,12 @@ def get_recipe_repo(git_path):
     parts = urlparse(git_path)
     domain_and_port = parts.netloc
     # discard port if any
-    domain = domain_and_port.split(':')[0]
-    reverse_domain = '.'.join(reversed(domain.split('.')))
+    domain = domain_and_port.split(":")[0]
+    reverse_domain = ".".join(reversed(domain.split(".")))
     # discard file extension if any
     url_path = os.path.splitext(parts.path)[0]
-    dest_name = reverse_domain + url_path.replace('/', '.')
-    recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or
-                       "~/Library/AutoPkg/RecipeRepos")
+    dest_name = reverse_domain + url_path.replace("/", ".")
+    recipe_repo_dir = get_pref("RECIPE_REPO_DIR") or "~/Library/AutoPkg/RecipeRepos"
     recipe_repo_dir = os.path.expanduser(recipe_repo_dir)
     dest_dir = os.path.join(recipe_repo_dir, dest_name)
     dest_dir = os.path.abspath(dest_dir)
@@ -538,12 +584,12 @@ def get_recipe_repo(git_path):
     if os.path.exists(dest_dir):
         # probably should attempt a git pull
         # check to see if this is really a git repo first
-        if not os.path.isdir(os.path.join(dest_dir, '.git')):
+        if not os.path.isdir(os.path.join(dest_dir, ".git")):
             log_err("%s exists and is not a git repo!" % dest_dir)
             return None
         log("Attempting git pull...")
         try:
-            log(run_git(['pull'], git_directory=dest_dir))
+            log(run_git(["pull"], git_directory=dest_dir))
             return dest_dir
         except GitError as err:
             log_err(err)
@@ -551,7 +597,7 @@ def get_recipe_repo(git_path):
     else:
         log("Attempting git clone...")
         try:
-            log(run_git(['clone', git_path, dest_dir]))
+            log(run_git(["clone", git_path, dest_dir]))
             return dest_dir
         except GitError as err:
             log_err(err)
@@ -560,8 +606,8 @@ def get_recipe_repo(git_path):
 
 
 def write_plist_exit_on_fail(plist_dict, path):
-    '''Writes a dict to a new plist at path, exits the program
-    if the write fails.'''
+    """Writes a dict to a new plist at path, exits the program
+    if the write fails."""
     try:
         FoundationPlist.writePlist(plist_dict, path)
     except FoundationPlist.NSPropertyListWriteException:
@@ -578,8 +624,8 @@ def print_tool_info(options):
 
 
 def get_repo_info(path_or_url):
-    '''Given a path or URL, find a locally installed repo and return
-    infomation in a dictionary about it'''
+    """Given a path or URL, find a locally installed repo and return
+    infomation in a dictionary about it"""
     repo_info = {}
     recipe_repos = get_pref("RECIPE_REPOS") or {}
 
@@ -591,20 +637,20 @@ def get_repo_info(path_or_url):
             test_url = recipe_repos[repo_path].get("URL")
             if repo_url == test_url:
                 # found it; copy the dict info
-                repo_info['path'] = repo_path
+                repo_info["path"] = repo_path
                 repo_info.update(recipe_repos[repo_path])
                 # get out now!
                 return repo_info
     else:
         repo_path = os.path.abspath(os.path.expanduser(path_or_url))
         if repo_path in recipe_repos:
-            repo_info['path'] = repo_path
+            repo_info["path"] = repo_path
             repo_info.update(recipe_repos[repo_path])
     return repo_info
 
 
 def save_pref_or_warn(key, value):
-    '''Saves a key and value to preferences, warning if there is an issue'''
+    """Saves a key and value to preferences, warning if there is an issue"""
     try:
         set_pref(key, value)
     except PreferenceError as err:
@@ -612,12 +658,8 @@ def save_pref_or_warn(key, value):
 
 
 def get_search_dirs():
-    '''Return search dirs from preferences or default list'''
-    default = [
-        ".",
-        "~/Library/AutoPkg/Recipes",
-        "/Library/AutoPkg/Recipes"
-    ]
+    """Return search dirs from preferences or default list"""
+    default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
 
     dirs = get_pref("RECIPE_SEARCH_DIRS")
     if isinstance(dirs, basestring):
@@ -627,10 +669,8 @@ def get_search_dirs():
 
 
 def get_override_dirs():
-    '''Return override dirs from preferences or default list'''
-    default = [
-        "~/Library/AutoPkg/RecipeOverrides"
-    ]
+    """Return override dirs from preferences or default list"""
+    default = ["~/Library/AutoPkg/RecipeOverrides"]
 
     dirs = get_pref("RECIPE_OVERRIDE_DIRS")
     if isinstance(dirs, basestring):
@@ -640,32 +680,43 @@ def get_override_dirs():
 
 
 def add_search_and_override_dir_options(parser):
-    '''Several subcommands use these same options'''
+    """Several subcommands use these same options"""
     parser.add_option(
-        "-d", "--search-dir", metavar="DIRECTORY", dest="search_dirs",
-        action="append", default=[],
-        help=("Directory to search for recipes. Can be specified "
-              "multiple times."))
+        "-d",
+        "--search-dir",
+        metavar="DIRECTORY",
+        dest="search_dirs",
+        action="append",
+        default=[],
+        help=("Directory to search for recipes. Can be specified " "multiple times."),
+    )
     parser.add_option(
-        "--override-dir", metavar="DIRECTORY", dest="override_dirs",
-        action="append", default=[],
-        help=("Directory to search for recipe overrides. Can be "
-              "specified multiple times."))
+        "--override-dir",
+        metavar="DIRECTORY",
+        dest="override_dirs",
+        action="append",
+        default=[],
+        help=(
+            "Directory to search for recipe overrides. Can be "
+            "specified multiple times."
+        ),
+    )
 
 
 ########################
 # subcommand functions #
 ########################
 
+
 def expand_repo_url(url):
-    '''Given a GitHub repo URL-ish name, returns a full GitHub URL. Falls
+    """Given a GitHub repo URL-ish name, returns a full GitHub URL. Falls
     back to the 'autopkg' GitHub org, and full non-GitHub URLs return
     unmodified.
     Examples:
     'user/reciperepo'         -> 'https://github.com/user/reciperepo'
     'reciperepo'              -> 'https://github.com/autopkg/reciperepo'
     'http://some/repo/url     -> 'http://some/repo/url'
-    '''
+    """
     parsed_url = urlparse(url)
     # if no URL scheme was given in the URL, try GitHub URLs
     if not parsed_url.scheme:
@@ -681,10 +732,11 @@ def expand_repo_url(url):
 
 
 def repo_add(argv):
-    '''Add/update one or more repos of recipes'''
+    """Add/update one or more repos of recipes"""
     verb = argv[1]
     parser = optparse.OptionParser()
-    parser.set_usage("""Usage: %s %s recipe_repo_url
+    parser.set_usage(
+        """Usage: %s %s recipe_repo_url
 Download one or more new recipe repos and add it to the search path.
 The 'recipe_repo_url' argument can be of the following forms:
 - repo (implies 'https://github.com/autopkg/repo')
@@ -693,7 +745,8 @@ The 'recipe_repo_url' argument can be of the following forms:
 
 Example: '%s repo-add recipes'
 ..adds the autopkg/recipes repo from GitHub."""
-                     % ("%prog", verb, "%prog"))
+        % ("%prog", verb, "%prog")
+    )
 
     # Parse arguments
     arguments = parser.parse_args(argv[2:])[1]
@@ -723,13 +776,14 @@ Example: '%s repo-add recipes'
 
 
 def repo_delete(argv):
-    '''Delete a recipe repo'''
+    """Delete a recipe repo"""
     verb = argv[1]
     parser = optparse.OptionParser()
     parser.set_usage(
         "Usage: %s %s recipe_repo_path_or_url [...]\n"
         "Delete one or more recipe repo and remove it from the search "
-        "path." % ("%prog", verb))
+        "path." % ("%prog", verb)
+    )
 
     # Parse arguments
     arguments = parser.parse_args(argv[2:])[1]
@@ -742,7 +796,7 @@ def repo_delete(argv):
 
     for path_or_url in arguments:
         path_or_url = expand_repo_url(path_or_url)
-        repo_path = get_repo_info(path_or_url).get('path')
+        repo_path = get_repo_info(path_or_url).get("path")
         if not repo_path:
             log_err("ERROR: Can't find an installed repo for %s" % path_or_url)
             continue
@@ -765,17 +819,19 @@ def repo_delete(argv):
 
 
 def repo_list(argv):
-    '''List recipe repos'''
+    """List recipe repos"""
     verb = argv[1]
     parser = optparse.OptionParser()
-    parser.set_usage("Usage: %s %s\n"
-                     "List all installed recipe repos." % ("%prog", verb))
+    parser.set_usage(
+        "Usage: %s %s\n" "List all installed recipe repos." % ("%prog", verb)
+    )
 
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     if recipe_repos:
         for key in sorted(recipe_repos.keys()):
-            print(u"%s (%s)" % (
-                key.encode('UTF-8'), recipe_repos[key]['URL'].encode('UTF-8'))
+            print(
+                u"%s (%s)"
+                % (key.encode("UTF-8"), recipe_repos[key]["URL"].encode("UTF-8"))
             )
         print()
     else:
@@ -783,13 +839,15 @@ def repo_list(argv):
 
 
 def repo_update(argv):
-    '''Update one or more recipe repos'''
+    """Update one or more recipe repos"""
     verb = argv[1]
     parser = optparse.OptionParser()
-    parser.set_usage("Usage: %s %s recipe_repo_path_or_url [...]\n"
-                     "Update one or more recipe repos.\n"
-                     "You may also use 'all' to update all installed recipe "
-                     "repos." % ("%prog", verb))
+    parser.set_usage(
+        "Usage: %s %s recipe_repo_path_or_url [...]\n"
+        "Update one or more recipe repos.\n"
+        "You may also use 'all' to update all installed recipe "
+        "repos." % ("%prog", verb)
+    )
 
     # Parse arguments
     arguments = parser.parse_args(argv[2:])[1]
@@ -797,7 +855,7 @@ def repo_update(argv):
         log_err("Need at least one recipe repo path or URL!")
         return -1
 
-    if 'all' in arguments:
+    if "all" in arguments:
         # just get all repos
         recipe_repos = get_pref("RECIPE_REPOS") or {}
         repo_dirs = [key for key in recipe_repos.keys()]
@@ -805,10 +863,9 @@ def repo_update(argv):
         repo_dirs = []
         for path_or_url in arguments:
             path_or_url = expand_repo_url(path_or_url)
-            repo_path = get_repo_info(path_or_url).get('path')
+            repo_path = get_repo_info(path_or_url).get("path")
             if not repo_path:
-                log_err("ERROR: Can't find an installed repo for %s"
-                        % path_or_url)
+                log_err("ERROR: Can't find an installed repo for %s" % path_or_url)
             else:
                 repo_dirs.append(repo_path)
 
@@ -817,26 +874,26 @@ def repo_update(argv):
         repo_dir = os.path.abspath(os.path.expanduser(repo_dir))
         log("Attempting git pull for %s..." % repo_dir)
         try:
-            log(run_git(['pull'], git_directory=repo_dir))
+            log(run_git(["pull"], git_directory=repo_dir))
         except GitError as err:
             log_err(err)
 
 
 def do_gh_code_search(query, use_token=False):
-    '''Search GitHub code repos'''
+    """Search GitHub code repos"""
     gh_session = autopkglib.github.GitHubSession()
     if use_token:
         gh_session.setup_token()
     # Do the search, including text match metadata
     (results, code) = gh_session.call_api(
-        "/search/code",
-        query=query,
-        accept="application/vnd.github.v3.text-match+json")
+        "/search/code", query=query, accept="application/vnd.github.v3.text-match+json"
+    )
 
     if code == 403:
         log_err(
             "You've probably hit the GitHub's search rate limit, officially 5 "
-            "requests per minute.\n")
+            "requests per minute.\n"
+        )
         if results:
             log_err("Server response follows:\n")
             log_err(results.get("message", None))
@@ -850,13 +907,12 @@ def do_gh_code_search(query, use_token=False):
 
 
 def print_gh_search_results(results_items):
-    '''Pretty print our GitHub search results'''
+    """Pretty print our GitHub search results"""
     column_spacer = 4
-    max_name_length = (
-        max([len(r["name"]) for r in results_items]) + column_spacer)
+    max_name_length = max([len(r["name"]) for r in results_items]) + column_spacer
     max_repo_length = (
-        max([len(r["repository"]["name"]) for r in results_items])
-        + column_spacer)
+        max([len(r["repository"]["name"]) for r in results_items]) + column_spacer
+    )
     spacers = (max_name_length, max_repo_length)
 
     print()
@@ -866,41 +922,62 @@ def print_gh_search_results(results_items):
     results_items.sort(key=operator.itemgetter("repository"))
     for result in results_items:
         repo = result["repository"]
-        name = result["name"].encode('UTF-8')
-        path = result["path"].encode('UTF-8')
+        name = result["name"].encode("UTF-8")
+        path = result["path"].encode("UTF-8")
         if repo["full_name"].startswith("autopkg"):
-            repo_name = repo["name"].encode('UTF-8')
+            repo_name = repo["name"].encode("UTF-8")
         else:
-            repo_name = repo["full_name"].encode('UTF-8')
+            repo_name = repo["full_name"].encode("UTF-8")
         print(format_str % (name, repo_name, path))
 
 
 def search_recipes(argv):
-    '''Search recipes on GitHub'''
+    """Search recipes on GitHub"""
     default_user = "autopkg"
     verb = argv[1]
     parser = optparse.OptionParser()
-    parser.set_usage("Usage: %s %s [options] search_term\n"
-                     "Search for recipes on GitHub. The AutoPkg organization "
-                     "at github.com/autopkg\n"
-                     "is the canonical 'repository' of recipe repos, "
-                     "which is what is searched by\n"
-                     "default."
-                     % ("%prog", verb))
-    parser.add_option("-u", "--user", default=default_user,
-                      help=("Alternate GitHub user whose repos to search. "
-                            "Defaults to '%s'." % default_user))
-    parser.add_option("-p", "--path-only", action="store_true", default=False,
-                      help=("Restrict search results to the recipe's path "
-                            "only. Note that the search API currently does not "
-                            "support fuzzy matches, so only exact directory or "
-                            "filenames (minus the extensions) will be "
-                            "returned."))
-    parser.add_option("-t", "--use-token", action="store_true", default=False,
-                      help=("Use a public-scope GitHub token for a higher "
-                            "rate limit. If a token doesn't exist, you'll "
-                            "be prompted for your account credentials to "
-                            "create one."))
+    parser.set_usage(
+        "Usage: %s %s [options] search_term\n"
+        "Search for recipes on GitHub. The AutoPkg organization "
+        "at github.com/autopkg\n"
+        "is the canonical 'repository' of recipe repos, "
+        "which is what is searched by\n"
+        "default." % ("%prog", verb)
+    )
+    parser.add_option(
+        "-u",
+        "--user",
+        default=default_user,
+        help=(
+            "Alternate GitHub user whose repos to search. "
+            "Defaults to '%s'." % default_user
+        ),
+    )
+    parser.add_option(
+        "-p",
+        "--path-only",
+        action="store_true",
+        default=False,
+        help=(
+            "Restrict search results to the recipe's path "
+            "only. Note that the search API currently does not "
+            "support fuzzy matches, so only exact directory or "
+            "filenames (minus the extensions) will be "
+            "returned."
+        ),
+    )
+    parser.add_option(
+        "-t",
+        "--use-token",
+        action="store_true",
+        default=False,
+        help=(
+            "Use a public-scope GitHub token for a higher "
+            "rate limit. If a token doesn't exist, you'll "
+            "be prompted for your account credentials to "
+            "create one."
+        ),
+    )
 
     # Parse arguments
     options, arguments = parser.parse_args(argv[2:])
@@ -933,37 +1010,44 @@ def search_recipes(argv):
 
     if count > results_limit:
         print()
-        print("Warning: Search yielded more than 100 results. Please try a "
-               "more specific search term.")
+        print(
+            "Warning: Search yielded more than 100 results. Please try a "
+            "more specific search term."
+        )
 
 
 def display_help(argv, subcommands):
-    '''Display top-level help'''
+    """Display top-level help"""
     main_command_name = os.path.basename(argv[0])
-    print("Usage: %s <verb> <options>, where <verb> is one of the following:"
-           % main_command_name)
+    print(
+        "Usage: %s <verb> <options>, where <verb> is one of the following:"
+        % main_command_name
+    )
     print()
     # find length of longest subcommand
     max_key_len = max([len(key) for key in subcommands.keys()])
     for key in sorted(subcommands.keys()):
         # pad name of subcommand to make pretty columns
         subcommand = key + (" " * (max_key_len - len(key)))
-        print("    %s  (%s)" % (subcommand, subcommands[key]['help']))
+        print("    %s  (%s)" % (subcommand, subcommands[key]["help"]))
     print()
     print("%s <verb> --help for more help for that verb" % main_command_name)
 
 
 def get_info(argv):
-    '''Display info about configuration or a recipe'''
+    """Display info about configuration or a recipe"""
     verb = argv[1]
     parser = optparse.OptionParser()
     parser.set_usage("Usage: %s %s [options] [recipe]" % ("%prog", verb))
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
-    parser.add_option("-q", "--quiet", action="store_true",
-                      help=("Don't offer to search Github if a recipe can't "
-                            "be found."))
+    parser.add_option(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help=("Don't offer to search Github if a recipe can't " "be found."),
+    )
     options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
@@ -980,13 +1064,15 @@ def get_info(argv):
         return 0
     elif len(arguments) == 1:
         if get_recipe_info(
-            arguments[0], override_dirs, search_dirs,
+            arguments[0],
+            override_dirs,
+            search_dirs,
             make_suggestions=make_suggestions,
-            search_github=make_suggestions
+            search_github=make_suggestions,
         ):
             return 0
         else:
-            #log_err("Can't find recipe %s, or it is invalid." % arguments[0])
+            # log_err("Can't find recipe %s, or it is invalid." % arguments[0])
             return -1
     else:
         log_err("Too many recipes!")
@@ -994,7 +1080,7 @@ def get_info(argv):
 
 
 def processor_info(argv):
-    '''Display info about a processor'''
+    """Display info about a processor"""
 
     def print_vars(var_dict, indent=0):
         """Print a dict of dicts and strings"""
@@ -1003,16 +1089,14 @@ def processor_info(argv):
                 print(" " * indent, "%s:" % key)
                 print_vars(value, indent=indent + 2)
             else:
-                print(
-                    " " * indent,
-                    "%s: %s" % (key, unicode(value).encode('UTF-8'))
-                )
+                print(" " * indent, "%s: %s" % (key, unicode(value).encode("UTF-8")))
 
     verb = argv[1]
     parser = optparse.OptionParser()
     parser.set_usage("Usage: %s %s [options] processorname" % ("%prog", verb))
-    parser.add_option("-r", "--recipe", metavar="RECIPE",
-                      help="Name of recipe using the processor.")
+    parser.add_option(
+        "-r", "--recipe", metavar="RECIPE", help="Name of recipe using the processor."
+    )
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
@@ -1061,56 +1145,68 @@ def processor_info(argv):
 
 
 def list_processors(argv):
-    '''List the processors in autopkglib'''
+    """List the processors in autopkglib"""
     verb = argv[1]
     parser = optparse.OptionParser()
-    parser.set_usage("Usage: %s %s [options]\n"
-                     "List the core Processors." % ("%prog", verb))
+    parser.set_usage(
+        "Usage: %s %s [options]\n" "List the core Processors." % ("%prog", verb)
+    )
 
     print("\n".join(sorted(processor_names())))
 
 
 def make_suggestions_for(search_name):
-    '''Suggest existing recipes with names similar to search name.'''
+    """Suggest existing recipes with names similar to search name."""
     # trim '.recipe' from the end if it exists
-    if os.path.splitext(search_name)[1].lower() == '.recipe':
+    if os.path.splitext(search_name)[1].lower() == ".recipe":
         search_name = os.path.splitext(search_name)[0]
     (search_name_base, search_name_ext) = os.path.splitext(search_name.lower())
-    recipe_names = [os.path.splitext(item['Name'])
-                    for item in get_recipe_list()]
+    recipe_names = [os.path.splitext(item["Name"]) for item in get_recipe_list()]
     recipe_names = list(set(recipe_names))
 
     matches = []
     if len(search_name_base) > 3:
-        matches = [''.join(item) for item in recipe_names
-                   if (search_name_base in item[0].lower()
-                       and search_name_ext in item[1].lower())]
+        matches = [
+            "".join(item)
+            for item in recipe_names
+            if (
+                search_name_base in item[0].lower()
+                and search_name_ext in item[1].lower()
+            )
+        ]
     if search_name_ext:
-        compare_names = [item[0].lower() for item in recipe_names
-                         if item[1].lower() == search_name_ext]
+        compare_names = [
+            item[0].lower()
+            for item in recipe_names
+            if item[1].lower() == search_name_ext
+        ]
     else:
         compare_names = [item[0].lower() for item in recipe_names]
 
-    close_matches = difflib.get_close_matches(
-        search_name_base, compare_names)
+    close_matches = difflib.get_close_matches(search_name_base, compare_names)
     if close_matches:
         matches.extend(
-            [''.join(item) for item in recipe_names
-             if (''.join(item) not in matches
-                 and item[0].lower() in close_matches)])
+            [
+                "".join(item)
+                for item in recipe_names
+                if ("".join(item) not in matches and item[0].lower() in close_matches)
+            ]
+        )
         if search_name_ext:
-            matches = [item for item in matches
-                       if os.path.splitext(item)[1] == search_name_ext]
+            matches = [
+                item for item in matches if os.path.splitext(item)[1] == search_name_ext
+            ]
 
     if len(matches) == 1:
         print("Maybe you meant %s?" % matches[0])
     elif len(matches):
-        print("Maybe you meant one of: %s?" % ', '.join(matches))
+        print("Maybe you meant one of: %s?" % ", ".join(matches))
 
 
-def get_recipe_list(override_dirs=None, search_dirs=None,
-                    augmented_list=False, show_all=False):
-    '''Factor out the core of list_recipes for use in other functions'''
+def get_recipe_list(
+    override_dirs=None, search_dirs=None, augmented_list=False, show_all=False
+):
+    """Factor out the core of list_recipes for use in other functions"""
     override_dirs = override_dirs or get_override_dirs()
     search_dirs = search_dirs or get_search_dirs()
 
@@ -1121,9 +1217,9 @@ def get_recipe_list(override_dirs=None, search_dirs=None,
             continue
 
         # find all top-level recipes and recipes one level down
-        matches = (
-            glob.glob(os.path.join(normalized_dir, "*.recipe")) +
-            glob.glob(os.path.join(normalized_dir, "*/*.recipe")))
+        matches = glob.glob(os.path.join(normalized_dir, "*.recipe")) + glob.glob(
+            os.path.join(normalized_dir, "*/*.recipe")
+        )
 
         for match in matches:
             recipe = recipe_plist_from_file(match)
@@ -1165,9 +1261,9 @@ def get_recipe_list(override_dirs=None, search_dirs=None,
                         # recipe's Identifier, remove the ParentRecipe from the
                         # listing.
                         for recipe in recipes:
-                            if recipe["Name"] == override["Name"] and \
-                               recipe.get("Identifier") == \
-                               override.get("ParentRecipe"):
+                            if recipe["Name"] == override["Name"] and recipe.get(
+                                "Identifier"
+                            ) == override.get("ParentRecipe"):
                                 recipes.remove(recipe)
 
                     recipes.append(override)
@@ -1175,51 +1271,75 @@ def get_recipe_list(override_dirs=None, search_dirs=None,
 
 
 def list_recipes(argv):
-    '''List all available recipes'''
+    """List all available recipes"""
     verb = argv[1]
     parser = optparse.OptionParser()
-    parser.set_usage("Usage: %s %s [options]\n"
-                     "List all the recipes this tool can find automatically.\n"
-                     % ("%prog", verb))
-    parser.add_option("-i", "--with-identifiers", action="store_true",
-                      help="Include recipe's identifier in the list.")
-    parser.add_option("-p", "--with-paths", action="store_true",
-                      help="Include recipe's path in the list.")
-    parser.add_option("--plist", action="store_true",
-                      help=("Print recipe list in plist format. This provides "
-                            "all available key/value pairs of recipes."))
-    parser.add_option("-a", "--show-all", action="store_true",
-                      help=("Include recipes with duplicate shortnames, "
-                            "including overrides. Use in conjunction with "
-                            "'--with-identifiers', '--with-paths', or "
-                            "'--plist'."))
+    parser.set_usage(
+        "Usage: %s %s [options]\n"
+        "List all the recipes this tool can find automatically.\n" % ("%prog", verb)
+    )
+    parser.add_option(
+        "-i",
+        "--with-identifiers",
+        action="store_true",
+        help="Include recipe's identifier in the list.",
+    )
+    parser.add_option(
+        "-p",
+        "--with-paths",
+        action="store_true",
+        help="Include recipe's path in the list.",
+    )
+    parser.add_option(
+        "--plist",
+        action="store_true",
+        help=(
+            "Print recipe list in plist format. This provides "
+            "all available key/value pairs of recipes."
+        ),
+    )
+    parser.add_option(
+        "-a",
+        "--show-all",
+        action="store_true",
+        help=(
+            "Include recipes with duplicate shortnames, "
+            "including overrides. Use in conjunction with "
+            "'--with-identifiers', '--with-paths', or "
+            "'--plist'."
+        ),
+    )
 
     # Parse options
     add_search_and_override_dir_options(parser)
     options = parser.parse_args(argv[1:])[0]
 
     augmented_list = False
-    if options.with_identifiers or \
-       options.with_paths or \
-       options.plist:
+    if options.with_identifiers or options.with_paths or options.plist:
         augmented_list = True
 
     if options.show_all and not augmented_list:
-        log_err("The '--show-all' option is only valid when used with "
-                "'--with-paths', '--with-identifiers', or '--plist' options.")
+        log_err(
+            "The '--show-all' option is only valid when used with "
+            "'--with-paths', '--with-identifiers', or '--plist' options."
+        )
         return -1
     elif options.plist and (options.with_identifiers or options.with_paths):
-        log_err("It is invalid to specify '--with-identifiers' or "
-                "'--with-paths' with '--plist'.")
+        log_err(
+            "It is invalid to specify '--with-identifiers' or "
+            "'--with-paths' with '--plist'."
+        )
         return -1
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
 
-    recipes = get_recipe_list(override_dirs=override_dirs,
-                              search_dirs=search_dirs,
-                              augmented_list=augmented_list,
-                              show_all=options.show_all)
+    recipes = get_recipe_list(
+        override_dirs=override_dirs,
+        search_dirs=search_dirs,
+        augmented_list=augmented_list,
+        show_all=options.show_all,
+    )
 
     lowercase_sorted = sorted(recipes, key=lambda s: s["Name"].lower())
 
@@ -1231,12 +1351,13 @@ def list_recipes(argv):
         max_identifier_length = 0
 
         if recipes and augmented_list:
-            max_name_length = (
-                max([len(r["Name"]) for r in recipes]) + column_spacer)
+            max_name_length = max([len(r["Name"]) for r in recipes]) + column_spacer
 
             max_identifier_length = (
-                max([len(r.get("Identifier", "")) for r in recipes])
-                + column_spacer) if options.with_identifiers else column_spacer
+                (max([len(r.get("Identifier", "")) for r in recipes]) + column_spacer)
+                if options.with_identifiers
+                else column_spacer
+            )
 
             spacers = (max_name_length, max_identifier_length)
             format_str = "%-{0}s %-{1}s %-20s".format(*spacers)
@@ -1261,7 +1382,7 @@ def list_recipes(argv):
                 if user_home:
                     recipe_path = recipe_path.replace(user_home, "~")
 
-            out_string = (format_str % (name, identifier, recipe_path))
+            out_string = format_str % (name, identifier, recipe_path)
 
             if out_string not in output:
                 output.append(out_string)
@@ -1270,11 +1391,11 @@ def list_recipes(argv):
 
 
 def get_git_commit_hash(filepath):
-    '''Get the current git commit hash if possible'''
+    """Get the current git commit hash if possible"""
     try:
         git_toplevel_dir = run_git(
-            ['rev-parse', '--show-toplevel'],
-            git_directory=os.path.dirname(filepath)).rstrip('\n')
+            ["rev-parse", "--show-toplevel"], git_directory=os.path.dirname(filepath)
+        ).rstrip("\n")
     except GitError:
         return None
     try:
@@ -1284,15 +1405,16 @@ def get_git_commit_hash(filepath):
         # file. Fine for later getting diff info but no good for finding the
         # the commits since the hash was recorded
         #
-        #git_hash = run_git(
+        # git_hash = run_git(
         #    ['rev-parse', ':' + relative_path],
         #    git_directory=git_toplevel_dir).rstrip('\n')
         #
         # instead, we need to use `rev-list` to find the most recent commit
         # hash for the file in question.
         git_hash = run_git(
-            ['rev-list', '-1', 'HEAD', '--', relative_path],
-            git_directory=git_toplevel_dir).rstrip('\n')
+            ["rev-list", "-1", "HEAD", "--", relative_path],
+            git_directory=git_toplevel_dir,
+        ).rstrip("\n")
     except GitError:
         return None
     # make sure the file hasn't been changed locally since the last git pull
@@ -1300,8 +1422,8 @@ def get_git_commit_hash(filepath):
     # the hash is pointless
     try:
         diff_output = run_git(
-            ['diff', git_hash, relative_path],
-            git_directory=git_toplevel_dir).rstrip('\n')
+            ["diff", git_hash, relative_path], git_directory=git_toplevel_dir
+        ).rstrip("\n")
     except GitError:
         return None
     if diff_output:
@@ -1310,13 +1432,13 @@ def get_git_commit_hash(filepath):
 
 
 def getsha256hash(filepath):
-    '''Generate a sha256 hash for the file at filepath'''
+    """Generate a sha256 hash for the file at filepath"""
     if not os.path.isfile(filepath):
-        return 'NOT A FILE'
+        return "NOT A FILE"
     hashfunction = hashlib.sha256()
-    fileref = open(filepath, 'rb')
+    fileref = open(filepath, "rb")
     while 1:
-        chunk = fileref.read(2**16)
+        chunk = fileref.read(2 ** 16)
         if not chunk:
             break
         hashfunction.update(chunk)
@@ -1325,38 +1447,41 @@ def getsha256hash(filepath):
 
 
 def find_processor_path(processor_name, recipe, env=None):
-    '''Returns the pathname to a procesor given a name and a recipe'''
+    """Returns the pathname to a procesor given a name and a recipe"""
     if env is None:
         env = {}
         env["RECIPE_SEARCH_DIRS"] = get_pref("RECIPE_SEARCH_DIRS") or []
     if recipe:
-        recipe_dir = os.path.dirname(recipe['RECIPE_PATH'])
+        recipe_dir = os.path.dirname(recipe["RECIPE_PATH"])
         processor_search_dirs = [recipe_dir]
 
         # check if our processor_name includes a recipe identifier that
         # should be used to locate the recipe.
         # if so, search for the recipe by identifier in order to add
         # its dirname to the processor search dirs
-        (processor_name, processor_recipe_id) = (
-            extract_processor_name_with_recipe_identifier(processor_name))
+        (
+            processor_name,
+            processor_recipe_id,
+        ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            shared_processor_recipe_path = (
-                find_recipe_by_identifier(processor_recipe_id,
-                                          env["RECIPE_SEARCH_DIRS"]))
+            shared_processor_recipe_path = find_recipe_by_identifier(
+                processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+            )
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
-                    os.path.dirname(shared_processor_recipe_path))
+                    os.path.dirname(shared_processor_recipe_path)
+                )
 
         # search recipe dirs for processor
         if recipe.get("PARENT_RECIPES"):
             # also look in the directories containing the parent recipes
-            parent_recipe_dirs = list(set([
-                os.path.dirname(item)
-                for item in recipe["PARENT_RECIPES"]]))
+            parent_recipe_dirs = list(
+                set([os.path.dirname(item) for item in recipe["PARENT_RECIPES"]])
+            )
             processor_search_dirs.extend(parent_recipe_dirs)
 
         for directory in processor_search_dirs:
-            processor_filename = os.path.join(directory, processor_name + '.py')
+            processor_filename = os.path.join(directory, processor_name + ".py")
             if os.path.exists(processor_filename):
                 return processor_filename
 
@@ -1364,40 +1489,39 @@ def find_processor_path(processor_name, recipe, env=None):
 
 
 def os_path_compressuser(pathname):
-    '''Sort of the inverse of os.path.expanduser'''
-    home_dir = os.path.expanduser('~')
+    """Sort of the inverse of os.path.expanduser"""
+    home_dir = os.path.expanduser("~")
     if pathname == home_dir:
-        return '~'
+        return "~"
     elif pathname.startswith(home_dir):
-        return '~/' + os.path.relpath(pathname, home_dir)
+        return "~/" + os.path.relpath(pathname, home_dir)
     else:
         return pathname
 
 
 def get_trust_info(recipe, search_dirs=None):
-    '''Gets information from a recipe we use to ensure parent recipes and
-    non-core processors have not changed'''
+    """Gets information from a recipe we use to ensure parent recipes and
+    non-core processors have not changed"""
     # generate hashes for each parent recipe
-    parent_recipe_paths = recipe.get(
-        'PARENT_RECIPES', []) + [recipe["RECIPE_PATH"]]
+    parent_recipe_paths = recipe.get("PARENT_RECIPES", []) + [recipe["RECIPE_PATH"]]
     parent_recipe_hashes = {}
     for p_recipe_path in parent_recipe_paths:
         p_recipe_hash = getsha256hash(p_recipe_path)
         git_hash = get_git_commit_hash(p_recipe_path)
-        p_recipe = load_recipe(p_recipe_path, override_dirs=[],
-                               recipe_dirs=search_dirs)
+        p_recipe = load_recipe(p_recipe_path, override_dirs=[], recipe_dirs=search_dirs)
         identifier = get_identifier(p_recipe)
         parent_recipe_hashes[identifier] = {
-            'path': os_path_compressuser(p_recipe_path),
-            'sha256_hash': p_recipe_hash,
+            "path": os_path_compressuser(p_recipe_path),
+            "sha256_hash": p_recipe_hash,
         }
         if git_hash:
-            parent_recipe_hashes[identifier]['git_hash'] = git_hash
+            parent_recipe_hashes[identifier]["git_hash"] = git_hash
     # generate hashes for each non-core processor
     recipe_processors = [step["Processor"] for step in recipe["Process"]]
     core_processors = core_processor_names()
-    non_core_processors = [processor for processor in recipe_processors
-                           if processor not in core_processors]
+    non_core_processors = [
+        processor for processor in recipe_processors if processor not in core_processors
+    ]
     non_core_processor_hashes = {}
     for processor in non_core_processors:
         processor_path = find_processor_path(processor, recipe)
@@ -1406,76 +1530,78 @@ def get_trust_info(recipe, search_dirs=None):
             git_hash = get_git_commit_hash(processor_path)
         else:
             print(
-                'WARNING: processor path not found for %s' % processor,
-                file=sys.stderr
+                "WARNING: processor path not found for %s" % processor, file=sys.stderr
             )
             processor_path = ""
             processor_hash = "PROCESSOR FILEPATH NOT FOUND"
             git_hash = None
         non_core_processor_hashes[processor] = {
-            'path': os_path_compressuser(processor_path),
-            'sha256_hash': processor_hash,
+            "path": os_path_compressuser(processor_path),
+            "sha256_hash": processor_hash,
         }
         if git_hash:
-            non_core_processor_hashes[processor]['git_hash'] = git_hash
+            non_core_processor_hashes[processor]["git_hash"] = git_hash
 
     # return a dictionary containing the hashes we generated
     return {
-        'non_core_processors': non_core_processor_hashes,
-        'parent_recipes': parent_recipe_hashes
+        "non_core_processors": non_core_processor_hashes,
+        "parent_recipes": parent_recipe_hashes,
     }
 
 
 def get_git_diff(filepath, git_hash):
-    '''Get a git diff of filepath from git_hash'''
+    """Get a git diff of filepath from git_hash"""
     filepath = os.path.expanduser(filepath)
     try:
         git_toplevel_dir = run_git(
-            ['rev-parse', '--show-toplevel'],
-            git_directory=os.path.dirname(filepath)).rstrip('\n')
+            ["rev-parse", "--show-toplevel"], git_directory=os.path.dirname(filepath)
+        ).rstrip("\n")
     except GitError:
-        return ''
+        return ""
     relative_path = os.path.relpath(filepath, git_toplevel_dir)
     try:
         return run_git(
-            ['diff', '--color', git_hash, relative_path],
-            git_directory=git_toplevel_dir)
+            ["diff", "--color", git_hash, relative_path], git_directory=git_toplevel_dir
+        )
     except GitError:
-        return ''
+        return ""
 
 
 def get_git_log(filepath, git_hash):
-    '''Get log entries for commits for filepath since the commit referred to by
-    git_hash'''
+    """Get log entries for commits for filepath since the commit referred to by
+    git_hash"""
     filepath = os.path.expanduser(filepath)
     try:
         git_toplevel_dir = run_git(
-            ['rev-parse', '--show-toplevel'],
-            git_directory=os.path.dirname(filepath)).rstrip('\n')
+            ["rev-parse", "--show-toplevel"], git_directory=os.path.dirname(filepath)
+        ).rstrip("\n")
     except GitError:
-        return ''
+        return ""
     relative_path = os.path.relpath(filepath, git_toplevel_dir)
     try:
         return run_git(
-            ['log', git_hash + '..', '--', relative_path],
-            git_directory=git_toplevel_dir)
+            ["log", git_hash + "..", "--", relative_path],
+            git_directory=git_toplevel_dir,
+        )
     except GitError:
-        return ''
+        return ""
 
 
 class TrustVerificationWarning(AutoPackagerError):
-    '''Exception for trust verification warnings'''
+    """Exception for trust verification warnings"""
+
     pass
 
 
 class TrustVerificationError(AutoPackagerError):
-    '''Exception for trust verification errors'''
+    """Exception for trust verification errors"""
+
     pass
 
 
 def recipe_from_external_repo(recipe_path):
-    '''Returns True if the recipe_path is in a path in RECIPE_REPOS, which contains
-    recipes added via repo-add'''
+    """Returns True if the recipe_path is in a path in RECIPE_REPOS, which contains
+    recipes added via repo-add"""
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     for repo in recipe_repos.keys():
         if recipe_path.startswith(repo):
@@ -1484,10 +1610,11 @@ def recipe_from_external_repo(recipe_path):
 
 
 def recipe_in_override_dir(recipe_path, override_dirs):
-    '''Returns True if the recipe is in a path in override_dirs'''
+    """Returns True if the recipe is in a path in override_dirs"""
     normalized_recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
-    normalized_override_dirs = [os.path.abspath(os.path.expanduser(directory))
-                                for directory in override_dirs]
+    normalized_override_dirs = [
+        os.path.abspath(os.path.expanduser(directory)) for directory in override_dirs
+    ]
     for override_dir in normalized_override_dirs:
         if normalized_recipe_path.startswith(override_dir):
             return True
@@ -1495,34 +1622,38 @@ def recipe_in_override_dir(recipe_path, override_dirs):
 
 
 def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
-    '''Verify trust info for parent recipes'''
+    """Verify trust info for parent recipes"""
     # warn if trust info is in non-override
-    if (recipe.get('ParentRecipeTrustInfo') and
-            not recipe_in_override_dir(recipe["RECIPE_PATH"], override_dirs)):
+    if recipe.get("ParentRecipeTrustInfo") and not recipe_in_override_dir(
+        recipe["RECIPE_PATH"], override_dirs
+    ):
         warning = "Trust information in non-override recipe."
         if verbosity > 1:
             warning += (
-                '\nTrust info should only be stored in local recipe overrides.'
-                '\nTrust info found in %s' % recipe["RECIPE_PATH"])
+                "\nTrust info should only be stored in local recipe overrides."
+                "\nTrust info found in %s" % recipe["RECIPE_PATH"]
+            )
         raise TrustVerificationWarning(warning)
     # warn if no trust info
-    if not recipe.get('ParentRecipeTrustInfo'):
-        warning = 'No trust information present.'
-        if (recipe_in_override_dir(recipe["RECIPE_PATH"], override_dirs) and
-                recipe.get('PARENT_RECIPES')):
+    if not recipe.get("ParentRecipeTrustInfo"):
+        warning = "No trust information present."
+        if recipe_in_override_dir(recipe["RECIPE_PATH"], override_dirs) and recipe.get(
+            "PARENT_RECIPES"
+        ):
             if verbosity > 1:
                 warning += (
-                    '\nAudit the parent recipe, then run:\n'
-                    '\tautopkg update-trust-info %s' % recipe["name"])
+                    "\nAudit the parent recipe, then run:\n"
+                    "\tautopkg update-trust-info %s" % recipe["name"]
+                )
             raise TrustVerificationWarning(warning)
         else:
             if verbosity > 1:
                 warning += (
-                    '\nAudit the recipe, then store trust info by running:\n'
-                    '\tautopkg make-override %s' % recipe["name"])
+                    "\nAudit the recipe, then store trust info by running:\n"
+                    "\tautopkg make-override %s" % recipe["name"]
+                )
             raise TrustVerificationWarning(warning)
-    recipe_repo_dir = (get_pref("RECIPE_REPO_DIR") or
-                       "~/Library/AutoPkg/RecipeRepos")
+    recipe_repo_dir = get_pref("RECIPE_REPO_DIR") or "~/Library/AutoPkg/RecipeRepos"
     recipe_repo_dir = os.path.expanduser(recipe_repo_dir)
 
     # error if we can't use/trust the trust info (it was provided by another)
@@ -1530,120 +1661,129 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         # this recipe is in a cloned recipe repo; IE, not a local recipe
         # ignore any embedded trust info
         raise TrustVerificationError(
-            'Recipe from external repo: embedded trust info will be ignored. '
-            'Audit the recipe, then create an override to trust it.')
+            "Recipe from external repo: embedded trust info will be ignored. "
+            "Audit the recipe, then create an override to trust it."
+        )
 
     # verify trust of parent recipes
-    parent_recipe = load_recipe(recipe['ParentRecipe'],
-                                override_dirs, search_dirs,
-                                make_suggestions=False, search_github=False)
-    expected_trust_info = recipe['ParentRecipeTrustInfo']
+    parent_recipe = load_recipe(
+        recipe["ParentRecipe"],
+        override_dirs,
+        search_dirs,
+        make_suggestions=False,
+        search_github=False,
+    )
+    expected_trust_info = recipe["ParentRecipeTrustInfo"]
     actual_trust_info = get_trust_info(parent_recipe, search_dirs)
     if actual_trust_info == expected_trust_info:
         # shortcut if the two dictionaries match perfectly
         return
     # look for differences
-    trust_errors = u''
+    trust_errors = u""
     # get detail on non_core_processors
-    expected_processor_names = set(
-        expected_trust_info['non_core_processors'].keys())
-    actual_processor_names = set(
-        actual_trust_info['non_core_processors'].keys())
+    expected_processor_names = set(expected_trust_info["non_core_processors"].keys())
+    actual_processor_names = set(actual_trust_info["non_core_processors"].keys())
     for processor in expected_processor_names:
-        expected_hash = (
-            expected_trust_info['non_core_processors'][
-                processor]['sha256_hash'])
-        git_hash = expected_trust_info['non_core_processors'][
-            processor].get('git_hash')
+        expected_hash = expected_trust_info["non_core_processors"][processor][
+            "sha256_hash"
+        ]
+        git_hash = expected_trust_info["non_core_processors"][processor].get("git_hash")
         actual_hash = (
-            actual_trust_info['non_core_processors'].get(
-                processor, {}).get('sha256_hash'))
+            actual_trust_info["non_core_processors"]
+            .get(processor, {})
+            .get("sha256_hash")
+        )
         if expected_hash != actual_hash:
             processor_path = find_processor_path(processor, recipe)
             if processor_path:
                 trust_errors += (
-                    "Processor %s contents differ from expected.\n" % processor)
-                trust_errors += (
-                    '    Path: %s\n' % processor_path)
+                    "Processor %s contents differ from expected.\n" % processor
+                )
+                trust_errors += "    Path: %s\n" % processor_path
             else:
-                trust_errors += (
-                    'Expected processor %s can\'t be found.\n' % processor)
-                processor_path = expected_trust_info['non_core_processors'][
-                    processor].get('path')
+                trust_errors += "Expected processor %s can't be found.\n" % processor
+                processor_path = expected_trust_info["non_core_processors"][
+                    processor
+                ].get("path")
             if verbosity > 1 and processor_path and git_hash:
                 trust_errors += get_git_diff(processor_path, git_hash)
                 trust_errors += get_git_log(processor_path, git_hash)
-                trust_errors += '\n'
+                trust_errors += "\n"
     for processor in actual_processor_names:
         if processor not in expected_processor_names:
             trust_errors += "Unexpected processor found: %s\n" % processor
             processor_path = find_processor_path(processor, recipe)
             if processor_path:
-                trust_errors += (
-                    '    Path: %s\n' % processor_path)
+                trust_errors += "    Path: %s\n" % processor_path
 
     # get detail on parent_recipes
-    expected_parent_recipes = (
-        expected_trust_info['parent_recipes'].keys())
-    actual_parent_recipes = (
-        actual_trust_info['parent_recipes'].keys())
+    expected_parent_recipes = expected_trust_info["parent_recipes"].keys()
+    actual_parent_recipes = actual_trust_info["parent_recipes"].keys()
     if set(expected_parent_recipes) != set(actual_parent_recipes):
-        trust_errors += ("Expected parent recipe list: %s\n"
-                         % list(expected_parent_recipes))
-        trust_errors += ("Actual parent recipe list: %s\n"
-                         % list(actual_parent_recipes))
+        trust_errors += "Expected parent recipe list: %s\n" % list(
+            expected_parent_recipes
+        )
+        trust_errors += "Actual parent recipe list: %s\n" % list(actual_parent_recipes)
     for p_recipe_id in expected_parent_recipes:
-        expected_hash = (
-            expected_trust_info['parent_recipes'][
-                p_recipe_id]['sha256_hash'])
-        git_hash = expected_trust_info['parent_recipes'][
-            p_recipe_id].get('git_hash')
+        expected_hash = expected_trust_info["parent_recipes"][p_recipe_id][
+            "sha256_hash"
+        ]
+        git_hash = expected_trust_info["parent_recipes"][p_recipe_id].get("git_hash")
         actual_hash = (
-            actual_trust_info['parent_recipes'].get(
-                p_recipe_id, {}).get('sha256_hash'))
+            actual_trust_info["parent_recipes"].get(p_recipe_id, {}).get("sha256_hash")
+        )
         if expected_hash != actual_hash:
             p_recipe = load_recipe(
-                p_recipe_id, override_dirs, search_dirs,
-                make_suggestions=False, search_github=False)
+                p_recipe_id,
+                override_dirs,
+                search_dirs,
+                make_suggestions=False,
+                search_github=False,
+            )
             if p_recipe:
                 trust_errors += (
-                    "Parent recipe %s contents differ from expected.\n"
-                    % p_recipe_id)
-                trust_errors += (
-                    "    Path: %s\n" % p_recipe["RECIPE_PATH"])
+                    "Parent recipe %s contents differ from expected.\n" % p_recipe_id
+                )
+                trust_errors += "    Path: %s\n" % p_recipe["RECIPE_PATH"]
                 recipe_path = p_recipe["RECIPE_PATH"]
             else:
                 trust_errors += (
-                    'Expected parent recipe %s can\'t be found.\n'
-                    % p_recipe_id)
-                recipe_path = expected_trust_info['parent_recipes'][
-                    p_recipe_id].get('path')
+                    "Expected parent recipe %s can't be found.\n" % p_recipe_id
+                )
+                recipe_path = expected_trust_info["parent_recipes"][p_recipe_id].get(
+                    "path"
+                )
             if verbosity > 1 and recipe_path and git_hash:
                 trust_errors += get_git_log(recipe_path, git_hash)
                 trust_errors += get_git_diff(recipe_path, git_hash)
-                trust_errors += '\n'
+                trust_errors += "\n"
     for p_recipe_id in actual_parent_recipes:
         if p_recipe_id not in expected_parent_recipes:
             trust_errors += "Unexpected parent recipe found: %s\n" % p_recipe_id
             p_recipe = load_recipe(
-                p_recipe_id, override_dirs, search_dirs,
-                make_suggestions=False, search_github=False)
+                p_recipe_id,
+                override_dirs,
+                search_dirs,
+                make_suggestions=False,
+                search_github=False,
+            )
             if p_recipe:
-                trust_errors += (
-                    "    Path: %s\n" % p_recipe["RECIPE_PATH"])
+                trust_errors += "    Path: %s\n" % p_recipe["RECIPE_PATH"]
 
     if trust_errors:
         raise TrustVerificationError(trust_errors)
 
 
 def update_trust_info(argv):
-    '''Update the parent recipe trust information stored in a recipe override'''
+    """Update the parent recipe trust information stored in a recipe override"""
     verb = argv[1]
     parser = optparse.OptionParser()
 
-    parser.set_usage("Usage: %s %s [options] recipe_override_name [...]\n"
-                     "Update or add parent recipe trust information for a "
-                     "recipe override." % ("%prog", verb))
+    parser.set_usage(
+        "Usage: %s %s [options] recipe_override_name [...]\n"
+        "Update or add parent recipe trust information for a "
+        "recipe override." % ("%prog", verb)
+    )
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
@@ -1653,26 +1793,33 @@ def update_trust_info(argv):
     search_dirs = options.search_dirs or get_search_dirs()
 
     if not recipe_names:
-        log_err('Need at least one recipe name or path!')
+        log_err("Need at least one recipe name or path!")
         log_err(parser.get_usage())
         return -1
 
     for recipe_name in recipe_names:
-        recipe_path = locate_recipe(recipe_name, override_dirs, search_dirs,
-                                    make_suggestions=True, search_github=False)
+        recipe_path = locate_recipe(
+            recipe_name,
+            override_dirs,
+            search_dirs,
+            make_suggestions=True,
+            search_github=False,
+        )
         if not recipe_path:
             log_err("Cannot find a recipe for %s." % recipe_name)
             continue
         # normalize recipe path
         recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
         recipe = FoundationPlist.readPlist(recipe_path)
-        if 'ParentRecipe' not in recipe:
-            log_err("%s is not a recipe override and has no parent recipe."
-                    % recipe_name)
+        if "ParentRecipe" not in recipe:
+            log_err(
+                "%s is not a recipe override and has no parent recipe." % recipe_name
+            )
             log_err("Path: %s" % recipe_path)
             continue
-        if ('ParentRecipeTrustInfo' not in recipe
-                and not recipe_in_override_dir(recipe_path, override_dirs)):
+        if "ParentRecipeTrustInfo" not in recipe and not recipe_in_override_dir(
+            recipe_path, override_dirs
+        ):
             print("%s does not appear to be a recipe override." % recipe_name)
             if recipe_from_external_repo(recipe_path):
                 # don't offer to add parent trust info to a recipe from
@@ -1681,34 +1828,46 @@ def update_trust_info(argv):
             else:
                 # must be a local recipe
                 answer = raw_input("Add parent trust info anyway? [y/n]: ")
-                if not answer.lower().startswith('y'):
+                if not answer.lower().startswith("y"):
                     continue
         # add trust info
-        parent_recipe = load_recipe(
-            recipe["ParentRecipe"], override_dirs, search_dirs)
+        parent_recipe = load_recipe(recipe["ParentRecipe"], override_dirs, search_dirs)
         if parent_recipe:
-            recipe['ParentRecipeTrustInfo'] = get_trust_info(
-                parent_recipe, search_dirs=search_dirs)
+            recipe["ParentRecipeTrustInfo"] = get_trust_info(
+                parent_recipe, search_dirs=search_dirs
+            )
             FoundationPlist.writePlist(recipe, recipe_path)
             log("Wrote updated %s" % recipe_path)
         else:
-            log_err("Could not find parent recipe %s for %s."
-                    % (recipe["ParentRecipe"], recipe_name))
+            log_err(
+                "Could not find parent recipe %s for %s."
+                % (recipe["ParentRecipe"], recipe_name)
+            )
 
 
 def verify_trust_info(argv):
-    '''Verify the parent recipe trust information stored in a recipe override'''
+    """Verify the parent recipe trust information stored in a recipe override"""
     verb = argv[1]
     parser = optparse.OptionParser()
 
-    parser.set_usage("Usage: %s %s [options] recipe_override_name [...]\n"
-                     "Verify parent recipe trust information for a "
-                     "recipe override." % ("%prog", verb))
-    parser.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
-                      help=("Path to a text file with a list of recipes to "
-                            "verify."))
-    parser.add_option("-v", "--verbose", action="count", default=0,
-                      help="Verbose output. May be specified multiple times.")
+    parser.set_usage(
+        "Usage: %s %s [options] recipe_override_name [...]\n"
+        "Verify parent recipe trust information for a "
+        "recipe override." % ("%prog", verb)
+    )
+    parser.add_option(
+        "-l",
+        "--recipe-list",
+        metavar="TEXT_FILE",
+        help=("Path to a text file with a list of recipes to " "verify."),
+    )
+    parser.add_option(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Verbose output. May be specified multiple times.",
+    )
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
@@ -1720,50 +1879,58 @@ def verify_trust_info(argv):
 
     if options.recipe_list:
         recipe_list = parse_recipe_list(options.recipe_list)
-        recipe_names.extend(recipe_list.get('recipes', []))
+        recipe_names.extend(recipe_list.get("recipes", []))
 
     if not recipe_names:
-        log_err('Need at least one recipe name or path!')
+        log_err("Need at least one recipe name or path!")
         log_err(parser.get_usage())
         return -1
 
     for recipe_name in recipe_names:
-        recipe = load_recipe(recipe_name, override_dirs, search_dirs,
-                             make_suggestions=True, search_github=False)
+        recipe = load_recipe(
+            recipe_name,
+            override_dirs,
+            search_dirs,
+            make_suggestions=True,
+            search_github=False,
+        )
         if not recipe:
-            log_err('%s: NOT FOUND' % recipe_name)
+            log_err("%s: NOT FOUND" % recipe_name)
             return_code = 1
             continue
         try:
-            verify_parent_trust(
-                recipe, override_dirs, search_dirs, options.verbose)
+            verify_parent_trust(recipe, override_dirs, search_dirs, options.verbose)
         except AutoPackagerError as err:
-            log_err('%s: FAILED' % recipe_name)
+            log_err("%s: FAILED" % recipe_name)
             if options.verbose > 0 and unicode(err):
                 for line in unicode(err).splitlines():
-                    log_err('    %s' % line)
+                    log_err("    %s" % line)
             return_code = 1
         else:
-            log('%s: OK' % recipe_name)
+            log("%s: OK" % recipe_name)
     return return_code
 
 
 def make_override(argv):
-    '''Make a recipe override skeleton.'''
+    """Make a recipe override skeleton."""
     verb = argv[1]
     parser = optparse.OptionParser()
 
-    parser.set_usage("Usage: %s %s [options] [recipe]\n"
-                     "Create a skeleton override file for a recipe. It will "
-                     "be stored in the first default override directory "
-                     "or that given by '--override-dir'" % ("%prog", verb))
+    parser.set_usage(
+        "Usage: %s %s [options] [recipe]\n"
+        "Create a skeleton override file for a recipe. It will "
+        "be stored in the first default override directory "
+        "or that given by '--override-dir'" % ("%prog", verb)
+    )
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
-    parser.add_option("-n", "--name", metavar="FILENAME",
-                      help="Name for override file.")
-    parser.add_option("-f", "--force", action="store_true",
-                      help="Force overwrite an override file.")
+    parser.add_option(
+        "-n", "--name", metavar="FILENAME", help="Name for override file."
+    )
+    parser.add_option(
+        "-f", "--force", action="store_true", help="Force overwrite an override file."
+    )
     options, arguments = parser.parse_args(argv[2:])
 
     override_dirs = options.override_dirs or get_override_dirs()
@@ -1775,16 +1942,20 @@ def make_override(argv):
 
     recipe_name = arguments[0]
     if os.path.isfile(recipe_name):
-        log_err("%s doesn't work with absolute recipe paths, "
-                "as it may not be able to correctly determine the value "
-                "for 'name' that would be searched in recipe directories."
-                % verb)
+        log_err(
+            "%s doesn't work with absolute recipe paths, "
+            "as it may not be able to correctly determine the value "
+            "for 'name' that would be searched in recipe directories." % verb
+        )
         return -1
 
-    recipe = load_recipe(recipe_name,
-                         override_dirs=[],
-                         recipe_dirs=search_dirs,
-                         make_suggestions=True, search_github=False)
+    recipe = load_recipe(
+        recipe_name,
+        override_dirs=[],
+        recipe_dirs=search_dirs,
+        make_suggestions=True,
+        search_github=False,
+    )
     if not recipe:
         log_err("No valid recipe found for %s" % recipe_name)
         log_err("Dir(s) searched:\n\t%s" % "\n\t".join(search_dirs))
@@ -1793,24 +1964,29 @@ def make_override(argv):
     # make sure parent has an identifier
     parent_identifier = get_identifier(recipe)
     if not parent_identifier:
-        log_err("%s is missing an Identifier. Cannot make an override."
-                % recipe.get("RECIPE_PATH", recipe_name))
+        log_err(
+            "%s is missing an Identifier. Cannot make an override."
+            % recipe.get("RECIPE_PATH", recipe_name)
+        )
         return 1
 
     override_name = (
-        options.name
-        or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0])
+        options.name or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0]
+    )
 
-    reversed_name = '.'.join(reversed(override_name.split('.')))
+    reversed_name = ".".join(reversed(override_name.split(".")))
     override_identifier = "local." + reversed_name
 
-    override_plist = {"Identifier": override_identifier,
-                      "Input": recipe["Input"],
-                      "ParentRecipe": parent_identifier}
+    override_plist = {
+        "Identifier": override_identifier,
+        "Input": recipe["Input"],
+        "ParentRecipe": parent_identifier,
+    }
 
     # add trust info
-    override_plist['ParentRecipeTrustInfo'] = get_trust_info(
-        recipe, search_dirs=search_dirs)
+    override_plist["ParentRecipeTrustInfo"] = get_trust_info(
+        recipe, search_dirs=search_dirs
+    )
 
     if "IDENTIFIER" in override_plist["Input"]:
         del override_plist["Input"]["IDENTIFIER"]
@@ -1824,15 +2000,17 @@ def make_override(argv):
             return -1
 
     override_name = (
-        options.name
-        or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0])
+        options.name or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0]
+    )
 
     override_file = os.path.join(override_dir, "%s.recipe" % override_name)
     if os.path.exists(override_file):
         if not options.force:
-            log_err("An override plist already exists at %s, "
-                    "will not overwrite it. Use --force to overwrite "
-                    "anyway." % override_file)
+            log_err(
+                "An override plist already exists at %s, "
+                "will not overwrite it. Use --force to overwrite "
+                "anyway." % override_file
+            )
             return -1
         os.unlink(override_file)
     FoundationPlist.writePlist(override_plist, override_file)
@@ -1841,23 +2019,23 @@ def make_override(argv):
 
 
 def parse_recipe_list(filename):
-    '''Parses a recipe list. This can be either a simple list of recipes to run,
-    or a plist containing recipes and other key/value pairs'''
+    """Parses a recipe list. This can be either a simple list of recipes to run,
+    or a plist containing recipes and other key/value pairs"""
     recipe_list = {}
     try:
         plist = FoundationPlist.readPlist(filename)
-        if not plist.get('recipes'):
+        if not plist.get("recipes"):
             # try to trigger an AttributeError if the plist is not a dict
             pass
         return plist
-    except (FoundationPlist.NSPropertyListSerializationException,
-            AttributeError):
+    except (FoundationPlist.NSPropertyListSerializationException, AttributeError):
         # file does not appear to be a plist containing a dictionary;
         # read it as a plaintext list of recipes
         with open(filename, "r") as file_desc:
             data = file_desc.read()
-        recipe_list['recipes'] = [line for line in data.splitlines()
-                                  if line and not line.startswith("#")]
+        recipe_list["recipes"] = [
+            line for line in data.splitlines() if line and not line.startswith("#")
+        ]
     return recipe_list
 
 
@@ -1866,46 +2044,96 @@ def run_recipes(argv):
        recipe"""
     verb = argv[1]
     parser = optparse.OptionParser()
-    if verb == 'install':
-        parser.set_usage("Usage: %s %s [options] [itemname ...]\n"
-                         "Install one or more items." % ("%prog", verb))
+    if verb == "install":
+        parser.set_usage(
+            "Usage: %s %s [options] [itemname ...]\n"
+            "Install one or more items." % ("%prog", verb)
+        )
     else:
-        parser.set_usage("Usage: %s %s [options] [recipe ...]\n"
-                         "Run one or more recipes." % ("%prog", verb))
+        parser.set_usage(
+            "Usage: %s %s [options] [recipe ...]\n"
+            "Run one or more recipes." % ("%prog", verb)
+        )
 
     # Parse arguments.
-    parser.add_option('--pre', '--preprocessor', action='append',
-                      dest='preprocessors', default=[], metavar="PREPROCESSOR",
-                      help=("Name of a processor to run before each recipe. "
-                            "Can be repeated to run multiple preprocessors."))
-    parser.add_option('--post', '--postprocessor', action='append',
-                      dest='postprocessors', default=[],
-                      metavar="POSTPROCESSOR",
-                      help=("Name of a processor to run after each recipe. "
-                            "Can be repeated to run multiple postprocessors."))
-    parser.add_option("-c", "--check", action="store_true",
-                      help="Only check for new/changed downloads.")
-    parser.add_option("--ignore-parent-trust-verification-errors",
-                      action="store_true", default=False,
-                      help=("Run recipes even if they fail parent trust "
-                            "verification."))
-    parser.add_option("-k", "--key", action="append", dest="variables",
-                      default=[], metavar="KEY=VALUE",
-                      help=("Provide key/value pairs for recipe input. "
-                            "Caution: values specified here will be applied "
-                            "to all recipes."))
-    parser.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
-                      help="Path to a text file with a list of recipes to run.")
-    parser.add_option("-p", "--pkg", metavar="PKG_OR_DMG",
-                      help=("Path to a pkg or dmg to provide to a recipe. "
-                            "Downloading will be skipped."))
-    parser.add_option("--report-plist", metavar="OUTPUT_PATH",
-                      help=("File path to save run report plist."))
-    parser.add_option("-v", "--verbose", action="count", default=0,
-                      help="Verbose output.")
-    parser.add_option("-q", "--quiet", action="store_true",
-                      help=("Don't offer to search Github if a recipe can't "
-                            "be found."))
+    parser.add_option(
+        "--pre",
+        "--preprocessor",
+        action="append",
+        dest="preprocessors",
+        default=[],
+        metavar="PREPROCESSOR",
+        help=(
+            "Name of a processor to run before each recipe. "
+            "Can be repeated to run multiple preprocessors."
+        ),
+    )
+    parser.add_option(
+        "--post",
+        "--postprocessor",
+        action="append",
+        dest="postprocessors",
+        default=[],
+        metavar="POSTPROCESSOR",
+        help=(
+            "Name of a processor to run after each recipe. "
+            "Can be repeated to run multiple postprocessors."
+        ),
+    )
+    parser.add_option(
+        "-c",
+        "--check",
+        action="store_true",
+        help="Only check for new/changed downloads.",
+    )
+    parser.add_option(
+        "--ignore-parent-trust-verification-errors",
+        action="store_true",
+        default=False,
+        help=("Run recipes even if they fail parent trust " "verification."),
+    )
+    parser.add_option(
+        "-k",
+        "--key",
+        action="append",
+        dest="variables",
+        default=[],
+        metavar="KEY=VALUE",
+        help=(
+            "Provide key/value pairs for recipe input. "
+            "Caution: values specified here will be applied "
+            "to all recipes."
+        ),
+    )
+    parser.add_option(
+        "-l",
+        "--recipe-list",
+        metavar="TEXT_FILE",
+        help="Path to a text file with a list of recipes to run.",
+    )
+    parser.add_option(
+        "-p",
+        "--pkg",
+        metavar="PKG_OR_DMG",
+        help=(
+            "Path to a pkg or dmg to provide to a recipe. "
+            "Downloading will be skipped."
+        ),
+    )
+    parser.add_option(
+        "--report-plist",
+        metavar="OUTPUT_PATH",
+        help=("File path to save run report plist."),
+    )
+    parser.add_option(
+        "-v", "--verbose", action="count", default=0, help="Verbose output."
+    )
+    parser.add_option(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help=("Don't offer to search Github if a recipe can't " "be found."),
+    )
     add_search_and_override_dir_options(parser)
     options, arguments = parser.parse_args(argv[2:])
 
@@ -1921,14 +2149,14 @@ def run_recipes(argv):
 
     # get our list of recipes
     recipe_paths = []
-    if verb == 'install':
+    if verb == "install":
         # hold on for syntactic sugar!
         for index, item in enumerate(arguments):
             # if recipe doesn't have an extension, append '.install'
             if not os.path.splitext(item)[1]:
                 # no extension!
-                arguments[index] = item + '.install'
-            elif os.path.splitext(item)[1] != '.install':
+                arguments[index] = item + ".install"
+            elif os.path.splitext(item)[1] != ".install":
                 log_err("Can't install with a non-install recipe: %s" % item)
                 del arguments[index]
 
@@ -1936,9 +2164,9 @@ def run_recipes(argv):
     recipe_list = {}
     if options.recipe_list:
         recipe_list = parse_recipe_list(options.recipe_list)
-        recipe_paths.extend(recipe_list.get('recipes', []))
-        preprocessors = recipe_list.get('preprocessors', [])
-        postprocessors = recipe_list.get('postprocessors', [])
+        recipe_paths.extend(recipe_list.get("recipes", []))
+        preprocessors = recipe_list.get("preprocessors", [])
+        postprocessors = recipe_list.get("postprocessors", [])
 
     if not recipe_paths:
         log_err(parser.get_usage())
@@ -1963,7 +2191,7 @@ def run_recipes(argv):
     # environment variables
     if recipe_list:
         for key, value in recipe_list.items():
-            if key not in ['recipes', 'preprocessors', 'postprocessors']:
+            if key not in ["recipes", "preprocessors", "postprocessors"]:
                 cli_values[key] = value
 
     # Add variables from commandline. These might override those from
@@ -1994,8 +2222,8 @@ def run_recipes(argv):
         FoundationPlist.writePlist(run_results, current_run_results_plist)
     except IOError as err:
         log_err(
-            "Can't write results to %s: %s"
-            % (current_run_results_plist, err.strerror))
+            "Can't write results to %s: %s" % (current_run_results_plist, err.strerror)
+        )
 
     if options.report_plist:
         results_report = dict()
@@ -2011,13 +2239,15 @@ def run_recipes(argv):
         # don't make suggestions or search Github if told to be quiet
         make_suggestions = False
     for recipe_path in recipe_paths:
-        recipe = load_recipe(recipe_path,
-                             override_dirs,
-                             search_dirs,
-                             preprocessors,
-                             postprocessors,
-                             make_suggestions=make_suggestions,
-                             search_github=make_suggestions)
+        recipe = load_recipe(
+            recipe_path,
+            override_dirs,
+            search_dirs,
+            preprocessors,
+            postprocessors,
+            make_suggestions=make_suggestions,
+            search_github=make_suggestions,
+        )
         if not recipe:
             if not make_suggestions:
                 log_err("No valid recipe found for %s" % recipe_path)
@@ -2027,12 +2257,16 @@ def run_recipes(argv):
         if options.check:
             # remove steps from the end of the recipe Process until we find a
             # EndOfCheckPhase step
-            while len(recipe["Process"]) >= 1 and \
-                    recipe["Process"][-1]["Processor"] != "EndOfCheckPhase":
+            while (
+                len(recipe["Process"]) >= 1
+                and recipe["Process"][-1]["Processor"] != "EndOfCheckPhase"
+            ):
                 del recipe["Process"][-1]
             if len(recipe["Process"]) == 0:
-                log_err("Recipe at %s is missing EndOfCheckPhase Processor, "
-                        "not possible to perform check." % recipe_path)
+                log_err(
+                    "Recipe at %s is missing EndOfCheckPhase Processor, "
+                    "not possible to perform check." % recipe_path
+                )
                 error_count += 1
                 continue
 
@@ -2054,36 +2288,40 @@ def run_recipes(argv):
 
         autopackager = AutoPackager(options, prefs)
 
-        fail_recipes_without_trust_info = bool(cli_values.get(
-            'FAIL_RECIPES_WITHOUT_TRUST_INFO', prefs.get(
-                'FAIL_RECIPES_WITHOUT_TRUST_INFO')))
+        fail_recipes_without_trust_info = bool(
+            cli_values.get(
+                "FAIL_RECIPES_WITHOUT_TRUST_INFO",
+                prefs.get("FAIL_RECIPES_WITHOUT_TRUST_INFO"),
+            )
+        )
 
-        if ('ParentRecipeTrustInfo' not in recipe and
-                not fail_recipes_without_trust_info):
-            log_err("WARNING: %s is missing trust info and "
-                    "FAIL_RECIPES_WITHOUT_TRUST_INFO is not set. "
-                    "Proceeding..." % recipe_path)
+        if (
+            "ParentRecipeTrustInfo" not in recipe
+            and not fail_recipes_without_trust_info
+        ):
+            log_err(
+                "WARNING: %s is missing trust info and "
+                "FAIL_RECIPES_WITHOUT_TRUST_INFO is not set. "
+                "Proceeding..." % recipe_path
+            )
 
         # we should also skip trust verification if we've been told to ignore
         # verification errors
-        skip_trust_verification = (
-            options.ignore_parent_trust_verification_errors or
-            ('ParentRecipeTrustInfo' not in recipe and
-             not fail_recipes_without_trust_info)
+        skip_trust_verification = options.ignore_parent_trust_verification_errors or (
+            "ParentRecipeTrustInfo" not in recipe
+            and not fail_recipes_without_trust_info
         )
 
         try:
             if not skip_trust_verification:
-                verify_parent_trust(
-                    recipe, override_dirs, search_dirs, options.verbose)
+                verify_parent_trust(recipe, override_dirs, search_dirs, options.verbose)
             autopackager.process_cli_overrides(recipe, cli_values)
             autopackager.verify(recipe)
             autopackager.process(recipe)
         except AutoPackagerError as err:
             error_count += 1
             failure = {}
-            if isinstance(err,
-                          (TrustVerificationWarning, TrustVerificationError)):
+            if isinstance(err, (TrustVerificationWarning, TrustVerificationError)):
                 log_err("Failed local trust verification.")
             else:
                 log_err("Failed.")
@@ -2091,7 +2329,7 @@ def run_recipes(argv):
             failure["message"] = unicode(err)
             failure["traceback"] = traceback.format_exc()
             failures.append(failure)
-            autopackager.results.append({'RecipeError': unicode(err).rstrip()})
+            autopackager.results.append({"RecipeError": unicode(err).rstrip()})
 
         run_results.append(autopackager.results)
         try:
@@ -2099,7 +2337,8 @@ def run_recipes(argv):
         except IOError as err:
             log_err(
                 "Can't write results to %s: %s"
-                % (current_run_results_plist, err.strerror))
+                % (current_run_results_plist, err.strerror)
+            )
 
         # build a pathname for a receipt
         recipe_basename = os.path.splitext(os.path.basename(recipe_path))[0]
@@ -2108,7 +2347,8 @@ def run_recipes(argv):
         # write a recipt. We should handle this better.
         # for now, just write the receipt to /tmp/receipts
         receipt_dir = os.path.join(
-            autopackager.env.get("RECIPE_CACHE_DIR", "/tmp"), "receipts")
+            autopackager.env.get("RECIPE_CACHE_DIR", "/tmp"), "receipts"
+        )
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         receipt_name = "%s-receipt-%s.plist" % (recipe_basename, timestamp)
 
@@ -2124,20 +2364,22 @@ def run_recipes(argv):
             if item.get("Output"):
                 # record any summary results
                 output_keys = item["Output"].keys()
-                results_keys = [key for key in output_keys
-                                if key.endswith('_summary_result')]
+                results_keys = [
+                    key for key in output_keys if key.endswith("_summary_result")
+                ]
                 for key in results_keys:
                     result = item["Output"][key]
-                    summary_text = result.get('summary_text', '')
-                    data = result.get('data')
+                    summary_text = result.get("summary_text", "")
+                    data = result.get("data")
                     if key not in summary_results:
                         summary_results[key] = {}
-                        summary_results[key]['summary_text'] = summary_text
-                        if type(data).__name__ in ['dict', '__NSCFDictionary']:
-                            summary_results[key]['header'] = (
-                                result.get('report_fields') or data.keys())
-                        summary_results[key]['data_rows'] = []
-                    summary_results[key]['data_rows'].append(data)
+                        summary_results[key]["summary_text"] = summary_text
+                        if type(data).__name__ in ["dict", "__NSCFDictionary"]:
+                            summary_results[key]["header"] = (
+                                result.get("report_fields") or data.keys()
+                            )
+                        summary_results[key]["data_rows"] = []
+                    summary_results[key]["data_rows"].append(data)
 
         # save receipt
         if os.path.exists(receipt_dir):
@@ -2147,8 +2389,7 @@ def run_recipes(argv):
                 if options.verbose:
                     log("Receipt written to %s" % receipt_path)
             except IOError as err:
-                log_err("Can't write receipt to %s: %s"
-                        % (receipt_path, err.strerror))
+                log_err("Can't write receipt to %s: %s" % (receipt_path, err.strerror))
 
     # done running recipes, print a summary
     if failures:
@@ -2160,28 +2401,29 @@ def run_recipes(argv):
 
     if summary_results:
         for key, value in summary_results.items():
-            log("\n%s" % value['summary_text'])
+            log("\n%s" % value["summary_text"])
 
             # make our table header
-            display_header = [item.replace('_', ' ').title()
-                              for item in value['header']]
-            underlines = ['-' * len(item) for item in value['header']]
+            display_header = [
+                item.replace("_", " ").title() for item in value["header"]
+            ]
+            underlines = ["-" * len(item) for item in value["header"]]
             rows = [display_header, underlines]
-            for row in value['data_rows']:
+            for row in value["data_rows"]:
                 this_row = []
-                for field in value['header']:
+                for field in value["header"]:
                     this_row.append(row[field])
                 rows.append(this_row)
 
             # calculate the widths of each column
             widths = []
-            for column in range(len(value['header'])):
+            for column in range(len(value["header"])):
                 this_column = [len(row[column]) for row in rows]
                 widths.append(max(this_column) + 2)
 
             # build a format string for each row based on our
             # column widths
-            format_str = '    '
+            format_str = "    "
             for count, width in enumerate(widths):
                 # adding format strings with 'count' for 2.6 compatibility
                 format_str += "{" + str(count) + ":<" + str(width) + "}"
@@ -2195,8 +2437,8 @@ def run_recipes(argv):
 
     # save report plist with the summary data
     if options.report_plist:
-        results_report['failures'] = failures
-        results_report['summary_results'] = summary_results
+        results_report["failures"] = failures
+        results_report["summary_results"] = summary_results
         write_plist_exit_on_fail(results_report, options.report_plist)
         log("\nReport plist saved to %s." % options.report_plist)
 
@@ -2206,24 +2448,24 @@ def run_recipes(argv):
 
 def printplistitem(label, value, indent=0):
     """Prints a plist item in an 'attractive' way"""
-    indentspace = '    '
+    indentspace = "    "
     if value is None:
-        log(indentspace * indent + '%s: !NONE!' % label)
-    elif type(value) == list or type(value).__name__ == 'NSCFArray':
+        log(indentspace * indent + "%s: !NONE!" % label)
+    elif type(value) == list or type(value).__name__ == "NSCFArray":
         if label:
-            log(indentspace * indent + '%s:' % label)
+            log(indentspace * indent + "%s:" % label)
         for item in value:
-            printplistitem('', item, indent + 1)
-    elif type(value) == dict or type(value).__name__ == 'NSCFDictionary':
+            printplistitem("", item, indent + 1)
+    elif type(value) == dict or type(value).__name__ == "NSCFDictionary":
         if label:
-            log(indentspace * indent + '%s:' % label)
+            log(indentspace * indent + "%s:" % label)
         for subkey in value.keys():
             printplistitem(subkey, value[subkey], indent + 1)
     else:
         if label:
-            log(indentspace * indent + '%s: %s' % (label, value))
+            log(indentspace * indent + "%s: %s" % (label, value))
         else:
-            log(indentspace * indent + '%s' % value)
+            log(indentspace * indent + "%s" % value)
 
 
 def printplist(plistdict):
@@ -2235,42 +2477,52 @@ def printplist(plistdict):
 
 
 def find_http_urls_in_recipe(recipe):
-    '''Looks in the Input and Process sections of a recipe for any http URLs.
-    Returns a dict.'''
+    """Looks in the Input and Process sections of a recipe for any http URLs.
+    Returns a dict."""
     recipe_urls = {}
-    for key, value in recipe.get('Input', {}).items():
-        if isinstance(value, basestring) and value.startswith('http:'):
-            if 'Input' not in recipe_urls:
-                recipe_urls['Input'] = {}
-            recipe_urls['Input'][key] = value
-    for step in recipe.get('Process', []):
-        processor = step['Processor']
-        arguments = step.get('Arguments', {})
+    for key, value in recipe.get("Input", {}).items():
+        if isinstance(value, basestring) and value.startswith("http:"):
+            if "Input" not in recipe_urls:
+                recipe_urls["Input"] = {}
+            recipe_urls["Input"][key] = value
+    for step in recipe.get("Process", []):
+        processor = step["Processor"]
+        arguments = step.get("Arguments", {})
         for key, value in arguments.items():
-            if isinstance(value, basestring) and value.startswith('http:'):
-                if 'Process' not in recipe_urls:
-                    recipe_urls['Process'] = {}
-                if processor not in recipe_urls['Process']:
-                    recipe_urls['Process'][processor] = {}
-                recipe_urls['Process'][processor][key] = value
+            if isinstance(value, basestring) and value.startswith("http:"):
+                if "Process" not in recipe_urls:
+                    recipe_urls["Process"] = {}
+                if processor not in recipe_urls["Process"]:
+                    recipe_urls["Process"][processor] = {}
+                recipe_urls["Process"][processor][key] = value
     return recipe_urls
 
 
 def audit(argv):
-    '''Audit one or more recipes.'''
+    """Audit one or more recipes."""
     verb = argv[1]
     parser = optparse.OptionParser()
 
-    parser.set_usage("Usage: %s %s [options] recipe [..]\n"
-                     "Audit one or more recipes." % ("%prog", verb))
+    parser.set_usage(
+        "Usage: %s %s [options] recipe [..]\n"
+        "Audit one or more recipes." % ("%prog", verb)
+    )
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
-    parser.add_option("-l", "--recipe-list", metavar="TEXT_FILE",
-                      help="Path to a text file with a list of recipes to "
-                           "audit.")
-    parser.add_option("-p", "--plist", action="store_true", default=False,
-                      help="Output in plist format.")
+    parser.add_option(
+        "-l",
+        "--recipe-list",
+        metavar="TEXT_FILE",
+        help="Path to a text file with a list of recipes to " "audit.",
+    )
+    parser.add_option(
+        "-p",
+        "--plist",
+        action="store_true",
+        default=False,
+        help="Output in plist format.",
+    )
 
     options, arguments = parser.parse_args(argv[2:])
 
@@ -2278,28 +2530,28 @@ def audit(argv):
     search_dirs = options.search_dirs or get_search_dirs()
 
     # these processors download items
-    DOWNLOAD_PROCESSORS = {'CURLDownloader', 'URLDownloader'}
+    DOWNLOAD_PROCESSORS = {"CURLDownloader", "URLDownloader"}
 
     # these processors build packages or dmgs
-    CREATOR_PROCESSORS = {'DmgCreator', 'FlatPkgPacker', 'PkgCreator'}
+    CREATOR_PROCESSORS = {"DmgCreator", "FlatPkgPacker", "PkgCreator"}
 
     # these processors could be used to modify the contents of a vendor
     # distribution (pkg, dmg, etc)
     MODIFICATION_PROCESSORS = [
-        'Copier',
-        'FileCreator',
-        'FileMover',
-        'PathDeleter',
-        'PkgInfoCreator',
-        'PlistEditor',
-        'Symlinker',
+        "Copier",
+        "FileCreator",
+        "FileMover",
+        "PathDeleter",
+        "PkgInfoCreator",
+        "PlistEditor",
+        "Symlinker",
     ]
 
     recipe_paths = []
     recipe_paths.extend(arguments)
     if options.recipe_list:
         recipe_list = parse_recipe_list(options.recipe_list)
-        recipe_paths.extend(recipe_list.get('recipes', []))
+        recipe_paths.extend(recipe_list.get("recipes", []))
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -2312,13 +2564,15 @@ def audit(argv):
     recipe_issue_count = 0
     recipe_no_issue_count = 0
     for recipe_path in recipe_paths:
-        recipe = load_recipe(recipe_path,
-                             override_dirs,
-                             search_dirs,
-                             None,
-                             None,
-                             make_suggestions=False,
-                             search_github=False)
+        recipe = load_recipe(
+            recipe_path,
+            override_dirs,
+            search_dirs,
+            None,
+            None,
+            make_suggestions=False,
+            search_github=False,
+        )
         if not recipe:
             log_err("No valid recipe found for %s" % recipe_path)
             continue
@@ -2326,35 +2580,39 @@ def audit(argv):
         audit_results[recipe_path] = {}
         http_urls = find_http_urls_in_recipe(recipe)
         if http_urls:
-            audit_results[recipe_path]['http_urls'] = http_urls
+            audit_results[recipe_path]["http_urls"] = http_urls
         recipe_processors = [step["Processor"] for step in recipe["Process"]]
-        if (set(recipe_processors).intersection(DOWNLOAD_PROCESSORS)
-                and 'CodeSignatureVerifier' not in recipe_processors):
-            audit_results[recipe_path]['MissingCodeSignatureVerifier'] = True
-        creator_processors = set(recipe_processors).intersection(
-            CREATOR_PROCESSORS)
+        if (
+            set(recipe_processors).intersection(DOWNLOAD_PROCESSORS)
+            and "CodeSignatureVerifier" not in recipe_processors
+        ):
+            audit_results[recipe_path]["MissingCodeSignatureVerifier"] = True
+        creator_processors = set(recipe_processors).intersection(CREATOR_PROCESSORS)
         core_processors = core_processor_names()
-        non_core_processors = [processor for processor in recipe_processors
-                               if processor not in core_processors]
+        non_core_processors = [
+            processor
+            for processor in recipe_processors
+            if processor not in core_processors
+        ]
         modification_processors = set()
         # only flag modification processors if there is a creator or non-core
         # processor afterwards
         for index in range(len(recipe_processors)):
             if recipe_processors[index] in MODIFICATION_PROCESSORS:
                 # are there any creator processors after this one?
-                if set(recipe_processors[index + 1:]).intersection(
-                        CREATOR_PROCESSORS):
+                if set(recipe_processors[index + 1 :]).intersection(CREATOR_PROCESSORS):
                     modification_processors.add(recipe_processors[index])
                 # are there any non-core processors after this one?
-                elif set(recipe_processors[index + 1:]).intersection(
-                        set(non_core_processors)):
+                elif set(recipe_processors[index + 1 :]).intersection(
+                    set(non_core_processors)
+                ):
                     modification_processors.add(recipe_processors[index])
         if creator_processors or non_core_processors:
-            audit_results[recipe_path]['audit_processors'] = (
-                list(creator_processors) + list(modification_processors))
+            audit_results[recipe_path]["audit_processors"] = list(
+                creator_processors
+            ) + list(modification_processors)
         if non_core_processors:
-            audit_results[recipe_path]['non_core_processors'] = (
-                non_core_processors)
+            audit_results[recipe_path]["non_core_processors"] = non_core_processors
         if options.plist:
             # skip all the printing; we'll print plist output later.
             continue
@@ -2363,39 +2621,44 @@ def audit(argv):
             log(recipe_path)
             log("    File path:        %s" % recipe["RECIPE_PATH"])
             if recipe.get("PARENT_RECIPES"):
-                log("    Parent recipe(s): %s"
-                    % "\n                      ".join(
-                        recipe["PARENT_RECIPES"]))
-            if audit_results[recipe_path].get('MissingCodeSignatureVerifier'):
-                log('    Missing CodeSignatureVerifier')
-            if audit_results[recipe_path].get('http_urls'):
-                log('    The following http URLs were found in the recipe:')
-                printplist(audit_results[recipe_path]['http_urls'])
-            if audit_results[recipe_path].get('non_core_processors'):
-                log('    The following processors are non-core and can execute '
-                    'arbitrary code, performing any action.')
-                log('    Be sure you understand what the processor does and/or '
-                    'you trust its source:')
-                for processor in audit_results[recipe_path].get(
-                        'non_core_processors'):
-                    log('        %s' % processor)
-            if audit_results[recipe_path].get('audit_processors'):
-                log('    The following processors make modifications and their '
-                    'use in this recipe should be more closely inspected:')
-                for processor in audit_results[recipe_path].get(
-                        'audit_processors'):
-                    log('        %s' % processor)
-            log('')
+                log(
+                    "    Parent recipe(s): %s"
+                    % "\n                      ".join(recipe["PARENT_RECIPES"])
+                )
+            if audit_results[recipe_path].get("MissingCodeSignatureVerifier"):
+                log("    Missing CodeSignatureVerifier")
+            if audit_results[recipe_path].get("http_urls"):
+                log("    The following http URLs were found in the recipe:")
+                printplist(audit_results[recipe_path]["http_urls"])
+            if audit_results[recipe_path].get("non_core_processors"):
+                log(
+                    "    The following processors are non-core and can execute "
+                    "arbitrary code, performing any action."
+                )
+                log(
+                    "    Be sure you understand what the processor does and/or "
+                    "you trust its source:"
+                )
+                for processor in audit_results[recipe_path].get("non_core_processors"):
+                    log("        %s" % processor)
+            if audit_results[recipe_path].get("audit_processors"):
+                log(
+                    "    The following processors make modifications and their "
+                    "use in this recipe should be more closely inspected:"
+                )
+                for processor in audit_results[recipe_path].get("audit_processors"):
+                    log("        %s" % processor)
+            log("")
         else:
             recipe_no_issue_count += 1
-            log('%s: no audit flags triggered.' % recipe_path)
+            log("%s: no audit flags triggered." % recipe_path)
     if options.plist:
         print(FoundationPlist.writePlistToString(audit_results))
     elif len(recipe_paths) > 1:
-        log('\nSummary:')
-        log('    %s recipes audited' % len(audit_results.keys()))
-        log('    %s recipes with audit issues' % recipe_issue_count)
-        log('    %s recipes triggered no audit flags' % recipe_no_issue_count)
+        log("\nSummary:")
+        log("    %s recipes audited" % len(audit_results.keys()))
+        log("    %s recipes with audit issues" % recipe_issue_count)
+        log("    %s recipes triggered no audit flags" % recipe_no_issue_count)
 
 
 def new_recipe(argv):
@@ -2403,14 +2666,16 @@ def new_recipe(argv):
     verb = argv[1]
     parser = optparse.OptionParser()
 
-    parser.set_usage("Usage: %s %s [options] recipe_pathname\n"
-                     "Make a new template recipe." % ("%prog", verb))
+    parser.set_usage(
+        "Usage: %s %s [options] recipe_pathname\n"
+        "Make a new template recipe." % ("%prog", verb)
+    )
 
     # Parse arguments
-    parser.add_option("-i", "--identifier",
-                      help="Recipe identifier")
-    parser.add_option("-p", "--parent-identifier",
-                      help="Parent recipe identifier for this recipe.")
+    parser.add_option("-i", "--identifier", help="Recipe identifier")
+    parser.add_option(
+        "-p", "--parent-identifier", help="Parent recipe identifier for this recipe."
+    )
 
     options, arguments = parser.parse_args(argv[2:])
 
@@ -2420,24 +2685,19 @@ def new_recipe(argv):
         return -1
 
     filename = arguments[0]
-    name = os.path.basename(filename).split('.')[0]
+    name = os.path.basename(filename).split(".")[0]
     identifier = options.identifier or "local." + name
 
     recipe = {
         "Description": "Recipe description",
         "Identifier": identifier,
-        "Input": {
-            "NAME": name,
-        },
+        "Input": {"NAME": name},
         "MiniumumVersion": "1.0",
         "Process": [
             {
-                "Arguments": {
-                    "Argument1": "Value1",
-                    "Argument2": "Value2",
-                },
-                "Processor": "ProcessorName"
-            },
+                "Arguments": {"Argument1": "Value1", "Argument2": "Value2"},
+                "Processor": "ProcessorName",
+            }
         ],
     }
     if options.parent_identifier:
@@ -2454,63 +2714,60 @@ def main(argv):
     """Main routine"""
     # define our subcommands ('verbs')
     subcommands = {
-        "help": {
-            "function": display_help,
-            "help": "Display this help"},
-        "audit": {
-            "function": audit,
-            "help": "Audit one or more recipes."},
+        "help": {"function": display_help, "help": "Display this help"},
+        "audit": {"function": audit, "help": "Audit one or more recipes."},
         "info": {
             "function": get_info,
-            "help": "Get info about configuration or a recipe"},
+            "help": "Get info about configuration or a recipe",
+        },
         "install": {
             "function": run_recipes,
-            "help": ("Run one or more install recipes. "
-                     "Example: autopkg install Firefox -- "
-                     "equivalent to: autopkg run Firefox.install")},
+            "help": (
+                "Run one or more install recipes. "
+                "Example: autopkg install Firefox -- "
+                "equivalent to: autopkg run Firefox.install"
+            ),
+        },
         "list-recipes": {
             "function": list_recipes,
-            "help": "List recipes available locally"},
+            "help": "List recipes available locally",
+        },
         "list-processors": {
             "function": list_processors,
-            "help": "List available core Processors"},
-        "make-override": {
-            "function": make_override,
-            "help": "Make a recipe override"},
-        "new-recipe": {
-            "function": new_recipe,
-            "help": "Make a new template recipe"},
+            "help": "List available core Processors",
+        },
+        "make-override": {"function": make_override, "help": "Make a recipe override"},
+        "new-recipe": {"function": new_recipe, "help": "Make a new template recipe"},
         "processor-info": {
             "function": processor_info,
-            "help": "Get information about a specific processor"},
+            "help": "Get information about a specific processor",
+        },
         "repo-add": {
             "function": repo_add,
-            "help": "Add one or more recipe repo from a URL"},
-        "repo-delete": {
-            "function": repo_delete,
-            "help": "Delete a recipe repo"},
-        "repo-list": {
-            "function": repo_list,
-            "help": "List installed recipe repos"},
+            "help": "Add one or more recipe repo from a URL",
+        },
+        "repo-delete": {"function": repo_delete, "help": "Delete a recipe repo"},
+        "repo-list": {"function": repo_list, "help": "List installed recipe repos"},
         "repo-update": {
             "function": repo_update,
-            "help": "Update one or more recipe repos"},
-        "run": {
-            "function": run_recipes,
-            "help": "Run one or more recipes"},
-        "search": {
-            "function": search_recipes,
-            "help": "Search for recipes on GitHub."},
+            "help": "Update one or more recipe repos",
+        },
+        "run": {"function": run_recipes, "help": "Run one or more recipes"},
+        "search": {"function": search_recipes, "help": "Search for recipes on GitHub."},
         "update-trust-info": {
             "function": update_trust_info,
-            "help": ("Update or add parent recipe trust info for a recipe "
-                     "override.")},
+            "help": (
+                "Update or add parent recipe trust info for a recipe " "override."
+            ),
+        },
         "verify-trust-info": {
             "function": verify_trust_info,
-            "help": ("Verify parent recipe trust info for a recipe override.")},
+            "help": ("Verify parent recipe trust info for a recipe override."),
+        },
         "version": {
             "function": print_version,
-            "help": "Print the current version of autopkg"}
+            "help": "Print the current version of autopkg",
+        },
     }
 
     # Warn against running as root
@@ -2522,23 +2779,24 @@ def main(argv):
             "    important system files.\n"
             "    Please run autopkg as an unprivileged user.\n"
             "    A future release of autopkg may fail with an error if run as\n"
-            "    root.\n")
+            "    root.\n"
+        )
         log_err("WARNING! " * 8 + "\n")
 
     try:
         verb = argv[1]
     except IndexError:
-        verb = 'help'
+        verb = "help"
     if verb.startswith("-"):
         # option instead of a verb
-        verb = 'help'
-    if verb == 'help' or verb not in subcommands.keys():
+        verb = "help"
+    if verb == "help" or verb not in subcommands.keys():
         display_help(argv, subcommands)
     else:
         # call the function and pass it the argument list
         # we leave the verb in the list in case one function can handle
         # multiple verbs
-        exit(subcommands[verb]['function'](argv))
+        exit(subcommands[verb]["function"](argv))
 
     exit()
 

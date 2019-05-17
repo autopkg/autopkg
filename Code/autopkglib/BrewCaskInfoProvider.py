@@ -20,38 +20,43 @@ import urllib2
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["BrewCaskInfoProvider"]
 
 
 class BrewCaskInfoProvider(Processor):
     # we dynamically set the docstring from the description (DRY), so:
-    #pylint: disable=missing-docstring
+    # pylint: disable=missing-docstring
 
-    description = ("ATTENTION: This processor is deprecated, may not work "
-                   "as expected with all known Casks, and may be removed "
-                   "in a future release of AutoPkg. Description follows: "
-                   "Provides crowd-sourced URL and version info from thousands "
-                   "of applications listed in brew-cask: "
-                   "https://github.com/caskroom/homebrew-cask. See available "
-                   "apps: https://github.com/caskroom/homebrew-cask/tree/"
-                   "master/Casks")
+    description = (
+        "ATTENTION: This processor is deprecated, may not work "
+        "as expected with all known Casks, and may be removed "
+        "in a future release of AutoPkg. Description follows: "
+        "Provides crowd-sourced URL and version info from thousands "
+        "of applications listed in brew-cask: "
+        "https://github.com/caskroom/homebrew-cask. See available "
+        "apps: https://github.com/caskroom/homebrew-cask/tree/"
+        "master/Casks"
+    )
     input_variables = {
         "cask_name": {
             "required": True,
-            "description": ("Name of cask to fetch, as would be given to the "
-                            "'brew' command. Example: 'audacity'")
+            "description": (
+                "Name of cask to fetch, as would be given to the "
+                "'brew' command. Example: 'audacity'"
+            ),
         }
     }
     output_variables = {
-        "url": {
-            "description": "URL for the Cask's download.",
-        },
+        "url": {"description": "URL for the Cask's download."},
         "version": {
-            "description": ("Version info from formula. Depending on the "
-                            "nature of the formula and stability of the URL, "
-                            "this might be simply 'latest'. It's provided "
-                            "here for convenience in the recipe.")
-        }
+            "description": (
+                "Version info from formula. Depending on the "
+                "nature of the formula and stability of the URL, "
+                "this might be simply 'latest'. It's provided "
+                "here for convenience in the recipe."
+            )
+        },
     }
 
     __doc__ = description
@@ -59,7 +64,7 @@ class BrewCaskInfoProvider(Processor):
     def parse_formula(self, formula):
         """Return a dict containing attributes of the formula, ie. 'url',
         'version', etc. parsed from the formula .rb file."""
-        #pylint: disable=no-self-use
+        # pylint: disable=no-self-use
         attrs = {}
         regex = r"^\s+(?P<attr>.+) [\'\"](?P<value>.+)[\'\"].*$"
         for line in formula.splitlines():
@@ -80,19 +85,22 @@ class BrewCaskInfoProvider(Processor):
             match = re.search("#{(.+?)}", value)
             if match:
                 subbed_key = match.groups()[0]
-                self.output("Substituting value '%s' in %s: '%s'" % (
-                    subbed_key, key, value))
-                newattrs[key] = re.sub("#{%s}" % subbed_key,
-                                       newattrs[subbed_key],
-                                       newattrs[key])
+                self.output(
+                    "Substituting value '%s' in %s: '%s'" % (subbed_key, key, value)
+                )
+                newattrs[key] = re.sub(
+                    "#{%s}" % subbed_key, newattrs[subbed_key], newattrs[key]
+                )
         return newattrs
 
     def main(self):
-        self.output("WARNING: BrewCaskInfoProvider is deprecated and may be "
-                    "removed in a future AutoPkg release.")
+        self.output(
+            "WARNING: BrewCaskInfoProvider is deprecated and may be "
+            "removed in a future AutoPkg release."
+        )
         github_raw_baseurl = (
-            "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/"
-            "Casks")
+            "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/" "Casks"
+        )
         cask_url = "%s/%s.rb" % (github_raw_baseurl, self.env["cask_name"])
         try:
             urlobj = urllib2.urlopen(cask_url)
@@ -112,8 +120,9 @@ class BrewCaskInfoProvider(Processor):
         else:
             self.env["version"] = ""
 
-        self.output("Got URL %s from for cask '%s':"
-                    % (self.env["url"], self.env["cask_name"]))
+        self.output(
+            "Got URL %s from for cask '%s':" % (self.env["url"], self.env["cask_name"])
+        )
 
 
 if __name__ == "__main__":

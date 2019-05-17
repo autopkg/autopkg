@@ -20,6 +20,7 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["DmgCreator"]
 
 DEFAULT_DMG_FORMAT = "UDZO"
@@ -36,44 +37,44 @@ class DmgCreator(Processor):
             "required": True,
             "description": "Directory that will be copied to a disk image.",
         },
-        "dmg_path": {
-            "required": True,
-            "description": "The dmg to be created.",
-        },
+        "dmg_path": {"required": True, "description": "The dmg to be created."},
         "dmg_format": {
             "required": False,
-            "description": ("The dmg format. Defaults to %s."
-                            % DEFAULT_DMG_FORMAT),
+            "description": ("The dmg format. Defaults to %s." % DEFAULT_DMG_FORMAT),
         },
         "dmg_filesystem": {
             "required": False,
-            "description": ("The dmg filesystem. Defaults to %s."
-                            % DEFAULT_DMG_FILESYSTEM),
+            "description": (
+                "The dmg filesystem. Defaults to %s." % DEFAULT_DMG_FILESYSTEM
+            ),
         },
         "dmg_zlib_level": {
             "required": False,
-            "description": ("Compression level between '1' and '9' to use "
-                            "when using UDZO. Defaults to '%s', a point "
-                            "beyond which very little space savings is "
-                            "gained." % DEFAULT_ZLIB_LEVEL)
+            "description": (
+                "Compression level between '1' and '9' to use "
+                "when using UDZO. Defaults to '%s', a point "
+                "beyond which very little space savings is "
+                "gained." % DEFAULT_ZLIB_LEVEL
+            ),
         },
         "dmg_megabytes": {
             "required": False,
-            "description": ("Value to set for the '-megabytes' option, useful "
-                            "as a workaround when hdiutil cannot accurately "
-                            "estimate the required size for the dmg before "
-                            "compression. Not normally required, and the "
-                            "option will not be used if this variable is not "
-                            "defined.")
-        }
+            "description": (
+                "Value to set for the '-megabytes' option, useful "
+                "as a workaround when hdiutil cannot accurately "
+                "estimate the required size for the dmg before "
+                "compression. Not normally required, and the "
+                "option will not be used if this variable is not "
+                "defined."
+            ),
+        },
     }
-    output_variables = {
-    }
+    output_variables = {}
 
     def main(self):
         # Remove existing dmg if it exists.
-        if os.path.exists(self.env['dmg_path']):
-            os.unlink(self.env['dmg_path'])
+        if os.path.exists(self.env["dmg_path"]):
+            os.unlink(self.env["dmg_path"])
 
         # Determine the format.
         # allow a subset of the formats supported by hdiutil, those
@@ -95,12 +96,12 @@ class DmgCreator(Processor):
         if dmg_format not in valid_formats:
             raise ProcessorError(
                 "dmg format '%s' is invalid. Must be one of: %s."
-                % (dmg_format, ", ".join(valid_formats)))
+                % (dmg_format, ", ".join(valid_formats))
+            )
 
         zlib_level = int(self.env.get("dmg_zlib_level", DEFAULT_ZLIB_LEVEL))
         if zlib_level < 1 or zlib_level > 9:
-            raise ProcessorError(
-                "dmg_zlib_level must be a value between 1 and 9.")
+            raise ProcessorError("dmg_zlib_level must be a value between 1 and 9.")
 
         # Allow any filesystem that hdiutil supports
         valid_filesystems = [
@@ -122,42 +123,44 @@ class DmgCreator(Processor):
         if dmg_filesystem not in valid_filesystems:
             raise ProcessorError(
                 "dmg filesystem '%s' is invalid. Must be one of: %s."
-                % (dmg_filesystem, ", ".join(valid_filesystems)))
+                % (dmg_filesystem, ", ".join(valid_filesystems))
+            )
 
         # Build a command for hdiutil.
-        cmd = ["/usr/bin/hdiutil",
-               "create",
-               "-plist",
-               "-fs",
-               dmg_filesystem,
-               "-format",
-               dmg_format]
+        cmd = [
+            "/usr/bin/hdiutil",
+            "create",
+            "-plist",
+            "-fs",
+            dmg_filesystem,
+            "-format",
+            dmg_format,
+        ]
         if dmg_format == "UDZO":
             cmd.extend(["-imagekey", "zlib-level=%s" % str(zlib_level)])
         if self.env.get("dmg_megabytes"):
             cmd.extend(["-megabytes", str(self.env["dmg_megabytes"])])
-        cmd.extend([
-            "-srcfolder", self.env['dmg_root'],
-            self.env['dmg_path']])
+        cmd.extend(["-srcfolder", self.env["dmg_root"], self.env["dmg_path"]])
 
         # Call hdiutil.
         try:
-            proc = subprocess.Popen(cmd,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
+            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stderr = proc.communicate()[1]
         except OSError as err:
             raise ProcessorError(
                 "hdiutil execution failed with error code %d: %s"
-                % (err.errno, err.strerror))
+                % (err.errno, err.strerror)
+            )
         if proc.returncode != 0:
             raise ProcessorError(
-                "creation of %s failed: %s" % (self.env['dmg_path'], stderr))
+                "creation of %s failed: %s" % (self.env["dmg_path"], stderr)
+            )
 
-        self.output("Created dmg from %s at %s"
-                    % (self.env['dmg_root'], self.env['dmg_path']))
+        self.output(
+            "Created dmg from %s at %s" % (self.env["dmg_root"], self.env["dmg_path"])
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = DmgCreator()
     PROCESSOR.execute_shell()

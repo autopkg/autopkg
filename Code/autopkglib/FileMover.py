@@ -19,35 +19,28 @@ from os import rename
 
 from autopkglib import Processor
 
+
 __all__ = ["FileMover"]
 
 
 class FileMover(Processor):
-    '''Moves/renames a file.
+    """Moves/renames a file.
 
-    Requires version 0.2.9.'''
+    Requires version 0.2.9."""
 
     input_variables = {
-        'source': {
-            'description': 'Source file',
-            'required': True,
-        },
-        'target': {
-            'description': 'Target file',
-            'required': True,
-        },
+        "source": {"description": "Source file", "required": True},
+        "target": {"description": "Target file", "required": True},
     }
-    output_variables = {
-    }
+    output_variables = {}
 
     description = __doc__
 
     def main(self):
-        rename(self.env['source'], self.env['target'])
-        self.output(
-            'File %s moved to %s' % (self.env['source'], self.env['target']))
+        rename(self.env["source"], self.env["target"])
+        self.output("File %s moved to %s" % (self.env["source"], self.env["target"]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = FileMover()
     PROCESSOR.execute_shell()

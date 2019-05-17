@@ -19,46 +19,43 @@ import os
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["FileCreator"]
 
 
 class FileCreator(Processor):
     """Create a file."""
+
     description = __doc__
     input_variables = {
-        "file_path": {
-            "required": True,
-            "description": "Path to a file to create.",
-        },
-        "file_content": {
-            "required": True,
-            "description": "Contents to put in file.",
-        },
+        "file_path": {"required": True, "description": "Path to a file to create."},
+        "file_content": {"required": True, "description": "Contents to put in file."},
         "file_mode": {
             "required": False,
-            "description": "String. Numeric mode for file in octal format."
-        }
+            "description": "String. Numeric mode for file in octal format.",
+        },
     }
-    output_variables = {
-    }
+    output_variables = {}
 
     def main(self):
         try:
-            with open(self.env['file_path'], "w") as fileref:
-                fileref.write(self.env['file_content'])
-            self.output("Created file at %s" % self.env['file_path'])
+            with open(self.env["file_path"], "w") as fileref:
+                fileref.write(self.env["file_content"])
+            self.output("Created file at %s" % self.env["file_path"])
         except BaseException as err:
-            raise ProcessorError("Can't create file at %s: %s"
-                                 % (self.env['file_path'], err))
-        if 'file_mode' in self.env:
+            raise ProcessorError(
+                "Can't create file at %s: %s" % (self.env["file_path"], err)
+            )
+        if "file_mode" in self.env:
             try:
-                os.chmod(self.env['file_path'], int(self.env['file_mode'], 8))
+                os.chmod(self.env["file_path"], int(self.env["file_mode"], 8))
             except BaseException as err:
                 raise ProcessorError(
                     "Can't set mode of %s to %s: %s"
-                    % (self.env['file_path'], self.env['file_mode'], err))
+                    % (self.env["file_path"], self.env["file_mode"], err)
+                )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     PROCESSOR = FileCreator()
     PROCESSOR.execute_shell()

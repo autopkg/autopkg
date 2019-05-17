@@ -19,27 +19,30 @@ import os
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["PackageRequired"]
 
 
 class PackageRequired(Processor):
-    '''Raises a ProcessorError if the PKG variable doesn't exist.
+    """Raises a ProcessorError if the PKG variable doesn't exist.
 
-    Requires version 0.5.1.'''
+    Requires version 0.5.1."""
 
-    input_variables = {
-    }
-    output_variables = {
-    }
+    input_variables = {}
+    output_variables = {}
 
     def main(self):
-        pkg = self.env.get('PKG', None)
+        pkg = self.env.get("PKG", None)
 
         if not pkg:
-            raise ProcessorError('This recipe requires a package or disk '
+            raise ProcessorError(
+                "This recipe requires a package or disk "
                 'image to be pre-downloaded and supplied to autopkg ("-p" '
-                'command-line switch). This is likely due to required login '
-                'credentials to download the software.')
+                "command-line switch). This is likely due to required login "
+                "credentials to download the software."
+            )
 
         if not os.path.exists(pkg):
-            raise ProcessorError('Path to package or disk image does not exist: %s' % pkg)
+            raise ProcessorError(
+                "Path to package or disk image does not exist: %s" % pkg
+            )

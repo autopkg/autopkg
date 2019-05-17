@@ -17,12 +17,17 @@
 import os
 from ctypes import *
 
+
 libc = CDLL("/usr/lib/libc.dylib")
 
 
 # int launch_activate_socket(const char *name, int **fds, size_t *cnt)
 libc.launch_activate_socket.restype = c_int
-libc.launch_activate_socket.argtypes = [c_char_p, POINTER(POINTER(c_int)), POINTER(c_size_t)]
+libc.launch_activate_socket.argtypes = [
+    c_char_p,
+    POINTER(POINTER(c_int)),
+    POINTER(c_size_t),
+]
 
 
 class LaunchDError(Exception):
@@ -38,7 +43,9 @@ def launch_activate_socket(name):
         cnt = c_size_t(0)
         err = libc.launch_activate_socket(name, byref(fds), byref(cnt))
         if err:
-            raise LaunchDError("Failed to retrieve sockets from launchd: %s" % os.strerror(err))
+            raise LaunchDError(
+                "Failed to retrieve sockets from launchd: %s" % os.strerror(err)
+            )
 
         # Return a list of file descriptors.
         return list(fds[x] for x in xrange(cnt.value))
