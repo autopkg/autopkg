@@ -152,6 +152,13 @@ def main(_):
             "specified, a temporary directory will be used."
         )
     )
+    parser.add_option(
+        "-p", "--processor",
+        help=(
+            "Generate changes for only a specific processor. "
+            "This does not update the Sidebar."
+        )
+    )
     options, arguments = parser.parse_args()
     if len(arguments) < 1:
         parser.print_usage()
@@ -174,6 +181,9 @@ def main(_):
 
     # Generate markdown pages for each processor attributes
     for processor_name in processor_names():
+        if options.processor:
+            if options.processor != processor_name:
+                continue
         processor_class = get_processor(processor_name)
         try:
             description = processor_class.description
@@ -212,14 +222,18 @@ def main(_):
     # - Copy the new Processors TOC
     # - Copy the lines following the Processors section
 
-    sidebar_path = os.path.join(output_dir, "_Sidebar.md")
-
-    new_sidebar = generate_sidebar(sidebar_path)
-    with open(sidebar_path, "w") as fdesc:
-        fdesc.write(new_sidebar)
+    if not options.processor:
+        sidebar_path = os.path.join(output_dir, "_Sidebar.md")
+        new_sidebar = generate_sidebar(sidebar_path)
+        with open(sidebar_path, "w") as fdesc:
+            fdesc.write(new_sidebar)
 
     # Git commit everything
     os.chdir(output_dir)
+    if not run_git(["status", "--porcelain"]):
+        print("No changes detected.")
+        return
+
     run_git(["add", "--all"])
     run_git(["commit", "-m", "Updating Wiki docs for release %s" % version])
 
