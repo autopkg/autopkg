@@ -1,4 +1,25 @@
-### [1.0.5](https://github.com/autopkg/autopkg/compare/v1.0.4...HEAD) (Unreleased)
+### [1.1](https://github.com/autopkg/autopkg/compare/v1.0.4...HEAD) (Unreleased)
+
+FIXES:
+
+- Add `--compress` option to `curl` calls in SparkleUpdateInfoProvider and URLTextSearcher
+  to work around websites that return compressed results even when request does not indicate
+  they will be accepted. (GH-461)
+- URLDownloader: Better handling of more HTTP 3xx redirects (GH-429)
+- Better handling of paths starting with `~/` (GH-437 (https://github.com/autopkg/autopkg/commit/603f2207df3cd88b3a2cb3e59543923648ac6522)
+- `generate_processor_docs` sorts the sidebar alphabetically (GH-520)
+
+ADDITIONS:
+
+- New `--force` option for `autopkg make-override` (GH-425)
+- Add `-q/--quiet` option to suppress Github search and suggestions (GH-426)
+- New `new-recipe` subcommand (https://github.com/autopkg/autopkg/commit/f92a0a46042c14de502379ed7f454e1aa9053db1)
+- Added DeprecationWarning processor to core processors (https://github.com/autopkg/autopkg/commit/7b4abac0ce4955689a8af482249963c5253038ae)
+
+IMPROVEMENTS:
+
+- Code run through several processors/formatters (flake8, isort, black, python-modernize) to 
+  prepare for Python 3 compatibility
 
 ### [1.0.4](https://github.com/autopkg/autopkg/compare/v1.0.3...v1.0.4) (March 05, 2018)
 
