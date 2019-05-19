@@ -6,7 +6,7 @@ FIXES:
   to work around websites that return compressed results even when request does not indicate
   they will be accepted. (GH-461)
 - URLDownloader: Better handling of more HTTP 3xx redirects (GH-429)
-- Better handling of paths starting with `~/` (GH-437 (https://github.com/autopkg/autopkg/commit/603f2207df3cd88b3a2cb3e59543923648ac6522)
+- Better handling of paths starting with `~/` (GH-437) (https://github.com/autopkg/autopkg/commit/603f2207df3cd88b3a2cb3e59543923648ac6522)
 - `generate_processor_docs` sorts the sidebar alphabetically (GH-520)
 
 ADDITIONS:
