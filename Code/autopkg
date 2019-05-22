@@ -78,7 +78,7 @@ def log(msg, error=False):
     if error:
         print(unicode(msg).encode("UTF-8"), file=sys.stderr)
     else:
-        print(unicode(msg).encode("UTF-8"), file=sys.stderr)
+        print(unicode(msg).encode("UTF-8"))
 
 
 def log_err(msg):
