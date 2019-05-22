@@ -1,0 +1,22 @@
+[flake8]
+select = B,C,E,F,P,W,B9
+max-line-length = 80
+### DEFAULT IGNORES FOR 4-space INDENTED PROJECTS ###
+# E127, E128 are hard to silence in certain nested formatting situations.
+# E203 doesn't work for slicing
+# E265, E266 talk about comment formatting which is too opinionated.
+# E402 warns on imports coming after statements. There are important use cases
+# that require statements before imports.
+# E501 is not flexible enough, we're using B950 instead.
+# E722 is a duplicate of B001.
+# P207 is a duplicate of B003.
+# P208 is a duplicate of C403.
+# W503 talks about operator formatting which is too opinionated.
+ignore = E127, E128, E203, E265, E266, E402, E501, E722, P207, P208, W503
+### DEFAULT IGNORES FOR 2-space INDENTED PROJECTS (uncomment) ###
+# ignore = E111, E114, E121, E127, E128, E265, E266, E402, E501, P207, P208, W503
+exclude =
+  .git,
+  .hg,
+# This will be fine-tuned over time
+max-complexity = 65

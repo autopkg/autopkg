@@ -1,0 +1,10 @@
+repos:
+-   repo: https://github.com/python/black
+    rev: stable
+    hooks:
+    - id: black
+      language_version: python3.7
+-   repo: https://github.com/pre-commit/mirrors-isort
+    rev: 'dc9ed97'  # Use the revision sha / tag you want to point at
+    hooks:
+    -   id: isort
