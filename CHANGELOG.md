@@ -1,9 +1,8 @@
-### [1.1.1](https://github.com/autopkg/autopkg/compare/v1.1...HEAD) (Unreleased)
-
-### [1.1](https://github.com/autopkg/autopkg/compare/v1.0.4...v1.1) (May 20, 2019)
+### [1.1RC2](https://github.com/autopkg/autopkg/compare/v1.0.4...HEAD) (Unreleased)
 
 FIXES:
 
+- Fix for autopkg output in 1.1RC1 going to stderr instead of stdout (https://github.com/autopkg/autopkg/commit/d67a8888e0bd900f0fba595a1d3d95bbf391d095)
 - Add `--compress` option to `curl` calls in SparkleUpdateInfoProvider and URLTextSearcher
   to work around websites that return compressed results even when request does not indicate
   they will be accepted. (GH-461)
