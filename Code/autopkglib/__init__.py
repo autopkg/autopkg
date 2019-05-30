@@ -29,7 +29,6 @@ from distutils.version import LooseVersion
 
 import FoundationPlist
 
-
 # pylint: disable=no-name-in-module
 try:
     from Foundation import NSArray, NSDictionary
@@ -112,6 +111,19 @@ def get_all_prefs(domain=BUNDLE_ID):
             for key in keylist:
                 prefs[key] = get_pref(key, domain)
     return prefs
+
+
+def log(msg, error=False):
+    """Message logger, prints to stdout/stderr."""
+    if error:
+        print(unicode(msg).encode("UTF-8"), file=sys.stderr)
+    else:
+        print(unicode(msg).encode("UTF-8"))
+
+
+def log_err(msg):
+    """Message logger for errors."""
+    log(msg, error=True)
 
 
 def get_identifier(recipe):
