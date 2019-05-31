@@ -47,11 +47,12 @@ from autopkglib import (
     get_identifier,
     get_pref,
     get_processor,
+    log,
+    log_err,
     processor_names,
     set_pref,
     version_equal_or_greater,
 )
-
 
 if sys.platform != "darwin":
     print(
@@ -71,19 +72,6 @@ except:
 
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
-
-
-def log(msg, error=False):
-    """Message logger, prints to stdout/stderr."""
-    if error:
-        print(unicode(msg).encode("UTF-8"), file=sys.stderr)
-    else:
-        print(unicode(msg).encode("UTF-8"))
-
-
-def log_err(msg):
-    """Message logger for errors."""
-    log(msg, error=True)
 
 
 def print_version(argv):
@@ -2365,7 +2353,9 @@ def run_recipes(argv):
                 # record any summary results
                 output_keys = item["Output"].keys()
                 results_keys = [
-                    key for key in output_keys if key.endswith("_summary_result")
+                    summary_key
+                    for summary_key in output_keys
+                    if key.endswith("_summary_result")
                 ]
                 for key in results_keys:
                     result = item["Output"][key]
