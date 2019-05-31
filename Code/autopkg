@@ -2355,7 +2355,7 @@ def run_recipes(argv):
                 results_keys = [
                     summary_key
                     for summary_key in output_keys
-                    if key.endswith("_summary_result")
+                    if summary_key.endswith("_summary_result")
                 ]
                 for key in results_keys:
                     result = item["Output"][key]
