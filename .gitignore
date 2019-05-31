@@ -3,3 +3,6 @@
 
 # don't track .pyc files
 *.pyc
+
+# IDE-specific files
+.vscode
