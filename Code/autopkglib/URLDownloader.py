@@ -20,14 +20,10 @@ import subprocess
 import tempfile
 import time
 
-import xattr
-from autopkglib import Processor, ProcessorError
+from autopkglib import BUNDLE_ID, Processor, ProcessorError, is_mac
 
-
-try:
-    from autopkglib import BUNDLE_ID
-except ImportError:
-    BUNDLE_ID = "com.github.autopkg"
+if is_mac():
+    import xattr
 
 
 __all__ = ["URLDownloader"]
@@ -121,6 +117,8 @@ class URLDownloader(Processor):
     }
 
     def main(self):
+        if not is_mac():
+            raise ProcessorError("This processor is Mac-only!")
         # clear any pre-exising summary result
         if "url_downloader_summary_result" in self.env:
             del self.env["url_downloader_summary_result"]
