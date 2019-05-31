@@ -8,3 +8,7 @@ repos:
     rev: 'dc9ed97'  # Use the revision sha / tag you want to point at
     hooks:
     -   id: isort
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.2.3  # Use the ref you want to point at
+    hooks:
+    -   id: flake8
