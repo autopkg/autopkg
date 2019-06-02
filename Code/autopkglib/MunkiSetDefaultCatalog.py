@@ -16,8 +16,6 @@
 # limitations under the License.
 """See docstring for MunkiSetDefaultCatalog class"""
 
-from __future__ import print_function
-
 from autopkglib import Processor, log
 
 # pylint: disable=no-name-in-module

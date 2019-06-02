@@ -15,8 +15,6 @@
 # limitations under the License.
 """See docstring for MunkiInstallsItemsCreator class"""
 
-from __future__ import print_function
-
 import subprocess
 
 import FoundationPlist

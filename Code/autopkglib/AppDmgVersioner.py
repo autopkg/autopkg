@@ -15,8 +15,6 @@
 # limitations under the License.
 """See docstring for AppDmgVersioner class"""
 
-from __future__ import print_function
-
 import glob
 import os.path
 
