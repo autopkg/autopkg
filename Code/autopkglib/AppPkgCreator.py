@@ -24,7 +24,6 @@ from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 from autopkglib.PkgCreator import PkgCreator
 
-
 __all__ = ["AppPkgCreator"]
 
 

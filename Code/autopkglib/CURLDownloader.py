@@ -18,7 +18,6 @@ deprecation period."""
 
 from autopkglib.URLDownloader import URLDownloader
 
-
 __all__ = ["CURLDownloader"]
 
 CURLDownloader = URLDownloader

@@ -26,7 +26,6 @@ import subprocess
 import tempfile
 from xml.parsers.expat import ExpatError
 
-
 __all__ = ["Packager", "PackagerError"]
 
 

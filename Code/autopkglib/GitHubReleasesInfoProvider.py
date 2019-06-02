@@ -24,7 +24,6 @@ import re
 import autopkglib.github
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["GitHubReleasesInfoProvider"]
 
 

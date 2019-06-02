@@ -20,7 +20,6 @@ import shutil
 
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["PkgRootCreator"]
 
 
