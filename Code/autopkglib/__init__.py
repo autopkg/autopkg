@@ -461,7 +461,7 @@ class AutoPackager(object):
         """Return the identifier given an input recipe plist."""
         identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
         if not identifier:
-            log("ID NOT FOUND")
+            log_err("ID NOT FOUND")
             # build a pseudo-identifier based on the recipe pathname
             recipe_path = self.env.get("RECIPE_PATH")
             # get rid of filename extension
