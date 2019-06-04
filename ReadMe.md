@@ -28,7 +28,9 @@ Installation
 
 Install the [latest release](https://github.com/autopkg/autopkg/releases/latest).
 
-AutoPkg requires Mac OS X 10.7 or a later version of macOS, and Git is highly recommended to have installed so that it can manage recipe repositories. Knowledge of Git itself is not required.
+AutoPkg requires macOS, and Git is highly recommended to have installed so that autopkg can use git to can manage recipe repositories. Knowledge of Git itself is not required.
+
+AutoPkg is tested on the current macOS release. It may work on older releases, but is not actively tested on older releases.
 
 Git can be installed via Apple's command-line developer tools package, which can be prompted for installation by simply typing 'git' in a Terminal window (OS X 10.9 or later).
 
