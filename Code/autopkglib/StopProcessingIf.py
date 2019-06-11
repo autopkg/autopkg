@@ -15,16 +15,14 @@
 # limitations under the License.
 """See docstring for StopProcessingIf class"""
 
-from __future__ import print_function
-
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, log
 
 
 # pylint: disable=no-name-in-module
 try:
     from Foundation import NSPredicate
 except:
-    print("WARNING: Failed 'from Foundation import NSPredicate' in " + __name__)
+    log("WARNING: Failed 'from Foundation import NSPredicate' in " + __name__)
 # pylint: disable=no-name-in-module
 
 __all__ = ["StopProcessingIf"]

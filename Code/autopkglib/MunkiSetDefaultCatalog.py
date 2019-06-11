@@ -16,14 +16,13 @@
 # limitations under the License.
 """See docstring for MunkiSetDefaultCatalog class"""
 
-from autopkglib import Processor
-
+from autopkglib import Processor, log
 
 # pylint: disable=no-name-in-module
 try:
     from Foundation import CFPreferencesCopyAppValue
 except:
-    print(
+    log(
         "WARNING: Failed 'from Foundation import CFPreferencesCopyAppValue' "
         "in " + __name__
     )

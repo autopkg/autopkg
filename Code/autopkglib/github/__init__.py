@@ -21,10 +21,8 @@ import json
 import os
 import re
 import subprocess
-import sys
 
-from autopkglib import curl_cmd, get_pref
-
+from autopkglib import curl_cmd, get_pref, log, log_err
 
 BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
@@ -42,9 +40,8 @@ class GitHubSession(object):
                 with open(TOKEN_LOCATION, "r") as tokenf:
                     self.token = tokenf.read()
             except IOError as err:
-                print(
-                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err),
-                    file=sys.stderr,
+                log_err(
+                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err)
                 )
                 self.token = None
         else:
@@ -66,27 +63,25 @@ To save the token, paste it to the following prompt."""
 
             token = raw_input("Token: ")
             if token:
-                print("""Writing token file %s.""" % TOKEN_LOCATION)
+                log("""Writing token file %s.""" % TOKEN_LOCATION)
                 try:
                     with open(TOKEN_LOCATION, "w") as tokenf:
                         tokenf.write(token)
                     os.chmod(TOKEN_LOCATION, 0o600)
                 except IOError as err:
-                    print(
+                    log_err(
                         "Couldn't write token file at %s! Error: %s"
-                        % (TOKEN_LOCATION, err),
-                        file=sys.stderr,
+                        % (TOKEN_LOCATION, err)
                     )
             else:
-                print("Skipping token file creation.", file=sys.stderr)
+                log("Skipping token file creation.")
         else:
             try:
                 with open(TOKEN_LOCATION, "r") as tokenf:
                     token = tokenf.read()
             except IOError as err:
-                print(
-                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err),
-                    file=sys.stderr,
+                log_err(
+                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err)
                 )
 
             # TODO: validate token given we found one but haven't checked its
@@ -223,7 +218,7 @@ To save the token, paste it to the following prompt."""
                         m = re.match(r".* (?P<status_code>\d+) .*", curlerr)
                         if m.group("status_code"):
                             header["http_result_code"] = m.group("status_code")
-                print("Could not retrieve URL %s: %s" % (url, curlerr), file=sys.stderr)
+                log_err("Could not retrieve URL %s: %s" % (url, curlerr))
 
             if page_content:
                 resp_data = json.loads(page_content)
@@ -231,7 +226,7 @@ To save the token, paste it to the following prompt."""
                 resp_data = None
 
         except OSError:
-            print("Could not retrieve URL: %s" % url, file=sys.stderr)
+            log_err("Could not retrieve URL: %s" % url)
             resp_data = None
 
         http_result_code = int(header.get("http_result_code"))
