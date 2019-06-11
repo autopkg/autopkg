@@ -25,7 +25,6 @@ import sys
 from tempfile import mkdtemp
 from textwrap import dedent
 
-
 # pylint: disable=import-error
 # Grabbing some functions from the Code directory
 try:

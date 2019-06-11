@@ -15,7 +15,6 @@
 
 from ctypes import *
 
-
 libc = CDLL("/usr/lib/libc.dylib")
 
 

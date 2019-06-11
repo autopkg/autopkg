@@ -1,6 +1,5 @@
 from __future__ import print_function
 
-
 # We're effectively using this package as module
 try:
     from FoundationPlist import *

@@ -18,7 +18,6 @@ the deprecation period."""
 
 from autopkglib.URLTextSearcher import URLTextSearcher
 
-
 __all__ = ["CURLTextSearcher"]
 
 CURLTextSearcher = URLTextSearcher

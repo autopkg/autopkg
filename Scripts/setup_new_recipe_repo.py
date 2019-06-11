@@ -31,7 +31,6 @@ import urllib2
 from pprint import pprint
 from tempfile import mkdtemp
 
-
 BASE_URL = "https://api.github.com"
 TOKEN = None
 

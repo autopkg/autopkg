@@ -22,7 +22,6 @@ import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
-
 AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
 
 

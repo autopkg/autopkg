@@ -31,7 +31,6 @@ import time
 from installer import Installer, InstallerError
 from itemcopier import ItemCopier, ItemCopierError
 
-
 APPNAME = "autopkginstalld"
 VERSION = "0.2"
 

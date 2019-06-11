@@ -23,7 +23,6 @@ import xml.etree.ElementTree as ET
 import FoundationPlist
 from autopkglib import Processor, ProcessorError
 
-
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
 
 
