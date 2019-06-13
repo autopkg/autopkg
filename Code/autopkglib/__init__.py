@@ -78,8 +78,10 @@ try:
         kCFPreferencesCurrentHost,
     )
 except:
-    log("WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__)
-    log(
+    print(
+        "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
+    )
+    print(
         "WARNING: Failed 'from CoreFoundation import "
         "CFPreferencesAppSynchronize, ...' in " + __name__
     )
