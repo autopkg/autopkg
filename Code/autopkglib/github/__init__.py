@@ -182,6 +182,12 @@ To save the token, paste it to the following prompt."""
                                 header["http_result_description"] = part[2]
                             except IndexError:
                                 pass
+                        elif "Status: 301" in info:
+                            # Skip this block of headers when redirect is found
+                            while True:
+                                if proc.stdout.readline().strip("\r\n"):
+                                    continue
+                                break
                         elif ": " in info:
                             part = info.split(None, 1)
                             fieldname = part[0].rstrip(":").lower()
