@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""See docstring for SparkleUpdateProvider class"""
+"""See docstring for SparkleUpdateInfoProvider class"""
 
 import os
 import subprocess
