@@ -78,7 +78,7 @@ class URLGetter(Processor):
             curl_cmd.extend([item])
 
     def clear_header(self, header):
-        """Initialize dictionary for parsed headers and return it"""
+        """Clear header dictionary"""
         header.clear()
         header["http_result_code"] = "000"
         header["http_result_description"] = ""
