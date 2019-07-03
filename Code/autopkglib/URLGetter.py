@@ -71,13 +71,11 @@ class URLGetter(Processor):
 
     def add_curl_common_opts(self, curl_cmd):
         """Adds request_headers and curl_opts to curl_cmd"""
-        if "request_headers" in self.env:
-            headers = self.env["request_headers"]
-            for header, value in headers.items():
-                curl_cmd.extend(["--header", "%s: %s" % (header, value)])
-        if "curl_opts" in self.env:
-            for item in self.env["curl_opts"]:
-                curl_cmd.extend([item])
+        for header, value in self.env.get("request_headers", {}).items():
+            curl_cmd.extend(["--header", "%s: %s" % (header, value)])
+
+        for item in self.env.get("curl_opts", []):
+            curl_cmd.extend([item])
 
     def clear_header(self, header):
         """Clear header dictionary"""
