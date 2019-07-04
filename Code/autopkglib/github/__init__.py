@@ -61,7 +61,7 @@ class GitHubSession(URLGetter):
         if it exists."""
 
         if not os.path.exists(TOKEN_LOCATION):
-            log(
+            print(
                 """Create a new token in your GitHub settings page:
 
     https://github.com/settings/tokens
