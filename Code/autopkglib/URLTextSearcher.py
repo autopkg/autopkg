@@ -100,11 +100,9 @@ class URLTextSearcher(URLGetter):
     def re_search(self, content):
         """Search for re_pattern in content"""
         flag_accumulator = 0
-        flags = self.env.get("re_flags", {})
-        if flags:
-            for flag in flags:
-                if flag in re.__dict__:
-                    flag_accumulator += re.__dict__[flag]
+        for flag in self.env.get("re_flags", {}):
+            if flag in re.__dict__:
+                flag_accumulator += re.__dict__[flag]
         re_pattern = re.compile(self.env["re_pattern"], flags=flag_accumulator)
         match = re_pattern.search(content)
 
