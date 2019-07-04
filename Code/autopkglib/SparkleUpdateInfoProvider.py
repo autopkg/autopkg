@@ -321,10 +321,7 @@ class SparkleUpdateInfoProvider(URLGetter):
             return
 
         # handle custom xmlns and version attributes
-        if "alternate_xmlns_url" in self.env:
-            self.xmlns = self.env["alternate_xmlns_url"]
-        else:
-            self.xmlns = DEFAULT_XMLNS
+        self.xmlns = self.env.get("alternate_xmlns_url", DEFAULT_XMLNS)
 
         data = self.get_feed_data(self.env.get("appcast_url"))
         items = self.parse_feed_data(data)
@@ -340,10 +337,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         pkginfo = self.handle_pkginfo(latest)
 
         self.env["url"] = latest["url"]
-        if latest.get("human_version"):
-            self.env["version"] = latest["human_version"]
-        else:
-            self.env["version"] = latest["version"]
+        self.env["version"] = latest.get("human_version", latest["version"])
         self.output("Found URL %s" % self.env["url"])
         self.env["additional_pkginfo"] = pkginfo
 
