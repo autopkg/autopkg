@@ -99,10 +99,7 @@ class GitHubReleasesInfoProvider(Processor):
         be of the form 'user/repo'"""
         # pylint: disable=no-self-use
         releases = None
-        if "curl_opts" in self.env:
-            curl_opts = self.env["curl_opts"]
-        else:
-            curl_opts = None
+        curl_opts = self.env.get("curl_opts")
         github = autopkglib.github.GitHubSession(self.env["CURL_PATH"], curl_opts)
         releases_uri = "/repos/%s/releases" % repo
         (releases, status) = github.call_api(releases_uri)
