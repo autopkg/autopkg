@@ -64,7 +64,7 @@ class URLGetter(Processor):
         if is_executable("/usr/bin/curl"):
             return "/usr/bin/curl"
 
-        raise ProcessorError("Unable to execute any curl binary")
+        raise ProcessorError("Unable to locate or execute any curl binary")
 
     def add_curl_common_opts(self, curl_cmd):
         """Adds request_headers and curl_opts to curl_cmd"""
