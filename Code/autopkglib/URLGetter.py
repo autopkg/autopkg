@@ -48,7 +48,6 @@ class URLGetter(Processor):
         curl_path_pref = get_pref("CURL_PATH")
         if curl_path_pref:
             if is_executable(curl_path_pref):
-                # take a CURL_PATH pref
                 return curl_path_pref
             else:
                 log_err(
@@ -60,11 +59,9 @@ class URLGetter(Processor):
         for path_env in os.environ["PATH"].split(":"):
             curlbin = os.path.join(path_env, "curl")
             if is_executable(curlbin):
-                # take the first 'curl' in PATH that we find
                 return curlbin
 
         if is_executable("/usr/bin/curl"):
-            # fall back to /usr/bin/curl
             return "/usr/bin/curl"
 
         raise ProcessorError("Unable to execute any curl binary")
