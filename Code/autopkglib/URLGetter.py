@@ -19,7 +19,7 @@
 import os.path
 import subprocess
 
-from autopkglib import Processor, ProcessorError, get_pref, log_err
+from autopkglib import Processor, ProcessorError, get_pref, is_executable, log_err
 
 __all__ = ["URLGetter"]
 
@@ -37,10 +37,6 @@ class URLGetter(Processor):
         3. a 'curl' binary that can be found in the PATH environment variable
         4. '/usr/bin/curl'
         """
-
-        def is_executable(exe_path):
-            """Is exe_path executable?"""
-            return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
 
         if "CURL_PATH" in self.env and is_executable(self.env["CURL_PATH"]):
             return self.env["CURL_PATH"]
