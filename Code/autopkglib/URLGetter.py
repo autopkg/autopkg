@@ -163,9 +163,8 @@ class URLGetter(Processor):
         )
 
         proc_stdout, proc_stderr = proc.communicate()
-        retcode = proc.returncode
 
-        return proc_stdout, proc_stderr, retcode
+        return proc_stdout, proc_stderr, proc.returncode
 
     def download(self, curl_cmd):
         """Launches curl returns its output and handles failures."""
