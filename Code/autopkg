@@ -81,6 +81,18 @@ def print_version(argv):
     print(get_autopkg_version())
 
 
+def gen_common_parser():
+    """Generate a common optparse parser with default options."""
+    parser = optparse.OptionParser()
+    return parser
+
+
+def common_parse(parser, argv):
+    """Parse an optparse parser with some enhancements and return a tuple."""
+    options, arguments = parser.parse_args(argv[2:])
+    return (options, arguments)
+
+
 def recipe_has_step_processor(recipe, processor):
     """Does the recipe object contain at least one step with the
     named Processor?"""
@@ -722,7 +734,7 @@ def expand_repo_url(url):
 def repo_add(argv):
     """Add/update one or more repos of recipes"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     parser.set_usage(
         """Usage: %s %s recipe_repo_url
 Download one or more new recipe repos and add it to the search path.
@@ -735,9 +747,8 @@ Example: '%s repo-add recipes'
 ..adds the autopkg/recipes repo from GitHub."""
         % ("%prog", verb, "%prog")
     )
-
     # Parse arguments
-    arguments = parser.parse_args(argv[2:])[1]
+    arguments = common_parse(parser, argv)[1]
     if len(arguments) < 1:
         log_err("Need at least one recipe repo URL!")
         return -1
@@ -766,7 +777,7 @@ Example: '%s repo-add recipes'
 def repo_delete(argv):
     """Delete a recipe repo"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     parser.set_usage(
         "Usage: %s %s recipe_repo_path_or_url [...]\n"
         "Delete one or more recipe repo and remove it from the search "
@@ -774,7 +785,7 @@ def repo_delete(argv):
     )
 
     # Parse arguments
-    arguments = parser.parse_args(argv[2:])[1]
+    arguments = common_parse(parser, argv)[1]
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
@@ -809,7 +820,7 @@ def repo_delete(argv):
 def repo_list(argv):
     """List recipe repos"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     parser.set_usage(
         "Usage: %s %s\n" "List all installed recipe repos." % ("%prog", verb)
     )
@@ -829,7 +840,7 @@ def repo_list(argv):
 def repo_update(argv):
     """Update one or more recipe repos"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     parser.set_usage(
         "Usage: %s %s recipe_repo_path_or_url [...]\n"
         "Update one or more recipe repos.\n"
@@ -838,7 +849,7 @@ def repo_update(argv):
     )
 
     # Parse arguments
-    arguments = parser.parse_args(argv[2:])[1]
+    arguments = common_parse(parser, argv)[1]
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
@@ -923,7 +934,7 @@ def search_recipes(argv):
     """Search recipes on GitHub"""
     default_user = "autopkg"
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     parser.set_usage(
         "Usage: %s %s [options] search_term\n"
         "Search for recipes on GitHub. The AutoPkg organization "
@@ -968,7 +979,7 @@ def search_recipes(argv):
     )
 
     # Parse arguments
-    options, arguments = parser.parse_args(argv[2:])
+    (options, arguments) = common_parse(parser, argv)
     if len(arguments) < 1:
         log_err("No search query specified!")
         return -1
@@ -1025,7 +1036,7 @@ def display_help(argv, subcommands):
 def get_info(argv):
     """Display info about configuration or a recipe"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     parser.set_usage("Usage: %s %s [options] [recipe]" % ("%prog", verb))
 
     # Parse arguments
@@ -1036,7 +1047,7 @@ def get_info(argv):
         action="store_true",
         help=("Don't offer to search Github if a recipe can't " "be found."),
     )
-    options, arguments = parser.parse_args(argv[2:])
+    (options, arguments) = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -1080,7 +1091,7 @@ def processor_info(argv):
                 print(" " * indent, "%s: %s" % (key, unicode(value).encode("UTF-8")))
 
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     parser.set_usage("Usage: %s %s [options] processorname" % ("%prog", verb))
     parser.add_option(
         "-r", "--recipe", metavar="RECIPE", help="Name of recipe using the processor."
@@ -1088,7 +1099,7 @@ def processor_info(argv):
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
-    options, arguments = parser.parse_args(argv[2:])
+    (options, arguments) = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -1135,7 +1146,7 @@ def processor_info(argv):
 def list_processors(argv):
     """List the processors in autopkglib"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     parser.set_usage(
         "Usage: %s %s [options]\n" "List the core Processors." % ("%prog", verb)
     )
@@ -1261,7 +1272,7 @@ def get_recipe_list(
 def list_recipes(argv):
     """List all available recipes"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     parser.set_usage(
         "Usage: %s %s [options]\n"
         "List all the recipes this tool can find automatically.\n" % ("%prog", verb)
@@ -1300,7 +1311,7 @@ def list_recipes(argv):
 
     # Parse options
     add_search_and_override_dir_options(parser)
-    options = parser.parse_args(argv[1:])[0]
+    options = common_parse(parser, argv[1:])[0]
 
     augmented_list = False
     if options.with_identifiers or options.with_paths or options.plist:
@@ -1517,7 +1528,7 @@ def get_trust_info(recipe, search_dirs=None):
             processor_hash = getsha256hash(processor_path)
             git_hash = get_git_commit_hash(processor_path)
         else:
-            log_err('WARNING: processor path not found for %s' % processor)
+            log_err("WARNING: processor path not found for %s" % processor)
             processor_path = ""
             processor_hash = "PROCESSOR FILEPATH NOT FOUND"
             git_hash = None
@@ -1763,7 +1774,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
 def update_trust_info(argv):
     """Update the parent recipe trust information stored in a recipe override"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
 
     parser.set_usage(
         "Usage: %s %s [options] recipe_override_name [...]\n"
@@ -1773,7 +1784,7 @@ def update_trust_info(argv):
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
-    options, recipe_names = parser.parse_args(argv[2:])
+    options, recipe_names = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -1834,7 +1845,7 @@ def update_trust_info(argv):
 def verify_trust_info(argv):
     """Verify the parent recipe trust information stored in a recipe override"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
 
     parser.set_usage(
         "Usage: %s %s [options] recipe_override_name [...]\n"
@@ -1857,7 +1868,7 @@ def verify_trust_info(argv):
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
-    options, recipe_names = parser.parse_args(argv[2:])
+    options, recipe_names = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -1900,7 +1911,7 @@ def verify_trust_info(argv):
 def make_override(argv):
     """Make a recipe override skeleton."""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
 
     parser.set_usage(
         "Usage: %s %s [options] [recipe]\n"
@@ -1917,7 +1928,7 @@ def make_override(argv):
     parser.add_option(
         "-f", "--force", action="store_true", help="Force overwrite an override file."
     )
-    options, arguments = parser.parse_args(argv[2:])
+    (options, arguments) = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -2029,7 +2040,7 @@ def run_recipes(argv):
     """Run one or more recipes. If called with 'install' verb, run .install
        recipe"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
     if verb == "install":
         parser.set_usage(
             "Usage: %s %s [options] [itemname ...]\n"
@@ -2121,7 +2132,7 @@ def run_recipes(argv):
         help=("Don't offer to search Github if a recipe can't " "be found."),
     )
     add_search_and_override_dir_options(parser)
-    options, arguments = parser.parse_args(argv[2:])
+    (options, arguments) = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -2489,7 +2500,7 @@ def find_http_urls_in_recipe(recipe):
 def audit(argv):
     """Audit one or more recipes."""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
 
     parser.set_usage(
         "Usage: %s %s [options] recipe [..]\n"
@@ -2511,8 +2522,7 @@ def audit(argv):
         default=False,
         help="Output in plist format.",
     )
-
-    options, arguments = parser.parse_args(argv[2:])
+    (options, arguments) = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -2652,7 +2662,7 @@ def audit(argv):
 def new_recipe(argv):
     """Makes a new recipe template"""
     verb = argv[1]
-    parser = optparse.OptionParser()
+    parser = gen_common_parser()
 
     parser.set_usage(
         "Usage: %s %s [options] recipe_pathname\n"
@@ -2665,7 +2675,7 @@ def new_recipe(argv):
         "-p", "--parent-identifier", help="Parent recipe identifier for this recipe."
     )
 
-    options, arguments = parser.parse_args(argv[2:])
+    (options, arguments) = common_parse(parser, argv)
 
     if len(arguments) != 1:
         log_err("Must specify exactly one recipe pathname!")
