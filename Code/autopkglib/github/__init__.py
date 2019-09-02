@@ -138,7 +138,7 @@ To save the token, paste it to the following prompt."""
         return curl_cmd
 
     def download(self, curl_cmd):
-        """Downloads file using curl and returns raw headers."""
+        """Download file using curl and return raw headers."""
 
         p_stdout, p_stderr, retcode = super(GitHubSession, self).execute_curl(curl_cmd)
 
