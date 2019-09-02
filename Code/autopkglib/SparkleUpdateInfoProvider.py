@@ -142,15 +142,10 @@ class SparkleUpdateInfoProvider(URLGetter):
 
     def fetch_content(self, url, headers=None):
         """Returns content retrieved by curl, given a url and an optional
-        dictionary of header-name/value mappings. Logic here borrowed from
-        URLTextSearcher processor."""
+        dictionary of header-name/value mappings."""
 
         curl_cmd = self.prepare_curl_cmd(url, headers)
-        try:
-            content = super(SparkleUpdateInfoProvider, self).download(curl_cmd)
-        except ProcessorError:
-            raise ProcessorError("Could not retrieve URL: %s" % url)
-
+        content = super(SparkleUpdateInfoProvider, self).download(curl_cmd)
         return content
 
     def get_feed_data(self, url):
