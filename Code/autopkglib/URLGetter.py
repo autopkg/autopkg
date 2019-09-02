@@ -25,13 +25,13 @@ __all__ = ["URLGetter"]
 
 
 class URLGetter(Processor):
-    """Handles curl HTTP operatios. Server only as superclass. Not for direct use."""
+    """Handles curl HTTP operations. Serves only as superclass. Not for direct use."""
 
     description = __doc__
 
     def curl_binary(self):
-        """Returns a path to a curl binary, priority in the order below.
-        Returns None if none found.
+        """Return a path to a curl binary, priority in the order below.
+        Return None if none found.
         1. env['CURL_PATH']
         2. app pref 'CURL_PATH'
         3. a 'curl' binary that can be found in the PATH environment variable
@@ -47,7 +47,7 @@ class URLGetter(Processor):
                 return curl_path_pref
             else:
                 log_err(
-                    "WARNING: Curl path given in the 'CURL_PATH' preference:'%s' "
+                    "WARNING: curl path given in the 'CURL_PATH' preference:'%s' "
                     "either doesn't exist or is not executable! Falling back "
                     "to one set in PATH, or /usr/bin/curl." % curl_path_pref
                 )
@@ -63,7 +63,7 @@ class URLGetter(Processor):
         raise ProcessorError("Unable to locate or execute any curl binary")
 
     def add_curl_common_opts(self, curl_cmd):
-        """Adds request_headers and curl_opts to curl_cmd"""
+        """Add request_headers and curl_opts to curl_cmd"""
         for header, value in self.env.get("request_headers", {}).items():
             curl_cmd.extend(["--header", "%s: %s" % (header, value)])
 
@@ -94,7 +94,7 @@ class URLGetter(Processor):
             header[fieldname] = ""
 
     def parse_curl_error(self, proc_stderr):
-        """Report Curl failure."""
+        """Report curl failure."""
         curl_err = ""
         try:
             curl_err = proc_stderr.rstrip("\n")
@@ -123,7 +123,7 @@ class URLGetter(Processor):
             header["http_result_description"] = line
 
     def parse_headers(self, proc_stdout, header):
-        """Parse headers from Curl."""
+        """Parse headers from curl."""
         for line in proc_stdout.splitlines():
             if line.startswith("HTTP/"):
                 self.parse_http_protocol(line, header)
@@ -145,7 +145,7 @@ class URLGetter(Processor):
                     self.clear_header(header)
 
     def execute_curl(self, curl_cmd):
-        """Executes curl comamnd. Returns stdout, stderr and return code."""
+        """Execute curl comamnd. Return stdout, stderr and return code."""
         proc = subprocess.Popen(
             curl_cmd,
             shell=False,
@@ -160,14 +160,14 @@ class URLGetter(Processor):
         return proc_stdout, proc_stderr, proc.returncode
 
     def download(self, curl_cmd):
-        """Launches curl returns its output and handles failures."""
+        """Launch curl, return its output, and handle failures."""
 
         proc_stdout, proc_stderr, retcode = self.execute_curl(curl_cmd)
 
         if retcode:  # Non-zero exit code from curl => problem with download
             curl_err = self.parse_curl_error(proc_stderr)
             raise ProcessorError(
-                "Curl failure: %s (exit code %s)" % (curl_err, retcode)
+                "curl failure: %s (exit code %s)" % (curl_err, retcode)
             )
 
         return proc_stdout
