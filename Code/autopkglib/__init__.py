@@ -47,19 +47,19 @@ class memoize(dict):
         return result
 
 
-@memoize
+# @memoize
 def is_mac():
     """Return True if current OS is macOS."""
     return "Darwin" in platform.platform()
 
 
-@memoize
+# @memoize
 def is_windows():
     """Return True if current OS is Windows."""
     return "Windows" in platform.platform()
 
 
-@memoize
+# @memoize
 def is_linux():
     """Return True if current OS is Linux."""
     return "Linux" in platform.platform()
