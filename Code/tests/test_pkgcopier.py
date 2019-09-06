@@ -9,7 +9,7 @@ import mock
 from autopkglib.PkgCopier import PkgCopier
 
 
-class TestFileFinder(unittest.TestCase):
+class TestPkgCopier(unittest.TestCase):
     """Test class for PkgCopier Processor."""
 
     def setUp(self):
