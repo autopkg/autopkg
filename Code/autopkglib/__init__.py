@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import glob
 import imp
+import json
 import os
 import platform
 import pprint
@@ -77,6 +78,7 @@ try:
         kCFPreferencesCurrentUser,
         kCFPreferencesCurrentHost,
     )
+    from PyObjCTools import Conversion
 except:
     print(
         "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
@@ -99,53 +101,158 @@ class PreferenceError(Exception):
     pass
 
 
-def get_pref(key, domain=BUNDLE_ID):
+class Preferences(object):
+    """An abstraction to hold all preferences."""
+
+    def __init__(self):
+        """Init."""
+        self.prefs = {}
+        # What type of preferences input are we using?
+        self.type = None
+        # Path to the preferences file we were given
+        self.file_path = None
+        # If we're on macOS, read in the preference domain first.
+        if is_mac():
+            self.prefs = self._get_macos_prefs()
+
+    def _parse_json_or_plist_file(self, file_path):
+        """Parse the file. Start with plist, then JSON."""
+        try:
+            data = FoundationPlist.readPlist(file_path)
+            self.type = "plist"
+            self.file_path = file_path
+            return Conversion.pythonCollectionFromPropertyList(data)
+        except Exception:
+            pass
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+                self.type = "json"
+                self.file_path = file_path
+                return data
+        except Exception:
+            pass
+        return {}
+
+    def _get_macos_pref(self, key):
+        """Get a specific macOS preference key."""
+        value = CFPreferencesCopyAppValue(key, BUNDLE_ID)
+        # Casting NSArrays and NSDictionaries to native Python types.
+        # This a workaround for 10.6, where PyObjC doesn't seem to
+        # support as many common operations such as list concatenation
+        # between Python and ObjC objects.
+        if isinstance(value, NSArray) or isinstance(value, NSDictionary):
+            value = Conversion.pythonCollectionFromPropertyList(value)
+        return value
+
+    def _get_macos_prefs(self):
+        """Return a dict (or an empty dict) with the contents of all
+        preferences in the domain."""
+        prefs = {}
+
+        # get keys stored via 'defaults write [domain]'
+        user_keylist = CFPreferencesCopyKeyList(
+            BUNDLE_ID, kCFPreferencesCurrentUser, kCFPreferencesAnyHost
+        )
+
+        # get keys stored via 'defaults write /Library/Preferences/[domain]'
+        system_keylist = CFPreferencesCopyKeyList(
+            BUNDLE_ID, kCFPreferencesAnyUser, kCFPreferencesCurrentHost
+        )
+
+        # CFPreferencesCopyAppValue() in get_macos_pref() will handle returning the
+        # appropriate value using the search order, so merging prefs in order
+        # here isn't necessary
+        for keylist in [system_keylist, user_keylist]:
+            if keylist:
+                for key in keylist:
+                    prefs[key] = self._get_macos_pref(key)
+        return prefs
+
+    def _set_macos_pref(self, key, value):
+        """Sets a preference for domain"""
+        try:
+            CFPreferencesSetAppValue(key, value, BUNDLE_ID)
+            if not CFPreferencesAppSynchronize(BUNDLE_ID):
+                raise PreferenceError("Could not synchronize %s preference: %s" % key)
+        except Exception as err:
+            raise PreferenceError("Could not set %s preference: %s" % (key, err))
+
+    def read_file(self, file_path):
+        """Read in a file and add the key/value pairs into preferences."""
+        # Determine type or file: plist or json
+        data = self._parse_json_or_plist_file(file_path)
+        for k in data:
+            self.prefs[k] = data[k]
+
+    def _write_json_file(self):
+        """Write out the prefs into JSON."""
+        try:
+            with open(self.file_path, "w") as f:
+                json.dump(
+                    self.prefs,
+                    f,
+                    skipkeys=True,
+                    ensure_ascii=True,
+                    indent=2,
+                    sort_keys=True,
+                )
+        except Exception as e:
+            log_err("Unable to write out JSON: {}".format(e))
+
+    def _write_plist_file(self):
+        """Write out the prefs into a Plist."""
+        try:
+            FoundationPlist.writePlist(self.prefs, self.file_path)
+        except Exception as e:
+            log_err("Unable to write out plist: {}".format(e))
+
+    def write_file(self):
+        """Write preferences back out to file."""
+        if not self.file_path:
+            # Nothing to do if we weren't given a file
+            return
+        if self.type == "json":
+            self._write_json_file()
+        elif self.type == "plist":
+            self._write_plist_file()
+
+    def get_pref(self, key):
+        """Retrieve a preference value."""
+        return self.prefs.get(key)
+
+    def get_all_prefs(self):
+        """Retrieve a dict of all preferences."""
+        return self.prefs
+
+    def set_pref(self, key, value):
+        """Set a preference value."""
+        self.prefs[key] = value
+        # On macOS, write it back to preferences domain if we didn't use a file
+        if is_mac() and self.type is None:
+            self._set_macos_pref(key, value)
+        elif self.file_path:
+            self.write_file()
+
+
+# Set the global preferences object
+globalPreferences = Preferences()
+
+
+def get_pref(key):
     """Return a single pref value (or None) for a domain."""
-    value = CFPreferencesCopyAppValue(key, domain)
-    # Casting NSArrays and NSDictionaries to native Python types.
-    # This a workaround for 10.6, where PyObjC doesn't seem to
-    # support as many common operations such as list concatenation
-    # between Python and ObjC objects.
-    if isinstance(value, NSArray):
-        value = list(value)
-    elif isinstance(value, NSDictionary):
-        value = dict(value)
-    return value
+    return globalPreferences.get_pref(key)
 
 
-def set_pref(key, value, domain=BUNDLE_ID):
+def set_pref(key, value):
     """Sets a preference for domain"""
-    try:
-        CFPreferencesSetAppValue(key, value, domain)
-        if not CFPreferencesAppSynchronize(domain):
-            raise PreferenceError("Could not synchronize %s preference: %s" % key)
-    except Exception as err:
-        raise PreferenceError("Could not set %s preference: %s" % (key, err))
+    globalPreferences.set_pref(key, value)
 
 
-def get_all_prefs(domain=BUNDLE_ID):
+def get_all_prefs():
     """Return a dict (or an empty dict) with the contents of all
     preferences in the domain."""
-    prefs = {}
-
-    # get keys stored via 'defaults write [domain]'
-    user_keylist = CFPreferencesCopyKeyList(
-        BUNDLE_ID, kCFPreferencesCurrentUser, kCFPreferencesAnyHost
-    )
-
-    # get keys stored via 'defaults write /Library/Preferences/[domain]'
-    system_keylist = CFPreferencesCopyKeyList(
-        BUNDLE_ID, kCFPreferencesAnyUser, kCFPreferencesCurrentHost
-    )
-
-    # CFPreferencesCopyAppValue() in get_pref() will handle returning the
-    # appropriate value using the search order, so merging prefs in order
-    # here isn't necessary
-    for keylist in [system_keylist, user_keylist]:
-        if keylist:
-            for key in keylist:
-                prefs[key] = get_pref(key, domain)
-    return prefs
+    return globalPreferences.get_all_prefs()
 
 
 def log(msg, error=False):
