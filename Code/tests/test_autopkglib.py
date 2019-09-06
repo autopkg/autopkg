@@ -1,22 +1,30 @@
 #!/usr/bin/env python
 
 import imp
+import json
+import os
 import plistlib
+import sys
 import unittest
 from textwrap import dedent
 
-from mock import patch
-
+from mock import mock_open, patch
 
 # DO NOT MOVE THIS! This needs to happen BEFORE importing autopkglib
+# Annoyingly, I can't figure out how to correctly suppress memoization
+# in all contexts. You may have to comment out the @memoize calls in
+# autopkglib.__init__.py to correctly run these tests.
 patch("autopkglib.memoize", lambda x: x).start()
-import autopkglib  # isort: skip
+import autopkglib  # isort:skip
 
-autopkg = imp.load_source("autopkg", "autopkg")
+autopkg = imp.load_source("autopkg", os.path.join("Code", "autopkg"))
 
 
 class TestAutoPkg(unittest.TestCase):
     """Test class for AutoPkglib itself."""
+
+    # Some globals for mocking
+    good_json = json.dumps({"CACHE_DIR": "/path/to/cache"})
 
     def setUp(self):
         # This forces autopkglib to accept our patching of memoize
@@ -202,6 +210,69 @@ class TestAutoPkg(unittest.TestCase):
         del mock_read.return_value["Identifier"]
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertIsNone(id)
+
+    @patch("autopkglib.is_mac")
+    def test_prefs_object_is_empty_on_nonmac(self, mock_ismac):
+        """A new Preferences object on non-macOS should be empty."""
+        mock_ismac.return_value = False
+        fake_prefs = autopkglib.Preferences()
+        self.assertEqual(fake_prefs.get_all_prefs(), {})
+
+    def test_prefs_object_is_empty_by_default(self):
+        """A new Preferences object should be empty."""
+        fake_prefs = autopkglib.Preferences()
+        self.assertEqual(fake_prefs.get_all_prefs(), {})
+
+    @unittest.skipUnless(sys.platform.startswith("darwin"), "requires macOS")
+    @patch("autopkglib.CFPreferencesCopyAppValue")
+    def test_get_macos_pref_returns_value(self, mock_cav):
+        """get_macos_pref should return a value."""
+        mock_cav.return_value = "FakeValue"
+        fake_prefs = autopkglib.Preferences()
+        value = fake_prefs._get_macos_pref("fake")
+        self.assertEqual(value, "FakeValue")
+
+    def test_parse_file_is_empty_by_default(self):
+        """Parsing a non-existant file should return an empty dict."""
+        fake_prefs = autopkglib.Preferences()
+        value = fake_prefs._parse_json_or_plist_file("fake_filepath")
+        self.assertEqual(value, {})
+
+    @patch("__builtin__.open", new_callable=mock_open, read_data=good_json)
+    def test_parse_file_reads_json(self, mock_file):
+        """Parsing a JSON file should produce a dictionary."""
+        fake_prefs = autopkglib.Preferences()
+        value = fake_prefs._parse_json_or_plist_file("fake_filepath")
+        self.assertEqual(value, json.loads(self.good_json))
+
+    @patch("__builtin__.open", new_callable=mock_open, read_data=good_json)
+    def test_read_file_fills_prefs(self, mock_file):
+        """read_file should populate the prefs object."""
+        fake_prefs = autopkglib.Preferences()
+        fake_prefs.read_file("fake_filepath")
+        value = fake_prefs.get_all_prefs()
+        self.assertEqual(value, json.loads(self.good_json))
+
+    @patch("autopkglib.is_mac")
+    def test_set_pref_nonmac(self, mock_ismac):
+        """set_pref should change the prefs object."""
+        mock_ismac.return_value = False
+        fake_prefs = autopkglib.Preferences()
+        fake_prefs.set_pref("TEST_KEY", "fake_value")
+        value = fake_prefs.get_pref("TEST_KEY")
+        self.assertEqual(value, "fake_value")
+
+    @unittest.skipUnless(sys.platform.startswith("darwin"), "requires macOS")
+    @patch("autopkglib.is_mac")
+    @patch("autopkglib.CFPreferencesSetAppValue")
+    def test_set_pref_mac(self, mock_sav, mock_ismac):
+        """set_pref should change the prefs object."""
+        mock_ismac.return_value = True
+        fake_prefs = autopkglib.Preferences()
+        fake_prefs.set_pref("TEST_KEY", "fake_value")
+        value = fake_prefs.get_pref("TEST_KEY")
+        self.assertEqual(value, "fake_value")
+        mock_sav.assert_called()
 
 
 if __name__ == "__main__":

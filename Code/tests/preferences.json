@@ -1,0 +1,13 @@
+{
+  "CACHE_DIR": "/Users/Shared/AutoPkg/Cache", 
+  "MUNKI_REPO": "/Users/Shared/munki_repo", 
+  "RECIPE_OVERRIDE_DIRS": "/Users/Shared/AutoPkg/RecipeOverrides", 
+  "RECIPE_REPOS": {}, 
+  "RECIPE_REPO_DIR": "/Users/Shared/AutoPkg/RecipeRepos", 
+  "RECIPE_SEARCH_DIRS": [
+    ".", 
+    "~/Library/AutoPkg/Recipes", 
+    "/Library/AutoPkg/Recipes", 
+    "/Users/Shared/AutoPkg/Recipes"
+  ]
+}
