@@ -265,6 +265,11 @@ def update_data(a_dict, key, value):
     a_dict[key] = do_variable_substitution(value)
 
 
+def is_executable(exe_path):
+    """Is exe_path executable?"""
+    return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
+
+
 def curl_cmd():
     """Returns a path to a curl binary, priority in the order below.
     Returns None if none found.
@@ -272,10 +277,6 @@ def curl_cmd():
     2. a 'curl' binary that can be found in the PATH environment variable
     3. '/usr/bin/curl'
     """
-
-    def is_executable(exe_path):
-        """Is exe_path executable?"""
-        return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
 
     curl_path_pref = get_pref("CURL_PATH")
     if curl_path_pref:
