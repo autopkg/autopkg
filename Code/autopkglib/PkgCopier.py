@@ -86,7 +86,7 @@ class PkgCopier(Copier):
 
             # do the copy
             pkg_path = self.env.get("pkg_path") or os.path.join(
-                self.env["RECIPE_CACHE_DIR"], os.path.basename(source_pkg)
+                self.env["RECIPE_CACHE_DIR"], os.path.basename(matched_source_path)
             )
             self.copy(matched_source_path, pkg_path, overwrite=True)
             self.env["pkg_path"] = pkg_path
