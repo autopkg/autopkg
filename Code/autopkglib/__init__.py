@@ -270,36 +270,6 @@ def is_executable(exe_path):
     return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
 
 
-def curl_cmd():
-    """Returns a path to a curl binary, priority in the order below.
-    Returns None if none found.
-    1. app pref 'CURL_PATH'
-    2. a 'curl' binary that can be found in the PATH environment variable
-    3. '/usr/bin/curl'
-    """
-
-    curl_path_pref = get_pref("CURL_PATH")
-    if curl_path_pref:
-        if is_executable(curl_path_pref):
-            # take a CURL_PATH pref
-            return curl_path_pref
-        else:
-            log_err(
-                "WARNING: Curl path given in the 'CURL_PATH' preference:'%s' "
-                "either doesn't exist or is not executable! Falling back "
-                "to one set in PATH, or /usr/bin/curl." % curl_path_pref
-            )
-    for path_env in os.environ["PATH"].split(":"):
-        curlbin = os.path.join(path_env, "curl")
-        if is_executable(curlbin):
-            # take the first 'curl' in PATH that we find
-            return curlbin
-    if is_executable("/usr/bin/curl"):
-        # fall back to /usr/bin/curl
-        return "/usr/bin/curl"
-    return None
-
-
 # Processor and ProcessorError base class definitions
 
 
