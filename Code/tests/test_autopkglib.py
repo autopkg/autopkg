@@ -233,7 +233,7 @@ class TestAutoPkg(unittest.TestCase):
         self.assertEqual(value, "FakeValue")
 
     def test_parse_file_is_empty_by_default(self):
-        """Parsing a non-existant file should return an empty dict."""
+        """Parsing a non-existent file should return an empty dict."""
         fake_prefs = autopkglib.Preferences()
         value = fake_prefs._parse_json_or_plist_file("fake_filepath")
         self.assertEqual(value, {})
