@@ -1,4 +1,24 @@
-### [1.1.1](https://github.com/autopkg/autopkg/compare/v1.1...v1.2) (September 16, 2019)
+### [1.2](https://github.com/autopkg/autopkg/compare/v1.1...1.2) (Unreleased)
+
+FIXES:
+
+- Fixes erroneous `curl` using `--compress` instead of `--compressed` (https://github.com/autopkg/autopkg/commit/3c8bc23d89e902d9e7f69ff698179f38f36a9a44)
+- Redirect from GitHub resulted in two header blocks (https://github.com/autopkg/autopkg/commit/b851d6d5de1bbab2523807c898dbb093d5f9fbcb)
+- PkgCopier would incorrectly use the pre-globbed input path if a destination was
+  not specified (https://github.com/autopkg/autopkg/commit/02f461cf6f503dfc65151aef5180a882cc6f6f72)
+
+ADDITIONS:
+- Preferences can now be provided from an external file using `--prefs`. The input
+  file can be either in JSON or plist format, and will be treated identically
+  to preferences from macOS. (https://github.com/autopkg/autopkg/commit/7ae2f552535741cb4ee131131d16a1fd93186c14)
+
+IMPROVEMENTS:
+- Several unit tests have been added for some core AutoPkg functionality, and
+  certain processors.
+- All occurrences of `print()` in the core autopkg script were replaced with `log` and `log_err` (https://github.com/autopkg/autopkg/commit/8300b807e29553be92c8c74894090442c8312b6d)
+- The groundwork has been laid for running AutoPkg on alternative platforms.
+- AutoPkg now uses a pre-commit hook that enforces the use of black, isort, and
+  flake8 to ensure code quality. This includes a new CONTRIBUTING guide (https://github.com/autopkg/autopkg/blob/master/CONTRIBUTING.md)
 
 ### [1.1RC2](https://github.com/autopkg/autopkg/compare/v1.0.4...v1.1RC2) (May 23, 2019)
 
@@ -21,7 +41,7 @@ ADDITIONS:
 
 IMPROVEMENTS:
 
-- Code run through several processors/formatters (flake8, isort, black, python-modernize) to 
+- Code run through several processors/formatters (flake8, isort, black, python-modernize) to
   prepare for Python 3 compatibility
 
 ### [1.0.4](https://github.com/autopkg/autopkg/compare/v1.0.3...v1.0.4) (March 05, 2018)
