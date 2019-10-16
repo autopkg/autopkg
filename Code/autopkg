@@ -25,6 +25,7 @@ import hashlib
 import operator
 import optparse
 import os
+import plistlib
 import pprint
 import re
 import shutil
@@ -66,12 +67,6 @@ if sys.platform != "darwin":
 """
     )
 
-try:
-    import FoundationPlist
-except:
-    log("WARNING: importing plistlib as FoundationPlist;")
-    log("WARNING: some plist formats will be unsupported")
-    import plistlib as FoundationPlist
 
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
@@ -130,8 +125,8 @@ def recipe_plist_from_file(filename):
     if os.path.isfile(filename):
         try:
             # make sure we can read it
-            recipe_plist = FoundationPlist.readPlist(filename)
-        except FoundationPlist.FoundationPlistException as err:
+            recipe_plist = plistlib.readPlist(filename)
+        except Exception as err:
             log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
             return
         return recipe_plist
@@ -379,7 +374,7 @@ def load_recipe(
 
     if recipe_file:
         # read it
-        recipe = FoundationPlist.readPlist(recipe_file)
+        recipe = plistlib.readPlist(recipe_file)
 
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
@@ -616,8 +611,8 @@ def write_plist_exit_on_fail(plist_dict, path):
     """Writes a dict to a new plist at path, exits the program
     if the write fails."""
     try:
-        FoundationPlist.writePlist(plist_dict, path)
-    except FoundationPlist.NSPropertyListWriteException:
+        plistlib.writePlist(plist_dict, path)
+    except plistlib.NSPropertyListWriteException:
         log_err("Failed to save plist to %s." % path)
         sys.exit(-1)
 
@@ -1350,7 +1345,7 @@ def list_recipes(argv):
     lowercase_sorted = sorted(recipes, key=lambda s: s["Name"].lower())
 
     if options.plist:
-        print(FoundationPlist.writePlistToString(lowercase_sorted))
+        print(plistlib.writePlistToString(lowercase_sorted))
     else:
         column_spacer = 1
         max_name_length = 0
@@ -1814,7 +1809,7 @@ def update_trust_info(argv):
             continue
         # normalize recipe path
         recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
-        recipe = FoundationPlist.readPlist(recipe_path)
+        recipe = plistlib.readPlist(recipe_path)
         if "ParentRecipe" not in recipe:
             log_err(
                 "%s is not a recipe override and has no parent recipe." % recipe_name
@@ -1840,7 +1835,7 @@ def update_trust_info(argv):
             recipe["ParentRecipeTrustInfo"] = get_trust_info(
                 parent_recipe, search_dirs=search_dirs
             )
-            FoundationPlist.writePlist(recipe, recipe_path)
+            plistlib.writePlist(recipe, recipe_path)
             log("Wrote updated %s" % recipe_path)
         else:
             log_err(
@@ -2017,7 +2012,7 @@ def make_override(argv):
             )
             return -1
         os.unlink(override_file)
-    FoundationPlist.writePlist(override_plist, override_file)
+    plistlib.writePlist(override_plist, override_file)
     log("Override file saved to %s" % override_file)
     return 0
 
@@ -2027,12 +2022,12 @@ def parse_recipe_list(filename):
     or a plist containing recipes and other key/value pairs"""
     recipe_list = {}
     try:
-        plist = FoundationPlist.readPlist(filename)
+        plist = plistlib.readPlist(filename)
         if not plist.get("recipes"):
             # try to trigger an AttributeError if the plist is not a dict
             pass
         return plist
-    except (FoundationPlist.NSPropertyListSerializationException, AttributeError):
+    except (plistlib.NSPropertyListSerializationException, AttributeError):
         # file does not appear to be a plist containing a dictionary;
         # read it as a plaintext list of recipes
         with open(filename, "r") as file_desc:
@@ -2223,7 +2218,7 @@ def run_recipes(argv):
 
     run_results = []
     try:
-        FoundationPlist.writePlist(run_results, current_run_results_plist)
+        plistlib.writePlist(run_results, current_run_results_plist)
     except IOError as err:
         log_err(
             "Can't write results to %s: %s" % (current_run_results_plist, err.strerror)
@@ -2337,7 +2332,7 @@ def run_recipes(argv):
 
         run_results.append(autopackager.results)
         try:
-            FoundationPlist.writePlist(run_results, current_run_results_plist)
+            plistlib.writePlist(run_results, current_run_results_plist)
         except IOError as err:
             log_err(
                 "Can't write results to %s: %s"
@@ -2391,7 +2386,7 @@ def run_recipes(argv):
         if os.path.exists(receipt_dir):
             receipt_path = os.path.join(receipt_dir, receipt_name)
             try:
-                FoundationPlist.writePlist(autopackager.results, receipt_path)
+                plistlib.writePlist(autopackager.results, receipt_path)
                 if options.verbose:
                     log("Receipt written to %s" % receipt_path)
             except IOError as err:
@@ -2658,7 +2653,7 @@ def audit(argv):
             recipe_no_issue_count += 1
             log("%s: no audit flags triggered." % recipe_path)
     if options.plist:
-        print(FoundationPlist.writePlistToString(audit_results))
+        print(plistlib.writePlistToString(audit_results))
     elif len(recipe_paths) > 1:
         log("\nSummary:")
         log("    %s recipes audited" % len(audit_results.keys()))
@@ -2709,9 +2704,9 @@ def new_recipe(argv):
         recipe["ParentRecipe"] = options.parent_identifier
 
     try:
-        FoundationPlist.writePlist(recipe, filename)
+        plistlib.writePlist(recipe, filename)
         log("Saved new recipe to %s" % filename)
-    except FoundationPlist.FoundationPlistException as err:
+    except Exception as err:
         log_err("Failed to write recipe: %s" % err)
 
 

@@ -23,13 +23,12 @@ import imp
 import json
 import os
 import platform
+import plistlib
 import pprint
 import re
 import subprocess
 import sys
 from distutils.version import LooseVersion
-
-import FoundationPlist
 
 
 class memoize(dict):
@@ -118,7 +117,7 @@ class Preferences(object):
     def _parse_json_or_plist_file(self, file_path):
         """Parse the file. Start with plist, then JSON."""
         try:
-            data = FoundationPlist.readPlist(file_path)
+            data = plistlib.readPlist(file_path)
             self.type = "plist"
             self.file_path = file_path
             return Conversion.pythonCollectionFromPropertyList(data)
@@ -203,7 +202,7 @@ class Preferences(object):
     def _write_plist_file(self):
         """Write out the prefs into a Plist."""
         try:
-            FoundationPlist.writePlist(self.prefs, self.file_path)
+            plistlib.writePlist(self.prefs, self.file_path)
         except Exception as e:
             log_err("Unable to write out plist: {}".format(e))
 
@@ -287,8 +286,8 @@ def get_identifier_from_recipe_file(filename):
     identifier. Otherwise, returns None."""
     try:
         # make sure we can read it
-        recipe_plist = FoundationPlist.readPlist(filename)
-    except FoundationPlist.FoundationPlistException as err:
+        recipe_plist = plistlib.readPlist(filename)
+    except Exception as err:
         # unicode() doesn't exist in Python3, and we'd have to
         # change the behavior by importing unicode_literals from
         # __future__, which is a significant change requiring a lot of
@@ -322,10 +321,10 @@ def find_recipe_by_identifier(identifier, search_dirs):
 def get_autopkg_version():
     """Gets the version number of autopkg"""
     try:
-        version_plist = FoundationPlist.readPlist(
+        version_plist = plistlib.readPlist(
             os.path.join(os.path.dirname(__file__), "version.plist")
         )
-    except FoundationPlist.FoundationPlistException:
+    except Exception:
         return "UNKNOWN"
     try:
         return version_plist["Version"]
@@ -458,7 +457,7 @@ class Processor(object):
         try:
             indata = self.infile.read()
             if indata:
-                self.env = FoundationPlist.readPlistFromString(indata)
+                self.env = plistlib.readPlistFromString(indata)
             else:
                 self.env = dict()
         except BaseException as err:
@@ -471,7 +470,7 @@ class Processor(object):
             return
 
         try:
-            FoundationPlist.writePlist(self.env, self.outfile)
+            plistlib.writePlist(self.env, self.outfile)
         except BaseException as err:
             raise ProcessorError(err)
 

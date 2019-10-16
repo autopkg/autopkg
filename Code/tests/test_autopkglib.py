@@ -83,6 +83,7 @@ class TestAutoPkg(unittest.TestCase):
             </plist>
         """
         )
+        self.download_recipe_struct = plistlib.readPlistFromString(self.download_recipe)
         self.munki_recipe = dedent(
             """\
             <?xml version="1.0" encoding="UTF-8"?>
@@ -196,17 +197,17 @@ class TestAutoPkg(unittest.TestCase):
         id = autopkglib.get_identifier(recipe)
         self.assertIsNone(id)
 
-    @patch("autopkg.FoundationPlist.readPlist")
+    @patch("autopkglib.plistlib.readPlist")
     def test_get_identifier_from_recipe_file_returns_identifier(self, mock_read):
         """get_identifier_from_recipe-file should return identifier."""
-        mock_read.return_value = plistlib.readPlistFromString(self.download_recipe)
+        mock_read.return_value = self.download_recipe_struct
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertEqual(id, "com.github.autopkg.download.googlechrome")
 
-    @patch("autopkg.FoundationPlist.readPlist")
+    @patch("autopkglib.plistlib.readPlist")
     def test_get_identifier_from_recipe_file_returns_none(self, mock_read):
         """get_identifier_from_recipe-file should return None if no identifier."""
-        mock_read.return_value = plistlib.readPlistFromString(self.download_recipe)
+        mock_read.return_value = self.download_recipe_struct
         del mock_read.return_value["Identifier"]
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertIsNone(id)
@@ -218,8 +219,10 @@ class TestAutoPkg(unittest.TestCase):
         fake_prefs = autopkglib.Preferences()
         self.assertEqual(fake_prefs.get_all_prefs(), {})
 
-    def test_prefs_object_is_empty_by_default(self):
-        """A new Preferences object should be empty."""
+    @patch("autopkglib.Preferences._get_macos_prefs")
+    def test_prefs_object_is_empty_with_no_cfprefs(self, mock_prefs):
+        """A new Preferences object should be empty if com.github.autopkg is empty."""
+        mock_prefs.return_value = {}
         fake_prefs = autopkglib.Preferences()
         self.assertEqual(fake_prefs.get_all_prefs(), {})
 
@@ -245,9 +248,11 @@ class TestAutoPkg(unittest.TestCase):
         value = fake_prefs._parse_json_or_plist_file("fake_filepath")
         self.assertEqual(value, json.loads(self.good_json))
 
+    @patch("autopkglib.Preferences._get_macos_prefs")
     @patch("__builtin__.open", new_callable=mock_open, read_data=good_json)
-    def test_read_file_fills_prefs(self, mock_file):
+    def test_read_file_fills_prefs(self, mock_file, mock_prefs):
         """read_file should populate the prefs object."""
+        mock_prefs.return_value = {}
         fake_prefs = autopkglib.Preferences()
         fake_prefs.read_file("fake_filepath")
         value = fake_prefs.get_all_prefs()
