@@ -59,6 +59,19 @@ class URLDownloader(URLGetter):
             "required": False,
             "description": "Filename to override the URL's tail.",
         },
+        "prefetch_filename": {
+            "default": False,
+            "required": False,
+            "description": (
+                "If True, URLDownloader attempts to determine filename from HTTP"
+                "headers downloaded before file itself. Beware `prefetch_filename`"
+                "overrides `filename` option. Filename is determnied from the first"
+                "available source of information in the following way:"
+                "1. Content-Disposition header, 2. Location header,"
+                "3. `filename option (if set), 4. last part of `url`."
+                "`prefetch_filename` is usefull for URLs with redirects"
+            ),
+        },
         "CHECK_FILESIZE_ONLY": {
             "default": False,
             "required": False,
@@ -172,6 +185,7 @@ class URLDownloader(URLGetter):
         self.existing_file_size = None
 
     def prefetch_filename(self):
+        """Atempt to find filename in HTTP headers."""
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--head"])
 
@@ -195,6 +209,11 @@ class URLDownloader(URLGetter):
             self.env["download_changed"] = True
             self.output("Given %s, no download needed." % self.env["pathname"])
             return None
+
+        if self.env.get("prefetch_filename", False):
+            filename = self.prefetch_filename()
+            if filename:
+                return filename
 
         if "filename" in self.env:
             filename = self.env["filename"]
