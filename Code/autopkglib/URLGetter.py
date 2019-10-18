@@ -72,9 +72,14 @@ class URLGetter(Processor):
 
     def clear_header(self, header):
         """Clear header dictionary"""
+        # Save redirect URL before clear
+        http_redirected = header.get("http_redirected", None)
         header.clear()
         header["http_result_code"] = "000"
         header["http_result_description"] = ""
+
+        # Restore redirect URL
+        header["http_redirected"] = http_redirected
 
     def parse_http_protocol(self, line, header):
         """Parse first HTTP header line"""
@@ -142,6 +147,7 @@ class URLGetter(Processor):
                 ]:
                     # redirect, so more headers are coming.
                     # Throw away the headers we've received so far
+                    header["http_redirected"] = header.get("location", None)
                     self.clear_header(header)
 
     def execute_curl(self, curl_cmd):

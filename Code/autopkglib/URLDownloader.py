@@ -171,6 +171,23 @@ class URLDownloader(URLGetter):
         self.env["etag"] = ""
         self.existing_file_size = None
 
+    def prefetch_filename(self):
+        curl_cmd = self.prepare_base_curl_cmd()
+        curl_cmd.extend(["--head"])
+
+        raw_header = super(URLDownloader, self).download(curl_cmd)
+        header = {}
+        super(URLDownloader, self).parse_headers(raw_header, header)
+
+        if "filename=" in header.get("content-disposition", ""):
+            filename = header["content-disposition"].rpartition("filename=")[2]
+        elif header.get("http_redirected", None):
+            filename = header["http_redirected"].rpartition("/")[2]
+        else:
+            return None
+
+        return filename
+
     def get_filename(self):
         """Obtain filename from PKG variable or URL."""
         if "PKG" in self.env:
