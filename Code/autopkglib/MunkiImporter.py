@@ -16,10 +16,10 @@
 """See docstring for MunkiImporter class"""
 
 import os
+import plistlib
 import shutil
 import subprocess
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError
 
 __all__ = ["MunkiImporter"]
@@ -135,7 +135,7 @@ class MunkiImporter(Processor):
             catalogitems = []
         else:
             try:
-                catalogitems = FoundationPlist.readPlist(all_items_path)
+                catalogitems = plistlib.readPlist(all_items_path)
             except OSError as err:
                 raise ProcessorError(
                     "Error reading 'all' catalog from Munki repo: %s" % err
@@ -459,7 +459,7 @@ class MunkiImporter(Processor):
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
         try:
-            FoundationPlist.writePlist(pkginfo, pkginfo_path)
+            plistlib.writePlist(pkginfo, pkginfo_path)
         except OSError as err:
             raise ProcessorError(
                 "Could not write pkginfo %s: %s" % (pkginfo_path, err.strerror)
@@ -503,7 +503,7 @@ class MunkiImporter(Processor):
             )
 
         # Get pkginfo from output plist.
-        pkginfo = FoundationPlist.readPlistFromString(out)
+        pkginfo = plistlib.readPlistFromString(out)
 
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:
