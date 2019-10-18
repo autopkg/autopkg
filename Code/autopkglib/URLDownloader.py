@@ -110,8 +110,8 @@ class URLDownloader(URLGetter):
             return xattr.getxattr(self.env["pathname"], attr)
         return None
 
-    def prepare_curl_cmd(self, pathname_temporary):
-        """Assemble curl command and return it."""
+    def prepare_base_curl_cmd(self):
+        """Assemble base curl command and return it."""
         curl_cmd = [
             super(URLDownloader, self).curl_binary(),
             "--silent",
@@ -125,9 +125,15 @@ class URLDownloader(URLGetter):
             "--location",
             "--url",
             self.env["url"],
-            "--output",
-            pathname_temporary,
         ]
+
+        return curl_cmd
+
+    def prepare_download_curl_cmd(self, pathname_temporary):
+        """Assemble file download curl command and return it."""
+
+        curl_cmd = self.prepare_base_curl_cmd()
+        curl_cmd.extend(["--output", pathname_temporary])
 
         super(URLDownloader, self).add_curl_common_opts(curl_cmd)
 
@@ -286,7 +292,7 @@ class URLDownloader(URLGetter):
         pathname_temporary = self.create_temp_file(download_dir)
 
         # Prepare curl command
-        curl_cmd = self.prepare_curl_cmd(pathname_temporary)
+        curl_cmd = self.prepare_download_curl_cmd(pathname_temporary)
 
         # Execute curl command and parse headers
         raw_header = super(URLDownloader, self).download(curl_cmd)
