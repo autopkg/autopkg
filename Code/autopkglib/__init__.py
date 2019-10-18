@@ -78,7 +78,6 @@ try:
         kCFPreferencesCurrentUser,
         kCFPreferencesCurrentHost,
     )
-    from PyObjCTools import Conversion
 except:
     print(
         "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
@@ -121,7 +120,7 @@ class Preferences(object):
             data = FoundationPlist.readPlist(file_path)
             self.type = "plist"
             self.file_path = file_path
-            return Conversion.pythonCollectionFromPropertyList(data)
+            return data
         except Exception:
             pass
         try:
@@ -141,8 +140,6 @@ class Preferences(object):
         # This a workaround for 10.6, where PyObjC doesn't seem to
         # support as many common operations such as list concatenation
         # between Python and ObjC objects.
-        if isinstance(value, NSArray) or isinstance(value, NSDictionary):
-            value = Conversion.pythonCollectionFromPropertyList(value)
         return value
 
     def _get_macos_prefs(self):
