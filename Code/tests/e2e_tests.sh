@@ -2,16 +2,14 @@
 
 echo "**Help:"
 ../Code/autopkg help
-echo "**Info:"
-../Code/autopkg info Firefox.munki --prefs tests/preferences.plist
 echo "**List-processors:"
 ../Code/autopkg list-processors --prefs tests/preferences.plist
 echo "**Processor-info:"
 ../Code/autopkg processor-info URLDownloader --prefs tests/preferences.plist
 echo "**Repo-add:"
 ../Code/autopkg repo-add recipes --prefs tests/preferences.plist
-echo "**Repo-delete:"
-../Code/autopkg repo-delete recipes --prefs tests/preferences.plist
+echo "**Info:"
+../Code/autopkg info Firefox.munki --prefs tests/preferences.plist
 echo "**Repo-list:"
 ../Code/autopkg repo-list --prefs tests/preferences.plist
 echo "**Repo-update:"
@@ -38,3 +36,5 @@ echo "**Run many:"
 ../Code/autopkg run -vv Firefox.munki AdobeFlashPlayer.munki MakeCatalogs.munki --prefs tests/preferences.plist
 echo "**Install:"
 ../Code/autopkg install Firefox -vv --prefs tests/preferences.plist
+echo "**Repo-delete:"
+../Code/autopkg repo-delete recipes --prefs tests/preferences.plist
