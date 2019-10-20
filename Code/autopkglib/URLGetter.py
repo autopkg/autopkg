@@ -127,9 +127,11 @@ class URLGetter(Processor):
             header["http_result_code"] = "200"
             header["http_result_description"] = line
 
-    def parse_headers(self, proc_stdout, header):
+    def parse_headers(self, raw_headers):
         """Parse headers from curl."""
-        for line in proc_stdout.splitlines():
+        header = {}
+        self.clear_header(header)
+        for line in raw_headers.splitlines():
             if line.startswith("HTTP/"):
                 self.parse_http_protocol(line, header)
             elif ": " in line:
@@ -149,6 +151,7 @@ class URLGetter(Processor):
                     # Throw away the headers we've received so far
                     header["http_redirected"] = header.get("location", None)
                     self.clear_header(header)
+        return header
 
     def execute_curl(self, curl_cmd):
         """Execute curl comamnd. Return stdout, stderr and return code."""

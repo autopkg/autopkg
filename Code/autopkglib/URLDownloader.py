@@ -189,9 +189,8 @@ class URLDownloader(URLGetter):
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--head"])
 
-        raw_header = super(URLDownloader, self).download(curl_cmd)
-        header = {}
-        super(URLDownloader, self).parse_headers(raw_header, header)
+        raw_headers = super(URLDownloader, self).download(curl_cmd)
+        header = super(URLDownloader, self).parse_headers(raw_headers)
 
         if "filename=" in header.get("content-disposition", ""):
             filename = header["content-disposition"].rpartition("filename=")[2]
@@ -331,10 +330,8 @@ class URLDownloader(URLGetter):
         curl_cmd = self.prepare_download_curl_cmd(pathname_temporary)
 
         # Execute curl command and parse headers
-        raw_header = super(URLDownloader, self).download(curl_cmd)
-        header = {}
-        super(URLDownloader, self).clear_header(header)
-        super(URLDownloader, self).parse_headers(raw_header, header)
+        raw_headers = super(URLDownloader, self).download(curl_cmd)
+        header = super(URLDownloader, self).parse_headers(raw_headers)
 
         if self.download_changed(header):
             self.env["download_changed"] = True
