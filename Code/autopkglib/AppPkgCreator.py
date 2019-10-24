@@ -16,13 +16,14 @@
 """See docstring for AppPkgCreator class"""
 
 import os.path
+import plistlib
 import shutil
 from glob import glob
 
-import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 from autopkglib.PkgCreator import PkgCreator
+
 
 __all__ = ["AppPkgCreator"]
 
@@ -83,8 +84,9 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         # pylint: disable=no-self-use
         plistpath = os.path.join(app_path, "Contents", "Info.plist")
         try:
-            plist = FoundationPlist.readPlist(plistpath)
-        except FoundationPlist.FoundationPlistException as err:
+            with open(plistpath, "r") as f:
+                plist = plistlib.load(f)
+        except Exception as err:
             raise ProcessorError("Can't read %s: %s" % (plistpath, err))
         return plist
 

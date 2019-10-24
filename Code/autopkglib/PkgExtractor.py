@@ -16,12 +16,13 @@
 """See docstring for PkgExtractor class"""
 
 import os
+import plistlib
 import shutil
 import subprocess
 
-import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
+
 
 __all__ = ["PkgExtractor"]
 
@@ -58,8 +59,9 @@ class PkgExtractor(DmgMounter):
                 raise ProcessorError("Failed to remove extract_root: %s" % err)
 
         try:
-            info = FoundationPlist.readPlist(info_plist)
-        except FoundationPlist.FoundationPlistException as err:
+            with open(info_plist, "r") as f:
+                info = plistlib.load(f)
+        except Exception as err:
             raise ProcessorError("Failed to read Info.plist: %s" % err)
 
         install_target = info.get("IFPkgFlagDefaultLocation", "/").lstrip("/")

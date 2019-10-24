@@ -17,10 +17,11 @@
 
 import math
 import os
+import plistlib
 from xml.etree import ElementTree
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError
+
 
 __all__ = ["PkgInfoCreator"]
 
@@ -123,8 +124,9 @@ class PkgInfoCreator(Processor):
         if template_path.endswith(".plist"):
             # Try to load Info.plist in bundle format.
             try:
-                info = FoundationPlist.readPlist(self.env["template_path"])
-            except FoundationPlist.FoundationPlistException:
+                with open(self.env["template_path"], "r") as f:
+                    info = plistlib.load(f)
+            except Exception:
                 raise ProcessorError(
                     "Malformed Info.plist template %s" % self.env["template_path"]
                 )
@@ -136,7 +138,7 @@ class PkgInfoCreator(Processor):
             # Try to load PackageInfo in flat format.
             try:
                 info = ElementTree.parse(template_path)
-            except FoundationPlist.FoundationPlistException:
+            except Exception:
                 raise ProcessorError(
                     "Malformed PackageInfo template %s" % self.env["template_path"]
                 )

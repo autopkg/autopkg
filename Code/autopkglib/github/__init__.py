@@ -15,7 +15,6 @@
 # limitations under the License.
 """Routines for working with the GitHub API"""
 
-from __future__ import print_function
 
 import json
 import os
@@ -23,6 +22,7 @@ import re
 import subprocess
 
 from autopkglib import curl_cmd, get_pref, log, log_err
+
 
 BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
@@ -61,7 +61,7 @@ class GitHubSession(object):
 To save the token, paste it to the following prompt."""
             )
 
-            token = raw_input("Token: ")
+            token = eval(input("Token: "))
             if token:
                 log("""Writing token file %s.""" % TOKEN_LOCATION)
                 try:
@@ -141,7 +141,7 @@ To save the token, paste it to the following prompt."""
 
             # Additional headers if defined
             if headers:
-                for header, value in headers.items():
+                for header, value in list(headers.items()):
                     cmd.extend(["--header", "%s: %s" % (header, value)])
 
             # Set the data header if defined

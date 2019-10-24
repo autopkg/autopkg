@@ -16,9 +16,12 @@
 """See docstring for BrewCaskInfoProvider class"""
 
 import re
-import urllib2
+import urllib.error
+import urllib.parse
+import urllib.request
 
 from autopkglib import Processor, ProcessorError
+
 
 __all__ = ["BrewCaskInfoProvider"]
 
@@ -80,7 +83,7 @@ class BrewCaskInfoProvider(Processor):
         to be used in 'url', which may contain Ruby-style substitutions
         of '#{version}' within."""
         newattrs = attrs.copy()
-        for key, value in newattrs.items():
+        for key, value in list(newattrs.items()):
             match = re.search("#{(.+?)}", value)
             if match:
                 subbed_key = match.groups()[0]
@@ -102,19 +105,19 @@ class BrewCaskInfoProvider(Processor):
         )
         cask_url = "%s/%s.rb" % (github_raw_baseurl, self.env["cask_name"])
         try:
-            urlobj = urllib2.urlopen(cask_url)
-        except urllib2.HTTPError as err:
+            urlobj = urllib.request.urlopen(cask_url)
+        except urllib.error.HTTPError as err:
             raise ProcessorError("Error opening URL %s: %s" % (cask_url, err))
 
         formula_data = urlobj.read()
         parsed = self.parse_formula(formula_data)
         parsed = self.interpolate_vars(parsed)
 
-        if "url" not in parsed.keys():
+        if "url" not in list(parsed.keys()):
             raise ProcessorError("No 'url' parsed from Formula!")
         self.env["url"] = parsed["url"]
 
-        if "version" in parsed.keys():
+        if "version" in list(parsed.keys()):
             self.env["version"] = parsed["version"]
         else:
             self.env["version"] = ""

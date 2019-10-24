@@ -20,6 +20,7 @@ import shutil
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["PathDeleter"]
 
 
@@ -41,7 +42,7 @@ class PathDeleter(Processor):
     def main(self):
         # if recipe writer gave us a single string instead of a list of strings,
         # convert it to a list of strings
-        if isinstance(self.env["path_list"], basestring):
+        if isinstance(self.env["path_list"], str):
             self.env["path_list"] = [self.env["path_list"]]
 
         for path in self.env["path_list"]:

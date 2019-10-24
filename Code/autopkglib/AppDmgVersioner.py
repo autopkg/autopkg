@@ -21,6 +21,7 @@ import os.path
 from autopkglib import ProcessorError, log
 from autopkglib.DmgMounter import DmgMounter
 
+
 # pylint: disable=no-name-in-module
 try:
     from Foundation import NSData, NSPropertyListSerialization

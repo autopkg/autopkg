@@ -26,6 +26,7 @@ import subprocess
 import tempfile
 from xml.parsers.expat import ExpatError
 
+
 __all__ = ["Packager", "PackagerError"]
 
 
@@ -359,7 +360,7 @@ class Packager(object):
             # will not join it to the tmp_pkgroot. We need to strip out
             # the leading / to make sure we only touch the pkgroot.
             chownpath = os.path.join(self.tmp_pkgroot, entry.path.lstrip("/"))
-            if "mode" in entry.keys():
+            if "mode" in list(entry.keys()):
                 chmod_present = True
             else:
                 chmod_present = False

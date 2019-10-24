@@ -17,6 +17,7 @@
 import os
 from ctypes import *
 
+
 libc = CDLL("/usr/lib/libc.dylib")
 
 
@@ -47,7 +48,7 @@ def launch_activate_socket(name):
             )
 
         # Return a list of file descriptors.
-        return list(fds[x] for x in xrange(cnt.value))
+        return list(fds[x] for x in range(cnt.value))
 
     finally:
         if fds:

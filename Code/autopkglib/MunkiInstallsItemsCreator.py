@@ -15,10 +15,11 @@
 # limitations under the License.
 """See docstring for MunkiInstallsItemsCreator class"""
 
+import plistlib
 import subprocess
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError, log
+
 
 # pylint: disable=no-name-in-module
 try:
@@ -89,7 +90,7 @@ class MunkiInstallsItemsCreator(Processor):
             raise ProcessorError("creating pkginfo failed: %s" % err)
 
         # Get pkginfo from output plist.
-        pkginfo = FoundationPlist.readPlistFromString(out)
+        pkginfo = plistlib.loads(out)
         installs_array = pkginfo.get("installs", [])
 
         if faux_root:
@@ -102,11 +103,11 @@ class MunkiInstallsItemsCreator(Processor):
             for item in installs_array:
                 cmp_key = None
                 # If it's a string, set it for all installs items
-                if isinstance(self.env["version_comparison_key"], basestring):
+                if isinstance(self.env["version_comparison_key"], str):
                     cmp_key = self.env["version_comparison_key"]
                 # It it's a dict, find if there's a key that matches a path
                 elif isinstance(self.env["version_comparison_key"], NSDictionary):
-                    for path, key in self.env["version_comparison_key"].items():
+                    for path, key in list(self.env["version_comparison_key"].items()):
                         if path == item["path"]:
                             cmp_key = key
 

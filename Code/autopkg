@@ -16,7 +16,6 @@
 """autopkg tool. Runs autopkg recipes and also handles other
 related tasks"""
 
-from __future__ import print_function
 
 import copy
 import difflib
@@ -25,6 +24,7 @@ import hashlib
 import operator
 import optparse
 import os
+import plistlib
 import pprint
 import re
 import shutil
@@ -32,8 +32,7 @@ import subprocess
 import sys
 import time
 import traceback
-from urllib import quote
-from urlparse import urlparse
+from urllib.parse import quote, urlparse
 
 import autopkglib.github
 from autopkglib import (
@@ -57,6 +56,7 @@ from autopkglib import (
     version_equal_or_greater,
 )
 
+
 if sys.platform != "darwin":
     print(
         """
@@ -66,12 +66,6 @@ if sys.platform != "darwin":
 """
     )
 
-try:
-    import FoundationPlist
-except:
-    log("WARNING: importing plistlib as FoundationPlist;")
-    log("WARNING: some plist formats will be unsupported")
-    import plistlib as FoundationPlist
 
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
@@ -130,9 +124,10 @@ def recipe_plist_from_file(filename):
     if os.path.isfile(filename):
         try:
             # make sure we can read it
-            recipe_plist = FoundationPlist.readPlist(filename)
-        except FoundationPlist.FoundationPlistException as err:
-            log_err("WARNING: plist error for %s: %s" % (filename, unicode(err)))
+            with open(filename, "r") as f:
+                recipe_plist = plistlib.load(f)
+        except Exception as err:
+            log_err("WARNING: plist error for %s: %s" % (filename, str(err)))
             return
         return recipe_plist
 
@@ -265,14 +260,14 @@ def locate_recipe(
         recipe_file = find_recipe(name, override_dirs + recipe_dirs)
 
     if not recipe_file and make_suggestions:
-        print(u"Didn't find a recipe for %s." % name.encode("UTF-8"))
+        print("Didn't find a recipe for %s." % name.encode("UTF-8"))
         make_suggestions_for(name)
 
     if not recipe_file and search_github:
         indef_article = "a"
         if name[0] in ["a", "e", "i", "o", "u"]:
             indef_article = "an"
-        answer = raw_input(
+        answer = input(
             "Search GitHub AutoPkg repos for %s %s recipe? [y/n]: "
             % (indef_article, name)
         )
@@ -326,12 +321,12 @@ def locate_recipe(
                 # we found results in a single repo, so offer to add it
                 repo = results_items[0]["repository"]
                 print()
-                answer = raw_input("Add recipe repo '%s'? [y/n]: " % repo["name"])
+                answer = input("Add recipe repo '%s'? [y/n]: " % repo["name"])
                 if answer.lower().startswith("y"):
                     repo_add([None, "repo-add", repo["name"]])
                     # try once again to locate the recipe, but don't
                     # search GitHub again!
-                    print
+                    print()
                     recipe_dirs = get_search_dirs()
                     recipe_file = locate_recipe(
                         name,
@@ -379,7 +374,8 @@ def load_recipe(
 
     if recipe_file:
         # read it
-        recipe = FoundationPlist.readPlist(recipe_file)
+        with open(recipe_file, "r") as f:
+            recipe = plistlib.load(f)
 
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
@@ -410,12 +406,12 @@ def load_recipe(
                 recipe["Description"] = child_recipe.get(
                     "Description", recipe.get("Description", "")
                 )
-                for key in child_recipe["Input"].keys():
+                for key in list(child_recipe["Input"].keys()):
                     recipe["Input"][key] = child_recipe["Input"][key]
 
                 # take the highest of the two MinimumVersion keys, if they exist
                 for candidate_recipe in [recipe, child_recipe]:
-                    if "MinimumVersion" not in candidate_recipe.keys():
+                    if "MinimumVersion" not in list(candidate_recipe.keys()):
                         candidate_recipe["MinimumVersion"] = "0"
                 if version_equal_or_greater(
                     child_recipe["MinimumVersion"], recipe["MinimumVersion"]
@@ -616,8 +612,9 @@ def write_plist_exit_on_fail(plist_dict, path):
     """Writes a dict to a new plist at path, exits the program
     if the write fails."""
     try:
-        FoundationPlist.writePlist(plist_dict, path)
-    except FoundationPlist.NSPropertyListWriteException:
+        with open(path, "wb") as f:
+            plistlib.write(plist_dict, f)
+    except (TypeError, OverflowError):
         log_err("Failed to save plist to %s." % path)
         sys.exit(-1)
 
@@ -640,7 +637,7 @@ def get_repo_info(path_or_url):
     if parsed.netloc:
         # it's a URL, look it up and find the associated path
         repo_url = path_or_url
-        for repo_path in recipe_repos.keys():
+        for repo_path in list(recipe_repos.keys()):
             test_url = recipe_repos[repo_path].get("URL")
             if repo_url == test_url:
                 # found it; copy the dict info
@@ -669,7 +666,7 @@ def get_search_dirs():
     default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
 
     dirs = get_pref("RECIPE_SEARCH_DIRS")
-    if isinstance(dirs, basestring):
+    if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
     return dirs or default
@@ -680,7 +677,7 @@ def get_override_dirs():
     default = ["~/Library/AutoPkg/RecipeOverrides"]
 
     dirs = get_pref("RECIPE_OVERRIDE_DIRS")
-    if isinstance(dirs, basestring):
+    if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
     return dirs or default
@@ -836,7 +833,7 @@ def repo_list(argv):
     if recipe_repos:
         for key in sorted(recipe_repos.keys()):
             print(
-                u"%s (%s)"
+                "%s (%s)"
                 % (key.encode("UTF-8"), recipe_repos[key]["URL"].encode("UTF-8"))
             )
         print()
@@ -864,7 +861,7 @@ def repo_update(argv):
     if "all" in arguments:
         # just get all repos
         recipe_repos = get_pref("RECIPE_REPOS") or {}
-        repo_dirs = [key for key in recipe_repos.keys()]
+        repo_dirs = [key for key in list(recipe_repos.keys())]
     else:
         repo_dirs = []
         for path_or_url in arguments:
@@ -1031,7 +1028,7 @@ def display_help(argv, subcommands):
     )
     print()
     # find length of longest subcommand
-    max_key_len = max([len(key) for key in subcommands.keys()])
+    max_key_len = max([len(key) for key in list(subcommands.keys())])
     for key in sorted(subcommands.keys()):
         # pad name of subcommand to make pretty columns
         subcommand = key + (" " * (max_key_len - len(key)))
@@ -1090,12 +1087,12 @@ def processor_info(argv):
 
     def print_vars(var_dict, indent=0):
         """Print a dict of dicts and strings"""
-        for key, value in var_dict.items():
+        for key, value in list(var_dict.items()):
             if isinstance(value, dict):
                 print(" " * indent, "%s:" % key)
                 print_vars(value, indent=indent + 2)
             else:
-                print(" " * indent, "%s: %s" % (key, unicode(value).encode("UTF-8")))
+                print(" " * indent, "%s: %s" % (key, str(value).encode("UTF-8")))
 
     verb = argv[1]
     parser = gen_common_parser()
@@ -1318,7 +1315,7 @@ def list_recipes(argv):
 
     # Parse options
     add_search_and_override_dir_options(parser)
-    (options, arguments) = common_parse(parser, argv)
+    options = common_parse(parser, argv[1:])[0]
 
     augmented_list = False
     if options.with_identifiers or options.with_paths or options.plist:
@@ -1350,7 +1347,7 @@ def list_recipes(argv):
     lowercase_sorted = sorted(recipes, key=lambda s: s["Name"].lower())
 
     if options.plist:
-        print(FoundationPlist.writePlistToString(lowercase_sorted))
+        print(plistlib.dumps(lowercase_sorted))
     else:
         column_spacer = 1
         max_name_length = 0
@@ -1607,7 +1604,7 @@ def recipe_from_external_repo(recipe_path):
     """Returns True if the recipe_path is in a path in RECIPE_REPOS, which contains
     recipes added via repo-add"""
     recipe_repos = get_pref("RECIPE_REPOS") or {}
-    for repo in recipe_repos.keys():
+    for repo in list(recipe_repos.keys()):
         if recipe_path.startswith(repo):
             return True
     return False
@@ -1683,7 +1680,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         # shortcut if the two dictionaries match perfectly
         return
     # look for differences
-    trust_errors = u""
+    trust_errors = ""
     # get detail on non_core_processors
     expected_processor_names = set(expected_trust_info["non_core_processors"].keys())
     actual_processor_names = set(actual_trust_info["non_core_processors"].keys())
@@ -1721,8 +1718,8 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
                 trust_errors += "    Path: %s\n" % processor_path
 
     # get detail on parent_recipes
-    expected_parent_recipes = expected_trust_info["parent_recipes"].keys()
-    actual_parent_recipes = actual_trust_info["parent_recipes"].keys()
+    expected_parent_recipes = list(expected_trust_info["parent_recipes"].keys())
+    actual_parent_recipes = list(actual_trust_info["parent_recipes"].keys())
     if set(expected_parent_recipes) != set(actual_parent_recipes):
         trust_errors += "Expected parent recipe list: %s\n" % list(
             expected_parent_recipes
@@ -1814,7 +1811,8 @@ def update_trust_info(argv):
             continue
         # normalize recipe path
         recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
-        recipe = FoundationPlist.readPlist(recipe_path)
+        with open(recipe_path, "r") as f:
+            recipe = plistlib.load(f)
         if "ParentRecipe" not in recipe:
             log_err(
                 "%s is not a recipe override and has no parent recipe." % recipe_name
@@ -1831,7 +1829,7 @@ def update_trust_info(argv):
                 continue
             else:
                 # must be a local recipe
-                answer = raw_input("Add parent trust info anyway? [y/n]: ")
+                answer = input("Add parent trust info anyway? [y/n]: ")
                 if not answer.lower().startswith("y"):
                     continue
         # add trust info
@@ -1840,7 +1838,8 @@ def update_trust_info(argv):
             recipe["ParentRecipeTrustInfo"] = get_trust_info(
                 parent_recipe, search_dirs=search_dirs
             )
-            FoundationPlist.writePlist(recipe, recipe_path)
+            with open(recipe_path, "wb") as f:
+                plistlib.dump(recipe, f)
             log("Wrote updated %s" % recipe_path)
         else:
             log_err(
@@ -1906,8 +1905,8 @@ def verify_trust_info(argv):
             verify_parent_trust(recipe, override_dirs, search_dirs, options.verbose)
         except AutoPackagerError as err:
             log_err("%s: FAILED" % recipe_name)
-            if options.verbose > 0 and unicode(err):
-                for line in unicode(err).splitlines():
+            if options.verbose > 0 and str(err):
+                for line in str(err).splitlines():
                     log_err("    %s" % line)
             return_code = 1
         else:
@@ -2017,7 +2016,8 @@ def make_override(argv):
             )
             return -1
         os.unlink(override_file)
-    FoundationPlist.writePlist(override_plist, override_file)
+    with open(override_file, "wb") as f:
+        plistlib.dump(override_plist, f)
     log("Override file saved to %s" % override_file)
     return 0
 
@@ -2027,12 +2027,13 @@ def parse_recipe_list(filename):
     or a plist containing recipes and other key/value pairs"""
     recipe_list = {}
     try:
-        plist = FoundationPlist.readPlist(filename)
+        with open(filename, "r") as f:
+            plist = plistlib.load(f)
         if not plist.get("recipes"):
             # try to trigger an AttributeError if the plist is not a dict
             pass
         return plist
-    except (FoundationPlist.NSPropertyListSerializationException, AttributeError):
+    except Exception:
         # file does not appear to be a plist containing a dictionary;
         # read it as a plaintext list of recipes
         with open(filename, "r") as file_desc:
@@ -2184,7 +2185,7 @@ def run_recipes(argv):
 
     # Add variables from environment
     cli_values = {}
-    for key, value in os.environ.items():
+    for key, value in list(os.environ.items()):
         if key.startswith("AUTOPKG_"):
             if options.verbose > 1:
                 log("Using environment var %s=%s" % (key, value))
@@ -2194,7 +2195,7 @@ def run_recipes(argv):
     # Add variables from recipe list. These might override those from
     # environment variables
     if recipe_list:
-        for key, value in recipe_list.items():
+        for key, value in list(recipe_list.items()):
             if key not in ["recipes", "preprocessors", "postprocessors"]:
                 cli_values[key] = value
 
@@ -2223,7 +2224,8 @@ def run_recipes(argv):
 
     run_results = []
     try:
-        FoundationPlist.writePlist(run_results, current_run_results_plist)
+        with open(current_run_results_plist, "wb") as f:
+            plistlib.dump(run_results, f)
     except IOError as err:
         log_err(
             "Can't write results to %s: %s" % (current_run_results_plist, err.strerror)
@@ -2330,14 +2332,15 @@ def run_recipes(argv):
             else:
                 log_err("Failed.")
             failure["recipe"] = recipe_path
-            failure["message"] = unicode(err)
+            failure["message"] = str(err)
             failure["traceback"] = traceback.format_exc()
             failures.append(failure)
-            autopackager.results.append({"RecipeError": unicode(err).rstrip()})
+            autopackager.results.append({"RecipeError": str(err).rstrip()})
 
         run_results.append(autopackager.results)
         try:
-            FoundationPlist.writePlist(run_results, current_run_results_plist)
+            with open(current_run_results_plist, "wb") as f:
+                plistlib.dump(run_results, f)
         except IOError as err:
             log_err(
                 "Can't write results to %s: %s"
@@ -2367,7 +2370,7 @@ def run_recipes(argv):
         for item in autopackager.results:
             if item.get("Output"):
                 # record any summary results
-                output_keys = item["Output"].keys()
+                output_keys = list(item["Output"].keys())
                 results_keys = [
                     summary_key
                     for summary_key in output_keys
@@ -2381,9 +2384,9 @@ def run_recipes(argv):
                         summary_results[key] = {}
                         summary_results[key]["summary_text"] = summary_text
                         if type(data).__name__ in ["dict", "__NSCFDictionary"]:
-                            summary_results[key]["header"] = (
-                                result.get("report_fields") or data.keys()
-                            )
+                            summary_results[key]["header"] = result.get(
+                                "report_fields"
+                            ) or list(data.keys())
                         summary_results[key]["data_rows"] = []
                     summary_results[key]["data_rows"].append(data)
 
@@ -2391,7 +2394,8 @@ def run_recipes(argv):
         if os.path.exists(receipt_dir):
             receipt_path = os.path.join(receipt_dir, receipt_name)
             try:
-                FoundationPlist.writePlist(autopackager.results, receipt_path)
+                with open(receipt_path, "wb") as f:
+                    plistlib.dump(autopackager.results, f)
                 if options.verbose:
                     log("Receipt written to %s" % receipt_path)
             except IOError as err:
@@ -2406,7 +2410,7 @@ def run_recipes(argv):
                 log("        %s" % line)
 
     if summary_results:
-        for key, value in summary_results.items():
+        for key, value in list(summary_results.items()):
             log("\n%s" % value["summary_text"])
 
             # make our table header
@@ -2465,7 +2469,7 @@ def printplistitem(label, value, indent=0):
     elif type(value) == dict or type(value).__name__ == "NSCFDictionary":
         if label:
             log(indentspace * indent + "%s:" % label)
-        for subkey in value.keys():
+        for subkey in list(value.keys()):
             printplistitem(subkey, value[subkey], indent + 1)
     else:
         if label:
@@ -2486,16 +2490,16 @@ def find_http_urls_in_recipe(recipe):
     """Looks in the Input and Process sections of a recipe for any http URLs.
     Returns a dict."""
     recipe_urls = {}
-    for key, value in recipe.get("Input", {}).items():
-        if isinstance(value, basestring) and value.startswith("http:"):
+    for key, value in list(recipe.get("Input", {}).items()):
+        if isinstance(value, str) and value.startswith("http:"):
             if "Input" not in recipe_urls:
                 recipe_urls["Input"] = {}
             recipe_urls["Input"][key] = value
     for step in recipe.get("Process", []):
         processor = step["Processor"]
         arguments = step.get("Arguments", {})
-        for key, value in arguments.items():
-            if isinstance(value, basestring) and value.startswith("http:"):
+        for key, value in list(arguments.items()):
+            if isinstance(value, str) and value.startswith("http:"):
                 if "Process" not in recipe_urls:
                     recipe_urls["Process"] = {}
                 if processor not in recipe_urls["Process"]:
@@ -2658,10 +2662,10 @@ def audit(argv):
             recipe_no_issue_count += 1
             log("%s: no audit flags triggered." % recipe_path)
     if options.plist:
-        print(FoundationPlist.writePlistToString(audit_results))
+        print(plistlib.dumps(audit_results))
     elif len(recipe_paths) > 1:
         log("\nSummary:")
-        log("    %s recipes audited" % len(audit_results.keys()))
+        log("    %s recipes audited" % len(list(audit_results.keys())))
         log("    %s recipes with audit issues" % recipe_issue_count)
         log("    %s recipes triggered no audit flags" % recipe_no_issue_count)
 
@@ -2709,9 +2713,10 @@ def new_recipe(argv):
         recipe["ParentRecipe"] = options.parent_identifier
 
     try:
-        FoundationPlist.writePlist(recipe, filename)
+        with open(filename, "wb") as f:
+            plistlib.dump(recipe, f)
         log("Saved new recipe to %s" % filename)
-    except FoundationPlist.FoundationPlistException as err:
+    except Exception as err:
         log_err("Failed to write recipe: %s" % err)
 
 
@@ -2795,7 +2800,7 @@ def main(argv):
     if verb.startswith("-"):
         # option instead of a verb
         verb = "help"
-    if verb == "help" or verb not in subcommands.keys():
+    if verb == "help" or verb not in list(subcommands.keys()):
         display_help(argv, subcommands)
     else:
         # call the function and pass it the argument list

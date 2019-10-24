@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
+import io
 import os
 import plistlib
-import StringIO
 import unittest
 
 import mock
@@ -17,7 +17,7 @@ class TestPkgCopier(unittest.TestCase):
         self.good_glob_dest_env = {"source_pkg": "source*", "pkg_path": "dest"}
         self.good_glob_env = {"source_pkg": "source*"}
         self.bad_env = {}
-        self.input_plist = StringIO.StringIO(plistlib.writePlistToString(self.good_env))
+        self.input_plist = io.StringIO(plistlib.writePlistToString(self.good_env))
         self.processor = PkgCopier(infile=self.input_plist)
 
     def tearDown(self):

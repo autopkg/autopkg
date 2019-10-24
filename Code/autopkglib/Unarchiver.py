@@ -21,6 +21,7 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["Unarchiver"]
 
 EXTNS = {
@@ -69,7 +70,7 @@ class Unarchiver(Processor):
     def get_archive_format(self, archive_path):
         """Guess archive format based on filename extension"""
         # pylint: disable=no-self-use
-        for format_str, extns in EXTNS.items():
+        for format_str, extns in list(EXTNS.items()):
             for extn in extns:
                 if archive_path.endswith(extn):
                     return format_str
@@ -120,10 +121,10 @@ class Unarchiver(Processor):
                 "Guessed archive format '%s' from filename %s"
                 % (fmt, os.path.basename(archive_path))
             )
-        elif fmt not in EXTNS.keys():
+        elif fmt not in list(EXTNS.keys()):
             raise ProcessorError(
                 "'%s' is not valid for the 'archive_format' variable. "
-                "Must be one of %s." % (fmt, ", ".join(EXTNS.keys()))
+                "Must be one of %s." % (fmt, ", ".join(list(EXTNS.keys())))
             )
 
         if fmt == "zip":

@@ -17,6 +17,7 @@
 
 from autopkglib import Processor
 
+
 __all__ = ["MunkiPkginfoMerger"]
 
 
@@ -40,7 +41,7 @@ class MunkiPkginfoMerger(Processor):
         if "pkginfo" not in self.env:
             self.env["pkginfo"] = {}
 
-        for key in self.env["additional_pkginfo"].keys():
+        for key in list(self.env["additional_pkginfo"].keys()):
             self.env["pkginfo"][key] = self.env["additional_pkginfo"][key]
         self.output("Merged %s into pkginfo" % self.env["additional_pkginfo"])
 

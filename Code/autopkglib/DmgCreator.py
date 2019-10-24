@@ -20,6 +20,7 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
+
 __all__ = ["DmgCreator"]
 
 DEFAULT_DMG_FORMAT = "UDZO"

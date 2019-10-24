@@ -16,11 +16,12 @@
 """See docstring for InstallFromDMG class"""
 
 import os.path
+import plistlib
 import socket
 
-import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
+
 
 AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
 
@@ -123,7 +124,7 @@ class InstallFromDMG(DmgMounter):
 
     def send_request(self, request):
         """Send an install request to autopkginstalld"""
-        self.socket.send(FoundationPlist.writePlistToString(request))
+        self.socket.send(plistlib.dumps(request))
         with os.fdopen(self.socket.fileno()) as fileref:
             while True:
                 data = fileref.readline()

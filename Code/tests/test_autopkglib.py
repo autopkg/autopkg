@@ -10,6 +10,7 @@ from textwrap import dedent
 
 from mock import mock_open, patch
 
+
 # DO NOT MOVE THIS! This needs to happen BEFORE importing autopkglib
 # Annoyingly, I can't figure out how to correctly suppress memoization
 # in all contexts. You may have to comment out the @memoize calls in

@@ -18,13 +18,15 @@
 
 import os
 import subprocess
-import urllib
-import urlparse
+import urllib.error
+import urllib.parse
+import urllib.request
 from distutils.version import LooseVersion
 from operator import itemgetter
 from xml.etree import ElementTree
 
 from autopkglib import Processor, ProcessorError
+
 
 __all__ = ["SparkleUpdateInfoProvider"]
 
@@ -126,7 +128,7 @@ class SparkleUpdateInfoProvider(Processor):
         try:
             cmd = [self.env["CURL_PATH"], "--location", "--compressed"]
             if headers:
-                for header, value in headers.items():
+                for header, value in list(headers.items()):
                     cmd.extend(["--header", "%s: %s" % (header, value)])
             cmd.append(url)
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -162,9 +164,11 @@ class SparkleUpdateInfoProvider(Processor):
         # query string
         if "appcast_query_pairs" in self.env:
             queries = self.env["appcast_query_pairs"]
-            new_query = urllib.urlencode([(k, v) for (k, v) in queries.items()])
-            scheme, netloc, path, _, frag = urlparse.urlsplit(url)
-            url = urlparse.urlunsplit((scheme, netloc, path, new_query, frag))
+            new_query = urllib.parse.urlencode(
+                [(k, v) for (k, v) in list(queries.items())]
+            )
+            scheme, netloc, path, _, frag = urllib.parse.urlsplit(url)
+            url = urllib.parse.urlunsplit((scheme, netloc, path, new_query, frag))
 
         data = self.fetch_content(url, headers=self.env.get("appcast_request_headers"))
         try:
@@ -183,9 +187,9 @@ class SparkleUpdateInfoProvider(Processor):
                 item = {}
                 # URL-quote the path component to handle spaces, etc.
                 # (Panic apps do this)
-                url_bits = urlparse.urlsplit(enclosure.get("url"))
+                url_bits = urllib.parse.urlsplit(enclosure.get("url"))
                 if self.env.get("urlencode_path_component", True):
-                    encoded_path = urllib.quote(url_bits.path)
+                    encoded_path = urllib.parse.quote(url_bits.path)
                 else:
                     encoded_path = url_bits.path
                 built_url = url_bits.scheme + "://" + url_bits.netloc + encoded_path
@@ -283,9 +287,9 @@ class SparkleUpdateInfoProvider(Processor):
                     )
             # Format description
             if "description" in sparkle_pkginfo_keys:
-                if "description_url" in latest.keys():
+                if "description_url" in list(latest.keys()):
                     description = self.fetch_content(latest["description_url"])
-                elif "description_data" in latest.keys():
+                elif "description_data" in list(latest.keys()):
                     description = (
                         "<html><body>" + latest["description_data"] + "</html></body>"
                     )
@@ -296,7 +300,7 @@ class SparkleUpdateInfoProvider(Processor):
             if "minimum_os_version" in sparkle_pkginfo_keys:
                 if latest.get("minimum_os_version") is not None:
                     pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
-            for copied_key in pkginfo.keys():
+            for copied_key in list(pkginfo.keys()):
                 self.output(
                     "Copied key %s from Sparkle feed to additional "
                     "pkginfo." % copied_key

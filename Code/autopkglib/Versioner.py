@@ -16,10 +16,11 @@
 """See docstring for Versioner class"""
 
 import os.path
+import plistlib
 
-import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
+
 
 __all__ = ["Versioner"]
 
@@ -66,14 +67,15 @@ class Versioner(DmgMounter):
                     "File '%s' does not exist or could not be read." % input_plist_path
                 )
             try:
-                plist = FoundationPlist.readPlist(input_plist_path)
+                with open(input_plist_path, "r") as f:
+                    plist = plistlib.load(f)
                 version_key = self.env.get("plist_version_key")
                 self.env["version"] = plist.get(version_key, "UNKNOWN_VERSION")
                 self.output(
                     "Found version %s in file %s"
                     % (self.env["version"], input_plist_path)
                 )
-            except FoundationPlist.FoundationPlistException as err:
+            except Exception as err:
                 raise ProcessorError(err)
 
         finally:

@@ -15,6 +15,7 @@
 
 from ctypes import *
 
+
 libc = CDLL("/usr/lib/libc.dylib")
 
 
@@ -195,7 +196,7 @@ LAUNCH_JOBSOCKETKEY_MULTICASTGROUP = c_char_p("MulticastGroup")
     LAUNCH_DATA_OPAQUE,
     LAUNCH_DATA_ERRNO,
     LAUNCH_DATA_MACHPORT,
-) = range(1, 11)
+) = list(range(1, 11))
 
 
 class LaunchDCheckInError(Exception):

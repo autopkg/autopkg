@@ -15,11 +15,12 @@
 # limitations under the License.
 """See docstring for DmgMounter class"""
 
+import plistlib
 import subprocess
 import sys
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError, log, log_err
+
 
 __all__ = ["DmgMounter"]
 
@@ -93,11 +94,11 @@ class DmgMounter(Processor):
         (pliststr, stdout) = self.get_first_plist(stdout)
         if pliststr:
             try:
-                plist = FoundationPlist.readPlistFromString(pliststr)
+                plist = plistlib.loads(pliststr)
                 properties = plist.get("Properties")
                 if properties:
                     has_sla = properties.get("Software License Agreement", False)
-            except FoundationPlist.NSPropertyListSerializationException:
+            except Exception:
                 pass
 
         return has_sla
@@ -140,8 +141,8 @@ class DmgMounter(Processor):
         # Read output plist.
         (pliststr, stdout) = self.get_first_plist(stdout)
         try:
-            output = FoundationPlist.readPlistFromString(pliststr)
-        except FoundationPlist.NSPropertyListSerializationException:
+            output = plistlib.loads(pliststr)
+        except Exception:
             raise ProcessorError(
                 "mounting %s failed: unexpected output from hdiutil" % pathname
             )

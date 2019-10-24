@@ -20,6 +20,7 @@ import os.path
 
 from autopkglib.Copier import Copier
 
+
 __all__ = ["PkgCopier"]
 
 

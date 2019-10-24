@@ -20,22 +20,24 @@
 create a new team specifically for the duplicate repo, and assign the source
 repo author to this team."""
 
-from __future__ import print_function
 
 import json
 import optparse
 import os
 import subprocess
 import sys
-import urllib2
+import urllib.error
+import urllib.parse
+import urllib.request
 from pprint import pprint
 from tempfile import mkdtemp
+
 
 BASE_URL = "https://api.github.com"
 TOKEN = None
 
 
-class RequestWithMethod(urllib2.Request):
+class RequestWithMethod(urllib.request.Request):
     """Custom Request class that can accept arbitrary methods besides
     GET/POST"""
 
@@ -43,7 +45,7 @@ class RequestWithMethod(urllib2.Request):
     #        putting-and-deleteing-in-python-urllib2/
     def __init__(self, method, *args, **kwargs):
         self._method = method
-        urllib2.Request.__init__(self, *args, **kwargs)
+        urllib.request.Request.__init__(self, *args, **kwargs)
 
     def get_method(self):
         return self._method
@@ -81,17 +83,17 @@ def call_api(
     req.add_header("Accept", accept)
     req.add_header("Authorization", "token %s" % TOKEN)
     if headers:
-        for key, value in headers.items():
+        for key, value in list(headers.items()):
             req.add_header(key, value)
 
     resp_data = None
     try:
-        urlfd = urllib2.urlopen(req, data=data)
+        urlfd = urllib.request.urlopen(req, data=data)
         status = urlfd.getcode()
         response = urlfd.read()
         if response:
             resp_data = json.loads(response)
-    except urllib2.HTTPError as err:
+    except urllib.error.HTTPError as err:
         status = err.code
         print("API error: %s" % err, file=sys.stderr)
         try:
@@ -250,7 +252,7 @@ Type 'yes' to proceed: """ % (
         new_team_member,
         opts.permission_level,
     )
-    response = raw_input(prompt)
+    response = input(prompt)
     if response != "yes":
         sys.exit("Aborted.")
 

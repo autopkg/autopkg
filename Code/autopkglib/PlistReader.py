@@ -19,10 +19,11 @@
 
 import glob
 import os.path
+import plistlib
 
-import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
+
 
 __all__ = ["PlistReader"]
 
@@ -105,11 +106,9 @@ class PlistReader(DmgMounter):
             test_info_path = os.path.join(path, "Contents/Info.plist")
             if os.path.exists(test_info_path):
                 try:
-                    plist = FoundationPlist.readPlist(test_info_path)
-                except (
-                    FoundationPlist.NSPropertyListSerializationException,
-                    UnicodeEncodeError,
-                ):
+                    with open(test_info_path, "r") as f:
+                        plist = plistlib.load(f)
+                except Exception:
                     raise ProcessorError(
                         "File %s looks like a bundle, but its "
                         "'Contents/Info.plist' file cannot be parsed." % path
@@ -156,16 +155,14 @@ class PlistReader(DmgMounter):
             # Try to read the plist
             self.output("Reading: %s" % path)
             try:
-                info = FoundationPlist.readPlist(path)
-            except (
-                FoundationPlist.NSPropertyListSerializationException,
-                UnicodeEncodeError,
-            ) as err:
+                with open(path, "r") as f:
+                    info = plistlib.load(f)
+            except Exception as err:
                 raise ProcessorError(err)
 
             # Copy each plist_keys' values and assign to new env variables
             self.env["plist_reader_output_variables"] = {}
-            for key, val in keys.items():
+            for key, val in list(keys.items()):
                 try:
                     self.env[val] = info[key]
                     self.output(

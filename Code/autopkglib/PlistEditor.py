@@ -15,8 +15,10 @@
 # limitations under the License.
 """See docstring for PlistEditor class"""
 
-import FoundationPlist
+import plistlib
+
 from autopkglib import Processor, ProcessorError
+
 
 __all__ = ["PlistEditor"]
 
@@ -56,7 +58,8 @@ class PlistEditor(Processor):
         if not pathname:
             return {}
         try:
-            return FoundationPlist.readPlist(pathname)
+            with open(pathname, "r") as f:
+                return plistlib.load(f)
         except Exception as err:
             raise ProcessorError("Could not read %s: %s" % (pathname, err))
 
@@ -64,7 +67,8 @@ class PlistEditor(Processor):
         """writes a plist to pathname"""
         # pylint: disable=no-self-use
         try:
-            FoundationPlist.writePlist(data, pathname)
+            with open(pathname, "wb") as f:
+                plistlib.dump(data, f)
         except Exception as err:
             raise ProcessorError("Could not write %s: %s" % (pathname, err))
 
@@ -74,7 +78,7 @@ class PlistEditor(Processor):
 
         # insert new data
         plist_data = self.env["plist_data"]
-        for key in plist_data.keys():
+        for key in list(plist_data.keys()):
             working_plist[key] = plist_data[key]
 
         # write changed plist

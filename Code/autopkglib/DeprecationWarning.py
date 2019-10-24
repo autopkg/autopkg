@@ -16,11 +16,11 @@
 """Processor that outputs a warning message. Intended to alert recipe users of
 upcoming removal of a recipe."""
 
-from __future__ import absolute_import
 
 import os
 
 from autopkglib import Processor
+
 
 __all__ = ["DeprecationWarning"]
 

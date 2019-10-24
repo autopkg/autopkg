@@ -18,6 +18,7 @@ phase"""
 
 from autopkglib import Processor
 
+
 __all__ = ["EndOfCheckPhase"]
 
 

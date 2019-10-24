@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
+import io
 import plistlib
-import StringIO
 import unittest
 
 import mock
@@ -15,7 +15,7 @@ class TestFileFinder(unittest.TestCase):
     def setUp(self):
         self.good_env = {"find_method": "glob", "pattern": "test"}
         self.bad_env = {"find_method": "fake"}
-        self.input_plist = StringIO.StringIO(plistlib.writePlistToString(self.good_env))
+        self.input_plist = io.StringIO(plistlib.writePlistToString(self.good_env))
         self.processor = FileFinder(infile=self.input_plist)
 
     def tearDown(self):

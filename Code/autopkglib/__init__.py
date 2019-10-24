@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Copyright 2010 Per Olofsson
 #
@@ -16,20 +16,18 @@
 
 """Core/shared autopkglib functions"""
 
-from __future__ import print_function
 
 import glob
 import imp
 import json
 import os
 import platform
+import plistlib
 import pprint
 import re
 import subprocess
 import sys
 from distutils.version import LooseVersion
-
-import FoundationPlist
 
 
 class memoize(dict):
@@ -65,7 +63,6 @@ def is_linux():
     return "Linux" in platform.platform()
 
 
-# pylint: disable=no-name-in-module
 try:
     from Foundation import NSArray, NSDictionary
     from CoreFoundation import (
@@ -79,16 +76,8 @@ try:
         kCFPreferencesCurrentHost,
     )
     from PyObjCTools import Conversion
-except:
-    print(
-        "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
-    )
-    print(
-        "WARNING: Failed 'from CoreFoundation import "
-        "CFPreferencesAppSynchronize, ...' in " + __name__
-    )
-# pylint: enable=no-name-in-module
-
+except Exception:
+    pass
 
 BUNDLE_ID = "com.github.autopkg"
 
@@ -118,10 +107,11 @@ class Preferences(object):
     def _parse_json_or_plist_file(self, file_path):
         """Parse the file. Start with plist, then JSON."""
         try:
-            data = FoundationPlist.readPlist(file_path)
+            with open(file_path, "r") as f:
+                data = plistlib.load(f)
             self.type = "plist"
             self.file_path = file_path
-            return Conversion.pythonCollectionFromPropertyList(data)
+            return data
         except Exception:
             pass
         try:
@@ -203,7 +193,8 @@ class Preferences(object):
     def _write_plist_file(self):
         """Write out the prefs into a Plist."""
         try:
-            FoundationPlist.writePlist(self.prefs, self.file_path)
+            with open(self.file_path, "wb") as f:
+                plistlib.dump(self.prefs, f)
         except Exception as e:
             log_err("Unable to write out plist: {}".format(e))
 
@@ -258,9 +249,9 @@ def get_all_prefs():
 def log(msg, error=False):
     """Message logger, prints to stdout/stderr."""
     if error:
-        print(unicode(msg).encode("UTF-8"), file=sys.stderr)
+        print(str(msg).encode("UTF-8"), file=sys.stderr)
     else:
-        print(unicode(msg).encode("UTF-8"))
+        print(str(msg).encode("UTF-8"))
 
 
 def log_err(msg):
@@ -287,16 +278,15 @@ def get_identifier_from_recipe_file(filename):
     identifier. Otherwise, returns None."""
     try:
         # make sure we can read it
-        recipe_plist = FoundationPlist.readPlist(filename)
-    except FoundationPlist.FoundationPlistException as err:
+        with open(filename, "r") as f:
+            recipe_plist = plistlib.load(f)
+    except Exception as err:
         # unicode() doesn't exist in Python3, and we'd have to
         # change the behavior by importing unicode_literals from
         # __future__, which is a significant change requiring a lot of
         # testing. For now, we're going to leave this as-is until
         # the conversion to python3 is more mature.
-        log_err(
-            "WARNING: plist error for %s: %s" % (filename, unicode(err))  # noqa TODO
-        )
+        log_err("WARNING: plist error for %s: %s" % (filename, str(err)))  # noqa TODO
         return None
     return get_identifier(recipe_plist)
 
@@ -322,10 +312,9 @@ def find_recipe_by_identifier(identifier, search_dirs):
 def get_autopkg_version():
     """Gets the version number of autopkg"""
     try:
-        version_plist = FoundationPlist.readPlist(
-            os.path.join(os.path.dirname(__file__), "version.plist")
-        )
-    except FoundationPlist.FoundationPlistException:
+        with open(os.path.join(os.path.dirname(__file__), "version.plist"), "r") as f:
+            version_plist = plistlib.load(f)
+    except Exception:
         return "UNKNOWN"
     try:
         return version_plist["Version"]
@@ -349,7 +338,7 @@ def update_data(a_dict, key, value):
 
     def do_variable_substitution(item):
         """Do variable substitution for item"""
-        if isinstance(item, basestring):
+        if isinstance(item, str):
             try:
                 item = RE_KEYREF.sub(getdata, item)
             except KeyError as err:
@@ -364,7 +353,7 @@ def update_data(a_dict, key, value):
             else:
                 # Need to specify the copy is mutable for NSDictionary
                 item_copy = item.mutableCopy()
-            for key, value in item.items():
+            for key, value in list(item.items()):
                 item_copy[key] = do_variable_substitution(value)
             return item_copy
         return item
@@ -458,9 +447,9 @@ class Processor(object):
         try:
             indata = self.infile.read()
             if indata:
-                self.env = FoundationPlist.readPlistFromString(indata)
+                self.env = plistlib.loads(indata)
             else:
-                self.env = dict()
+                self.env = {}
         except BaseException as err:
             raise ProcessorError(err)
 
@@ -471,7 +460,8 @@ class Processor(object):
             return
 
         try:
-            FoundationPlist.writePlist(self.env, self.outfile)
+            with open(self.outfile, "wb") as f:
+                plistlib.dump(self.env, f)
         except BaseException as err:
             raise ProcessorError(err)
 
@@ -486,16 +476,16 @@ class Processor(object):
 
     def inject(self, arguments):
         """Update environment data with arguments."""
-        for key, value in arguments.items():
+        for key, value in list(arguments.items()):
             update_data(self.env, key, value)
 
     def process(self):
         """Main processing loop."""
         # pylint: disable=no-member
         # Make sure all required arguments have been supplied.
-        for variable, flags in self.input_variables.items():
+        for variable, flags in list(self.input_variables.items()):
             # Apply default values to unspecified input variables
-            if "default" in flags.keys() and (variable not in self.env):
+            if "default" in list(flags.keys()) and (variable not in self.env):
                 self.env[variable] = flags["default"]
                 self.output(
                     "No value supplied for %s, setting default value "
@@ -592,14 +582,14 @@ class AutoPackager(object):
         inputs.update(cli_values)
         self.env.update(inputs)
         # do any internal string substitutions
-        for key, value in self.env.items():
+        for key, value in list(self.env.items()):
             update_data(self.env, key, value)
 
     def verify(self, recipe):
         """Verify a recipe and check for errors."""
 
         # Check for MinimumAutopkgVersion
-        if "MinimumVersion" in recipe.keys():
+        if "MinimumVersion" in list(recipe.keys()):
             if not version_equal_or_greater(
                 self.env["AUTOPKG_VERSION"], recipe.get("MinimumVersion")
             ):
@@ -628,9 +618,9 @@ class AutoPackager(object):
                     )
                 raise AutoPackagerError(msg)
             # Add arguments to set of variables.
-            variables.update(set(step.get("Arguments", dict()).keys()))
+            variables.update(set(step.get("Arguments", {}).keys()))
             # Make sure all required input variables exist.
-            for key, flags in processor_class.input_variables.items():
+            for key, flags in list(processor_class.input_variables.items()):
                 if flags["required"] and (key not in variables):
                     raise AutoPackagerError(
                         "%s requires missing argument %s" % (step["Processor"], key)
@@ -649,7 +639,7 @@ class AutoPackager(object):
         self.env["RECIPE_CACHE_DIR"] = os.path.join(cache_dir, identifier)
 
         recipe_input_dict = {}
-        for key in self.env.keys():
+        for key in list(self.env.keys()):
             recipe_input_dict[key] = self.env[key]
         self.results.append({"Recipe input": recipe_input_dict})
 
@@ -676,10 +666,10 @@ class AutoPackager(object):
             )[0]
             processor_class = get_processor(processor_name)
             processor = processor_class(self.env)
-            processor.inject(step.get("Arguments", dict()))
+            processor.inject(step.get("Arguments", {}))
 
             input_dict = {}
-            for key in processor.input_variables.keys():
+            for key in list(processor.input_variables.keys()):
                 if key in processor.env:
                     input_dict[key] = processor.env[key]
 
@@ -695,14 +685,14 @@ class AutoPackager(object):
                 # here to ensure that unexpected/unhandled exceptions
                 # from one processor do not prevent execution of
                 # subsequent recipes.
-                log_err(unicode(err))  # noqa TODO
+                log_err(str(err))  # noqa TODO
                 raise AutoPackagerError(
                     "Error in %s: Processor: %s: Error: %s"
-                    % (identifier, step["Processor"], unicode(err))
+                    % (identifier, step["Processor"], str(err))
                 )  # noqa TODO
 
             output_dict = {}
-            for key in processor.output_variables.keys():
+            for key in list(processor.output_variables.keys()):
                 # Safety workaround for Processors that may output
                 # differently-named output variables than are given in
                 # their output_variables
@@ -824,7 +814,7 @@ def get_processor(processor_name, recipe=None, env=None):
         if recipe.get("PARENT_RECIPES"):
             # also look in the directories containing the parent recipes
             parent_recipe_dirs = list(
-                set([os.path.dirname(item) for item in recipe["PARENT_RECIPES"]])
+                {[os.path.dirname(item) for item in recipe["PARENT_RECIPES"]]}
             )
             processor_search_dirs.extend(parent_recipe_dirs)
 

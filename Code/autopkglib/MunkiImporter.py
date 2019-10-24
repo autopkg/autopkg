@@ -16,11 +16,12 @@
 """See docstring for MunkiImporter class"""
 
 import os
+import plistlib
 import shutil
 import subprocess
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError
+
 
 __all__ = ["MunkiImporter"]
 
@@ -135,7 +136,8 @@ class MunkiImporter(Processor):
             catalogitems = []
         else:
             try:
-                catalogitems = FoundationPlist.readPlist(all_items_path)
+                with open(all_items_path, "r") as f:
+                    catalogitems = plistlib.load(f)
             except OSError as err:
                 raise ProcessorError(
                     "Error reading 'all' catalog from Munki repo: %s" % err
@@ -207,7 +209,7 @@ class MunkiImporter(Processor):
                             if "md5checksum" in install:
                                 cksum = install["md5checksum"]
 
-                                if cksum not in checksum_table.keys():
+                                if cksum not in list(checksum_table.keys()):
                                     checksum_table[cksum] = []
 
                                 checksum_table[cksum].append(
@@ -216,7 +218,7 @@ class MunkiImporter(Processor):
                             else:
                                 path = install["path"]
 
-                                if path not in files_table.keys():
+                                if path not in list(files_table.keys()):
                                     files_table[path] = []
 
                                 files_table[path].append(
@@ -459,7 +461,8 @@ class MunkiImporter(Processor):
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
         try:
-            FoundationPlist.writePlist(pkginfo, pkginfo_path)
+            with open(pkginfo_path, "wb") as f:
+                plistlib.dump(pkginfo)
         except OSError as err:
             raise ProcessorError(
                 "Could not write pkginfo %s: %s" % (pkginfo_path, err.strerror)
@@ -503,7 +506,7 @@ class MunkiImporter(Processor):
             )
 
         # Get pkginfo from output plist.
-        pkginfo = FoundationPlist.readPlistFromString(out)
+        pkginfo = plistlib.loads(out)
 
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:

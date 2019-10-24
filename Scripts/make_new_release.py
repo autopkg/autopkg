@@ -15,7 +15,6 @@
 # handling.
 """See docstring for main() function"""
 
-from __future__ import print_function
 
 import json
 import optparse
@@ -25,7 +24,9 @@ import re
 import subprocess
 import sys
 import tempfile
-import urllib2
+import urllib.error
+import urllib.parse
+import urllib.request
 from distutils.version import LooseVersion
 from pprint import pprint
 from shutil import rmtree
@@ -60,13 +61,13 @@ def api_call(
         "Authorization": "token %s" % token,
     }
     if additional_headers:
-        for header, value in additional_headers.items():
+        for header, value in list(additional_headers.items()):
             headers[header] = value
 
-    req = urllib2.Request(baseurl + endpoint, headers=headers)
+    req = urllib.request.Request(baseurl + endpoint, headers=headers)
     try:
-        results = urllib2.urlopen(req, data=data)
-    except urllib2.HTTPError as err:
+        results = urllib.request.urlopen(req, data=data)
+    except urllib.error.HTTPError as err:
         print("HTTP error making API call!", file=sys.stderr)
         print(err, file=sys.stderr)
         error_json = err.read()

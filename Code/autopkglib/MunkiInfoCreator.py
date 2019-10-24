@@ -16,12 +16,13 @@
 """See docstring for MunkiInfoCreator class"""
 
 import os.path
+import plistlib
 import shutil
 import subprocess
 import tempfile
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError
+
 
 __all__ = ["MunkiInfoCreator"]
 
@@ -100,7 +101,7 @@ class MunkiInfoCreator(Processor):
                 shutil.rmtree(temp_path)
 
         # Read output plist.
-        output = FoundationPlist.readPlistFromString(stdout)
+        output = plistlib.loads(stdout)
 
         # Set version and name.
         if "version" in self.env:
@@ -111,7 +112,8 @@ class MunkiInfoCreator(Processor):
         # Save info.
         self.env["munki_info"] = output
         if "info_path" in self.env:
-            FoundationPlist.writePlist(output, self.env["info_path"])
+            with open(self.env["info_path"], "wb") as f:
+                plistlib.dump(output, f)
 
 
 if __name__ == "__main__":

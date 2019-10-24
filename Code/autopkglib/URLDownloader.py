@@ -22,6 +22,7 @@ import time
 
 from autopkglib import BUNDLE_ID, Processor, ProcessorError, is_mac
 
+
 if is_mac():
     import xattr
 
@@ -184,7 +185,7 @@ class URLDownloader(Processor):
 
         if "request_headers" in self.env:
             headers = self.env["request_headers"]
-            for header, value in headers.items():
+            for header, value in list(headers.items()):
                 curl_cmd.extend(["--header", "%s: %s" % (header, value)])
 
         if "curl_opts" in self.env:

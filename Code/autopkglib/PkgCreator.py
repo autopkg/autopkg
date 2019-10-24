@@ -16,12 +16,13 @@
 """See docstring for PkgCreator class"""
 
 import os.path
+import plistlib
 import socket
 import subprocess
 import xml.etree.ElementTree as ET
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError
+
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
 
@@ -198,7 +199,7 @@ class PkgCreator(Processor):
             request["chown"] = []
 
         # Convert relative paths to absolute.
-        for key, value in request.items():
+        for key, value in list(request.items()):
             if key in ("pkgroot", "pkgdir", "infofile", "resources", "scripts"):
                 if value and not value.startswith("/"):
                     # search for it
@@ -250,7 +251,7 @@ class PkgCreator(Processor):
 
     def send_request(self, request):
         """Send a packaging request to the autopkgserver"""
-        self.socket.send(FoundationPlist.writePlistToString(request))
+        self.socket.send(plistlib.dumps(request))
         with os.fdopen(self.socket.fileno()) as fileref:
             reply = fileref.read()
 

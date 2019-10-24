@@ -16,7 +16,6 @@
 """A utility to export info from autopkg processors and upload it as processor
 documentation for the GitHub autopkg wiki"""
 
-from __future__ import print_function
 
 import imp
 import optparse
@@ -24,6 +23,7 @@ import os
 import sys
 from tempfile import mkdtemp
 from textwrap import dedent
+
 
 # pylint: disable=import-error
 # Grabbing some functions from the Code directory
@@ -69,7 +69,7 @@ def escape(thing):
 def generate_markdown(dict_data, indent=0):
     """Returns a string with Markup-style formatting of dict_data"""
     string = ""
-    for key, value in dict_data.items():
+    for key, value in list(dict_data.items()):
         if isinstance(value, dict):
             string += " " * indent + "- **%s:**\n" % escape(key)
             string += generate_markdown(value, indent=indent + 4)
@@ -252,7 +252,7 @@ def main(_):
         "%s." % output_dir
     )
 
-    push_commit = raw_input()
+    push_commit = input()
     if push_commit == "push":
         run_git(["push", "origin", "master"])
 
