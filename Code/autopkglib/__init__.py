@@ -249,9 +249,9 @@ def get_all_prefs():
 def log(msg, error=False):
     """Message logger, prints to stdout/stderr."""
     if error:
-        print(str(msg).encode("UTF-8"), file=sys.stderr)
+        print(msg, file=sys.stderr)
     else:
-        print(str(msg).encode("UTF-8"))
+        print(msg)
 
 
 def log_err(msg):
@@ -281,11 +281,6 @@ def get_identifier_from_recipe_file(filename):
         with open(filename, "r") as f:
             recipe_plist = plistlib.load(f)
     except Exception as err:
-        # unicode() doesn't exist in Python3, and we'd have to
-        # change the behavior by importing unicode_literals from
-        # __future__, which is a significant change requiring a lot of
-        # testing. For now, we're going to leave this as-is until
-        # the conversion to python3 is more mature.
         log_err("WARNING: plist error for %s: %s" % (filename, str(err)))  # noqa TODO
         return None
     return get_identifier(recipe_plist)

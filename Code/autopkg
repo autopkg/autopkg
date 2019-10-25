@@ -56,7 +56,6 @@ from autopkglib import (
     version_equal_or_greater,
 )
 
-
 if sys.platform != "darwin":
     print(
         """
@@ -2410,7 +2409,7 @@ def run_recipes(argv):
                 log("        %s" % line)
 
     if summary_results:
-        for key, value in list(summary_results.items()):
+        for _key, value in list(summary_results.items()):
             log("\n%s" % value["summary_text"])
 
             # make our table header
