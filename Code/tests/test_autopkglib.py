@@ -7,9 +7,7 @@ import plistlib
 import sys
 import unittest
 from textwrap import dedent
-
-from mock import mock_open, patch
-
+from unittest.mock import mock_open, patch
 
 # DO NOT MOVE THIS! This needs to happen BEFORE importing autopkglib
 # Annoyingly, I can't figure out how to correctly suppress memoization
@@ -26,66 +24,63 @@ class TestAutoPkg(unittest.TestCase):
 
     # Some globals for mocking
     good_json = json.dumps({"CACHE_DIR": "/path/to/cache"})
-
-    def setUp(self):
-        # This forces autopkglib to accept our patching of memoize
-        imp.reload(autopkglib)
-        self.download_recipe = dedent(
-            """\
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-            <plist version="1.0">
+    download_recipe = dedent(
+        """\
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>Description</key>
+            <string>Downloads latest Google Chrome disk image.</string>
+            <key>Identifier</key>
+            <string>com.github.autopkg.download.googlechrome</string>
+            <key>Input</key>
             <dict>
-                <key>Description</key>
-                <string>Downloads latest Google Chrome disk image.</string>
-                <key>Identifier</key>
-                <string>com.github.autopkg.download.googlechrome</string>
-                <key>Input</key>
-                <dict>
-                    <key>NAME</key>
-                    <string>GoogleChrome</string>
-                    <key>DOWNLOAD_URL</key>
-                    <string>https://dl.google.com/chrome/mac/stable/GGRO/googlechrome.dmg</string>
-                </dict>
-                <key>MinimumVersion</key>
-                <string>0.2.0</string>
-                <key>Process</key>
-                <array>
-                    <dict>
-                        <key>Processor</key>
-                        <string>URLDownloader</string>
-                        <key>Arguments</key>
-                        <dict>
-                            <key>url</key>
-                            <string>%DOWNLOAD_URL%</string>
-                            <key>filename</key>
-                            <string>%NAME%.dmg</string>
-                        </dict>
-                    </dict>
-                    <dict>
-                        <key>Processor</key>
-                        <string>EndOfCheckPhase</string>
-                    </dict>
-                    <dict>
-                        <key>Processor</key>
-                        <string>CodeSignatureVerifier</string>
-                        <key>Arguments</key>
-                        <dict>
-                            <key>input_path</key>
-                            <string>%pathname%/Google Chrome.app</string>
-                            <key>strict_verification</key>
-                            <false/>
-                            <key>requirement</key>
-                            <string>(identifier "com.google.Chrome" or identifier "com.google.Chrome.beta" or identifier "com.google.Chrome.dev" or identifier "com.google.Chrome.canary") and (certificate leaf = H"85cee8254216185620ddc8851c7a9fc4dfe120ef" or certificate leaf = H"c9a99324ca3fcb23dbcc36bd5fd4f9753305130a")</string>
-                        </dict>
-                    </dict>
-                </array>
+                <key>NAME</key>
+                <string>GoogleChrome</string>
+                <key>DOWNLOAD_URL</key>
+                <string>https://dl.google.com/chrome/mac/stable/GGRO/googlechrome.dmg</string>
             </dict>
-            </plist>
-        """
-        )
-        self.munki_recipe = dedent(
-            """\
+            <key>MinimumVersion</key>
+            <string>0.2.0</string>
+            <key>Process</key>
+            <array>
+                <dict>
+                    <key>Processor</key>
+                    <string>URLDownloader</string>
+                    <key>Arguments</key>
+                    <dict>
+                        <key>url</key>
+                        <string>%DOWNLOAD_URL%</string>
+                        <key>filename</key>
+                        <string>%NAME%.dmg</string>
+                    </dict>
+                </dict>
+                <dict>
+                    <key>Processor</key>
+                    <string>EndOfCheckPhase</string>
+                </dict>
+                <dict>
+                    <key>Processor</key>
+                    <string>CodeSignatureVerifier</string>
+                    <key>Arguments</key>
+                    <dict>
+                        <key>input_path</key>
+                        <string>%pathname%/Google Chrome.app</string>
+                        <key>strict_verification</key>
+                        <false/>
+                        <key>requirement</key>
+                        <string>(identifier "com.google.Chrome" or identifier "com.google.Chrome.beta" or identifier "com.google.Chrome.dev" or identifier "com.google.Chrome.canary") and (certificate leaf = H"85cee8254216185620ddc8851c7a9fc4dfe120ef" or certificate leaf = H"c9a99324ca3fcb23dbcc36bd5fd4f9753305130a")</string>
+                    </dict>
+                </dict>
+            </array>
+        </dict>
+        </plist>
+    """
+    )
+    download_struct = plistlib.loads(download_recipe.encode("utf-8"))
+    munki_recipe = dedent(
+        """\
             <?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
             <plist version="1.0">
@@ -137,7 +132,12 @@ class TestAutoPkg(unittest.TestCase):
             </dict>
             </plist>
         """
-        )
+    )
+    munki_struct = plistlib.loads(munki_recipe.encode("utf-8"))
+
+    def setUp(self):
+        # This forces autopkglib to accept our patching of memoize
+        imp.reload(autopkglib)
 
     def tearDown(self):
         pass
@@ -186,28 +186,40 @@ class TestAutoPkg(unittest.TestCase):
 
     def test_get_identifier_returns_identifier(self):
         """get_identifier should return the identifier."""
-        recipe = plistlib.readPlistFromString(self.download_recipe)
+        recipe = plistlib.loads(self.download_recipe.encode("utf-8"))
         id = autopkglib.get_identifier(recipe)
         self.assertEqual(id, "com.github.autopkg.download.googlechrome")
 
     def test_get_identifier_returns_none(self):
         """get_identifier should return None if no identifier is found."""
-        recipe = plistlib.readPlistFromString(self.download_recipe)
+        recipe = plistlib.loads(self.download_recipe.encode("utf-8"))
         del recipe["Identifier"]
         id = autopkglib.get_identifier(recipe)
         self.assertIsNone(id)
 
-    @patch("autopkg.FoundationPlist.readPlist")
-    def test_get_identifier_from_recipe_file_returns_identifier(self, mock_read):
-        """get_identifier_from_recipe-file should return identifier."""
-        mock_read.return_value = plistlib.readPlistFromString(self.download_recipe)
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
+        read_data=download_recipe.encode("utf-8"),
+    )
+    @patch("autopkg.plistlib.load")
+    def test_get_identifier_from_recipe_file_returns_identifier(
+        self, mock_load, mock_open
+    ):
+        """get_identifier_from_recipe_file should return identifier."""
+        mock_load.return_value = self.download_struct
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertEqual(id, "com.github.autopkg.download.googlechrome")
 
-    @patch("autopkg.FoundationPlist.readPlist")
-    def test_get_identifier_from_recipe_file_returns_none(self, mock_read):
-        """get_identifier_from_recipe-file should return None if no identifier."""
-        mock_read.return_value = plistlib.readPlistFromString(self.download_recipe)
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
+        read_data=download_recipe.encode("utf-8"),
+    )
+    @patch("autopkg.plistlib.load")
+    def test_get_identifier_from_recipe_file_returns_none(self, mock_load, mock_read):
+        """get_identifier_from_recipe_file should return None if no identifier."""
+        mock_read.return_value = self.download_struct
         del mock_read.return_value["Identifier"]
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertIsNone(id)
@@ -239,14 +251,14 @@ class TestAutoPkg(unittest.TestCase):
         value = fake_prefs._parse_json_or_plist_file("fake_filepath")
         self.assertEqual(value, {})
 
-    @patch("__builtin__.open", new_callable=mock_open, read_data=good_json)
+    @patch("builtins.open", new_callable=mock_open, read_data=good_json)
     def test_parse_file_reads_json(self, mock_file):
         """Parsing a JSON file should produce a dictionary."""
         fake_prefs = autopkglib.Preferences()
         value = fake_prefs._parse_json_or_plist_file("fake_filepath")
         self.assertEqual(value, json.loads(self.good_json))
 
-    @patch("__builtin__.open", new_callable=mock_open, read_data=good_json)
+    @patch("builtins.open", new_callable=mock_open, read_data=good_json)
     def test_read_file_fills_prefs(self, mock_file):
         """read_file should populate the prefs object."""
         fake_prefs = autopkglib.Preferences()

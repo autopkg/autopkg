@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-import io
 import os
 import plistlib
 import unittest
+from unittest.mock import patch
 
-import mock
 from autopkglib.PkgCopier import PkgCopier
 
 
@@ -17,22 +16,22 @@ class TestPkgCopier(unittest.TestCase):
         self.good_glob_dest_env = {"source_pkg": "source*", "pkg_path": "dest"}
         self.good_glob_env = {"source_pkg": "source*"}
         self.bad_env = {}
-        self.input_plist = io.StringIO(plistlib.writePlistToString(self.good_env))
+        self.input_plist = plistlib.dumps(self.good_env)
         self.processor = PkgCopier(infile=self.input_plist)
 
     def tearDown(self):
-        self.input_plist.close()
+        pass
 
-    @mock.patch("autopkglib.PkgCopier.copy")
-    @mock.patch("glob.glob")
+    @patch("autopkglib.PkgCopier.copy")
+    @patch("glob.glob")
     def test_no_fail_if_good_env(self, mock_glob, mock_copy):
         """The processor should not raise any exceptions if run normally."""
         self.processor.env = self.good_env
         mock_glob.return_value = ["source"]
         self.processor.main()
 
-    @mock.patch("autopkglib.PkgCopier.copy")
-    @mock.patch("glob.glob")
+    @patch("autopkglib.PkgCopier.copy")
+    @patch("glob.glob")
     def test_no_pkgpath_uses_source_name(self, mock_glob, mock_copy):
         """If pkg_path is not specified, it should use the source name."""
         self.processor.env = self.good_glob_env
@@ -45,8 +44,8 @@ class TestPkgCopier(unittest.TestCase):
             overwrite=True,
         )
 
-    @mock.patch("autopkglib.PkgCopier.copy")
-    @mock.patch("glob.glob")
+    @patch("autopkglib.PkgCopier.copy")
+    @patch("glob.glob")
     def test_no_pkgpath_uses_dest_name(self, mock_glob, mock_copy):
         """If pkg_path is specified, it should be used."""
         self.processor.env = self.good_glob_dest_env
