@@ -29,7 +29,12 @@ import subprocess
 import sys
 from distutils.version import LooseVersion
 
-import FoundationPlist
+try:
+    import FoundationPlist
+except ImportError:
+    print(unicode("WARNING: importing plistlib as FoundationPlist;").encode("UTF-8"))
+    print(unicode("WARNING: some plist formats will be unsupported").encode("UTF-8"))
+    import plistlib as FoundationPlist
 
 
 class memoize(dict):
