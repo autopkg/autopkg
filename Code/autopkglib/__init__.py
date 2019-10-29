@@ -72,7 +72,7 @@ def is_linux():
 
 # pylint: disable=no-name-in-module
 try:
-    from Foundation import NSArray, NSDictionary
+    from Foundation import NSArray, NSDictionary, NSNumber
     from CoreFoundation import (
         CFPreferencesAppSynchronize,
         CFPreferencesCopyAppValue,
@@ -83,7 +83,7 @@ try:
         kCFPreferencesCurrentUser,
         kCFPreferencesCurrentHost,
     )
-except:
+except ImportError:
     print(
         "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
     )
@@ -141,10 +141,16 @@ class Preferences(object):
     def _get_macos_pref(self, key):
         """Get a specific macOS preference key."""
         value = CFPreferencesCopyAppValue(key, BUNDLE_ID)
-        # Casting NSArrays and NSDictionaries to native Python types.
-        # This a workaround for 10.6, where PyObjC doesn't seem to
-        # support as many common operations such as list concatenation
-        # between Python and ObjC objects.
+        if isinstance(value, NSNumber):
+            value = int(value)
+        elif isinstance(value, NSArray):
+            value = list(value)
+        elif isinstance(value, NSDictionary):
+            value = dict(value)
+            # RECIPE_REPOS is a dict of dicts
+            for k, v in value.items():
+                if isinstance(v, NSDictionary):
+                    value[k] = dict(v)
         return value
 
     def _get_macos_prefs(self):
