@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2011 Per Olofsson
 #

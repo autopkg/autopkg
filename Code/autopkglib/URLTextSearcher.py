@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2015 Greg Neagle
 # Based on URLTextSearcher.py, Copyright 2014 Jesse Peterson
