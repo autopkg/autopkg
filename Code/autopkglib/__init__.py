@@ -107,7 +107,7 @@ class Preferences(object):
     def _parse_json_or_plist_file(self, file_path):
         """Parse the file. Start with plist, then JSON."""
         try:
-            with open(file_path, "r") as f:
+            with open(file_path, "rb") as f:
                 data = plistlib.load(f)
             self.type = "plist"
             self.file_path = file_path
@@ -307,7 +307,7 @@ def find_recipe_by_identifier(identifier, search_dirs):
 def get_autopkg_version():
     """Gets the version number of autopkg"""
     try:
-        with open(os.path.join(os.path.dirname(__file__), "version.plist"), "r") as f:
+        with open(os.path.join(os.path.dirname(__file__), "version.plist"), "rb") as f:
             version_plist = plistlib.load(f)
     except Exception:
         return "UNKNOWN"

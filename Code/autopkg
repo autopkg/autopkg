@@ -373,7 +373,7 @@ def load_recipe(
 
     if recipe_file:
         # read it
-        with open(recipe_file, "r") as f:
+        with open(recipe_file, "rb") as f:
             recipe = plistlib.load(f)
 
         # store parent trust info, but only if this is an override
@@ -1810,7 +1810,7 @@ def update_trust_info(argv):
             continue
         # normalize recipe path
         recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
-        with open(recipe_path, "r") as f:
+        with open(recipe_path, "rb") as f:
             recipe = plistlib.load(f)
         if "ParentRecipe" not in recipe:
             log_err(
