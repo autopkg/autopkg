@@ -20,7 +20,6 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError, log
 
-
 # pylint: disable=no-name-in-module
 try:
     from Foundation import NSDictionary

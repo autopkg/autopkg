@@ -19,7 +19,6 @@ import os
 
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["PackageRequired"]
 
 

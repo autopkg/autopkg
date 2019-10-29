@@ -24,7 +24,6 @@ import plistlib
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
-
 __all__ = ["PlistReader"]
 
 

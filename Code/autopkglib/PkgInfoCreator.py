@@ -22,7 +22,6 @@ from xml.etree import ElementTree
 
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["PkgInfoCreator"]
 
 

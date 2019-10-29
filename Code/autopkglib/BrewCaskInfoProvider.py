@@ -22,7 +22,6 @@ import urllib.request
 
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["BrewCaskInfoProvider"]
 
 

@@ -27,7 +27,6 @@ from xml.etree import ElementTree
 
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["SparkleUpdateInfoProvider"]
 
 DEFAULT_XMLNS = "http://www.andymatuschak.org/xml-namespaces/sparkle"

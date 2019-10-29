@@ -23,7 +23,6 @@ import subprocess
 
 from autopkglib import curl_cmd, get_pref, log, log_err
 
-
 BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 

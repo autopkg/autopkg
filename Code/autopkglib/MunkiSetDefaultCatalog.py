@@ -18,7 +18,6 @@
 
 from autopkglib import Processor, log
 
-
 # pylint: disable=no-name-in-module
 try:
     from Foundation import CFPreferencesCopyAppValue

@@ -22,7 +22,6 @@ from glob import glob
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
-
 __all__ = ["FileFinder"]
 
 

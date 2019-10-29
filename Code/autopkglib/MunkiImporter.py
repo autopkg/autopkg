@@ -22,7 +22,6 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError
 
-
 __all__ = ["MunkiImporter"]
 
 

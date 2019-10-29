@@ -24,7 +24,6 @@ from glob import glob
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
-
 __all__ = ["CodeSignatureVerifier"]
 
 RE_AUTHORITY_PKGUTIL = re.compile(r"\s+[1-9]+\. (?P<authority>.*)\n")

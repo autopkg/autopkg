@@ -22,7 +22,6 @@ import time
 
 from autopkglib import BUNDLE_ID, Processor, ProcessorError, is_mac
 
-
 if is_mac():
     import xattr
 
