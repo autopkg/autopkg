@@ -461,7 +461,7 @@ class MunkiImporter(Processor):
 
         try:
             with open(pkginfo_path, "wb") as f:
-                plistlib.dump(pkginfo)
+                plistlib.dump(pkginfo, f)
         except OSError as err:
             raise ProcessorError(
                 "Could not write pkginfo %s: %s" % (pkginfo_path, err.strerror)
