@@ -123,7 +123,7 @@ def recipe_plist_from_file(filename):
     if os.path.isfile(filename):
         try:
             # make sure we can read it
-            with open(filename, "r") as f:
+            with open(filename, "rb") as f:
                 recipe_plist = plistlib.load(f)
         except Exception as err:
             log_err("WARNING: plist error for %s: %s" % (filename, str(err)))
@@ -2026,7 +2026,7 @@ def parse_recipe_list(filename):
     or a plist containing recipes and other key/value pairs"""
     recipe_list = {}
     try:
-        with open(filename, "r") as f:
+        with open(filename, "rb") as f:
             plist = plistlib.load(f)
         if not plist.get("recipes"):
             # try to trigger an AttributeError if the plist is not a dict

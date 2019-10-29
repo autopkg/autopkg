@@ -278,7 +278,7 @@ def get_identifier_from_recipe_file(filename):
     identifier. Otherwise, returns None."""
     try:
         # make sure we can read it
-        with open(filename, "r") as f:
+        with open(filename, "rb") as f:
             recipe_plist = plistlib.load(f)
     except Exception as err:
         log_err("WARNING: plist error for %s: %s" % (filename, str(err)))  # noqa TODO
