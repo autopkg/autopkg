@@ -111,7 +111,7 @@ class ItemCopier(object):
                     raise ItemCopierError(
                         "There was an IO error in creating the path %s!" % destpath
                     )
-                except:
+                except Exception:
                     raise ItemCopierError(
                         "There was an unknown error in creating the path %s!" % destpath
                     )
