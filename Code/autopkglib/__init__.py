@@ -809,7 +809,7 @@ def get_processor(processor_name, recipe=None, env=None):
         if recipe.get("PARENT_RECIPES"):
             # also look in the directories containing the parent recipes
             parent_recipe_dirs = list(
-                {[os.path.dirname(item) for item in recipe["PARENT_RECIPES"]]}
+                set([os.path.dirname(item) for item in recipe["PARENT_RECIPES"]])
             )
             processor_search_dirs.extend(parent_recipe_dirs)
 
