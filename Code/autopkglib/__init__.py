@@ -27,6 +27,7 @@ import pprint
 import re
 import subprocess
 import sys
+import traceback
 from distutils.version import LooseVersion
 
 
@@ -675,16 +676,20 @@ class AutoPackager(object):
             try:
                 self.env = processor.process()
             except Exception as err:
+                if self.verbose:
+                    exc_type, exc_value, exc_traceback = sys.exc_info()
+                    traceback.print_exc(file=sys.stdout)
+                    traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
                 # Well-behaved processors should handle exceptions and
                 # raise ProcessorError. However, we catch Exception
                 # here to ensure that unexpected/unhandled exceptions
                 # from one processor do not prevent execution of
                 # subsequent recipes.
-                log_err(str(err))  # noqa TODO
+                log_err(err)
                 raise AutoPackagerError(
                     "Error in %s: Processor: %s: Error: %s"
-                    % (identifier, step["Processor"], str(err))
-                )  # noqa TODO
+                    % (identifier, step["Processor"], err)
+                )
 
             output_dict = {}
             for key in list(processor.output_variables.keys()):
