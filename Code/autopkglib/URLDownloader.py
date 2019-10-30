@@ -59,6 +59,19 @@ class URLDownloader(URLGetter):
             "required": False,
             "description": "Filename to override the URL's tail.",
         },
+        "prefetch_filename": {
+            "default": False,
+            "required": False,
+            "description": (
+                "If True, URLDownloader attempts to determine filename from HTTP"
+                "headers downloaded before file itself. Beware `prefetch_filename`"
+                "overrides `filename` option. Filename is determnied from the first"
+                "available source of information in the following way:"
+                "1. Content-Disposition header, 2. Location header,"
+                "3. `filename option (if set), 4. last part of `url`."
+                "`prefetch_filename` is usefull for URLs with redirects"
+            ),
+        },
         "CHECK_FILESIZE_ONLY": {
             "default": False,
             "required": False,
@@ -110,8 +123,8 @@ class URLDownloader(URLGetter):
             return xattr.getxattr(self.env["pathname"], attr)
         return None
 
-    def prepare_curl_cmd(self, pathname_temporary):
-        """Assemble curl command and return it."""
+    def prepare_base_curl_cmd(self):
+        """Assemble base curl command and return it."""
         curl_cmd = [
             super(URLDownloader, self).curl_binary(),
             "--silent",
@@ -125,9 +138,15 @@ class URLDownloader(URLGetter):
             "--location",
             "--url",
             self.env["url"],
-            "--output",
-            pathname_temporary,
         ]
+
+        return curl_cmd
+
+    def prepare_download_curl_cmd(self, pathname_temporary):
+        """Assemble file download curl command and return it."""
+
+        curl_cmd = self.prepare_base_curl_cmd()
+        curl_cmd.extend(["--output", pathname_temporary])
 
         super(URLDownloader, self).add_curl_common_opts(curl_cmd)
 
@@ -165,6 +184,23 @@ class URLDownloader(URLGetter):
         self.env["etag"] = ""
         self.existing_file_size = None
 
+    def prefetch_filename(self):
+        """Atempt to find filename in HTTP headers."""
+        curl_cmd = self.prepare_base_curl_cmd()
+        curl_cmd.extend(["--head"])
+
+        raw_headers = super(URLDownloader, self).download(curl_cmd)
+        header = super(URLDownloader, self).parse_headers(raw_headers)
+
+        if "filename=" in header.get("content-disposition", ""):
+            filename = header["content-disposition"].rpartition("filename=")[2]
+        elif header.get("http_redirected", None):
+            filename = header["http_redirected"].rpartition("/")[2]
+        else:
+            return None
+
+        return filename
+
     def get_filename(self):
         """Obtain filename from PKG variable or URL."""
         if "PKG" in self.env:
@@ -172,6 +208,11 @@ class URLDownloader(URLGetter):
             self.env["download_changed"] = True
             self.output("Given %s, no download needed." % self.env["pathname"])
             return None
+
+        if self.env.get("prefetch_filename", False):
+            filename = self.prefetch_filename()
+            if filename:
+                return filename
 
         if "filename" in self.env:
             filename = self.env["filename"]
@@ -286,13 +327,11 @@ class URLDownloader(URLGetter):
         pathname_temporary = self.create_temp_file(download_dir)
 
         # Prepare curl command
-        curl_cmd = self.prepare_curl_cmd(pathname_temporary)
+        curl_cmd = self.prepare_download_curl_cmd(pathname_temporary)
 
         # Execute curl command and parse headers
-        raw_header = super(URLDownloader, self).download(curl_cmd)
-        header = {}
-        super(URLDownloader, self).clear_header(header)
-        super(URLDownloader, self).parse_headers(raw_header, header)
+        raw_headers = super(URLDownloader, self).download(curl_cmd)
+        header = super(URLDownloader, self).parse_headers(raw_headers)
 
         if self.download_changed(header):
             self.env["download_changed"] = True
