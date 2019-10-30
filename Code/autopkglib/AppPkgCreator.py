@@ -83,7 +83,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         # pylint: disable=no-self-use
         plistpath = os.path.join(app_path, "Contents", "Info.plist")
         try:
-            with open(plistpath, "r") as f:
+            with open(plistpath, "rb") as f:
                 plist = plistlib.load(f)
         except Exception as err:
             raise ProcessorError("Can't read %s: %s" % (plistpath, err))

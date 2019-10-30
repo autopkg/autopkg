@@ -224,17 +224,18 @@ class URLDownloader(Processor):
         header["http_result_description"] = ""
         while True:
             if not donewithheaders:
-                info = proc.stdout.readline().strip("\r\n")
-                if info.startswith("HTTP/"):
+                output = proc.stdout.readline()
+                info = output.strip(b"\r\n")
+                if info.startswith(b"HTTP/"):
                     try:
                         header["http_result_code"] = info.split(None, 2)[1]
                         header["http_result_description"] = info.split(None, 2)[2]
                     except IndexError:
                         pass
-                elif ": " in info:
+                elif b": " in info:
                     # got a header line
                     part = info.split(None, 1)
-                    fieldname = part[0].rstrip(":").lower()
+                    fieldname = part[0].rstrip(b":").lower()
                     try:
                         header[fieldname] = part[1]
                     except IndexError:

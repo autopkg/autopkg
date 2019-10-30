@@ -54,8 +54,8 @@ class DmgMounter(Processor):
         string after the plist"""
         # pylint: disable=no-self-use
 
-        plist_header = "<?xml version"
-        plist_footer = "</plist>"
+        plist_header = b"<?xml version"
+        plist_footer = b"</plist>"
         plist_start_index = text_string.find(plist_header)
         if plist_start_index == -1:
             # not found

@@ -105,7 +105,7 @@ class PlistReader(DmgMounter):
             test_info_path = os.path.join(path, "Contents/Info.plist")
             if os.path.exists(test_info_path):
                 try:
-                    with open(test_info_path, "r") as f:
+                    with open(test_info_path, "rb") as f:
                         plist = plistlib.load(f)
                 except Exception:
                     raise ProcessorError(
@@ -154,7 +154,7 @@ class PlistReader(DmgMounter):
             # Try to read the plist
             self.output("Reading: %s" % path)
             try:
-                with open(path, "r") as f:
+                with open(path, "rb") as f:
                     info = plistlib.load(f)
             except Exception as err:
                 raise ProcessorError(err)

@@ -135,7 +135,7 @@ class MunkiImporter(Processor):
             catalogitems = []
         else:
             try:
-                with open(all_items_path, "r") as f:
+                with open(all_items_path, "rb") as f:
                     catalogitems = plistlib.load(f)
             except OSError as err:
                 raise ProcessorError(

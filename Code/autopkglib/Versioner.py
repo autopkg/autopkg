@@ -66,7 +66,7 @@ class Versioner(DmgMounter):
                     "File '%s' does not exist or could not be read." % input_plist_path
                 )
             try:
-                with open(input_plist_path, "r") as f:
+                with open(input_plist_path, "rb") as f:
                     plist = plistlib.load(f)
                 version_key = self.env.get("plist_version_key")
                 self.env["version"] = plist.get(version_key, "UNKNOWN_VERSION")

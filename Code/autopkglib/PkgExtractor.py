@@ -58,7 +58,7 @@ class PkgExtractor(DmgMounter):
                 raise ProcessorError("Failed to remove extract_root: %s" % err)
 
         try:
-            with open(info_plist, "r") as f:
+            with open(info_plist, "rb") as f:
                 info = plistlib.load(f)
         except Exception as err:
             raise ProcessorError("Failed to read Info.plist: %s" % err)

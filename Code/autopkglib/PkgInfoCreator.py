@@ -123,7 +123,7 @@ class PkgInfoCreator(Processor):
         if template_path.endswith(".plist"):
             # Try to load Info.plist in bundle format.
             try:
-                with open(self.env["template_path"], "r") as f:
+                with open(self.env["template_path"], "rb") as f:
                     info = plistlib.load(f)
             except Exception:
                 raise ProcessorError(
