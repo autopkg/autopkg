@@ -15,10 +15,6 @@
 # limitations under the License.
 """See docstring for GitHubReleasesInfoProvider class"""
 
-# Disabling warnings for env members and imports that only affect recipe-
-# specific processors.
-# pylint: disable=e1101,f0401
-
 import re
 
 import autopkglib.github
@@ -28,7 +24,6 @@ __all__ = ["GitHubReleasesInfoProvider"]
 
 
 class GitHubReleasesInfoProvider(Processor):
-    # pylint: disable=missing-docstring
     description = (
         "Get metadata from the latest release from a GitHub project"
         " using the GitHub Releases API."
@@ -85,7 +80,6 @@ class GitHubReleasesInfoProvider(Processor):
     def get_releases(self, repo):
         """Return a list of releases dicts for a given GitHub repo. repo must
         be of the form 'user/repo'"""
-        # pylint: disable=no-self-use
         releases = None
         github = autopkglib.github.GitHubSession()
         releases_uri = "/repos/%s/releases" % repo
@@ -134,7 +128,6 @@ class GitHubReleasesInfoProvider(Processor):
                 "No release assets were found that satisfy the criteria."
             )
 
-        # pylint: disable=w0201
         # We set these in the class to avoid passing more objects around
         self.selected_release = selected[0]
         self.selected_asset = selected[1]

@@ -73,7 +73,6 @@ class PkgInfoCreator(Processor):
 
     def convert_bundle_info_to_flat(self, info):
         """Converts pkg info from bundle format to flat format"""
-        # pylint: disable=no-self-use
         # Since we now only support flat packages, we might be able to
         # get rid of this in the near future, but all existing recipes
         # would need to convert to only flat-style Resources/data
@@ -113,8 +112,6 @@ class PkgInfoCreator(Processor):
     def convert_flat_info_to_bundle(self, info):
         """Converts pkg info from flat format to bundle format"""
         # since we now only support flat packages, just raise an exception
-        # pylint: disable=unused-argument
-        # pylint: disable=no-self-use
         raise ProcessorError("Bundle package creation no longer supported!")
 
     def load_template(self, template_path, template_type):
@@ -148,7 +145,6 @@ class PkgInfoCreator(Processor):
 
     def get_pkgroot_size(self, pkgroot):
         """Return the size of pkgroot (in kilobytes) and the number of files."""
-        # pylint: disable=no-self-use
 
         size = 0
         nfiles = 0
@@ -187,8 +183,6 @@ class PkgInfoCreator(Processor):
         """Create Info.plist data for bundle-style pkg"""
         # We don't support the creation of bundle-style pkgs
         # any longer, so raise an exception
-        # pylint: disable=unused-argument
-        # pylint: disable=no-self-use
         raise ProcessorError("Bundle package creation no longer supported!")
 
 

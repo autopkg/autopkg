@@ -20,12 +20,10 @@ import subprocess
 
 from autopkglib import Processor, ProcessorError, log
 
-# pylint: disable=no-name-in-module
 try:
     from Foundation import NSDictionary
 except:
     log("WARNING: Failed 'from Foundation import NSDictionary' in " + __name__)
-# pylint: enable=no-name-in-module
 
 __all__ = ["MunkiInstallsItemsCreator"]
 

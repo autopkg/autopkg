@@ -146,9 +146,7 @@ class Installer(DmgMounter):
     def connect(self):
         """Connect to autopkginstalld"""
         try:
-            # pylint: disable=attribute-defined-outside-init
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            # pylint: enable=attribute-defined-outside-init
             self.socket.connect(AUTOPKGINSTALLD_SOCKET)
         except socket.error as err:
             raise ProcessorError(

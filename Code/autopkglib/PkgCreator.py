@@ -241,9 +241,7 @@ class PkgCreator(Processor):
     def connect(self):
         """Connect to autopkgserver"""
         try:
-            # pylint: disable=attribute-defined-outside-init
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            # pylint: enable=attribute-defined-outside-init
             self.socket.connect(AUTO_PKG_SOCKET)
         except socket.error as err:
             raise ProcessorError("Couldn't connect to autopkgserver: %s" % err.strerror)

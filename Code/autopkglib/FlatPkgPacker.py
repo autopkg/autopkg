@@ -45,7 +45,6 @@ class FlatPkgPacker(Processor):
 
     def flatten(self, source_dir, dest_pkg):
         """Flattens a previously expanded flat package"""
-        # pylint: disable=no-self-use
         try:
             subprocess.check_call(
                 ["/usr/sbin/pkgutil", "--flatten", source_dir, dest_pkg]

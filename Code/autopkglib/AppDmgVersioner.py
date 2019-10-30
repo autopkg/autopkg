@@ -21,7 +21,6 @@ import os.path
 from autopkglib import ProcessorError, log
 from autopkglib.DmgMounter import DmgMounter
 
-# pylint: disable=no-name-in-module
 try:
     from Foundation import NSData, NSPropertyListSerialization
     from Foundation import NSPropertyListMutableContainers
@@ -34,14 +33,12 @@ except:
         "WARNING: Failed 'from Foundation import "
         "NSPropertyListMutableContainers' in " + __name__
     )
-# pylint: enable=no-name-in-module
 
 __all__ = ["AppDmgVersioner"]
 
 
 class AppDmgVersioner(DmgMounter):
     # we dynamically set the docstring from the description (DRY), so:
-    # pylint: disable=missing-docstring
     description = "Extracts bundle ID and version of app inside dmg."
     input_variables = {
         "dmg_path": {
@@ -59,7 +56,6 @@ class AppDmgVersioner(DmgMounter):
 
     def find_app(self, path):
         """Find app bundle at path."""
-        # pylint: disable=no-self-use
         apps = glob.glob(os.path.join(path, "*.app"))
         if len(apps) == 0:
             raise ProcessorError("No app found in dmg")
@@ -67,17 +63,14 @@ class AppDmgVersioner(DmgMounter):
 
     def read_bundle_info(self, path):
         """Read Contents/Info.plist inside a bundle."""
-        # pylint: disable=no-self-use
 
         plistpath = os.path.join(path, "Contents", "Info.plist")
-        # pylint: disable=line-too-long
         info, _, error = NSPropertyListSerialization.propertyListFromData_mutabilityOption_format_errorDescription_(
             NSData.dataWithContentsOfFile_(plistpath),
             NSPropertyListMutableContainers,
             None,
             None,
         )
-        # pylint: enable=line-too-long
 
         if error:
             raise ProcessorError("Can't read %s: %s" % (plistpath, error))

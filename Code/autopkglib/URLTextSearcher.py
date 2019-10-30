@@ -87,7 +87,6 @@ class URLTextSearcher(Processor):
 
     def get_url_and_search(self, url, re_pattern, headers=None, flags=None, opts=None):
         """Get data from url and search for re_pattern"""
-        # pylint: disable=no-self-use
         flag_accumulator = 0
         if flags:
             for flag in flags:

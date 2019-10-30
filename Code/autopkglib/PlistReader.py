@@ -99,7 +99,6 @@ class PlistReader(DmgMounter):
     def get_bundle_info_path(self, path):
         """Return full path to an Info.plist if 'path' is actually a bundle,
         otherwise None."""
-        # pylint: disable=no-self-use
         bundle_info_path = None
         if os.path.isdir(path):
             test_info_path = os.path.join(path, "Contents/Info.plist")

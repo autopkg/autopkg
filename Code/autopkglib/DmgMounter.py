@@ -33,7 +33,6 @@ class DmgMounter(Processor):
         super(DmgMounter, self).__init__(data, infile, outfile)
         self.mounts = dict()
 
-    # pylint: disable=invalid-name
     def parsePathForDMG(self, pathname):
         """Helper method for working with paths that reference something
         inside a disk image"""
@@ -45,14 +44,11 @@ class DmgMounter(Processor):
         # no disk image in path
         return pathname, "", ""
 
-    # pylint: enable=invalid-name
-
     def get_first_plist(self, text_string):
         """Gets the first plist from a text string that may contain one or
         more text-style plists.
         Returns a tuple - the first plist (if any) and the remaining
         string after the plist"""
-        # pylint: disable=no-self-use
 
         plist_header = b"<?xml version"
         plist_footer = b"</plist>"

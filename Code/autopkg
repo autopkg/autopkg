@@ -71,7 +71,6 @@ RECIPE_FAILED_CODE = 70
 
 def print_version(argv):
     """Prints autopkg version"""
-    # make PyLint happy here since all our verb functions are passed argv
     _ = argv[1]
     print(get_autopkg_version())
 

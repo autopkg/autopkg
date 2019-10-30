@@ -26,9 +26,6 @@ __all__ = ["BrewCaskInfoProvider"]
 
 
 class BrewCaskInfoProvider(Processor):
-    # we dynamically set the docstring from the description (DRY), so:
-    # pylint: disable=missing-docstring
-
     description = (
         "ATTENTION: This processor is deprecated, may not work "
         "as expected with all known Casks, and may be removed "
@@ -65,7 +62,6 @@ class BrewCaskInfoProvider(Processor):
     def parse_formula(self, formula):
         """Return a dict containing attributes of the formula, ie. 'url',
         'version', etc. parsed from the formula .rb file."""
-        # pylint: disable=no-self-use
         attrs = {}
         regex = r"^\s+(?P<attr>.+) [\'\"](?P<value>.+)[\'\"].*$"
         for line in formula.splitlines():

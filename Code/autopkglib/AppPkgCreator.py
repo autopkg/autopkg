@@ -80,7 +80,6 @@ class AppPkgCreator(DmgMounter, PkgCreator):
 
     def read_info_plist(self, app_path):
         """Read Contents/Info.plist from the app."""
-        # pylint: disable=no-self-use
         plistpath = os.path.join(app_path, "Contents", "Info.plist")
         try:
             with open(plistpath, "rb") as f:

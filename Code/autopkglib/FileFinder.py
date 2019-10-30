@@ -57,7 +57,6 @@ class FileFinder(DmgMounter):
     def globfind(self, pattern):
         """If multiple files are found the last alphanumerically sorted found
         file is returned"""
-        # pylint: disable=no-self-use
 
         glob_matches = glob(pattern)
 

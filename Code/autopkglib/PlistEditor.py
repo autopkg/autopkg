@@ -53,7 +53,6 @@ class PlistEditor(Processor):
 
     def read_plist(self, pathname):
         """reads a plist from pathname"""
-        # pylint: disable=no-self-use
         if not pathname:
             return {}
         try:
@@ -64,7 +63,6 @@ class PlistEditor(Processor):
 
     def write_plist(self, data, pathname):
         """writes a plist to pathname"""
-        # pylint: disable=no-self-use
         try:
             with open(pathname, "wb") as f:
                 plistlib.dump(data, f)
