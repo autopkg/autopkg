@@ -21,7 +21,6 @@ import copy
 import difflib
 import glob
 import hashlib
-import operator
 import optparse
 import os
 import plistlib
@@ -921,15 +920,15 @@ def print_gh_search_results(results_items):
     format_str = "%-{0}s %-{1}s %-40s".format(*spacers)
     print(format_str % ("Name", "Repo", "Path"))
     print(format_str % ("----", "----", "----"))
-    results_items.sort(key=operator.itemgetter("repository"))
+    results_items.sort(key=lambda x: x["repository"]["name"])
     for result in results_items:
         repo = result["repository"]
-        name = result["name"].encode("UTF-8")
-        path = result["path"].encode("UTF-8")
+        name = result["name"]
+        path = result["path"]
         if repo["full_name"].startswith("autopkg"):
-            repo_name = repo["name"].encode("UTF-8")
+            repo_name = repo["name"]
         else:
-            repo_name = repo["full_name"].encode("UTF-8")
+            repo_name = repo["full_name"]
         print(format_str % (name, repo_name, path))
 
 

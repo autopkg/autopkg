@@ -170,7 +170,7 @@ To save the token, paste it to the following prompt."""
 
             # Parse the headers and the JSON from curl output
             while True:
-                info = proc.stdout.readline()
+                info = str(proc.stdout.readline(), "UTF-8")
                 if not donewithheaders:
                     info = info.strip("\r\n")
                     if info:
