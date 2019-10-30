@@ -29,7 +29,12 @@ import subprocess
 import sys
 from distutils.version import LooseVersion
 
-import FoundationPlist
+try:
+    import FoundationPlist
+except ImportError:
+    print(unicode("WARNING: importing plistlib as FoundationPlist;").encode("UTF-8"))
+    print(unicode("WARNING: some plist formats will be unsupported").encode("UTF-8"))
+    import plistlib as FoundationPlist
 
 
 class memoize(dict):
@@ -67,7 +72,7 @@ def is_linux():
 
 # pylint: disable=no-name-in-module
 try:
-    from Foundation import NSArray, NSDictionary
+    from Foundation import NSArray, NSDictionary, NSNumber
     from CoreFoundation import (
         CFPreferencesAppSynchronize,
         CFPreferencesCopyAppValue,
@@ -78,8 +83,7 @@ try:
         kCFPreferencesCurrentUser,
         kCFPreferencesCurrentHost,
     )
-    from PyObjCTools import Conversion
-except:
+except ImportError:
     print(
         "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
     )
@@ -121,7 +125,7 @@ class Preferences(object):
             data = FoundationPlist.readPlist(file_path)
             self.type = "plist"
             self.file_path = file_path
-            return Conversion.pythonCollectionFromPropertyList(data)
+            return data
         except Exception:
             pass
         try:
@@ -137,12 +141,16 @@ class Preferences(object):
     def _get_macos_pref(self, key):
         """Get a specific macOS preference key."""
         value = CFPreferencesCopyAppValue(key, BUNDLE_ID)
-        # Casting NSArrays and NSDictionaries to native Python types.
-        # This a workaround for 10.6, where PyObjC doesn't seem to
-        # support as many common operations such as list concatenation
-        # between Python and ObjC objects.
-        if isinstance(value, NSArray) or isinstance(value, NSDictionary):
-            value = Conversion.pythonCollectionFromPropertyList(value)
+        if isinstance(value, NSNumber):
+            value = int(value)
+        elif isinstance(value, NSArray):
+            value = list(value)
+        elif isinstance(value, NSDictionary):
+            value = dict(value)
+            # RECIPE_REPOS is a dict of dicts
+            for k, v in value.items():
+                if isinstance(v, NSDictionary):
+                    value[k] = dict(v)
         return value
 
     def _get_macos_prefs(self):

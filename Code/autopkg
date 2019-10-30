@@ -68,7 +68,7 @@ if sys.platform != "darwin":
 
 try:
     import FoundationPlist
-except:
+except ImportError:
     log("WARNING: importing plistlib as FoundationPlist;")
     log("WARNING: some plist formats will be unsupported")
     import plistlib as FoundationPlist
