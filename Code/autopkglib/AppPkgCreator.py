@@ -43,13 +43,13 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         },
         "pkg_path": {
             "required": False,
-            "description": "The pathname for the pkg to be created. If not set, defaults "
-            "to %RECIPE_CACHE_DIR%/%app_name%-%version%.pkg",
+            "description": "The pathname for the pkg to be created. If not set, "
+            "defaults to %RECIPE_CACHE_DIR%/%app_name%-%version%.pkg",
         },
         "bundleid": {
             "required": False,
-            "description": "Bundle identifier of the app. If not set, will be extracted "
-            "from the CFBundleIdentifier in the app's Info.plist.",
+            "description": "Bundle identifier of the app. If not set, will be "
+            "extracted from the CFBundleIdentifier in the app's Info.plist.",
         },
         "version": {
             "required": False,
@@ -231,7 +231,8 @@ class AppPkgCreator(DmgMounter, PkgCreator):
 
             if [c for c in "*?[]!" if c in app_path]:
                 self.output(
-                    f"Using path '{matched_app_path}' matched from globbed '{app_path}'."
+                    f"Using path '{matched_app_path}' matched from globbed "
+                    f"'{app_path}'."
                 )
 
             # do the copy
