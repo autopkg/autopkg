@@ -554,11 +554,11 @@ def run_git(git_options_and_arguments, git_directory=None):
         (cmd_out, cmd_err) = proc.communicate()
     except OSError as err:
         raise GitError(
-            "ERROR: git execution failed with error code %d: %s"
-            % (err.errno, err.strerror)
+            f"ERROR: git execution failed with error code {err.errno}: "
+            f"{err.strerror}"
         )
     if proc.returncode != 0:
-        raise GitError("ERROR: %s" % cmd_err)
+        raise GitError(f"ERROR: {cmd_err}")
     else:
         return cmd_out.decode("UTF-8")
 
@@ -588,7 +588,7 @@ def get_recipe_repo(git_path):
         # probably should attempt a git pull
         # check to see if this is really a git repo first
         if not os.path.isdir(os.path.join(dest_dir, ".git")):
-            log_err("%s exists and is not a git repo!" % dest_dir)
+            log_err(f"{dest_dir} exists and is not a git repo!")
             return None
         log("Attempting git pull...")
         try:
@@ -615,7 +615,7 @@ def write_plist_exit_on_fail(plist_dict, path):
         with open(path, "wb") as f:
             plistlib.write(plist_dict, f)
     except (TypeError, OverflowError):
-        log_err("Failed to save plist to %s." % path)
+        log_err(f"Failed to save plist to {path}.")
         sys.exit(-1)
 
 
@@ -658,7 +658,7 @@ def save_pref_or_warn(key, value):
     try:
         set_pref(key, value)
     except PreferenceError as err:
-        log_err("WARNING: %s" % err)
+        log_err(f"WARNING:{err}")
 
 
 def get_search_dirs():
@@ -726,11 +726,11 @@ def expand_repo_url(url):
     if not parsed_url.scheme:
         # if URL looks like 'name/repo' then prepend the base GitHub URL
         if re.match(r"\w+/\w+", url):
-            url = "https://github.com/%s" % url
+            url = f"https://github.com/{url}"
 
         # if URL is one word, assume it's a repo within the 'autopkg' org
         elif re.match(r"\w", url):
-            url = "https://github.com/autopkg/%s" % url
+            url = f"https://github.com/autopkg/{url}"
 
     return url
 
@@ -740,16 +740,15 @@ def repo_add(argv):
     verb = argv[1]
     parser = gen_common_parser()
     parser.set_usage(
-        """Usage: %s %s recipe_repo_url
+        f"""Usage: %prog {verb} recipe_repo_url
 Download one or more new recipe repos and add it to the search path.
 The 'recipe_repo_url' argument can be of the following forms:
 - repo (implies 'https://github.com/autopkg/repo')
 - user/repo (implies 'https://github.com/user/repo')
 - (http[s]://|git://|user@server:)path/to/any/git/repo
 
-Example: '%s repo-add recipes'
+Example: '%prog repo-add recipes'
 ..adds the autopkg/recipes repo from GitHub."""
-        % ("%prog", verb, "%prog")
     )
     # Parse arguments
     arguments = common_parse(parser, argv)[1]
@@ -764,7 +763,7 @@ Example: '%s repo-add recipes'
         new_recipe_repo_dir = get_recipe_repo(repo_url)
         if new_recipe_repo_dir:
             if new_recipe_repo_dir not in recipe_search_dirs:
-                log("Adding %s to RECIPE_SEARCH_DIRS..." % new_recipe_repo_dir)
+                log(f"Adding {new_recipe_repo_dir} to RECIPE_SEARCH_DIRS...")
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
@@ -775,7 +774,7 @@ Example: '%s repo-add recipes'
 
     log("Updated search path:")
     for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
-        log("  '%s'" % search_dir)
+        log(f"  '{search_dir}'")
 
 
 def repo_delete(argv):
@@ -783,9 +782,9 @@ def repo_delete(argv):
     verb = argv[1]
     parser = gen_common_parser()
     parser.set_usage(
-        "Usage: %s %s recipe_repo_path_or_url [...]\n"
+        f"Usage: %prog {verb} recipe_repo_path_or_url [...]\n"
         "Delete one or more recipe repo and remove it from the search "
-        "path." % ("%prog", verb)
+        "path."
     )
 
     # Parse arguments
@@ -801,7 +800,7 @@ def repo_delete(argv):
         path_or_url = expand_repo_url(path_or_url)
         repo_path = get_repo_info(path_or_url).get("path")
         if not repo_path:
-            log_err("ERROR: Can't find an installed repo for %s" % path_or_url)
+            log_err(f"ERROR: Can't find an installed repo for {path_or_url}")
             continue
 
         # first, remove from RECIPE_SEARCH_DIRS
@@ -825,17 +824,12 @@ def repo_list(argv):
     """List recipe repos"""
     verb = argv[1]
     parser = gen_common_parser()
-    parser.set_usage(
-        "Usage: %s %s\n" "List all installed recipe repos." % ("%prog", verb)
-    )
+    parser.set_usage(f"Usage: %prog {verb}\n" "List all installed recipe repos.")
     _options, _arguments = common_parse(parser, argv)
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     if recipe_repos:
         for key in sorted(recipe_repos.keys()):
-            print(
-                "%s (%s)"
-                % (key.encode("UTF-8"), recipe_repos[key]["URL"].encode("UTF-8"))
-            )
+            print(f"{key} ({recipe_repos[key]['URL']})")
         print()
     else:
         print("No recipe repos.")
@@ -846,10 +840,10 @@ def repo_update(argv):
     verb = argv[1]
     parser = gen_common_parser()
     parser.set_usage(
-        "Usage: %s %s recipe_repo_path_or_url [...]\n"
+        f"Usage: %prog {verb} recipe_repo_path_or_url [...]\n"
         "Update one or more recipe repos.\n"
         "You may also use 'all' to update all installed recipe "
-        "repos." % ("%prog", verb)
+        "repos."
     )
 
     # Parse arguments
@@ -868,14 +862,14 @@ def repo_update(argv):
             path_or_url = expand_repo_url(path_or_url)
             repo_path = get_repo_info(path_or_url).get("path")
             if not repo_path:
-                log_err("ERROR: Can't find an installed repo for %s" % path_or_url)
+                log_err(f"ERROR: Can't find an installed repo for {path_or_url}")
             else:
                 repo_dirs.append(repo_path)
 
     for repo_dir in repo_dirs:
         # resolve ~ and symlinks before passing to git
         repo_dir = os.path.abspath(os.path.expanduser(repo_dir))
-        log("Attempting git pull for %s..." % repo_dir)
+        log(f"Attempting git pull for {repo_dir}...")
         try:
             log(run_git(["pull"], git_directory=repo_dir))
         except GitError as err:
@@ -940,12 +934,12 @@ def search_recipes(argv):
     verb = argv[1]
     parser = gen_common_parser()
     parser.set_usage(
-        "Usage: %s %s [options] search_term\n"
+        f"Usage: %prog {verb} [options] search_term\n"
         "Search for recipes on GitHub. The AutoPkg organization "
         "at github.com/autopkg\n"
         "is the canonical 'repository' of recipe repos, "
         "which is what is searched by\n"
-        "default." % ("%prog", verb)
+        "default."
     )
     parser.add_option(
         "-u",
@@ -953,7 +947,7 @@ def search_recipes(argv):
         default=default_user,
         help=(
             "Alternate GitHub user whose repos to search. "
-            "Defaults to '%s'." % default_user
+            f"Defaults to '{default_user}'."
         ),
     )
     parser.add_option(
@@ -995,7 +989,7 @@ def search_recipes(argv):
     if options.path_only:
         qualifier_in += "path"
     query += "+" + qualifier_in
-    query += "&per_page=%s" % results_limit
+    query += f"&per_page={results_limit}"
 
     results = do_gh_code_search(query, use_token=options.use_token)
     if not results:
@@ -1023,8 +1017,8 @@ def display_help(argv, subcommands):
     """Display top-level help"""
     main_command_name = os.path.basename(argv[0])
     print(
-        "Usage: %s <verb> <options>, where <verb> is one of the following:"
-        % main_command_name
+        f"Usage: {main_command_name} <verb> <options>, where <verb> is one of "
+        "the following:"
     )
     print()
     # find length of longest subcommand
@@ -1034,7 +1028,7 @@ def display_help(argv, subcommands):
         subcommand = key + (" " * (max_key_len - len(key)))
         print("    {}  ({})".format(subcommand, subcommands[key]["help"]))
     print()
-    print("%s <verb> --help for more help for that verb" % main_command_name)
+    print(f"{main_command_name} <verb> --help for more help for that verb")
 
 
 def get_info(argv):
@@ -1075,7 +1069,6 @@ def get_info(argv):
         ):
             return 0
         else:
-            # log_err("Can't find recipe %s, or it is invalid." % arguments[0])
             return -1
     else:
         log_err("Too many recipes!")
@@ -1089,7 +1082,7 @@ def processor_info(argv):
         """Print a dict of dicts and strings"""
         for key, value in list(var_dict.items()):
             if isinstance(value, dict):
-                print(" " * indent, "%s:" % key)
+                print(f" " * indent, "{key}:")
                 print_vars(value, indent=indent + 2)
             else:
                 print(" " * indent, "{}: {}".format(key, str(value).encode("UTF-8")))
@@ -1121,7 +1114,7 @@ def processor_info(argv):
     try:
         processor_class = get_processor(processor_name, recipe=recipe)
     except (KeyError, AttributeError):
-        log_err("Unknown processor '%s'" % processor_name)
+        log_err(f"Unknown processor '{processor_name}'")
         return -1
 
     try:
@@ -1140,7 +1133,7 @@ def processor_info(argv):
     except AttributeError:
         output_vars = {}
 
-    print("Description: %s" % description)
+    print(f"Description: {description}")
     print("Input variables:")
     print_vars(input_vars, indent=2)
     print("Output variables:")
@@ -1151,9 +1144,7 @@ def list_processors(argv):
     """List the processors in autopkglib"""
     verb = argv[1]
     parser = gen_common_parser()
-    parser.set_usage(
-        "Usage: %s %s [options]\n" "List the core Processors." % ("%prog", verb)
-    )
+    parser.set_usage(f"Usage: %prog {verb} [options]\n" "List the core Processors.")
 
     print("\n".join(sorted(processor_names())))
 
@@ -1201,9 +1192,9 @@ def make_suggestions_for(search_name):
             ]
 
     if len(matches) == 1:
-        print("Maybe you meant %s?" % matches[0])
+        print(f"Maybe you meant {matches[0]}?")
     elif len(matches):
-        print("Maybe you meant one of: %s?" % ", ".join(matches))
+        print(f"Maybe you meant one of: {', '.join(matches)}?")
 
 
 def get_recipe_list(
@@ -1278,8 +1269,8 @@ def list_recipes(argv):
     verb = argv[1]
     parser = gen_common_parser()
     parser.set_usage(
-        "Usage: %s %s [options]\n"
-        "List all the recipes this tool can find automatically.\n" % ("%prog", verb)
+        f"Usage: %prog {verb} [options]\n"
+        "List all the recipes this tool can find automatically.\n"
     )
     parser.add_option(
         "-i",
@@ -1315,7 +1306,7 @@ def list_recipes(argv):
 
     # Parse options
     add_search_and_override_dir_options(parser)
-    options = common_parse(parser, argv[1:])[0]
+    options = common_parse(parser, argv)[0]
 
     augmented_list = False
     if options.with_identifiers or options.with_paths or options.plist:
@@ -1362,10 +1353,12 @@ def list_recipes(argv):
                 else column_spacer
             )
 
-            spacers = (max_name_length, max_identifier_length)
-            format_str = "%-{}s %-{}s %-20s".format(*spacers)
+            name_spacer = f"{{: <{max_name_length}}}"
+            ident_spacer = f"{{: <{max_identifier_length}}}"
+            path_spacer = "{: <20}"
+            format_str = f"{name_spacer} {ident_spacer} {path_spacer}"
         else:
-            format_str = "%s%s%s"
+            format_str = "{}{}{}"
 
         output = []
 
@@ -1385,7 +1378,7 @@ def list_recipes(argv):
                 if user_home:
                     recipe_path = recipe_path.replace(user_home, "~")
 
-            out_string = format_str % (name, identifier, recipe_path)
+            out_string = format_str.format(name, identifier, recipe_path)
 
             if out_string not in output:
                 output.append(out_string)
@@ -1532,7 +1525,7 @@ def get_trust_info(recipe, search_dirs=None):
             processor_hash = getsha256hash(processor_path)
             git_hash = get_git_commit_hash(processor_path)
         else:
-            log_err("WARNING: processor path not found for %s" % processor)
+            log_err(f"WARNING: processor path not found for processor")
             processor_path = ""
             processor_hash = "PROCESSOR FILEPATH NOT FOUND"
             git_hash = None
@@ -1632,7 +1625,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         if verbosity > 1:
             warning += (
                 "\nTrust info should only be stored in local recipe overrides."
-                "\nTrust info found in %s" % recipe["RECIPE_PATH"]
+                f"\nTrust info found in {recipe['RECIPE_PATH']}"
             )
         raise TrustVerificationWarning(warning)
     # warn if no trust info
@@ -1644,14 +1637,14 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
             if verbosity > 1:
                 warning += (
                     "\nAudit the parent recipe, then run:\n"
-                    "\tautopkg update-trust-info %s" % recipe["name"]
+                    f"\tautopkg update-trust-info {recipe['name']}"
                 )
             raise TrustVerificationWarning(warning)
         else:
             if verbosity > 1:
                 warning += (
                     "\nAudit the recipe, then store trust info by running:\n"
-                    "\tautopkg make-override %s" % recipe["name"]
+                    f"\tautopkg make-override {recipe['name']}"
                 )
             raise TrustVerificationWarning(warning)
     recipe_repo_dir = get_pref("RECIPE_REPO_DIR") or "~/Library/AutoPkg/RecipeRepos"
@@ -1698,11 +1691,11 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
             processor_path = find_processor_path(processor, recipe)
             if processor_path:
                 trust_errors += (
-                    "Processor %s contents differ from expected.\n" % processor
+                    f"Processor {processor} contents differ from expected.\n"
                 )
-                trust_errors += "    Path: %s\n" % processor_path
+                trust_errors += f"    Path: {processor_path}\n"
             else:
-                trust_errors += "Expected processor %s can't be found.\n" % processor
+                trust_errors += f"Expected processor {processor} can't be found.\n"
                 processor_path = expected_trust_info["non_core_processors"][
                     processor
                 ].get("path")
@@ -1712,19 +1705,17 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
                 trust_errors += "\n"
     for processor in actual_processor_names:
         if processor not in expected_processor_names:
-            trust_errors += "Unexpected processor found: %s\n" % processor
+            trust_errors += f"Unexpected processor found: {processor}\n"
             processor_path = find_processor_path(processor, recipe)
             if processor_path:
-                trust_errors += "    Path: %s\n" % processor_path
+                trust_errors += f"    Path: {processor_path}\n"
 
     # get detail on parent_recipes
     expected_parent_recipes = list(expected_trust_info["parent_recipes"].keys())
     actual_parent_recipes = list(actual_trust_info["parent_recipes"].keys())
     if set(expected_parent_recipes) != set(actual_parent_recipes):
-        trust_errors += "Expected parent recipe list: %s\n" % list(
-            expected_parent_recipes
-        )
-        trust_errors += "Actual parent recipe list: %s\n" % list(actual_parent_recipes)
+        trust_errors += f"Expected parent recipe list: {[expected_parent_recipes]}\n"
+        trust_errors += f"Actual parent recipe list: {[expected_parent_recipes]}\n"
     for p_recipe_id in expected_parent_recipes:
         expected_hash = expected_trust_info["parent_recipes"][p_recipe_id][
             "sha256_hash"
