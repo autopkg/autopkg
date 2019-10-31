@@ -27,7 +27,7 @@ BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 
 
-class GitHubSession(object):
+class GitHubSession:
     """Handles a session with the GitHub API"""
 
     def __init__(self):
@@ -38,10 +38,8 @@ class GitHubSession(object):
             try:
                 with open(TOKEN_LOCATION, "r") as tokenf:
                     self.token = tokenf.read()
-            except IOError as err:
-                log_err(
-                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err)
-                )
+            except OSError as err:
+                log_err(f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}")
                 self.token = None
         else:
             self.token = None
@@ -62,15 +60,14 @@ To save the token, paste it to the following prompt."""
 
             token = eval(input("Token: "))
             if token:
-                log("""Writing token file %s.""" % TOKEN_LOCATION)
+                log(f"""Writing token file {TOKEN_LOCATION}.""")
                 try:
                     with open(TOKEN_LOCATION, "w") as tokenf:
                         tokenf.write(token)
                     os.chmod(TOKEN_LOCATION, 0o600)
-                except IOError as err:
+                except OSError as err:
                     log_err(
-                        "Couldn't write token file at %s! Error: %s"
-                        % (TOKEN_LOCATION, err)
+                        f"Couldn't write token file at {TOKEN_LOCATION}! Error: {err}"
                     )
             else:
                 log("Skipping token file creation.")
@@ -78,10 +75,8 @@ To save the token, paste it to the following prompt."""
             try:
                 with open(TOKEN_LOCATION, "r") as tokenf:
                     token = tokenf.read()
-            except IOError as err:
-                log_err(
-                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err)
-                )
+            except OSError as err:
+                log_err(f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}")
 
             # TODO: validate token given we found one but haven't checked its
             # auth status
@@ -129,19 +124,17 @@ To save the token, paste it to the following prompt."""
                 "-",
             ]
             cmd.extend(["-X", method])
-            cmd.extend(["--header", "%s: %s" % ("User-Agent", "AutoPkg")])
-            cmd.extend(["--header", "%s: %s" % ("Accept", accept)])
+            cmd.extend(["--header", "User-Agent: AutoPkg"])
+            cmd.extend(["--header", f"Accept: {accept}"])
 
             # Pass the GitHub token as a header
             if self.token:
-                cmd.extend(
-                    ["--header", "%s: %s" % ("Authorization", "token %s" % self.token)]
-                )
+                cmd.extend(["--header", f"Authorization: token {self.token}"])
 
             # Additional headers if defined
             if headers:
                 for header, value in list(headers.items()):
-                    cmd.extend(["--header", "%s: %s" % (header, value)])
+                    cmd.extend(["--header", f"{header}: {value}"])
 
             # Set the data header if defined
             if data:
@@ -223,7 +216,7 @@ To save the token, paste it to the following prompt."""
                         m = re.match(r".* (?P<status_code>\d+) .*", curlerr)
                         if m.group("status_code"):
                             header["http_result_code"] = m.group("status_code")
-                log_err("Could not retrieve URL %s: %s" % (url, curlerr))
+                log_err(f"Could not retrieve URL {url}: {curlerr}")
 
             if page_content:
                 resp_data = json.loads(page_content)
@@ -231,7 +224,7 @@ To save the token, paste it to the following prompt."""
                 resp_data = None
 
         except OSError:
-            log_err("Could not retrieve URL: %s" % url)
+            log_err(f"Could not retrieve URL: {url}")
             resp_data = None
 
         http_result_code = int(header.get("http_result_code"))
