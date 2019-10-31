@@ -127,7 +127,11 @@ class Preferences(object):
     def _get_macos_pref(self, key):
         """Get a specific macOS preference key."""
         value = CFPreferencesCopyAppValue(key, BUNDLE_ID)
-        # This intentionally
+        # This intentionally a shallow conversion, because it's meant to focus
+        # on AutoPkg's default preferences. If people add nested data structures
+        # into AutoPkg preferences, they might encounter some data type problems
+        # but that seems like a really unlikely possibility, especially given
+        # that they can just use --prefs option for JSON or plist parsing.
         if isinstance(value, NSNumber):
             value = int(value)
         elif isinstance(value, NSArray):
