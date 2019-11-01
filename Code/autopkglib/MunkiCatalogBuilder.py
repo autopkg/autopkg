@@ -56,11 +56,11 @@ class MunkiCatalogBuilder(Processor):
             (_, err_out) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "makecatalog execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"makecatalog execution failed with error code {err.errno}: "
+                f"{err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError("makecatalogs failed: %s" % err_out)
+            raise ProcessorError(f"makecatalogs failed: {err_out}")
         self.output("Munki catalogs rebuilt!")
 
 
