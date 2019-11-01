@@ -108,8 +108,8 @@ class PlistReader(DmgMounter):
                         plist = plistlib.load(f)
                 except Exception:
                     raise ProcessorError(
-                        "File %s looks like a bundle, but its "
-                        "'Contents/Info.plist' file cannot be parsed." % path
+                        f"File {path} looks like a bundle, but its "
+                        "'Contents/Info.plist' file cannot be parsed."
                     )
                 if plist:
                     bundle_info_path = test_info_path
@@ -133,7 +133,7 @@ class PlistReader(DmgMounter):
 
             # Finally check whether this is at least a valid path
             if not os.path.exists(path):
-                raise ProcessorError("Path '%s' doesn't exist!" % path)
+                raise ProcessorError(f"Path '{path}' doesn't exist!")
 
             # Is the path a bundle?
             info_plist_path = self.get_bundle_info_path(path)
@@ -151,7 +151,7 @@ class PlistReader(DmgMounter):
                 path = self.find_bundle(path)
 
             # Try to read the plist
-            self.output("Reading: %s" % path)
+            self.output(f"Reading: {path}")
             try:
                 with open(path, "rb") as f:
                     info = plistlib.load(f)
@@ -164,14 +164,14 @@ class PlistReader(DmgMounter):
                 try:
                     self.env[val] = info[key]
                     self.output(
-                        "Assigning value of '%s' to output variable '%s'"
-                        % (self.env[val], val)
+                        f"Assigning value of '{self.env[val]}' to output "
+                        f"variable '{val}'"
                     )
                     # This one is for documentation/recordkeeping
                     self.env["plist_reader_output_variables"][val] = self.env[val]
                 except KeyError:
                     raise ProcessorError(
-                        "Key '%s' could not be found in the plist %s!" % (key, path)
+                        f"Key '{key}' could not be found in the plist {path}!"
                     )
 
         finally:
