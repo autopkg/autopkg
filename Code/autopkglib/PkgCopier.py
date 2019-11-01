@@ -73,15 +73,15 @@ class PkgCopier(Copier):
             matched_source_path = matches[0]
             if len(matches) > 1:
                 self.output(
-                    "WARNING: Multiple paths match 'source_pkg' glob '%s':" % source_pkg
+                    f"WARNING: Multiple paths match 'source_pkg' glob '{source_pkg}':"
                 )
                 for match in matches:
-                    self.output("  - %s" % match)
+                    self.output(f"  - {match}")
 
             if [c for c in "*?[]!" if c in source_pkg]:
                 self.output(
-                    "Using path '%s' matched from globbed '%s'."
-                    % (matched_source_path, source_pkg)
+                    f"Using path '{matched_source_path}' matched from globbed "
+                    f"'{source_pkg}'."
                 )
 
             # do the copy
