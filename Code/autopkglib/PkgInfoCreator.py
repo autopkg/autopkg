@@ -53,18 +53,18 @@ class PkgInfoCreator(Processor):
             if self.env.get("PARENT_RECIPES"):
                 # also look in the directories containing the parent recipes
                 parent_recipe_dirs = list(
-                    set([os.path.dirname(item) for item in self.env["PARENT_RECIPES"]])
+                    {os.path.dirname(item) for item in self.env["PARENT_RECIPES"]}
                 )
                 search_dirs.extend(parent_recipe_dirs)
             for directory in search_dirs:
                 test_item = os.path.join(directory, template_path)
                 if os.path.exists(test_item):
                     return test_item
-        raise ProcessorError("Can't find %s" % template_path)
+        raise ProcessorError(f"Can't find {template_path}")
 
     def main(self):
         if self.env["pkgtype"] not in ("bundle", "flat"):
-            raise ProcessorError("Unknown pkgtype %s" % self.env["pkgtype"])
+            raise ProcessorError(f"Unknown pkgtype {self.env['pkgtype']}")
         template = self.load_template(self.find_template(), self.env["pkgtype"])
         if self.env["pkgtype"] == "bundle":
             raise ProcessorError("Bundle package creation no longer supported!")
@@ -124,7 +124,7 @@ class PkgInfoCreator(Processor):
                     info = plistlib.load(f)
             except Exception:
                 raise ProcessorError(
-                    "Malformed Info.plist template %s" % self.env["template_path"]
+                    f"Malformed Info.plist template {self.env['template_path']}"
                 )
             if template_type == "bundle":
                 return info
@@ -136,7 +136,7 @@ class PkgInfoCreator(Processor):
                 info = ElementTree.parse(template_path)
             except Exception:
                 raise ProcessorError(
-                    "Malformed PackageInfo template %s" % self.env["template_path"]
+                    f"Malformed PackageInfo template {self.env['template_path']}"
                 )
             if template_type == "flat":
                 return info
