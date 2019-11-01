@@ -42,6 +42,4 @@ class PackageRequired(Processor):
             )
 
         if not os.path.exists(pkg):
-            raise ProcessorError(
-                "Path to package or disk image does not exist: %s" % pkg
-            )
+            raise ProcessorError(f"Path to package or disk image does not exist: {pkg}")
