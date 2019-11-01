@@ -59,7 +59,7 @@ class PlistEditor(Processor):
             with open(pathname, "rb") as f:
                 return plistlib.load(f)
         except Exception as err:
-            raise ProcessorError("Could not read %s: %s" % (pathname, err))
+            raise ProcessorError(f"Could not read {pathname}: {err}")
 
     def write_plist(self, data, pathname):
         """writes a plist to pathname"""
@@ -67,7 +67,7 @@ class PlistEditor(Processor):
             with open(pathname, "wb") as f:
                 plistlib.dump(data, f)
         except Exception as err:
-            raise ProcessorError("Could not write %s: %s" % (pathname, err))
+            raise ProcessorError(f"Could not write {pathname}: {err}")
 
     def main(self):
         # read original plist (or empty plist)
@@ -80,7 +80,7 @@ class PlistEditor(Processor):
 
         # write changed plist
         self.write_plist(working_plist, self.env["output_plist_path"])
-        self.output("Updated plist at %s" % self.env["output_plist_path"])
+        self.output(f"Updated plist at {self.env['output_plist_path']}")
 
 
 if __name__ == "__main__":
