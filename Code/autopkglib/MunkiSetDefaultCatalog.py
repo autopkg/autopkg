@@ -20,7 +20,7 @@ from autopkglib import Processor, log
 
 try:
     from Foundation import CFPreferencesCopyAppValue
-except:
+except ImportError:
     log(
         "WARNING: Failed 'from Foundation import CFPreferencesCopyAppValue' "
         "in " + __name__
@@ -48,9 +48,7 @@ class MunkiSetDefaultCatalog(Processor):
         )
         if default_catalog:
             self.env["pkginfo"]["catalogs"] = [default_catalog]
-            self.output(
-                "Updated target catalogs into pkginfo with %s" % default_catalog
-            )
+            self.output(f"Updated target catalogs into pkginfo with {default_catalog}")
         else:
             self.output("No default catalogs found, nothing changed")
 
