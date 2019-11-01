@@ -82,13 +82,13 @@ class GitHubReleasesInfoProvider(Processor):
         be of the form 'user/repo'"""
         releases = None
         github = autopkglib.github.GitHubSession()
-        releases_uri = "/repos/%s/releases" % repo
+        releases_uri = f"/repos/{repo}/releases"
         (releases, status) = github.call_api(releases_uri)
         if status != 200:
-            raise ProcessorError("Unexpected GitHub API status code %s." % status)
+            raise ProcessorError(f"Unexpected GitHub API status code {status}.")
 
         if not releases:
-            raise ProcessorError("No releases found for repo '%s'" % repo)
+            raise ProcessorError(f"No releases found for repo '{repo}'")
 
         return releases
 
@@ -118,8 +118,8 @@ class GitHubReleasesInfoProvider(Processor):
                 else:
                     if re.match(regex, asset["name"]):
                         self.output(
-                            "Matched regex '%s' among asset(s): %s"
-                            % (regex, ", ".join([x["name"] for x in assets]))
+                            f"Matched regex '{regex}' among asset(s): "
+                            f"{', '.join([x['name'] for x in assets])}"
                         )
                         selected = (rel, asset)
                         break
@@ -132,8 +132,8 @@ class GitHubReleasesInfoProvider(Processor):
         self.selected_release = selected[0]
         self.selected_asset = selected[1]
         self.output(
-            "Selected asset '%s' from release '%s'"
-            % (self.selected_asset["name"], self.selected_release["name"])
+            f"Selected asset '{self.selected_asset['name']}' from release "
+            f"'{self.selected_release['name']}'"
         )
 
     def process_release_asset(self):
