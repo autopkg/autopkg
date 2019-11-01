@@ -73,7 +73,7 @@ class FileFinder(DmgMounter):
         method = self.env.get("find_method")
 
         if method != "glob":
-            raise ProcessorError("Unsupported find_method: %s" % method)
+            raise ProcessorError(f"Unsupported find_method: {method}")
 
         source_path = pattern
 
@@ -88,14 +88,13 @@ class FileFinder(DmgMounter):
             match = self.globfind(source_path)
             self.env["found_filename"] = match
             self.output(
-                "Found file match: '%s' from globbed '%s'"
-                % (self.env["found_filename"], source_path)
+                f"Found file match: '{self.env['found_filename']}' from globbed '{source_path}'"
             )
 
             if dmg and match.startswith(mount_point):
                 self.env["dmg_found_filename"] = match[len(mount_point) :].lstrip("/")
                 self.output(
-                    "DMG-relative file match: '%s'" % self.env["dmg_found_filename"]
+                    f"DMG-relative file match: '{self.env['dmg_found_filename']}'"
                 )
         finally:
             if dmg:
