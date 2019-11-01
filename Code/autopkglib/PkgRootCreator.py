@@ -57,41 +57,37 @@ class PkgRootCreator(Processor):
             elif os.path.isdir(self.env["pkgroot"]):
                 shutil.rmtree(self.env["pkgroot"])
         except OSError as err:
-            raise ProcessorError(
-                "Can't remove %s: %s" % (self.env["pkgroot"], err.strerror)
-            )
+            raise ProcessorError(f"Can't remove {self.env['pkgroot']}: {err.strerror}")
 
         # Create pkgroot. autopkghelper sets it to root:admin 01775.
         try:
             os.makedirs(self.env["pkgroot"])
-            self.output("Created %s" % self.env["pkgroot"])
+            self.output(f"Created {self.env['pkgroot']}")
         except OSError as err:
-            raise ProcessorError(
-                "Can't create %s: %s" % (self.env["pkgroot"], err.strerror)
-            )
+            raise ProcessorError(f"Can't create {self.env['pkgroot']}: {err.strerror}")
 
         # Create directories.
         absroot = os.path.abspath(self.env["pkgroot"])
         for directory, mode in sorted(self.env["pkgdirs"].items()):
-            self.output("Creating %s" % directory, verbose_level=2)
+            self.output(f"Creating {directory}", verbose_level=2)
             # Make sure we don't get an absolute path.
             if directory.startswith("/"):
-                raise ProcessorError("%s in pkgroot is absolute." % directory)
+                raise ProcessorError(f"{directory} in pkgroot is absolute.")
             dirpath = os.path.join(absroot, directory)
 
             # Make sure we're not trying to make a directory outside the
             # pkgroot.
             abspath = os.path.abspath(dirpath)
             if os.path.commonprefix((absroot, abspath)) != absroot:
-                raise ProcessorError("%s is outside pkgroot" % directory)
+                raise ProcessorError(f"{directory} is outside pkgroot")
 
             try:
                 os.makedirs(dirpath)
                 os.chmod(dirpath, int(mode, 8))
-                self.output("Created %s" % dirpath)
+                self.output(f"Created {dirpath}")
             except OSError as err:
                 raise ProcessorError(
-                    "Can't create %s with mode %s: %s" % (dirpath, mode, err.strerror)
+                    f"Can't create {dirpath} with mode {mode}: {err.strerror}"
                 )
 
 
