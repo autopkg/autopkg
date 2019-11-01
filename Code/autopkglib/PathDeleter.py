@@ -52,16 +52,16 @@ class PathDeleter(Processor):
                     shutil.rmtree(path)
                 elif not os.path.exists(path):
                     raise ProcessorError(
-                        "Could not remove %s - it does not exist!" % path
+                        f"Could not remove {path} - it does not exist!"
                     )
                 else:
                     raise ProcessorError(
-                        "Could not remove %s - it is not a file, link, "
-                        "or directory" % path
+                        f"Could not remove {path} - it is not a file, link, "
+                        "or directory"
                     )
-                self.output("Deleted %s" % path)
+                self.output(f"Deleted {path}")
             except OSError as err:
-                raise ProcessorError("Could not remove %s: %s" % (path, err))
+                raise ProcessorError(f"Could not remove {path}: {err}")
 
 
 if __name__ == "__main__":
