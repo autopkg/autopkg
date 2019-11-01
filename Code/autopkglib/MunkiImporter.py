@@ -488,7 +488,8 @@ class MunkiImporter(Processor):
             (out, err_out) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                f"makepkginfo execution failed with error code {err.errno}: {err.strerror}"
+                f"makepkginfo execution failed with error code {err.errno}: "
+                f"{err.strerror}"
             )
         if err_out:
             for err_line in err_out.splitlines():

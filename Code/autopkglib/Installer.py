@@ -108,7 +108,8 @@ class Installer(DmgMounter):
 
             if [c for c in "*?[]!" if c in pkg_path]:
                 self.output(
-                    f"Using path '{matched_pkg_path}' matched from globbed '{pkg_path}'."
+                    f"Using path '{matched_pkg_path}' matched from globbed "
+                    f"'{pkg_path}'."
                 )
 
             request = {"package": matched_pkg_path}
