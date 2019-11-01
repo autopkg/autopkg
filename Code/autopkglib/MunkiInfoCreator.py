@@ -74,7 +74,7 @@ class MunkiInfoCreator(Processor):
             args = ["/usr/local/munki/makepkginfo"]
             for option in munkiopts:
                 if option in self.env:
-                    args.append("--%s=%s" % (option, self.env[option]))
+                    args.append(f"--{option}={self.env[option]}")
             args.append(pkg_for_makepkginfo)
 
             # Call makepkginfo.
@@ -85,13 +85,12 @@ class MunkiInfoCreator(Processor):
                 (stdout, stderr) = proc.communicate()
             except OSError as err:
                 raise ProcessorError(
-                    "makepkginfo execution failed with error code %d: %s"
-                    % (err.errno, err.strerror)
+                    f"makepkginfo execution failed with error code {err.errno}: "
+                    f"{err.strerror}"
                 )
             if proc.returncode != 0:
                 raise ProcessorError(
-                    "creating pkginfo for %s failed: %s"
-                    % (self.env["pkg_path"], stderr)
+                    f"creating pkginfo for {self.env['pkg_path']} failed: {stderr}"
                 )
 
         # makepkginfo cleanup.
