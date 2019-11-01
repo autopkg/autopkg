@@ -22,7 +22,7 @@ from autopkglib import Processor, ProcessorError, log
 
 try:
     from Foundation import NSDictionary
-except:
+except ImportError:
     log("WARNING: Failed 'from Foundation import NSDictionary' in " + __name__)
 
 __all__ = ["MunkiInstallsItemsCreator"]
@@ -80,11 +80,11 @@ class MunkiInstallsItemsCreator(Processor):
             (out, err) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "makepkginfo execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"makepkginfo execution failed with error code {err.errno}: "
+                f"{err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError("creating pkginfo failed: %s" % err)
+            raise ProcessorError(f"creating pkginfo failed: {err}")
 
         # Get pkginfo from output plist.
         pkginfo = plistlib.loads(out)
@@ -94,7 +94,7 @@ class MunkiInstallsItemsCreator(Processor):
             for item in installs_array:
                 if item["path"].startswith(faux_root):
                     item["path"] = item["path"][len(faux_root) :]
-                self.output("Created installs item for %s" % item["path"])
+                self.output(f"Created installs item for {item['path']}")
 
         if "version_comparison_key" in self.env:
             for item in installs_array:
@@ -114,8 +114,8 @@ class MunkiInstallsItemsCreator(Processor):
                         item["version_comparison_key"] = cmp_key
                     else:
                         raise ProcessorError(
-                            "version_comparison_key '%s' could not be found in "
-                            "the installs item for path '%s'" % (cmp_key, item["path"])
+                            f"version_comparison_key '{cmp_key}' could not be found in "
+                            f"the installs item for path '{item['path']}'"
                         )
 
         if "additional_pkginfo" not in self.env:
