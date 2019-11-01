@@ -89,14 +89,14 @@ class InstallFromDMG(DmgMounter):
                 self.connect()
                 self.output("Sending installation request")
                 result = self.send_request(request)
-            except BaseException as err:
-                result = "ERROR: %s" % repr(err)
+            except Exception as err:
+                result = f"ERROR: {repr(err)}"
             finally:
                 self.output("Disconnecting")
                 self.disconnect()
 
             # Return result.
-            self.output("Result: %s" % result)
+            self.output(f"Result: {result}")
             self.env["install_result"] = result
             if result == "DONE":
                 self.env["install_from_dmg_summary_result"] = {
@@ -114,10 +114,8 @@ class InstallFromDMG(DmgMounter):
         try:
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.socket.connect(AUTOPKGINSTALLD_SOCKET)
-        except socket.error as err:
-            raise ProcessorError(
-                "Couldn't connect to autopkginstalld: %s" % err.strerror
-            )
+        except OSError as err:
+            raise ProcessorError(f"Couldn't connect to autopkginstalld: {err.strerror}")
 
     def send_request(self, request):
         """Send an install request to autopkginstalld"""
