@@ -39,21 +39,21 @@ class DmgCreator(Processor):
         "dmg_path": {"required": True, "description": "The dmg to be created."},
         "dmg_format": {
             "required": False,
-            "description": ("The dmg format. Defaults to %s." % DEFAULT_DMG_FORMAT),
+            "description": (f"The dmg format. Defaults to {DEFAULT_DMG_FORMAT}."),
         },
         "dmg_filesystem": {
             "required": False,
             "description": (
-                "The dmg filesystem. Defaults to %s." % DEFAULT_DMG_FILESYSTEM
+                f"The dmg filesystem. Defaults to {DEFAULT_DMG_FILESYSTEM}."
             ),
         },
         "dmg_zlib_level": {
             "required": False,
             "description": (
                 "Compression level between '1' and '9' to use "
-                "when using UDZO. Defaults to '%s', a point "
+                f"when using UDZO. Defaults to '{DEFAULT_ZLIB_LEVEL}', a point "
                 "beyond which very little space savings is "
-                "gained." % DEFAULT_ZLIB_LEVEL
+                "gained."
             ),
         },
         "dmg_megabytes": {
@@ -94,8 +94,8 @@ class DmgCreator(Processor):
         dmg_format = self.env.get("dmg_format", DEFAULT_DMG_FORMAT)
         if dmg_format not in valid_formats:
             raise ProcessorError(
-                "dmg format '%s' is invalid. Must be one of: %s."
-                % (dmg_format, ", ".join(valid_formats))
+                f"dmg format '{dmg_format}' is invalid. Must be one of: "
+                f"{', '.join(valid_formats)}."
             )
 
         zlib_level = int(self.env.get("dmg_zlib_level", DEFAULT_ZLIB_LEVEL))
@@ -121,8 +121,8 @@ class DmgCreator(Processor):
         dmg_filesystem = self.env.get("dmg_filesystem", DEFAULT_DMG_FILESYSTEM)
         if dmg_filesystem not in valid_filesystems:
             raise ProcessorError(
-                "dmg filesystem '%s' is invalid. Must be one of: %s."
-                % (dmg_filesystem, ", ".join(valid_filesystems))
+                f"dmg filesystem '{dmg_filesystem}' is invalid. Must be one of: "
+                f"{', '.join(valid_filesystems)}."
             )
 
         # Build a command for hdiutil.
@@ -136,7 +136,7 @@ class DmgCreator(Processor):
             dmg_format,
         ]
         if dmg_format == "UDZO":
-            cmd.extend(["-imagekey", "zlib-level=%s" % str(zlib_level)])
+            cmd.extend(["-imagekey", f"zlib-level={str(zlib_level)}"])
         if self.env.get("dmg_megabytes"):
             cmd.extend(["-megabytes", str(self.env["dmg_megabytes"])])
         cmd.extend(["-srcfolder", self.env["dmg_root"], self.env["dmg_path"]])
@@ -147,16 +147,13 @@ class DmgCreator(Processor):
             stderr = proc.communicate()[1]
         except OSError as err:
             raise ProcessorError(
-                "hdiutil execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError(
-                "creation of %s failed: %s" % (self.env["dmg_path"], stderr)
-            )
+            raise ProcessorError(f"creation of {self.env['dmg_path']} failed: {stderr}")
 
         self.output(
-            "Created dmg from %s at %s" % (self.env["dmg_root"], self.env["dmg_path"])
+            f"Created dmg from {self.env['dmg_root']} at {self.env['dmg_path']}"
         )
 
 
