@@ -84,7 +84,7 @@ class BrewCaskInfoProvider(Processor):
                 subbed_key = match.groups()[0]
                 self.output(f"Substituting value '{subbed_key}' in {key}: '{value}'")
                 newattrs[key] = re.sub(
-                    "#{%s}" % subbed_key, newattrs[subbed_key], newattrs[key]
+                    f"#{{{subbed_key}}}", newattrs[subbed_key], newattrs[key]
                 )
         return newattrs
 
