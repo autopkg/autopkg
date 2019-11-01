@@ -82,9 +82,7 @@ class BrewCaskInfoProvider(Processor):
             match = re.search("#{(.+?)}", value)
             if match:
                 subbed_key = match.groups()[0]
-                self.output(
-                    "Substituting value '%s' in %s: '%s'" % (subbed_key, key, value)
-                )
+                self.output(f"Substituting value '{subbed_key}' in {key}: '{value}'")
                 newattrs[key] = re.sub(
                     "#{%s}" % subbed_key, newattrs[subbed_key], newattrs[key]
                 )
@@ -98,11 +96,11 @@ class BrewCaskInfoProvider(Processor):
         github_raw_baseurl = (
             "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/" "Casks"
         )
-        cask_url = "%s/%s.rb" % (github_raw_baseurl, self.env["cask_name"])
+        cask_url = f"{github_raw_baseurl}/{self.env['cask_name']}.rb"
         try:
             urlobj = urllib.request.urlopen(cask_url)
         except urllib.error.HTTPError as err:
-            raise ProcessorError("Error opening URL %s: %s" % (cask_url, err))
+            raise ProcessorError(f"Error opening URL {cask_url}: {err}")
 
         formula_data = urlobj.read()
         parsed = self.parse_formula(formula_data)
@@ -118,7 +116,7 @@ class BrewCaskInfoProvider(Processor):
             self.env["version"] = ""
 
         self.output(
-            "Got URL %s from for cask '%s':" % (self.env["url"], self.env["cask_name"])
+            f"Got URL {self.env['url']} from for cask '{self.env['cask_name']}':"
         )
 
 
