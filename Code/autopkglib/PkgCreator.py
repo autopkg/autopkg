@@ -77,7 +77,7 @@ class PkgCreator(Processor):
         if self.env.get("PARENT_RECIPES"):
             # also look in the directories containing the parent recipes
             parent_recipe_dirs = list(
-                set([os.path.dirname(item) for item in self.env["PARENT_RECIPES"]])
+                {os.path.dirname(item) for item in self.env["PARENT_RECIPES"]}
             )
             search_dirs.extend(parent_recipe_dirs)
         for directory in search_dirs:
@@ -85,7 +85,7 @@ class PkgCreator(Processor):
             if os.path.exists(test_item):
                 return os.path.normpath(test_item)
 
-        raise ProcessorError("Can't find %s" % relpath)
+        raise ProcessorError(f"Can't find {relpath}")
 
     def xar_expand(self, source_path):
         """Uses xar to expand an archive"""
@@ -105,12 +105,11 @@ class PkgCreator(Processor):
             (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "xar execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"xar execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
             raise ProcessorError(
-                "extraction of %s with xar failed: %s" % (source_path, stderr)
+                f"extraction of {source_path} with xar failed: {stderr}"
             )
 
     def pkg_already_exists(self, pkg_path, identifier, version):
@@ -118,17 +117,17 @@ class PkgCreator(Processor):
            identifier and version to the one we're going to build.
            Returns a boolean."""
         if os.path.exists(pkg_path) and not self.env.get("force_pkg_build"):
-            self.output("Package already exists at path %s." % pkg_path)
+            self.output(f"Package already exists at path {pkg_path}.")
             try:
                 self.xar_expand(pkg_path)
             except ProcessorError as err:
                 self.output(err)
                 # just remove the pkg and return False
-                self.output("Removing %s" % pkg_path)
+                self.output(f"Removing {pkg_path}")
                 try:
                     os.unlink(pkg_path)
                 except OSError as err:
-                    raise ProcessorError("Could not remove %s: %s" % pkg_path, err)
+                    raise ProcessorError(f"Could not remove {pkg_path}: {err}")
                 return False
             packageinfo_file = os.path.join(self.env["RECIPE_CACHE_DIR"], "PackageInfo")
             if not os.path.exists(packageinfo_file):
@@ -137,11 +136,11 @@ class PkgCreator(Processor):
                     "file could be found in the extracted archive."
                 )
                 # just remove the pkg and return False
-                self.output("Removing %s" % pkg_path)
+                self.output(f"Removing {pkg_path}")
                 try:
                     os.unlink(pkg_path)
                 except OSError as err:
-                    raise ProcessorError("Could not remove %s: %s" % pkg_path, err)
+                    raise ProcessorError(f"Could not remove {pkg_path}: {err}")
                 return False
             # parse the PackageInfo file for version and identifier
             tree = ET.parse(packageinfo_file)
@@ -191,7 +190,7 @@ class PkgCreator(Processor):
                     # we only support flat packages now
                     request[key] = "flat"
                 else:
-                    raise ProcessorError("Request key %s missing" % key)
+                    raise ProcessorError(f"Request key {key} missing")
 
         # Make sure chown array is present.
         if "chown" not in request:
@@ -243,8 +242,8 @@ class PkgCreator(Processor):
         try:
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.socket.connect(AUTO_PKG_SOCKET)
-        except socket.error as err:
-            raise ProcessorError("Couldn't connect to autopkgserver: %s" % err.strerror)
+        except OSError as err:
+            raise ProcessorError(f"Couldn't connect to autopkgserver: {err.strerror}")
 
     def send_request(self, request):
         """Send a packaging request to the autopkgserver"""
