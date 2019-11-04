@@ -93,9 +93,7 @@ class Unarchiver(Processor):
             try:
                 os.makedirs(destination_path)
             except OSError as err:
-                raise ProcessorError(
-                    "Can't create %s: %s" % (destination_path, err.strerror)
-                )
+                raise ProcessorError(f"Can't create {destination_path}: {err.strerror}")
         elif self.env.get("purge_destination"):
             for entry in os.listdir(destination_path):
                 path = os.path.join(destination_path, entry)
@@ -105,24 +103,25 @@ class Unarchiver(Processor):
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError("Can't remove %s: %s" % (path, err.strerror))
+                    raise ProcessorError(f"Can't remove {path}: {err.strerror}")
 
         fmt = self.env.get("archive_format")
         if fmt is None:
             fmt = self.get_archive_format(archive_path)
             if not fmt:
                 raise ProcessorError(
-                    "Can't guess archive format for filename %s"
-                    % os.path.basename(archive_path)
+                    "Can't guess archive format for filename "
+                    f"{os.path.basename(archive_path)}"
                 )
             self.output(
-                "Guessed archive format '%s' from filename %s"
-                % (fmt, os.path.basename(archive_path))
+                f"Guessed archive format '{fmt}' from filename "
+                f"{os.path.basename(archive_path)}"
             )
         elif fmt not in list(EXTNS.keys()):
+            msg = ", ".join(list(EXTNS.keys()))
             raise ProcessorError(
-                "'%s' is not valid for the 'archive_format' variable. "
-                "Must be one of %s." % (fmt, ", ".join(list(EXTNS.keys())))
+                f"'{fmt}' is not valid for the 'archive_format' variable. "
+                f"Must be one of {msg}."
             )
 
         if fmt == "zip":
@@ -149,16 +148,16 @@ class Unarchiver(Processor):
             (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "%s execution failed with error code %d: %s"
-                % (os.path.basename(cmd[0]), err.errno, err.strerror)
+                f"{os.path.basename(cmd[0])} execution failed with error code "
+                f"{err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
             raise ProcessorError(
-                "Unarchiving %s with %s failed: %s"
-                % (archive_path, os.path.basename(cmd[0]), stderr)
+                f"Unarchiving {archive_path} with {os.path.basename(cmd[0])} failed: "
+                f"{stderr}"
             )
 
-        self.output("Unarchived %s to %s" % (archive_path, destination_path))
+        self.output(f"Unarchived {archive_path} to {destination_path}")
 
 
 if __name__ == "__main__":
