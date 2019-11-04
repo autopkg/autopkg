@@ -64,16 +64,6 @@ if sys.platform != "darwin":
 """
     )
 
-<<<<<<< HEAD
-try:
-    import FoundationPlist
-except ImportError:
-    log("WARNING: importing plistlib as FoundationPlist;")
-    log("WARNING: some plist formats will be unsupported")
-    import plistlib as FoundationPlist
-=======
->>>>>>> fa40e86909ce0e9a6a420288cacb96042e687778
-
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
 
