@@ -29,8 +29,8 @@ if is_mac():
 __all__ = ["URLDownloader"]
 
 # XATTR names for Etag and Last-Modified headers
-XATTR_ETAG = "%s.etag" % BUNDLE_ID
-XATTR_LAST_MODIFIED = "%s.last-modified" % BUNDLE_ID
+XATTR_ETAG = f"{BUNDLE_ID}.etag"
+XATTR_LAST_MODIFIED = f"{BUNDLE_ID}.last-modified"
 
 
 def getxattr(pathname, attr):
@@ -130,7 +130,7 @@ class URLDownloader(Processor):
         if "PKG" in self.env:
             self.env["pathname"] = os.path.expanduser(self.env["PKG"])
             self.env["download_changed"] = True
-            self.output("Given %s, no download needed." % self.env["pathname"])
+            self.output(f"Given {self.env['pathname']}, no download needed.")
             return
 
         if "filename" not in self.env:
@@ -150,9 +150,7 @@ class URLDownloader(Processor):
             try:
                 os.makedirs(download_dir)
             except OSError as err:
-                raise ProcessorError(
-                    "Can't create %s: %s" % (download_dir, err.strerror)
-                )
+                raise ProcessorError(f"Can't create {download_dir}: {err.strerror}")
 
         # Create a temp file
         temporary_file = tempfile.NamedTemporaryFile(dir=download_dir, delete=False)
@@ -185,7 +183,7 @@ class URLDownloader(Processor):
         if "request_headers" in self.env:
             headers = self.env["request_headers"]
             for header, value in list(headers.items()):
-                curl_cmd.extend(["--header", "%s: %s" % (header, value)])
+                curl_cmd.extend(["--header", f"{header}: {value}"])
 
         if "curl_opts" in self.env:
             for item in self.env["curl_opts"]:
@@ -203,9 +201,9 @@ class URLDownloader(Processor):
             etag = getxattr(pathname, XATTR_ETAG)
             last_modified = getxattr(pathname, XATTR_LAST_MODIFIED)
             if etag:
-                curl_cmd.extend(["--header", "If-None-Match: %s" % etag])
+                curl_cmd.extend(["--header", f"If-None-Match: {etag}"])
             if last_modified:
-                curl_cmd.extend(["--header", "If-Modified-Since: %s" % last_modified])
+                curl_cmd.extend(["--header", f"If-Modified-Since: {last_modified}"])
 
         # Open URL.
         proc = subprocess.Popen(
@@ -292,7 +290,7 @@ class URLDownloader(Processor):
             except IndexError:
                 pass
 
-            raise ProcessorError("Curl failure: %s (exit code %s)" % (curlerr, retcode))
+            raise ProcessorError(f"Curl failure: {curlerr} (exit code {retcode})")
 
         # If Content-Length header is present and we had a cached
         # file, see if it matches the size of the cached file.
@@ -306,21 +304,21 @@ class URLDownloader(Processor):
                 self.env["download_changed"] = False
                 self.output(
                     "File size returned by webserver matches that "
-                    "of the cached file: %s bytes" % size_header
+                    f"of the cached file: {size_header} bytes"
                 )
                 self.output(
                     "WARNING: Matching a download by filesize is a "
                     "fallback mechanism that does not guarantee "
                     "that a build is unchanged."
                 )
-                self.output("Using existing %s" % pathname)
+                self.output(f"Using existing {pathname}")
                 return
 
         if header["http_result_code"] == "304":
             # resource not modified
             self.env["download_changed"] = False
             self.output("Item at URL is unchanged.")
-            self.output("Using existing %s" % pathname)
+            self.output(f"Using existing {pathname}")
 
             # Discard the temp file
             os.remove(pathname_temporary)
@@ -336,14 +334,14 @@ class URLDownloader(Processor):
         try:
             os.rename(pathname_temporary, pathname)
         except OSError:
-            raise ProcessorError("Can't move %s to %s" % (pathname_temporary, pathname))
+            raise ProcessorError(f"Can't move {pathname_temporary} to {pathname}")
 
         # save last-modified header if it exists
         if header.get("last-modified"):
             self.env["last_modified"] = header.get("last-modified")
             xattr.setxattr(pathname, XATTR_LAST_MODIFIED, header.get("last-modified"))
             self.output(
-                "Storing new Last-Modified header: %s" % header.get("last-modified")
+                f"Storing new Last-Modified header: {header.get('last-modified')}"
             )
 
         # save etag if it exists
@@ -351,9 +349,9 @@ class URLDownloader(Processor):
         if header.get("etag"):
             self.env["etag"] = header.get("etag")
             xattr.setxattr(pathname, XATTR_ETAG, header.get("etag"))
-            self.output("Storing new ETag header: %s" % header.get("etag"))
+            self.output(f"Storing new ETag header: {header.get('etag')}")
 
-        self.output("Downloaded %s" % pathname)
+        self.output(f"Downloaded {pathname}")
         self.env["url_downloader_summary_result"] = {
             "summary_text": "The following new items were downloaded:",
             "data": {"download_path": pathname},
