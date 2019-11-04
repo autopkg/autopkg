@@ -99,7 +99,7 @@ class URLTextSearcher(Processor):
             cmd = [self.env["CURL_PATH"], "--location", "--compressed"]
             if headers:
                 for header, value in list(headers.items()):
-                    cmd.extend(["--header", "%s: %s" % (header, value)])
+                    cmd.extend(["--header", f"{header}: {value}"])
             if opts:
                 for item in opts:
                     cmd.extend([item])
@@ -107,14 +107,14 @@ class URLTextSearcher(Processor):
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (content, stderr) = proc.communicate()
             if proc.returncode:
-                raise ProcessorError("Could not retrieve URL %s: %s" % (url, stderr))
+                raise ProcessorError(f"Could not retrieve URL {url}: {stderr}")
         except OSError:
-            raise ProcessorError("Could not retrieve URL: %s" % url)
+            raise ProcessorError(f"Could not retrieve URL: {url}")
 
         match = re_pattern.search(content)
 
         if not match:
-            raise ProcessorError("No match found on URL: %s" % url)
+            raise ProcessorError(f"No match found on URL: {url}")
 
         # return the last matched group with the dict of named groups
         return (match.group(match.lastindex or 0), match.groupdict())
@@ -139,7 +139,7 @@ class URLTextSearcher(Processor):
         self.output_variables = {}
         for key in list(groupdict.keys()):
             self.env[key] = groupdict[key]
-            self.output("Found matching text (%s): %s" % (key, self.env[key]))
+            self.output(f"Found matching text ({key}): {self.env[key]}")
             self.output_variables[key] = {
                 "description": "Matched regular expression group"
             }
