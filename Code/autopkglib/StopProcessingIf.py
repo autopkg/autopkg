@@ -19,7 +19,7 @@ from autopkglib import Processor, ProcessorError, log
 
 try:
     from Foundation import NSPredicate
-except:
+except ImportError:
     log("WARNING: Failed 'from Foundation import NSPredicate' in " + __name__)
 
 __all__ = ["StopProcessingIf"]
