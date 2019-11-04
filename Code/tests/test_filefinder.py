@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 
 import plistlib
 import unittest
