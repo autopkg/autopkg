@@ -115,7 +115,7 @@ class Preferences:
         except Exception:
             pass
         try:
-            with open(file_path, "r") as f:
+            with open(file_path, "rb") as f:
                 data = json.load(f)
                 self.type = "json"
                 self.file_path = file_path
@@ -285,6 +285,7 @@ def get_identifier(recipe):
 def get_identifier_from_recipe_file(filename):
     """Attempts to read plist file filename and get the
     identifier. Otherwise, returns None."""
+    recipe_plist = {}
     try:
         # make sure we can read it
         with open(filename, "rb") as f:
