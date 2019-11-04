@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2015 Jesse Peterson
 #
@@ -42,6 +42,4 @@ class PackageRequired(Processor):
             )
 
         if not os.path.exists(pkg):
-            raise ProcessorError(
-                "Path to package or disk image does not exist: %s" % pkg
-            )
+            raise ProcessorError(f"Path to package or disk image does not exist: {pkg}")

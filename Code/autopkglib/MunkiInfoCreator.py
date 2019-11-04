@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2010 Per Olofsson
 #
@@ -16,11 +16,11 @@
 """See docstring for MunkiInfoCreator class"""
 
 import os.path
+import plistlib
 import shutil
 import subprocess
 import tempfile
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError
 
 __all__ = ["MunkiInfoCreator"]
@@ -74,7 +74,7 @@ class MunkiInfoCreator(Processor):
             args = ["/usr/local/munki/makepkginfo"]
             for option in munkiopts:
                 if option in self.env:
-                    args.append("--%s=%s" % (option, self.env[option]))
+                    args.append(f"--{option}={self.env[option]}")
             args.append(pkg_for_makepkginfo)
 
             # Call makepkginfo.
@@ -85,13 +85,12 @@ class MunkiInfoCreator(Processor):
                 (stdout, stderr) = proc.communicate()
             except OSError as err:
                 raise ProcessorError(
-                    "makepkginfo execution failed with error code %d: %s"
-                    % (err.errno, err.strerror)
+                    f"makepkginfo execution failed with error code {err.errno}: "
+                    f"{err.strerror}"
                 )
             if proc.returncode != 0:
                 raise ProcessorError(
-                    "creating pkginfo for %s failed: %s"
-                    % (self.env["pkg_path"], stderr)
+                    f"creating pkginfo for {self.env['pkg_path']} failed: {stderr}"
                 )
 
         # makepkginfo cleanup.
@@ -100,7 +99,7 @@ class MunkiInfoCreator(Processor):
                 shutil.rmtree(temp_path)
 
         # Read output plist.
-        output = FoundationPlist.readPlistFromString(stdout)
+        output = plistlib.loads(stdout)
 
         # Set version and name.
         if "version" in self.env:
@@ -111,7 +110,8 @@ class MunkiInfoCreator(Processor):
         # Save info.
         self.env["munki_info"] = output
         if "info_path" in self.env:
-            FoundationPlist.writePlist(output, self.env["info_path"])
+            with open(self.env["info_path"], "wb") as f:
+                plistlib.dump(output, f)
 
 
 if __name__ == "__main__":

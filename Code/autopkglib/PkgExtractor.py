@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -16,10 +16,10 @@
 """See docstring for PkgExtractor class"""
 
 import os
+import plistlib
 import shutil
 import subprocess
 
-import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
@@ -43,7 +43,6 @@ class PkgExtractor(DmgMounter):
     def extract_payload(self, pkg_path, extract_root):
         """Extract package contents to extract_root, preserving intended
          directory structure"""
-        # pylint: disable=no-self-use
         info_plist = os.path.join(pkg_path, "Contents/Info.plist")
         archive_path = os.path.join(pkg_path, "Contents/Archive.pax.gz")
         if not os.path.exists(info_plist):
@@ -54,20 +53,21 @@ class PkgExtractor(DmgMounter):
         if os.path.exists(extract_root):
             try:
                 shutil.rmtree(extract_root)
-            except (OSError, IOError) as err:
-                raise ProcessorError("Failed to remove extract_root: %s" % err)
+            except OSError as err:
+                raise ProcessorError(f"Failed to remove extract_root: {err}")
 
         try:
-            info = FoundationPlist.readPlist(info_plist)
-        except FoundationPlist.FoundationPlistException as err:
-            raise ProcessorError("Failed to read Info.plist: %s" % err)
+            with open(info_plist, "rb") as f:
+                info = plistlib.load(f)
+        except Exception as err:
+            raise ProcessorError(f"Failed to read Info.plist: {err}")
 
         install_target = info.get("IFPkgFlagDefaultLocation", "/").lstrip("/")
         extract_path = os.path.join(extract_root, install_target)
         try:
             os.makedirs(extract_path, 0o755)
-        except (OSError, IOError) as err:
-            raise ProcessorError("Failed to create extract_path: %s" % err)
+        except OSError as err:
+            raise ProcessorError(f"Failed to create extract_path: {err}")
 
         # Unpack payload.
         try:
@@ -79,11 +79,10 @@ class PkgExtractor(DmgMounter):
             (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "ditto execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"ditto execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError("Unpacking payload failed: %s" % stderr)
+            raise ProcessorError(f"Unpacking payload failed: {stderr}")
 
     def main(self):
         # Check if we're trying to read something inside a dmg.

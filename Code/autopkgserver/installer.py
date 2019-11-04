@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2014 Greg Neagle
 #
@@ -25,7 +25,7 @@ class InstallerError(Exception):
     pass
 
 
-class Installer(object):
+class Installer:
     """Runs /usr/sbin/installer to install a package"""
 
     def __init__(self, log, socket, request):
@@ -45,7 +45,7 @@ class Installer(object):
         self.log.debug("Verifying install request")
         for key in ["package"]:
             if key not in self.request:
-                raise InstallerError("ERROR:No %s in request" % key)
+                raise InstallerError(f"ERROR:No {key} in request")
 
     def do_install(self):
         """Call /usr/sbin/installer"""
@@ -64,16 +64,16 @@ class Installer(object):
                 output = proc.stdout.readline().decode("UTF-8")
                 if not output and (proc.poll() is not None):
                     break
-                self.socket.send("STATUS:%s" % output.encode("UTF-8"))
+                self.socket.send(f"STATUS:{output.encode('UTF-8')}")
                 self.log.info(output.rstrip())
 
             if proc.returncode != 0:
-                raise InstallerError("ERROR:%s\n" % proc.returncode)
+                raise InstallerError(f"ERROR:{proc.returncode}\n")
             self.log.info("install request completed.")
             return True
         except BaseException as err:
-            self.log.error("Install failed: %s" % err)
-            raise InstallerError("ERROR:%s\n" % err)
+            self.log.error(f"Install failed: {err}")
+            raise InstallerError(f"ERROR:{err}\n")
 
     def install(self):
         """Main method."""

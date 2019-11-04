@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2010 Per Olofsson
 #
@@ -15,10 +15,10 @@
 # limitations under the License.
 """See docstring for DmgMounter class"""
 
+import plistlib
 import subprocess
 import sys
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError, log, log_err
 
 __all__ = ["DmgMounter"]
@@ -30,10 +30,9 @@ class DmgMounter(Processor):
     DMG_EXTENSIONS = [".dmg", ".iso", ".DMG", ".ISO"]
 
     def __init__(self, data=None, infile=None, outfile=None):
-        super(DmgMounter, self).__init__(data, infile, outfile)
+        super().__init__(data, infile, outfile)
         self.mounts = dict()
 
-    # pylint: disable=invalid-name
     def parsePathForDMG(self, pathname):
         """Helper method for working with paths that reference something
         inside a disk image"""
@@ -45,17 +44,14 @@ class DmgMounter(Processor):
         # no disk image in path
         return pathname, "", ""
 
-    # pylint: enable=invalid-name
-
     def get_first_plist(self, text_string):
         """Gets the first plist from a text string that may contain one or
         more text-style plists.
         Returns a tuple - the first plist (if any) and the remaining
         string after the plist"""
-        # pylint: disable=no-self-use
 
-        plist_header = "<?xml version"
-        plist_footer = "</plist>"
+        plist_header = b"<?xml version"
+        plist_footer = b"</plist>"
         plist_start_index = text_string.find(plist_header)
         if plist_start_index == -1:
             # not found
@@ -87,17 +83,17 @@ class DmgMounter(Processor):
         if stderr:
             # some error with hdiutil.
             # Output but return False so we can attempt to continue
-            self.output("hdiutil imageinfo error %s with image %s." % (stderr, dmgpath))
+            self.output(f"hdiutil imageinfo error {stderr} with image {dmgpath}.")
             return False
 
         (pliststr, stdout) = self.get_first_plist(stdout)
         if pliststr:
             try:
-                plist = FoundationPlist.readPlistFromString(pliststr)
+                plist = plistlib.loads(pliststr)
                 properties = plist.get("Properties")
                 if properties:
                     has_sla = properties.get("Software License Agreement", False)
-            except FoundationPlist.NSPropertyListSerializationException:
+            except Exception:
                 pass
 
         return has_sla
@@ -106,7 +102,7 @@ class DmgMounter(Processor):
         """Mount image with hdiutil."""
         # Make sure we don't try to mount something twice.
         if pathname in self.mounts:
-            raise ProcessorError("%s is already mounted" % pathname)
+            raise ProcessorError(f"{pathname} is already mounted")
 
         stdin = ""
         if self.dmg_has_sla(pathname):
@@ -131,19 +127,18 @@ class DmgMounter(Processor):
             (stdout, stderr) = proc.communicate(stdin)
         except OSError as err:
             raise ProcessorError(
-                "hdiutil execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError("mounting %s failed: %s" % (pathname, stderr))
+            raise ProcessorError(f"mounting {pathname} failed: {stderr}")
 
         # Read output plist.
         (pliststr, stdout) = self.get_first_plist(stdout)
         try:
-            output = FoundationPlist.readPlistFromString(pliststr)
-        except FoundationPlist.NSPropertyListSerializationException:
+            output = plistlib.loads(pliststr)
+        except Exception:
             raise ProcessorError(
-                "mounting %s failed: unexpected output from hdiutil" % pathname
+                f"mounting {pathname} failed: unexpected output from hdiutil"
             )
 
         # Find mount point.
@@ -151,10 +146,10 @@ class DmgMounter(Processor):
             if "mount-point" in part:
                 # Add to mount list.
                 self.mounts[pathname] = part["mount-point"]
-                self.output("Mounted disk image %s" % pathname)
+                self.output(f"Mounted disk image {pathname}")
                 return self.mounts[pathname]
         raise ProcessorError(
-            "mounting %s failed: unexpected output from hdiutil" % pathname
+            f"mounting {pathname} failed: unexpected output from hdiutil"
         )
 
     def unmount(self, pathname):
@@ -162,7 +157,7 @@ class DmgMounter(Processor):
 
         # Don't try to unmount something we didn't mount.
         if pathname not in self.mounts:
-            raise ProcessorError("%s is not mounted" % pathname)
+            raise ProcessorError(f"{pathname} is not mounted")
 
         # Call hdiutil.
         try:
@@ -174,11 +169,10 @@ class DmgMounter(Processor):
             stderr = proc.communicate()[1]
         except OSError as err:
             raise ProcessorError(
-                "hdiutil execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError("unmounting %s failed: %s" % (pathname, stderr))
+            raise ProcessorError(f"unmounting {pathname} failed: {stderr}")
 
         # Delete mount from mount list.
         del self.mounts[pathname]
@@ -188,10 +182,10 @@ if __name__ == "__main__":
     try:
         DMGMOUNTER = DmgMounter()
         MOUNTPOINT = DMGMOUNTER.mount("Download/Firefox-sv-SE.dmg")
-        log("Mounted at %s" % MOUNTPOINT)
+        log(f"Mounted at {MOUNTPOINT}")
         DMGMOUNTER.unmount("Download/Firefox-sv-SE.dmg")
     except ProcessorError as err:
-        log_err("ProcessorError: %s" % err)
+        log_err(f"ProcessorError: {err}")
         sys.exit(10)
     else:
         sys.exit(0)

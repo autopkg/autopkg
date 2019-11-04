@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Jesse Peterson
 #
@@ -57,7 +57,6 @@ class FileFinder(DmgMounter):
     def globfind(self, pattern):
         """If multiple files are found the last alphanumerically sorted found
         file is returned"""
-        # pylint: disable=no-self-use
 
         glob_matches = glob(pattern)
 
@@ -74,7 +73,7 @@ class FileFinder(DmgMounter):
         method = self.env.get("find_method")
 
         if method != "glob":
-            raise ProcessorError("Unsupported find_method: %s" % method)
+            raise ProcessorError(f"Unsupported find_method: {method}")
 
         source_path = pattern
 
@@ -89,14 +88,13 @@ class FileFinder(DmgMounter):
             match = self.globfind(source_path)
             self.env["found_filename"] = match
             self.output(
-                "Found file match: '%s' from globbed '%s'"
-                % (self.env["found_filename"], source_path)
+                f"Found file match: '{self.env['found_filename']}' from globbed '{source_path}'"
             )
 
             if dmg and match.startswith(mount_point):
                 self.env["dmg_found_filename"] = match[len(mount_point) :].lstrip("/")
                 self.output(
-                    "DMG-relative file match: '%s'" % self.env["dmg_found_filename"]
+                    f"DMG-relative file match: '{self.env['dmg_found_filename']}'"
                 )
         finally:
             if dmg:

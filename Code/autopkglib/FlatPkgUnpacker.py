@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Timothy Sutton
 #
@@ -80,7 +80,7 @@ class FlatPkgUnpacker(DmgMounter):
                 os.makedirs(self.env["destination_path"])
             except OSError as err:
                 raise ProcessorError(
-                    "Can't create %s: %s" % (self.env["destination_path"], err.strerror)
+                    f"Can't create {self.env['destination_path']}: {err.strerror}"
                 )
         elif self.env.get("purge_destination"):
             for entry in os.listdir(self.env["destination_path"]):
@@ -91,7 +91,7 @@ class FlatPkgUnpacker(DmgMounter):
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError("Can't remove %s: %s" % (path, err.strerror))
+                    raise ProcessorError(f"Can't remove {path}: {err.strerror}")
 
         if self.env.get("skip_payload"):
             self.xar_expand()
@@ -117,13 +117,11 @@ class FlatPkgUnpacker(DmgMounter):
             (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "xar execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"xar execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
             raise ProcessorError(
-                "extraction of %s with xar failed: %s"
-                % (self.env["flat_pkg_path"], stderr)
+                f"extraction of {self.env['flat_pkg_path']} with xar failed: {stderr}"
             )
 
     def pkgutil_expand(self):
@@ -134,7 +132,7 @@ class FlatPkgUnpacker(DmgMounter):
                 shutil.rmtree(self.env["destination_path"])
             except OSError as err:
                 raise ProcessorError(
-                    "Can't remove %s: %s" % (self.env["destination_path"], err.strerror)
+                    f"Can't remove {self.env['destination_path']}: {err.strerror}"
                 )
 
         try:
@@ -150,13 +148,12 @@ class FlatPkgUnpacker(DmgMounter):
             (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "pkgutil execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"pkgutil execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
             raise ProcessorError(
-                "extraction of %s with pkgutil failed: %s"
-                % (self.env["flat_pkg_path"], stderr)
+                f"extraction of {self.env['flat_pkg_path']} with pkgutil failed: "
+                f"{stderr}"
             )
 
     def main(self):
@@ -171,18 +168,14 @@ class FlatPkgUnpacker(DmgMounter):
                 self.source_path = glob(os.path.join(mount_point, dmg_source_path))
                 if not self.source_path:
                     raise ProcessorError(
-                        (
-                            "No valid path found as given by 'flat_pkg_path': %s"
-                            % self.env["flat_pkg_path"]
-                        )
+                        f"No valid path found as given by 'flat_pkg_path': "
+                        f"{self.env['flat_pkg_path']}"
                     )
                 if len(self.source_path) > 1:
                     raise ProcessorError(
-                        (
-                            "Multiple source paths found in globbed path in "
-                            "'flat_pkg_path'. There must be only one. Found: %s"
-                            % ", ".join(self.source_path)
-                        )
+                        "Multiple source paths found in globbed path in "
+                        "'flat_pkg_path'. There must be only one. Found: "
+                        f"{', '.join(self.source_path)}"
                     )
                 self.source_path = self.source_path[0]
             else:
@@ -190,7 +183,7 @@ class FlatPkgUnpacker(DmgMounter):
                 self.source_path = self.env["flat_pkg_path"]
             self.unpack_flat_pkg()
             self.output(
-                "Unpacked %s to %s" % (self.source_path, self.env["destination_path"])
+                f"Unpacked {self.source_path} to {self.env['destination_path']}"
             )
         finally:
             if dmg:

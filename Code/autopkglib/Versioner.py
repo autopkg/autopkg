@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -16,8 +16,8 @@
 """See docstring for Versioner class"""
 
 import os.path
+import plistlib
 
-import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
@@ -63,17 +63,17 @@ class Versioner(DmgMounter):
                 input_plist_path = self.env["input_plist_path"]
             if not os.path.exists(input_plist_path):
                 raise ProcessorError(
-                    "File '%s' does not exist or could not be read." % input_plist_path
+                    f"File '{input_plist_path}' does not exist or could not be read."
                 )
             try:
-                plist = FoundationPlist.readPlist(input_plist_path)
+                with open(input_plist_path, "rb") as f:
+                    plist = plistlib.load(f)
                 version_key = self.env.get("plist_version_key")
                 self.env["version"] = plist.get(version_key, "UNKNOWN_VERSION")
                 self.output(
-                    "Found version %s in file %s"
-                    % (self.env["version"], input_plist_path)
+                    f"Found version {self.env['version']} in file {input_plist_path}"
                 )
-            except FoundationPlist.FoundationPlistException as err:
+            except Exception as err:
                 raise ProcessorError(err)
 
         finally:

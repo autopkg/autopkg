@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Jesse Peterson
 #
@@ -45,13 +45,12 @@ class FlatPkgPacker(Processor):
 
     def flatten(self, source_dir, dest_pkg):
         """Flattens a previously expanded flat package"""
-        # pylint: disable=no-self-use
         try:
             subprocess.check_call(
                 ["/usr/sbin/pkgutil", "--flatten", source_dir, dest_pkg]
             )
         except subprocess.CalledProcessError as err:
-            raise ProcessorError("%s flattening %s" % (err, source_dir))
+            raise ProcessorError(f"{err} flattening {source_dir}")
 
     def main(self):
         source_dir = self.env.get("source_flatpkg_dir")
@@ -59,7 +58,7 @@ class FlatPkgPacker(Processor):
 
         self.flatten(source_dir, dest_pkg)
 
-        self.output("Flattened %s to %s" % (source_dir, dest_pkg))
+        self.output(f"Flattened {source_dir} to {dest_pkg}")
 
 
 if __name__ == "__main__":

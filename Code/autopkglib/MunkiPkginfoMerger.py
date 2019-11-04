@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -40,9 +40,9 @@ class MunkiPkginfoMerger(Processor):
         if "pkginfo" not in self.env:
             self.env["pkginfo"] = {}
 
-        for key in self.env["additional_pkginfo"].keys():
+        for key in list(self.env["additional_pkginfo"].keys()):
             self.env["pkginfo"][key] = self.env["additional_pkginfo"][key]
-        self.output("Merged %s into pkginfo" % self.env["additional_pkginfo"])
+        self.output(f"Merged {self.env['additional_pkginfo']} into pkginfo")
 
 
 if __name__ == "__main__":

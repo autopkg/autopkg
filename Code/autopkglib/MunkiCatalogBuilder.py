@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -56,11 +56,11 @@ class MunkiCatalogBuilder(Processor):
             (_, err_out) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "makecatalog execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"makecatalog execution failed with error code {err.errno}: "
+                f"{err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError("makecatalogs failed: %s" % err_out)
+            raise ProcessorError(f"makecatalogs failed: {err_out}")
         self.output("Munki catalogs rebuilt!")
 
 

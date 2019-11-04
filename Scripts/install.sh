@@ -41,7 +41,6 @@ mkdir -m 0755 "$INSTALL_DIR"
 mkdir -m 0755 "$INSTALL_DIR/autopkglib"
 mkdir -m 0755 "$INSTALL_DIR/autopkglib/github"
 mkdir -m 0755 "$INSTALL_DIR/autopkgserver"
-mkdir -m 0755 "$INSTALL_DIR/FoundationPlist"
 
 echo "Copying executable"
 cp Code/autopkg "$INSTALL_DIR/"
@@ -58,9 +57,6 @@ cp Code/autopkgserver/autopkginstalld "$INSTALL_DIR/autopkgserver/"
 cp Code/autopkgserver/*.py "$INSTALL_DIR/autopkgserver/"
 cp Code/autopkgserver/autopkgserver.plist "$LAUNCH_DAEMON_PKGSERVER"
 cp Code/autopkgserver/autopkginstalld.plist "$LAUNCH_DAEMON_INSTALLD"
-
-echo "Copying FoundationPlist"
-cp Code/FoundationPlist/*.py "$INSTALL_DIR/FoundationPlist/"
 
 echo "Setting permissions"
 find "$INSTALL_DIR" -type f -exec chmod 755 {} \;

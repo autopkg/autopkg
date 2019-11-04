@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2016 Greg Neagle
 #
@@ -16,10 +16,10 @@
 """See docstring for AppPkgCreator class"""
 
 import os.path
+import plistlib
 import shutil
 from glob import glob
 
-import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 from autopkglib.PkgCreator import PkgCreator
@@ -43,13 +43,13 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         },
         "pkg_path": {
             "required": False,
-            "description": "The pathname for the pkg to be created. If not set, defaults "
-            "to %RECIPE_CACHE_DIR%/%app_name%-%version%.pkg",
+            "description": "The pathname for the pkg to be created. If not set, "
+            "defaults to %RECIPE_CACHE_DIR%/%app_name%-%version%.pkg",
         },
         "bundleid": {
             "required": False,
-            "description": "Bundle identifier of the app. If not set, will be extracted "
-            "from the CFBundleIdentifier in the app's Info.plist.",
+            "description": "Bundle identifier of the app. If not set, will be "
+            "extracted from the CFBundleIdentifier in the app's Info.plist.",
         },
         "version": {
             "required": False,
@@ -80,12 +80,12 @@ class AppPkgCreator(DmgMounter, PkgCreator):
 
     def read_info_plist(self, app_path):
         """Read Contents/Info.plist from the app."""
-        # pylint: disable=no-self-use
         plistpath = os.path.join(app_path, "Contents", "Info.plist")
         try:
-            plist = FoundationPlist.readPlist(plistpath)
-        except FoundationPlist.FoundationPlistException as err:
-            raise ProcessorError("Can't read %s: %s" % (plistpath, err))
+            with open(plistpath, "rb") as f:
+                plist = plistlib.load(f)
+        except Exception as err:
+            raise ProcessorError(f"Can't read {plistpath}: {err}")
         return plist
 
     def package_app(self, app_path):
@@ -101,13 +101,13 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         if not self.env.get("version"):
             try:
                 self.env["version"] = infoplist["CFBundleShortVersionString"]
-                self.output("Version: %s" % self.env["version"])
+                self.output(f"Version: {self.env['version']}")
             except BaseException as err:
                 raise ProcessorError(err)
         if not self.env.get("bundleid"):
             try:
                 self.env["bundleid"] = infoplist["CFBundleIdentifier"]
-                self.output("BundleID: %s" % self.env["bundleid"])
+                self.output(f"BundleID: {self.env['bundleid']}")
             except BaseException as err:
                 raise ProcessorError(err)
 
@@ -118,9 +118,8 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             pkgname = os.path.splitext(os.path.basename(pkg_path))[0]
         else:
             pkgdir = self.env["RECIPE_CACHE_DIR"]
-            pkgname = "%s-%s" % (
-                os.path.splitext(os.path.basename(app_path))[0],
-                self.env["version"],
+            pkgname = "{}-{}".format(
+                os.path.splitext(os.path.basename(app_path))[0], self.env["version"]
             )
             pkg_path = os.path.join(pkgdir, pkgname + ".pkg")
 
@@ -144,11 +143,11 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                 else:
                     os.unlink(pkgroot)
             except OSError as err:
-                raise ProcessorError("Can't remove %s: %s" % (pkgroot, err.strerror))
+                raise ProcessorError(f"Can't remove {pkgroot}: {err.strerror}")
         try:
             os.makedirs(os.path.join(pkgroot, "Applications"), 0o775)
         except OSError as err:
-            raise ProcessorError("Could not create pkgroot: %s" % err.strerror)
+            raise ProcessorError(f"Could not create pkgroot: {err.strerror}")
 
         app_name = os.path.basename(app_path)
         source_item = app_path
@@ -160,10 +159,10 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                 shutil.copyfile(source_item, dest_item)
             else:
                 shutil.copy(source_item, dest_item)
-            self.output("Copied %s to %s" % (source_item, dest_item))
+            self.output(f"Copied {source_item} to {dest_item}")
         except OSError as err:
             raise ProcessorError(
-                "Can't copy %s to %s: %s" % (source_item, dest_item, err.strerror)
+                f"Can't copy {source_item} to {dest_item}: {err.strerror}"
             )
 
         # build a package request
@@ -221,21 +220,19 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             # process path with glob.glob
             matches = glob(app_path)
             if len(matches) == 0:
-                raise ProcessorError(
-                    "Error processing path '%s' with glob. " % app_path
-                )
+                raise ProcessorError(f"Error processing path '{app_path}' with glob. ")
             matched_app_path = matches[0]
             if len(matches) > 1:
                 self.output(
-                    "WARNING: Multiple paths match 'app_path' glob '%s':" % app_path
+                    f"WARNING: Multiple paths match 'app_path' glob '{app_path}':"
                 )
                 for match in matches:
-                    self.output("  - %s" % match)
+                    self.output(f"  - {match}")
 
             if [c for c in "*?[]!" if c in app_path]:
                 self.output(
-                    "Using path '%s' matched from globbed '%s'."
-                    % (matched_app_path, app_path)
+                    f"Using path '{matched_app_path}' matched from globbed "
+                    f"'{app_path}'."
                 )
 
             # do the copy
