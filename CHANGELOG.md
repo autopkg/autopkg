@@ -1,5 +1,14 @@
 ### [1.3](https://github.com/autopkg/autopkg/compare/v1.2...HEAD) (Unreleased)
 
+FIXES:
+
+- `autopkg repo-list` wasn't respecting the `--prefs` option correctly (https://github.com/autopkg/autopkg/commit/ec7222335f7a0a191c8c7664ab81de477292f8b7)
+- `autopkg list-recipes` wasn't parsing the arguments correctly when used with `--prefs` (https://github.com/autopkg/autopkg/commit/8b15b7305cf9ef32310c6bc3728bf83fd06a4aee)
+- Reading in an integer value from macOS preferences and writing it out to disk was
+  using incorrect formatting due to a mismatch between plistlib, FoundationPlist, and
+  PyObjc data types, which caused MakeCatalogs.munki to fail. Now uses Python primitive
+  types instead (https://github.com/autopkg/autopkg/commit/8b15b7305cf9ef32310c6bc3728bf83fd06a4aee)
+
 ### [1.2](https://github.com/autopkg/autopkg/compare/v1.1...1.2) (September 16, 2019)
 
 FIXES:
