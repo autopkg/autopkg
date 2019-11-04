@@ -90,7 +90,7 @@ class PreferenceError(Exception):
     pass
 
 
-class Preferences(object):
+class Preferences:
     """An abstraction to hold all preferences."""
 
     def __init__(self):
@@ -197,7 +197,7 @@ class Preferences(object):
                     sort_keys=True,
                 )
         except Exception as e:
-            log_err("Unable to write out JSON: {}".format(e))
+            log_err(f"Unable to write out JSON: {e}")
 
     def _write_plist_file(self):
         """Write out the prefs into a Plist."""
@@ -205,7 +205,7 @@ class Preferences(object):
             with open(self.file_path, "wb") as f:
                 plistlib.dump(self.prefs, f)
         except Exception as e:
-            log_err("Unable to write out plist: {}".format(e))
+            log_err(f"Unable to write out plist: {e}")
 
     def write_file(self):
         """Write preferences back out to file."""
@@ -408,7 +408,7 @@ class ProcessorError(Exception):
     pass
 
 
-class Processor(object):
+class Processor:
     """Processor base class.
 
     Processors accept a property list as input, process its contents, and
@@ -542,7 +542,7 @@ class AutoPackagerError(Exception):
     pass
 
 
-class AutoPackager(object):
+class AutoPackager:
     """Instantiate and execute processors from a recipe."""
 
     def __init__(self, options, env):
@@ -814,7 +814,7 @@ def get_processor(processor_name, recipe=None, env=None):
         if recipe.get("PARENT_RECIPES"):
             # also look in the directories containing the parent recipes
             parent_recipe_dirs = list(
-                set([os.path.dirname(item) for item in recipe["PARENT_RECIPES"]])
+                {os.path.dirname(item) for item in recipe["PARENT_RECIPES"]}
             )
             processor_search_dirs.extend(parent_recipe_dirs)
 
