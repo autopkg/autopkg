@@ -95,7 +95,7 @@ from packager import Packager, PackagerError
 APPNAME = "autopkgserver"
 VERSION = "0.2"
 
-SOCKET = "/var/run/%s" % APPNAME
+SOCKET = f"/var/run/{APPNAME}"
 
 request_structure = {
     "pkgroot": str,
@@ -115,15 +115,6 @@ chown_structure = {"path": str, "user": (str, int), "group": (str, int), "mode":
 #################
 ## Global Init ##
 #################
-
-
-# Set up signal handlers.
-# def sig_handler(num, frame):
-#    log.error("%s aborted with signal %d" % (APPNAME, num))
-#
-# signal.signal(signal.SIGHUP, sig_handler)
-# signal.signal(signal.SIGINT, sig_handler)
-# signal.signal(signal.SIGTERM, sig_handler)
 
 
 class AutoPkgServerError(Exception):
@@ -154,13 +145,11 @@ class PkgHandler(socketserver.StreamRequestHandler):
         # Verify existance and type of keys in the root.
         for key, keytype in list(request_structure.items()):
             if key not in plist:
-                errors.append("Request is missing key '%s'" % key)
+                errors.append(f"Request is missing key '{key}'")
                 syntax_ok = False
             else:
                 if not isinstance(plist[key], keytype):
-                    errors.append(
-                        "Request key %s is not of type %s" % (key, str(keytype))
-                    )
+                    errors.append(f"Request key {key} is not of type {str(keytype)}")
                     syntax_ok = False
 
         if syntax_ok:
@@ -178,12 +167,11 @@ class PkgHandler(socketserver.StreamRequestHandler):
                     syntax_ok = False
                 for key, keytype in list(chown_structure.items()):
                     if key not in chown_entry:
-                        errors.append("chown entry is missing %s" % key)
+                        errors.append(f"chown entry is missing {key}")
                     else:
                         if not isinstance(chown_entry[key], keytype):
                             errors.append(
-                                "Request key chown.%s is not of type %s"
-                                % (key, str(keytype))
+                                f"Request key chown.{key} is not of type {str(keytype)}"
                             )
                             syntax_ok = False
 
@@ -252,7 +240,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
             syntax_ok, errors = self.verify_request_syntax(plist)
             if not syntax_ok:
                 self.log.error("Plist syntax error")
-                self.request.send("".join(["ERROR:%s\n" % e for e in errors]))
+                self.request.send("".join([f"ERROR:{e}\n" for e in errors]))
                 return
 
             if os.path.exists(plist.pkgroot):
@@ -265,15 +253,15 @@ class PkgHandler(socketserver.StreamRequestHandler):
             try:
                 pkgr = Packager(self.log, plist, name, uid, gid)
                 pkgpath = pkgr.package()
-                self.log.info("Package built at %s" % pkgpath)
-                self.request.send("OK:%s\n" % pkgpath)
+                self.log.info(f"Package built at {pkgpath}")
+                self.request.send(f"OK:{pkgpath}\n")
             except PackagerError as err:
-                self.log.error("Packaging failed: %s" % (err))
+                self.log.error(f"Packaging failed: {err}")
                 self.request.send(str(err) + "\n")
 
         except BaseException as err:
-            self.log.error("Caught exception: %s" % repr(err))
-            self.request.send("ERROR:Caught exception: %s" % repr(err))
+            self.log.error(f"Caught exception: {repr(err)}")
+            self.request.send(f"ERROR:Caught exception: {repr(err)}")
             return
 
 
@@ -307,7 +295,7 @@ class AutoPkgServer(socketserver.UnixStreamServer):
             log_console = logging.StreamHandler()
             log_console.setLevel(logging.DEBUG)
             log_file = logging.handlers.RotatingFileHandler(
-                "/private/var/log/%s" % APPNAME, "a", 100000, 9, "utf-8"
+                f"/private/var/log/{APPNAME}", "a", 100000, 9, "utf-8"
             )
             log_file.setLevel(logging.DEBUG)
 
@@ -321,8 +309,8 @@ class AutoPkgServer(socketserver.UnixStreamServer):
 
             self.log.addHandler(log_console)
             self.log.addHandler(log_file)
-        except (OSError, IOError) as err:
-            raise AutoPkgServerError("Can't open log: %s" % (err.strerror))
+        except OSError as err:
+            raise AutoPkgServerError(f"Can't open log: {err.strerror}")
 
     def handle_timeout(self):
         self.timed_out = True
@@ -347,13 +335,13 @@ def main(argv):
     while True:
         info = os.stat(exepath)
         if info.st_uid != root_uid:
-            print("%s must be owned by root." % exepath, file=sys.stderr)
+            print(f"{exepath} must be owned by root.", file=sys.stderr)
             path_ok = False
         if info.st_gid not in (wheel_gid, admin_gid):
-            print("%s must have group wheel or admin." % exepath, file=sys.stderr)
+            print(f"{exepath} must have group wheel or admin.", file=sys.stderr)
             path_ok = False
         if info.st_mode & stat.S_IWOTH:
-            print("%s mustn't be world writeable." % exepath, file=sys.stderr)
+            print(f"{exepath} mustn't be world writeable.", file=sys.stderr)
             path_ok = False
         exepath = os.path.dirname(exepath)
         if exepath == "/":
@@ -374,7 +362,7 @@ def main(argv):
         try:
             sockets = launch2.launch_activate_socket("AutoPkgServer")
         except launch2.LaunchDError as err:
-            print("launchd check-in failed: %s" % err, file=sys.stderr)
+            print(f"launchd check-in failed: {err}", file=sys.stderr)
             time.sleep(10)
             return 1
 
@@ -386,7 +374,7 @@ def main(argv):
         try:
             sockets = launch.get_launchd_socket_fds()
         except launch.LaunchDCheckInError as err:
-            print("launchd check-in failed: %s" % err, file=sys.stderr)
+            print(f"launchd check-in failed: {err}", file=sys.stderr)
             time.sleep(10)
             return 1
 
@@ -403,7 +391,7 @@ def main(argv):
 
     # Wrap main loop in try/finally to unlink the socket when we exit.
     try:
-        server.log.info("%s v%s starting" % (APPNAME, VERSION))
+        server.log.info(f"{APPNAME} v{VERSION} starting")
 
         # Serve all pending requests until we time out.
         while True:

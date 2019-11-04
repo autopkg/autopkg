@@ -54,7 +54,7 @@ class RunHandler(socketserver.StreamRequestHandler):
         for key in ["package"]:
             if key not in plist:
                 syntax_ok = False
-                errors.append("Request does not contain %s" % key)
+                errors.append(f"Request does not contain {key}")
 
         return syntax_ok, errors
 
@@ -127,7 +127,7 @@ class RunHandler(socketserver.StreamRequestHandler):
                     installer.install()
                     self.request.send("OK:DONE\n")
                 except InstallerError as err:
-                    self.log.error("Installing failed: %s" % err)
+                    self.log.error(f"Installing failed: {err}")
                     self.request.send(str(err) + "\n")
             elif "mount_point" in plist:
                 self.log.info(
@@ -139,15 +139,15 @@ class RunHandler(socketserver.StreamRequestHandler):
                     copier.copy()
                     self.request.send("OK:DONE\n")
                 except ItemCopierError as err:
-                    self.log.error("Copying failed: %s" % err)
+                    self.log.error(f"Copying failed: {err}")
                     self.request.send(str(err) + "\n")
             else:
                 self.log.error("Unsupported request format")
                 self.request.send("ERROR:Unsupported request format")
 
         except BaseException as err:
-            self.log.error("Caught exception: %s" % repr(err))
-            self.request.send("ERROR:Caught exception: %s" % repr(err))
+            self.log.error(f"Caught exception: {repr(err)}")
+            self.request.send(f"ERROR:Caught exception: {repr(err)}")
 
 
 class AutoPkgInstallDaemonError(Exception):
@@ -183,7 +183,7 @@ class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
             log_console = logging.StreamHandler()
             log_console.setLevel(logging.DEBUG)
             log_file = logging.handlers.RotatingFileHandler(
-                "/private/var/log/%s" % APPNAME, "a", 100000, 9, "utf-8"
+                f"/private/var/log/{APPNAME}", "a", 100000, 9, "utf-8"
             )
             log_file.setLevel(logging.DEBUG)
 
@@ -197,8 +197,8 @@ class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
 
             self.log.addHandler(log_console)
             self.log.addHandler(log_file)
-        except (OSError, IOError) as err:
-            raise AutoPkgInstallDaemonError("Can't open log: %s" % (err.strerror))
+        except OSError as err:
+            raise AutoPkgInstallDaemonError(f"Can't open log: {err.strerror}")
 
     def handle_timeout(self):
         self.timed_out = True
@@ -223,13 +223,13 @@ def main(argv):
     while True:
         info = os.stat(exepath)
         if info.st_uid != root_uid:
-            print("%s must be owned by root." % exepath, file=sys.stderr)
+            print(f"{exepath} must be owned by root.", file=sys.stderr)
             path_ok = False
         if info.st_gid not in (wheel_gid, admin_gid):
-            print("%s must have group wheel or admin." % exepath, file=sys.stderr)
+            print(f"{exepath} must have group wheel or admin.", file=sys.stderr)
             path_ok = False
         if info.st_mode & stat.S_IWOTH:
-            print("%s mustn't be world writeable." % exepath, file=sys.stderr)
+            print(f"{exepath} mustn't be world writeable.", file=sys.stderr)
             path_ok = False
         exepath = os.path.dirname(exepath)
         if exepath == "/":
@@ -250,7 +250,7 @@ def main(argv):
         try:
             sockets = launch2.launch_activate_socket("autopkginstalld")
         except launch2.LaunchDError as err:
-            print("launchd check-in failed: %s" % err, file=sys.stderr)
+            print(f"launchd check-in failed: {err}", file=sys.stderr)
             time.sleep(10)
             return 1
 
@@ -262,7 +262,7 @@ def main(argv):
         try:
             sockets = launch.get_launchd_socket_fds()
         except launch.LaunchDCheckInError as err:
-            print("launchd check-in failed: %s" % err, file=sys.stderr)
+            print(f"launchd check-in failed: {err}", file=sys.stderr)
             time.sleep(10)
             return 1
 
@@ -276,7 +276,7 @@ def main(argv):
     # Create the daemon object.
     daemon = AutoPkgInstallDaemon(sock_fd, RunHandler)
     daemon.setup_logging()
-    daemon.log.info("%s v%s starting" % (APPNAME, VERSION))
+    daemon.log.info(f"{APPNAME} v{VERSION} starting")
 
     # Serve all pending requests until we time out.
     while True:

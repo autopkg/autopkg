@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# flake8: noqa
 
 import os
 from ctypes import *
@@ -43,7 +44,7 @@ def launch_activate_socket(name):
         err = libc.launch_activate_socket(name, byref(fds), byref(cnt))
         if err:
             raise LaunchDError(
-                "Failed to retrieve sockets from launchd: %s" % os.strerror(err)
+                f"Failed to retrieve sockets from launchd: {os.strerror(err)}"
             )
 
         # Return a list of file descriptors.
