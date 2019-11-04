@@ -63,7 +63,7 @@ class Versioner(DmgMounter):
                 input_plist_path = self.env["input_plist_path"]
             if not os.path.exists(input_plist_path):
                 raise ProcessorError(
-                    "File '%s' does not exist or could not be read." % input_plist_path
+                    f"File '{input_plist_path}' does not exist or could not be read."
                 )
             try:
                 with open(input_plist_path, "rb") as f:
@@ -71,8 +71,7 @@ class Versioner(DmgMounter):
                 version_key = self.env.get("plist_version_key")
                 self.env["version"] = plist.get(version_key, "UNKNOWN_VERSION")
                 self.output(
-                    "Found version %s in file %s"
-                    % (self.env["version"], input_plist_path)
+                    f"Found version {self.env['version']} in file {input_plist_path}"
                 )
             except Exception as err:
                 raise ProcessorError(err)
