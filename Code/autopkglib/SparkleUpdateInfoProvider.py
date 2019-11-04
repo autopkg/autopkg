@@ -44,7 +44,9 @@ class SparkleUpdateInfoProvider(Processor):
         },
         "appcast_request_headers": {
             "required": False,
-            "description": "Dictionary of additional HTTP headers to include in request.",
+            "description": (
+                "Dictionary of additional HTTP headers to include in request."
+            ),
         },
         "appcast_query_pairs": {
             "required": False,
@@ -73,8 +75,8 @@ class SparkleUpdateInfoProvider(Processor):
                 "is usually equivalent to 'release notes' for that "
                 "specific version. Defaults to "
                 "['minimum_os_version']. "
-                "Currently supported keys: %s."
-                % ", ".join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS)
+                "Currently supported keys: "
+                f"{', '.join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS)}."
             ),
         },
         "urlencode_path_component": {
@@ -128,14 +130,14 @@ class SparkleUpdateInfoProvider(Processor):
             cmd = [self.env["CURL_PATH"], "--location", "--compressed"]
             if headers:
                 for header, value in list(headers.items()):
-                    cmd.extend(["--header", "%s: %s" % (header, value)])
+                    cmd.extend(["--header", f"{header}: {value}"])
             cmd.append(url)
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (data, stderr) = proc.communicate()
             if proc.returncode:
-                raise ProcessorError("Could not retrieve URL %s: %s" % (url, stderr))
+                raise ProcessorError(f"Could not retrieve URL {url}: {stderr}")
         except OSError:
-            raise ProcessorError("Could not retrieve URL: %s" % url)
+            raise ProcessorError(f"Could not retrieve URL: {url}")
 
         return data
 
@@ -172,7 +174,7 @@ class SparkleUpdateInfoProvider(Processor):
         data = self.fetch_content(url, headers=self.env.get("appcast_request_headers"))
         try:
             xmldata = ElementTree.fromstring(data)
-        except:
+        except Exception:
             raise ProcessorError("Error parsing XML from appcast feed.")
 
         items = xmldata.findall("channel/item")
@@ -196,7 +198,7 @@ class SparkleUpdateInfoProvider(Processor):
                     built_url += "?" + url_bits.query
                 item["url"] = built_url
 
-                item["version"] = enclosure.get("{%s}version" % xmlns)
+                item["version"] = enclosure.get(f"{{{xmlns}}}version")
                 if item["version"] is None:
                     # Sparkle tries to guess a version from the download URL for
                     # rare cases where there is no sparkle:version enclosure
@@ -219,13 +221,13 @@ class SparkleUpdateInfoProvider(Processor):
                         "Can't extract version info from item in feed!"
                     )
 
-                human_version = enclosure.get("{%s}shortVersionString" % xmlns)
+                human_version = enclosure.get(f"{{{xmlns}}}shortVersionString")
                 if human_version is not None:
                     item["human_version"] = human_version
-                min_version = item_elem.find("{%s}minimumSystemVersion" % xmlns)
+                min_version = item_elem.find(f"{{{xmlns}}}minimumSystemVersion")
                 if min_version is not None:
                     item["minimum_os_version"] = min_version.text
-                description_elem = item_elem.find("{%s}releaseNotesLink" % xmlns)
+                description_elem = item_elem.find(f"{{{xmlns}}}releaseNotesLink")
                 # Strip possible surrounding whitespace around description_url
                 # element text as we'll be passing this as an argument to a
                 # curl process
@@ -267,11 +269,10 @@ class SparkleUpdateInfoProvider(Processor):
         items = self.get_feed_data(self.env.get("appcast_url"))
         sorted_items = sorted(items, key=itemgetter("version"), cmp=compare_version)
         latest = sorted_items[-1]
-        self.output("Version retrieved from appcast: %s" % latest["version"])
+        self.output(f"Version retrieved from appcast: {latest['version']}")
         if latest.get("human_version"):
             self.output(
-                "User-facing version retrieved from appcast: %s"
-                % latest["human_version"]
+                f"User-facing version retrieved from appcast: {latest['human_version']}"
             )
 
         pkginfo = {}
@@ -281,8 +282,8 @@ class SparkleUpdateInfoProvider(Processor):
             for k in sparkle_pkginfo_keys:
                 if k not in SUPPORTED_ADDITIONAL_PKGINFO_KEYS:
                     self.output(
-                        "Key %s isn't a supported key to copy from the "
-                        "Sparkle feed, ignoring it." % k
+                        f"Key {k} isn't a supported key to copy from the "
+                        "Sparkle feed, ignoring it."
                     )
             # Format description
             if "description" in sparkle_pkginfo_keys:
@@ -301,8 +302,8 @@ class SparkleUpdateInfoProvider(Processor):
                     pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
             for copied_key in list(pkginfo.keys()):
                 self.output(
-                    "Copied key %s from Sparkle feed to additional "
-                    "pkginfo." % copied_key
+                    f"Copied key {copied_key} from Sparkle feed to additional "
+                    "pkginfo."
                 )
 
         self.env["url"] = latest["url"]
@@ -310,7 +311,7 @@ class SparkleUpdateInfoProvider(Processor):
             self.env["version"] = latest["human_version"]
         else:
             self.env["version"] = latest["version"]
-        self.output("Found URL %s" % self.env["url"])
+        self.output(f"Found URL {self.env['url']}")
         self.env["additional_pkginfo"] = pkginfo
 
 
