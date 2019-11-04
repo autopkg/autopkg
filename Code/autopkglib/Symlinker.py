@@ -50,16 +50,16 @@ class Symlinker(Processor):
                     os.unlink(destination_path)
                 except OSError as err:
                     raise ProcessorError(
-                        "Can't remove %s: %s" % (destination_path, err.strerror)
+                        f"Can't remove {destination_path}: {err.strerror}"
                     )
 
         # Make symlink.
         try:
             os.symlink(source_path, destination_path)
-            self.output("Symlinked %s to %s" % (source_path, destination_path))
+            self.output(f"Symlinked {source_path} to {destination_path}")
         except BaseException as err:
             raise ProcessorError(
-                "Can't symlink %s to %s: %s" % (source_path, destination_path, err)
+                f"Can't symlink {source_path} to {destination_path}: {err}"
             )
 
 
