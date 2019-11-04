@@ -51,12 +51,10 @@ class StopProcessingIf(Processor):
         try:
             predicate = NSPredicate.predicateWithFormat_(predicate_string)
         except Exception as err:
-            raise ProcessorError(
-                "Predicate error for '%s': %s" % (predicate_string, err)
-            )
+            raise ProcessorError(f"Predicate error for '{predicate_string}': {err}")
 
         result = predicate.evaluateWithObject_(self.env)
-        self.output("(%s) is %s" % (predicate_string, result))
+        self.output(f"({predicate_string}) is {result}")
         return result
 
     def main(self):
