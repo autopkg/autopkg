@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -17,12 +17,10 @@
 
 from autopkglib import Processor, ProcessorError, log
 
-# pylint: disable=no-name-in-module
 try:
     from Foundation import NSPredicate
-except:
+except ImportError:
     log("WARNING: Failed 'from Foundation import NSPredicate' in " + __name__)
-# pylint: disable=no-name-in-module
 
 __all__ = ["StopProcessingIf"]
 
@@ -53,12 +51,10 @@ class StopProcessingIf(Processor):
         try:
             predicate = NSPredicate.predicateWithFormat_(predicate_string)
         except Exception as err:
-            raise ProcessorError(
-                "Predicate error for '%s': %s" % (predicate_string, err)
-            )
+            raise ProcessorError(f"Predicate error for '{predicate_string}': {err}")
 
         result = predicate.evaluateWithObject_(self.env)
-        self.output("(%s) is %s" % (predicate_string, result))
+        self.output(f"({predicate_string}) is {result}")
         return result
 
     def main(self):

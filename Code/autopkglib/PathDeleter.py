@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -41,7 +41,7 @@ class PathDeleter(Processor):
     def main(self):
         # if recipe writer gave us a single string instead of a list of strings,
         # convert it to a list of strings
-        if isinstance(self.env["path_list"], basestring):
+        if isinstance(self.env["path_list"], str):
             self.env["path_list"] = [self.env["path_list"]]
 
         for path in self.env["path_list"]:
@@ -52,16 +52,16 @@ class PathDeleter(Processor):
                     shutil.rmtree(path)
                 elif not os.path.exists(path):
                     raise ProcessorError(
-                        "Could not remove %s - it does not exist!" % path
+                        f"Could not remove {path} - it does not exist!"
                     )
                 else:
                     raise ProcessorError(
-                        "Could not remove %s - it is not a file, link, "
-                        "or directory" % path
+                        f"Could not remove {path} - it is not a file, link, "
+                        "or directory"
                     )
-                self.output("Deleted %s" % path)
+                self.output(f"Deleted {path}")
             except OSError as err:
-                raise ProcessorError("Could not remove %s: %s" % (path, err))
+                raise ProcessorError(f"Could not remove {path}: {err}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2014 Greg Neagle
 #
@@ -16,10 +16,10 @@
 """See docstring for Installer class"""
 
 import os.path
+import plistlib
 import socket
 from glob import glob
 
-import FoundationPlist
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
 
@@ -97,21 +97,19 @@ class Installer(DmgMounter):
             # process path with glob.glob
             matches = glob(pkg_path)
             if len(matches) == 0:
-                raise ProcessorError(
-                    "Error processing path '%s' with glob. " % pkg_path
-                )
+                raise ProcessorError(f"Error processing path '{pkg_path}' with glob. ")
             matched_pkg_path = matches[0]
             if len(matches) > 1:
                 self.output(
-                    "WARNING: Multiple paths match 'pkg_path' glob '%s':" % pkg_path
+                    f"WARNING: Multiple paths match 'pkg_path' glob '{pkg_path}':"
                 )
                 for match in matches:
-                    self.output("  - %s" % match)
+                    self.output(f"  - {match}")
 
             if [c for c in "*?[]!" if c in pkg_path]:
                 self.output(
-                    "Using path '%s' matched from globbed '%s'."
-                    % (matched_pkg_path, pkg_path)
+                    f"Using path '{matched_pkg_path}' matched from globbed "
+                    f"'{pkg_path}'."
                 )
 
             request = {"package": matched_pkg_path}
@@ -122,14 +120,14 @@ class Installer(DmgMounter):
                 self.connect()
                 self.output("Sending installation request")
                 result = self.send_request(request)
-            except BaseException as err:
-                result = "ERROR: %s" % repr(err)
+            except Exception as err:
+                result = f"ERROR: {repr(err)}"
             finally:
                 self.output("Disconnecting")
                 self.disconnect()
 
             # Return result.
-            self.output("Result: %s" % result)
+            self.output(f"Result: {result}")
             self.env["install_result"] = result
             if result == "DONE":
                 self.env["installer_summary_result"] = {
@@ -146,18 +144,14 @@ class Installer(DmgMounter):
     def connect(self):
         """Connect to autopkginstalld"""
         try:
-            # pylint: disable=attribute-defined-outside-init
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            # pylint: enable=attribute-defined-outside-init
             self.socket.connect(AUTOPKGINSTALLD_SOCKET)
-        except socket.error as err:
-            raise ProcessorError(
-                "Couldn't connect to autopkginstalld: %s" % err.strerror
-            )
+        except OSError as err:
+            raise ProcessorError(f"Couldn't connect to autopkginstalld: {err.strerror}")
 
     def send_request(self, request):
         """Send an install request to autopkginstalld"""
-        self.socket.send(FoundationPlist.writePlistToString(request))
+        self.socket.send(plistlib.dumps(request))
         with os.fdopen(self.socket.fileno()) as fileref:
             while True:
                 data = fileref.readline()

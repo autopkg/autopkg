@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2014-2015 Timothy Sutton
 #
@@ -15,10 +15,6 @@
 # limitations under the License.
 """See docstring for GitHubReleasesInfoProvider class"""
 
-# Disabling warnings for env members and imports that only affect recipe-
-# specific processors.
-# pylint: disable=e1101,f0401
-
 import re
 
 import autopkglib.github
@@ -28,7 +24,6 @@ __all__ = ["GitHubReleasesInfoProvider"]
 
 
 class GitHubReleasesInfoProvider(Processor):
-    # pylint: disable=missing-docstring
     description = (
         "Get metadata from the latest release from a GitHub project"
         " using the GitHub Releases API."
@@ -85,16 +80,15 @@ class GitHubReleasesInfoProvider(Processor):
     def get_releases(self, repo):
         """Return a list of releases dicts for a given GitHub repo. repo must
         be of the form 'user/repo'"""
-        # pylint: disable=no-self-use
         releases = None
         github = autopkglib.github.GitHubSession()
-        releases_uri = "/repos/%s/releases" % repo
+        releases_uri = f"/repos/{repo}/releases"
         (releases, status) = github.call_api(releases_uri)
         if status != 200:
-            raise ProcessorError("Unexpected GitHub API status code %s." % status)
+            raise ProcessorError(f"Unexpected GitHub API status code {status}.")
 
         if not releases:
-            raise ProcessorError("No releases found for repo '%s'" % repo)
+            raise ProcessorError(f"No releases found for repo '{repo}'")
 
         return releases
 
@@ -124,8 +118,8 @@ class GitHubReleasesInfoProvider(Processor):
                 else:
                     if re.match(regex, asset["name"]):
                         self.output(
-                            "Matched regex '%s' among asset(s): %s"
-                            % (regex, ", ".join([x["name"] for x in assets]))
+                            f"Matched regex '{regex}' among asset(s): "
+                            f"{', '.join([x['name'] for x in assets])}"
                         )
                         selected = (rel, asset)
                         break
@@ -134,13 +128,12 @@ class GitHubReleasesInfoProvider(Processor):
                 "No release assets were found that satisfy the criteria."
             )
 
-        # pylint: disable=w0201
         # We set these in the class to avoid passing more objects around
         self.selected_release = selected[0]
         self.selected_asset = selected[1]
         self.output(
-            "Selected asset '%s' from release '%s'"
-            % (self.selected_asset["name"], self.selected_release["name"])
+            f"Selected asset '{self.selected_asset['name']}' from release "
+            f"'{self.selected_release['name']}'"
         )
 
     def process_release_asset(self):

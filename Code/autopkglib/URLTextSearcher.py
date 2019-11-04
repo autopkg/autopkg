@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2015 Greg Neagle
 # Based on URLTextSearcher.py, Copyright 2014 Jesse Peterson
@@ -87,7 +87,6 @@ class URLTextSearcher(Processor):
 
     def get_url_and_search(self, url, re_pattern, headers=None, flags=None, opts=None):
         """Get data from url and search for re_pattern"""
-        # pylint: disable=no-self-use
         flag_accumulator = 0
         if flags:
             for flag in flags:
@@ -99,8 +98,8 @@ class URLTextSearcher(Processor):
         try:
             cmd = [self.env["CURL_PATH"], "--location", "--compressed"]
             if headers:
-                for header, value in headers.items():
-                    cmd.extend(["--header", "%s: %s" % (header, value)])
+                for header, value in list(headers.items()):
+                    cmd.extend(["--header", f"{header}: {value}"])
             if opts:
                 for item in opts:
                     cmd.extend([item])
@@ -108,14 +107,14 @@ class URLTextSearcher(Processor):
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (content, stderr) = proc.communicate()
             if proc.returncode:
-                raise ProcessorError("Could not retrieve URL %s: %s" % (url, stderr))
+                raise ProcessorError(f"Could not retrieve URL {url}: {stderr}")
         except OSError:
-            raise ProcessorError("Could not retrieve URL: %s" % url)
+            raise ProcessorError(f"Could not retrieve URL: {url}")
 
         match = re_pattern.search(content)
 
         if not match:
-            raise ProcessorError("No match found on URL: %s" % url)
+            raise ProcessorError(f"No match found on URL: {url}")
 
         # return the last matched group with the dict of named groups
         return (match.group(match.lastindex or 0), match.groupdict())
@@ -134,13 +133,13 @@ class URLTextSearcher(Processor):
         )
 
         # favor a named group over a normal group match
-        if output_var_name not in groupdict.keys():
+        if output_var_name not in list(groupdict.keys()):
             groupdict[output_var_name] = groupmatch
 
         self.output_variables = {}
-        for key in groupdict.keys():
+        for key in list(groupdict.keys()):
             self.env[key] = groupdict[key]
-            self.output("Found matching text (%s): %s" % (key, self.env[key]))
+            self.output(f"Found matching text ({key}): {self.env[key]}")
             self.output_variables[key] = {
                 "description": "Matched regular expression group"
             }

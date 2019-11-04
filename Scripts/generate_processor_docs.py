@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -16,7 +16,6 @@
 """A utility to export info from autopkg processors and upload it as processor
 documentation for the GitHub autopkg wiki"""
 
-from __future__ import print_function
 
 import imp
 import optparse
@@ -53,8 +52,8 @@ def writefile(stringdata, path):
         fileobject = open(path, mode="w", buffering=1)
         print(stringdata.encode("UTF-8"), file=fileobject)
         fileobject.close()
-    except (OSError, IOError):
-        print("Couldn't write to %s" % path, file=fileobject)
+    except OSError:
+        print(f"Couldn't write to {path}", file=fileobject)
 
 
 def escape(thing):
@@ -69,12 +68,12 @@ def escape(thing):
 def generate_markdown(dict_data, indent=0):
     """Returns a string with Markup-style formatting of dict_data"""
     string = ""
-    for key, value in dict_data.items():
+    for key, value in list(dict_data.items()):
         if isinstance(value, dict):
-            string += " " * indent + "- **%s:**\n" % escape(key)
+            string += " " * indent + f"- **{escape(key)}:**\n"
             string += generate_markdown(value, indent=indent + 4)
         else:
-            string += " " * indent + "- **%s:** %s\n" % (escape(key), escape(value))
+            string += " " * indent + f"- **{escape(key)}:** {escape(value)}\n"
     return string
 
 
@@ -103,9 +102,9 @@ def generate_sidebar(sidebar_path):
     toc_string = ""
     toc_string += processor_heading + "\n"
     for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
-        page_name = "Processor-%s" % processor_name
+        page_name = f"Processor-{processor_name}"
         page_name.replace(" ", "-")
-        toc_string += "      * [[%s|%s]]\n" % (processor_name, page_name)
+        toc_string += f"      * [[{processor_name}|{page_name}]]\n"
 
     with open(sidebar_path, "r") as fdesc:
         current_sidebar_lines = fdesc.read().splitlines()
@@ -177,7 +176,7 @@ def main(_):
     else:
         output_dir = clone_wiki_dir()
 
-    print("Cloned to %s." % output_dir)
+    print(f"Cloned to {output_dir}.")
     print()
     print()
 
@@ -203,11 +202,11 @@ def main(_):
         except AttributeError:
             output_vars = {}
 
-        filename = "Processor-%s.md" % processor_name
+        filename = f"Processor-{processor_name}.md"
         pathname = os.path.join(output_dir, filename)
-        output = "# %s\n" % escape(processor_name)
+        output = f"# {escape(processor_name)}\n"
         output += "\n"
-        output += "## Description\n%s\n" % escape(description)
+        output += f"## Description\n{escape(description)}\n"
         output += "\n"
         output += "## Input Variables\n"
         output += generate_markdown(input_vars)
@@ -237,7 +236,7 @@ def main(_):
         return
 
     run_git(["add", "--all"])
-    run_git(["commit", "-m", "Updating Wiki docs for release %s" % version])
+    run_git(["commit", "-m", f"Updating Wiki docs for release {version}"])
 
     # Show the full diff
     print(run_git(["log", "-p", "--color", "-1"]))
@@ -249,10 +248,10 @@ def main(_):
         "Shown above is the commit log for the changes to the wiki markdown. \n"
         "Type 'push' to accept and push the changes to GitHub. The wiki repo \n"
         "local clone can be also inspected at:\n"
-        "%s." % output_dir
+        f"{output_dir}."
     )
 
-    push_commit = raw_input()
+    push_commit = input()
     if push_commit == "push":
         run_git(["push", "origin", "master"])
 

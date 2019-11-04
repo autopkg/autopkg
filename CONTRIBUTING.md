@@ -8,41 +8,30 @@ This project uses three methods of code style enforcement, linting, and checking
 All code that is contributed to AutoPkg must match these style requirements. These
 requirements are enforced by [pre-commit](https://pre-commit.com).
 
-## Python 2 and Python 3
-
-While macOS transitions from Python 2 to Python 3, this project will as well.
-Until the transition is complete, this project needs to be compatible with both
-Python 2 and Python 3. Since this project also uses Black for enforced style,
-it's necessary to have both Pythons installed in order to effectively
-contribute.
-
-Python 3 is required to run black and flake8 with the bugbear plugin.
-
-## Use relocatable-python to safely build Python 2 and 3
+## Use relocatable-python to safely build 3
 
 We recommend using Greg Neagle's [Relocatable Python](https://github.com/gregneagle/relocatable-python)
 to build a custom Python 2 and Python 3 framework.
 
-This project provides two different requirements.txt files - one for 2, one for
-3. You can use Relocatable Python to build a custom Python framework with all
+This project provides a requirements.txt files for Python 3. You can use
+Relocatable Python to build a custom Python framework with all
 of the requirements pre-installed.
 
 First, create a safe path to place your frameworks. The easiest choice is
-/Users/Shared, because you won't have any permissions issues there:
+/Users/Shared, because you won't have any permissions issues there, but you can
+place this anywhere that makes sense to you:
 ```
-mkdir -p /Users/Shared/Python2 /Users/Shared/Python3
+mkdir -p /Users/Shared/Python3
 ```
 
 Now create your relocatable Python frameworks using the provided requirements.txt files:
 ```
-./make_relocatable_python_framework.py --python-version 2.7.15 --pip-requirements /path/to/python2_requirements.txt --destination /Users/Shared/Python2/
-./make_relocatable_python_framework.py --python-version 3.7.3 --pip-requirements /path/to/python3_requirements.txt --destination /Users/Shared/Python3/
+./make_relocatable_python_framework.py --python-version 3.7.5 --pip-requirements /path/to/requirements.txt --destination /Users/Shared/Python3/
 ```
 
 ### Symlink the frameworks
 You can symlink in the python executables into a more useful path:
 ```
-sudo ln -s /Users/Shared/Python2/Python.framework/Versions/Current/bin/python2.7 /usr/local/bin/python2_custom
 sudo ln -s /Users/Shared/Python3/Python.framework/Versions/3.7/bin/python3 /usr/local/bin/python3_custom
 ```
 

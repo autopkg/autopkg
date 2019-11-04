@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -55,7 +55,7 @@ class PkgPayloadUnpacker(Processor):
                 os.makedirs(self.env["destination_path"])
             except OSError as err:
                 raise ProcessorError(
-                    "Can't create %s: %s" % (self.env["destination_path"], err.strerror)
+                    f"Can't create {self.env['destination_path']}: {err.strerror}"
                 )
         elif self.env.get("purge_destination"):
             for entry in os.listdir(self.env["destination_path"]):
@@ -66,7 +66,7 @@ class PkgPayloadUnpacker(Processor):
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError("Can't remove %s: %s" % (path, err.strerror))
+                    raise ProcessorError(f"Can't remove {path}: {err.strerror}")
 
         try:
             dittocmd = [
@@ -82,17 +82,15 @@ class PkgPayloadUnpacker(Processor):
             (_, err_out) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "ditto execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"ditto execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
             raise ProcessorError(
-                "extraction of %s with ditto failed: %s"
-                % (self.env["pkg_payload_path"], err_out)
+                f"extraction of {self.env['pkg_payload_path']} with ditto failed: "
+                f"{err_out}"
             )
         self.output(
-            "Unpacked %s to %s"
-            % (self.env["pkg_payload_path"], self.env["destination_path"])
+            f"Unpacked {self.env['pkg_payload_path']} to {self.env['destination_path']}"
         )
 
     def main(self):

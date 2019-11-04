@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2014 Jesse Peterson
 #
@@ -37,7 +37,7 @@ class FileMover(Processor):
 
     def main(self):
         rename(self.env["source"], self.env["target"])
-        self.output("File %s moved to %s" % (self.env["source"], self.env["target"]))
+        self.output(f"File {self.env['source']} moved to {self.env['target']}")
 
 
 if __name__ == "__main__":

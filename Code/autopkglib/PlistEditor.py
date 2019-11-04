@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -15,7 +15,8 @@
 # limitations under the License.
 """See docstring for PlistEditor class"""
 
-import FoundationPlist
+import plistlib
+
 from autopkglib import Processor, ProcessorError
 
 __all__ = ["PlistEditor"]
@@ -52,21 +53,21 @@ class PlistEditor(Processor):
 
     def read_plist(self, pathname):
         """reads a plist from pathname"""
-        # pylint: disable=no-self-use
         if not pathname:
             return {}
         try:
-            return FoundationPlist.readPlist(pathname)
+            with open(pathname, "rb") as f:
+                return plistlib.load(f)
         except Exception as err:
-            raise ProcessorError("Could not read %s: %s" % (pathname, err))
+            raise ProcessorError(f"Could not read {pathname}: {err}")
 
     def write_plist(self, data, pathname):
         """writes a plist to pathname"""
-        # pylint: disable=no-self-use
         try:
-            FoundationPlist.writePlist(data, pathname)
+            with open(pathname, "wb") as f:
+                plistlib.dump(data, f)
         except Exception as err:
-            raise ProcessorError("Could not write %s: %s" % (pathname, err))
+            raise ProcessorError(f"Could not write {pathname}: {err}")
 
     def main(self):
         # read original plist (or empty plist)
@@ -74,12 +75,12 @@ class PlistEditor(Processor):
 
         # insert new data
         plist_data = self.env["plist_data"]
-        for key in plist_data.keys():
+        for key in list(plist_data.keys()):
             working_plist[key] = plist_data[key]
 
         # write changed plist
         self.write_plist(working_plist, self.env["output_plist_path"])
-        self.output("Updated plist at %s" % self.env["output_plist_path"])
+        self.output(f"Updated plist at {self.env['output_plist_path']}")
 
 
 if __name__ == "__main__":

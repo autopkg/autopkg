@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2010 Per Olofsson
 #
@@ -17,9 +17,9 @@
 
 import math
 import os
+import plistlib
 from xml.etree import ElementTree
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError
 
 __all__ = ["PkgInfoCreator"]
@@ -53,18 +53,18 @@ class PkgInfoCreator(Processor):
             if self.env.get("PARENT_RECIPES"):
                 # also look in the directories containing the parent recipes
                 parent_recipe_dirs = list(
-                    set([os.path.dirname(item) for item in self.env["PARENT_RECIPES"]])
+                    {os.path.dirname(item) for item in self.env["PARENT_RECIPES"]}
                 )
                 search_dirs.extend(parent_recipe_dirs)
             for directory in search_dirs:
                 test_item = os.path.join(directory, template_path)
                 if os.path.exists(test_item):
                     return test_item
-        raise ProcessorError("Can't find %s" % template_path)
+        raise ProcessorError(f"Can't find {template_path}")
 
     def main(self):
         if self.env["pkgtype"] not in ("bundle", "flat"):
-            raise ProcessorError("Unknown pkgtype %s" % self.env["pkgtype"])
+            raise ProcessorError(f"Unknown pkgtype {self.env['pkgtype']}")
         template = self.load_template(self.find_template(), self.env["pkgtype"])
         if self.env["pkgtype"] == "bundle":
             raise ProcessorError("Bundle package creation no longer supported!")
@@ -73,7 +73,6 @@ class PkgInfoCreator(Processor):
 
     def convert_bundle_info_to_flat(self, info):
         """Converts pkg info from bundle format to flat format"""
-        # pylint: disable=no-self-use
         # Since we now only support flat packages, we might be able to
         # get rid of this in the near future, but all existing recipes
         # would need to convert to only flat-style Resources/data
@@ -113,8 +112,6 @@ class PkgInfoCreator(Processor):
     def convert_flat_info_to_bundle(self, info):
         """Converts pkg info from flat format to bundle format"""
         # since we now only support flat packages, just raise an exception
-        # pylint: disable=unused-argument
-        # pylint: disable=no-self-use
         raise ProcessorError("Bundle package creation no longer supported!")
 
     def load_template(self, template_path, template_type):
@@ -123,10 +120,11 @@ class PkgInfoCreator(Processor):
         if template_path.endswith(".plist"):
             # Try to load Info.plist in bundle format.
             try:
-                info = FoundationPlist.readPlist(self.env["template_path"])
-            except FoundationPlist.FoundationPlistException:
+                with open(self.env["template_path"], "rb") as f:
+                    info = plistlib.load(f)
+            except Exception:
                 raise ProcessorError(
-                    "Malformed Info.plist template %s" % self.env["template_path"]
+                    f"Malformed Info.plist template {self.env['template_path']}"
                 )
             if template_type == "bundle":
                 return info
@@ -136,9 +134,9 @@ class PkgInfoCreator(Processor):
             # Try to load PackageInfo in flat format.
             try:
                 info = ElementTree.parse(template_path)
-            except FoundationPlist.FoundationPlistException:
+            except Exception:
                 raise ProcessorError(
-                    "Malformed PackageInfo template %s" % self.env["template_path"]
+                    f"Malformed PackageInfo template {self.env['template_path']}"
                 )
             if template_type == "flat":
                 return info
@@ -147,7 +145,6 @@ class PkgInfoCreator(Processor):
 
     def get_pkgroot_size(self, pkgroot):
         """Return the size of pkgroot (in kilobytes) and the number of files."""
-        # pylint: disable=no-self-use
 
         size = 0
         nfiles = 0
@@ -186,8 +183,6 @@ class PkgInfoCreator(Processor):
         """Create Info.plist data for bundle-style pkg"""
         # We don't support the creation of bundle-style pkgs
         # any longer, so raise an exception
-        # pylint: disable=unused-argument
-        # pylint: disable=no-self-use
         raise ProcessorError("Bundle package creation no longer supported!")
 
 

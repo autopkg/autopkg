@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013 Greg Neagle
 #
@@ -15,17 +15,15 @@
 # limitations under the License.
 """See docstring for MunkiInstallsItemsCreator class"""
 
+import plistlib
 import subprocess
 
-import FoundationPlist
 from autopkglib import Processor, ProcessorError, log
 
-# pylint: disable=no-name-in-module
 try:
     from Foundation import NSDictionary
-except:
+except ImportError:
     log("WARNING: Failed 'from Foundation import NSDictionary' in " + __name__)
-# pylint: enable=no-name-in-module
 
 __all__ = ["MunkiInstallsItemsCreator"]
 
@@ -82,31 +80,31 @@ class MunkiInstallsItemsCreator(Processor):
             (out, err) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                "makepkginfo execution failed with error code %d: %s"
-                % (err.errno, err.strerror)
+                f"makepkginfo execution failed with error code {err.errno}: "
+                f"{err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError("creating pkginfo failed: %s" % err)
+            raise ProcessorError(f"creating pkginfo failed: {err}")
 
         # Get pkginfo from output plist.
-        pkginfo = FoundationPlist.readPlistFromString(out)
+        pkginfo = plistlib.loads(out)
         installs_array = pkginfo.get("installs", [])
 
         if faux_root:
             for item in installs_array:
                 if item["path"].startswith(faux_root):
                     item["path"] = item["path"][len(faux_root) :]
-                self.output("Created installs item for %s" % item["path"])
+                self.output(f"Created installs item for {item['path']}")
 
         if "version_comparison_key" in self.env:
             for item in installs_array:
                 cmp_key = None
                 # If it's a string, set it for all installs items
-                if isinstance(self.env["version_comparison_key"], basestring):
+                if isinstance(self.env["version_comparison_key"], str):
                     cmp_key = self.env["version_comparison_key"]
                 # It it's a dict, find if there's a key that matches a path
                 elif isinstance(self.env["version_comparison_key"], NSDictionary):
-                    for path, key in self.env["version_comparison_key"].items():
+                    for path, key in list(self.env["version_comparison_key"].items()):
                         if path == item["path"]:
                             cmp_key = key
 
@@ -116,8 +114,8 @@ class MunkiInstallsItemsCreator(Processor):
                         item["version_comparison_key"] = cmp_key
                     else:
                         raise ProcessorError(
-                            "version_comparison_key '%s' could not be found in "
-                            "the installs item for path '%s'" % (cmp_key, item["path"])
+                            f"version_comparison_key '{cmp_key}' could not be found in "
+                            f"the installs item for path '{item['path']}'"
                         )
 
         if "additional_pkginfo" not in self.env:

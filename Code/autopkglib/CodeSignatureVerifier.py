@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2014 Hannes Juutilainen
 #
@@ -105,12 +105,14 @@ class CodeSignatureVerifier(DmgMounter):
         test_requirement=None,
         strict_verification=None,
         deep_verification=True,
-        codesign_additional_arguments=[],
+        codesign_additional_arguments=None,
     ):
         """
         Runs 'codesign --verify --verbose <path>'. Returns True if
         codesign exited with 0 and False otherwise.
         """
+        if not codesign_additional_arguments:
+            codesign_additional_arguments = []
 
         process = ["/usr/bin/codesign", "--verify", "--verbose=1"]
 
@@ -147,14 +149,14 @@ class CodeSignatureVerifier(DmgMounter):
         # Add the requirement string
         if test_requirement:
             if self.env.get("CODE_SIGNATURE_VERIFICATION_DEBUG"):
-                self.output("Requirement: %s" % test_requirement)
+                self.output(f"Requirement: {test_requirement}")
             process.append("--test-requirement")
-            process.append("=%s" % test_requirement)
+            process.append(f"={test_requirement}")
 
         process.append(path)
 
         if self.env.get("CODE_SIGNATURE_VERIFICATION_DEBUG"):
-            self.output("%s" % " ".join(process))
+            self.output(f"{' '.join(process)}")
 
         proc = subprocess.Popen(
             process,
@@ -168,10 +170,10 @@ class CodeSignatureVerifier(DmgMounter):
         # to stderr but check the stdout too
         if error:
             for line in error.splitlines():
-                self.output("%s" % line)
+                self.output(line)
         if output:
             for line in output.splitlines():
-                self.output("%s" % line)
+                self.output(line)
 
         # Return True if codesign exited with 0
         return proc.returncode == 0
@@ -189,10 +191,10 @@ class CodeSignatureVerifier(DmgMounter):
         # Log everything
         if output:
             for line in output.splitlines():
-                self.output("%s" % line)
+                self.output(line)
         if error:
             for line in error.splitlines():
-                self.output("%s" % line)
+                self.output(line)
 
         # Parse the output for certificate authority names
         authority_name_chain = []
@@ -264,8 +266,8 @@ class CodeSignatureVerifier(DmgMounter):
             expected_authority_names = self.env["expected_authority_names"]
             if authority_names != expected_authority_names:
                 self.output("Mismatch in authority names")
-                self.output("Expected: %s" % " -> ".join(expected_authority_names))
-                self.output("Found:    %s" % " -> ".join(authority_names))
+                self.output(f"Expected: {' -> '.join(expected_authority_names)}")
+                self.output(f"Found:    {' -> '.join(authority_names)}")
                 raise ProcessorError(
                     "Mismatch in authority names. Note that all "
                     "verification can be disabled by setting the variable "
@@ -290,20 +292,20 @@ class CodeSignatureVerifier(DmgMounter):
             matches = glob(input_path)
             if len(matches) == 0:
                 raise ProcessorError(
-                    "Error processing path '%s' with glob. " % input_path
+                    f"Error processing path '{input_path}' with glob. "
                 )
             matched_input_path = matches[0]
             if len(matches) > 1:
                 self.output(
-                    "WARNING: Multiple paths match 'input_path' glob '%s':" % input_path
+                    f"WARNING: Multiple paths match 'input_path' glob '{input_path}':"
                 )
                 for match in matches:
-                    self.output("  - %s" % match)
+                    self.output(f"  - {match}")
 
             if [c for c in "*?[]!" if c in input_path]:
                 self.output(
-                    "Using path '%s' matched from globbed '%s'."
-                    % (matched_input_path, input_path)
+                    f"Using path '{matched_input_path}' matched from "
+                    f"globbed '{input_path}'."
                 )
 
             # Get current Darwin kernel version

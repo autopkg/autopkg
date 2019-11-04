@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
 #
 # Copyright 2013-2016 Timothy Sutton
 #
@@ -16,7 +16,9 @@
 """See docstring for BrewCaskInfoProvider class"""
 
 import re
-import urllib2
+import urllib.error
+import urllib.parse
+import urllib.request
 
 from autopkglib import Processor, ProcessorError
 
@@ -24,9 +26,6 @@ __all__ = ["BrewCaskInfoProvider"]
 
 
 class BrewCaskInfoProvider(Processor):
-    # we dynamically set the docstring from the description (DRY), so:
-    # pylint: disable=missing-docstring
-
     description = (
         "ATTENTION: This processor is deprecated, may not work "
         "as expected with all known Casks, and may be removed "
@@ -63,7 +62,6 @@ class BrewCaskInfoProvider(Processor):
     def parse_formula(self, formula):
         """Return a dict containing attributes of the formula, ie. 'url',
         'version', etc. parsed from the formula .rb file."""
-        # pylint: disable=no-self-use
         attrs = {}
         regex = r"^\s+(?P<attr>.+) [\'\"](?P<value>.+)[\'\"].*$"
         for line in formula.splitlines():
@@ -80,15 +78,13 @@ class BrewCaskInfoProvider(Processor):
         to be used in 'url', which may contain Ruby-style substitutions
         of '#{version}' within."""
         newattrs = attrs.copy()
-        for key, value in newattrs.items():
+        for key, value in list(newattrs.items()):
             match = re.search("#{(.+?)}", value)
             if match:
                 subbed_key = match.groups()[0]
-                self.output(
-                    "Substituting value '%s' in %s: '%s'" % (subbed_key, key, value)
-                )
+                self.output(f"Substituting value '{subbed_key}' in {key}: '{value}'")
                 newattrs[key] = re.sub(
-                    "#{%s}" % subbed_key, newattrs[subbed_key], newattrs[key]
+                    f"#{{{subbed_key}}}", newattrs[subbed_key], newattrs[key]
                 )
         return newattrs
 
@@ -100,27 +96,27 @@ class BrewCaskInfoProvider(Processor):
         github_raw_baseurl = (
             "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/" "Casks"
         )
-        cask_url = "%s/%s.rb" % (github_raw_baseurl, self.env["cask_name"])
+        cask_url = f"{github_raw_baseurl}/{self.env['cask_name']}.rb"
         try:
-            urlobj = urllib2.urlopen(cask_url)
-        except urllib2.HTTPError as err:
-            raise ProcessorError("Error opening URL %s: %s" % (cask_url, err))
+            urlobj = urllib.request.urlopen(cask_url)
+        except urllib.error.HTTPError as err:
+            raise ProcessorError(f"Error opening URL {cask_url}: {err}")
 
         formula_data = urlobj.read()
         parsed = self.parse_formula(formula_data)
         parsed = self.interpolate_vars(parsed)
 
-        if "url" not in parsed.keys():
+        if "url" not in list(parsed.keys()):
             raise ProcessorError("No 'url' parsed from Formula!")
         self.env["url"] = parsed["url"]
 
-        if "version" in parsed.keys():
+        if "version" in list(parsed.keys()):
             self.env["version"] = parsed["version"]
         else:
             self.env["version"] = ""
 
         self.output(
-            "Got URL %s from for cask '%s':" % (self.env["url"], self.env["cask_name"])
+            f"Got URL {self.env['url']} from for cask '{self.env['cask_name']}':"
         )
 
 
