@@ -94,7 +94,7 @@ def main():
     API token:
     You'll need an API OAuth token with push access to the repo. You can create a
     Personal Access Token in your user's Account Settings:
-    https://github.com/settings/applications
+    https://github.com/settings/tokens
 
     autopkgserver components:
     This script does not perform the bootstrap steps performed by the install.sh
