@@ -498,7 +498,7 @@ class Processor:
                 self.env[variable] = flags["default"]
                 self.output(
                     f"No value supplied for {variable}, setting default value "
-                    "of: {self.env[variable]}",
+                    f"of: {self.env[variable]}",
                     verbose_level=2,
                 )
             # Make sure all required arguments have been supplied.
