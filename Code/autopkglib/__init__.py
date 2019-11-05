@@ -138,19 +138,26 @@ class Preferences(object):
             pass
         return {}
 
-    def _get_macos_pref(self, key):
-        """Get a specific macOS preference key."""
-        value = CFPreferencesCopyAppValue(key, BUNDLE_ID)
-        if isinstance(value, NSNumber):
-            value = int(value)
-        elif isinstance(value, NSArray):
-            value = list(value)
-        elif isinstance(value, NSDictionary):
-            value = dict(value)
+    def __deepconvert_objc(self, object):
+        """Convert all contents of an ObjC object to Python primitives."""
+        value = object
+        if isinstance(object, NSNumber):
+            value = int(object)
+        elif isinstance(object, NSArray) or isinstance(object, list):
+            value = [self.__deepconvert_objc(x) for x in object]
+        elif isinstance(object, NSDictionary):
+            value = dict(object)
             # RECIPE_REPOS is a dict of dicts
             for k, v in value.items():
                 if isinstance(v, NSDictionary):
                     value[k] = dict(v)
+        else:
+            return object
+        return value
+
+    def _get_macos_pref(self, key):
+        """Get a specific macOS preference key."""
+        value = self.__deepconvert_objc(CFPreferencesCopyAppValue(key, BUNDLE_ID))
         return value
 
     def _get_macos_prefs(self):
