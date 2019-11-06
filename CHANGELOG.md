@@ -1,5 +1,82 @@
 ### [2.0](https://github.com/autopkg/autopkg/compare/v1.3.1...HEAD) (Unreleased)
 
+PYTHON 3
+
+This is the first beta release of a Python 3-only version of AutoPkg. It is *no longer
+compatible with Python 2*, and will indeed encounter syntax errors and failures if ran
+with Python 2.
+
+The release package has an included Python 3 framework that includes all necessary
+modules to run everything in AutoPkg core, and all of the recipes in autopkg-recipes.
+
+Aside from being a rewrite of the code, this release is feature-identical with release
+1.3.1.
+
+MAJOR HIGHLIGHTS OF THE PYTHON 3 CODE:
+
+- FoundationPlist has been retired. plistlib in Python 3 should be used to handle all
+  plist parsing.
+- All Python string interpolation should prefer the use of f-strings (formatted string
+  literals).
+- All references to unicode vs. string types have been refactored to use Python 3's
+  native byte strings whenever possible.
+- All unit tests were updated to Python 3.
+- All Python code now use a hardcoded path to the embedded Python framework. This path
+  may change at a later time to incorporate a symlink, for easier cross-platform
+  compatibility.
+
+KNOWN ISSUES:
+
+- Due to the change in the embedded Python framework, AutoPkg no longer works on other
+  platforms without calling the interpreter directly.
+- Using a Python-3 only AutoPkg with Python-2 custom processors in recipes outside of
+  the core autopkg-recipes repo are not guaranteed to work, and are most likely going to
+  fail hard. There will be a long path to updating all of these.
+- The JSS Importer is almost certainly not going to work until it's also updated.
+
+HOW TO USE THIS BETA RELEASE:
+
+Installing the release package will get you everything you need to run AutoPkg 2.0.
+
+However, the autopkg-recipes repo itself also has [a separate branch where all of the
+custom processors have been converted to Python 3](https://github.com/autopkg/recipes/tree/py2-to-3).
+In order to run any of the core recipes, you will need to switch to this branch.
+
+To do so, use the command line to checkout the correct branch:
+
+```
+cd ~/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes
+git checkout py2-to-3
+```
+
+Then you should be able to run recipes as normal. You will need to update your trust
+info as nearly every custom processor has changed:
+```
+autopkg update-trust-info Firefox.munki
+autopkg update-trust-info MakeCatalogs.munki
+autopkg run -vv Firefox.munki MakeCatalogs.munki
+```
+
+HOW TO REPORT ISSUES:
+Use the "Beta Bug report" GitHub issue template to specifically label the issue as being
+beta only. Please make use of the template to convey all information possible in order
+to reproduce or diagnose the issue as clearly as possible.
+
+SETTING UP AUTOPKG MANUALLY:
+If you do not want to use the AutoPkg release installer, you can manually set up an
+AutoPkg 2.0 environment. Setup and place the AutoPkg files as you normally would:
+
+- Create /Library/AutoPkg/
+- Copy the contents of Code into /Library/AutoPkg/
+- Ensure correct file modes for the autopkgserver components:
+  `sudo chmod -R 755 /Library/AutoPkg/autopkgserver/`
+
+Build a relocatable python bundle:
+- Use the CONTRIBUTING guide's instructions on building a relocatable python bundle
+  that uses the `requirements.txt` file for pip
+- Move/copy the bundle into /Library/AutoPkg/Python3/Python.framework
+
+
 ### [1.3.1](https://github.com/autopkg/autopkg/compare/v1.3...v1.3.1) (November 06, 2019)
 
 FIXES:
