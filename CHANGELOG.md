@@ -1,4 +1,12 @@
-### [2.0](https://github.com/autopkg/autopkg/compare/v1.3.1...HEAD) (Unreleased)
+### [2.0.1](https://github.com/autopkg/autopkg/compare/v2.0...HEAD) (UNRELEASED)
+
+FIXES:
+
+- Release package now includes a symlink to /usr/local/autopkg/python, so all Python
+  now uses that interpreter.
+
+
+### [2.0](https://github.com/autopkg/autopkg/compare/v1.3.1...2.0) (November 06, 2019)
 
 PYTHON 3
 

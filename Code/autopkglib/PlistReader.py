@@ -1,4 +1,4 @@
-#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
+#!/usr/local/autopkg/python
 #
 # Copyright 2013 Shea Craig
 # Mostly just reworked code from Per Olofsson/AppDmgVersioner.py and

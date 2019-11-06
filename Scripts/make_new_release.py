@@ -1,4 +1,4 @@
-#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
+#!/usr/local/autopkg/python
 #
 # Script to run the AutoPkg GitHub release workflow as outlined here:
 # https://github.com/autopkg/autopkg/wiki/Packaging-AutoPkg-For-Release-on-GitHub
