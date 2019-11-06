@@ -4,7 +4,7 @@
 
 FIXES:
 
-- Nested data structures in preferences, such as with JSS_IMPORTS, should no longer
+- Nested data structures in preferences, such as with JSS_REPOS, should no longer
   cause AutoPkg to fail (https://github.com/autopkg/autopkg/commit/1aff762d8ea658b3fca8ac693f3bf13e8baf8778)
 
 ### [1.3](https://github.com/autopkg/autopkg/compare/v1.2...v1.3) (November 04, 2019)
