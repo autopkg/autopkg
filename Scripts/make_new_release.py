@@ -265,14 +265,18 @@ def main():
         "run",
         "-k",
         "force_pkg_build=true",
-        "-k",
-        "BRANCH=py2-to-3",
-        "--search-dir",
-        recipes_dir,
-        "--report-plist",
-        report_plist_path,
-        "AutoPkgGitMaster.pkg",
     ]
+    if opts.autopkg_branch:
+        cmd.extend(["-k", f"BRANCH={opts.autopkg_branch}"])
+    cmd.extend(
+        [
+            "--search-dir",
+            recipes_dir,
+            "--report-plist",
+            report_plist_path,
+            "AutoPkgGitMaster.pkg",
+        ]
+    )
     subprocess.run(args=cmd, text=True, check=True)
     try:
         with open(report_plist_path, "rb") as f:
