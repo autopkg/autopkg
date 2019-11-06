@@ -612,7 +612,7 @@ def write_plist_exit_on_fail(plist_dict, path):
     if the write fails."""
     try:
         with open(path, "wb") as f:
-            plistlib.write(plist_dict, f)
+            plistlib.dump(plist_dict, f)
     except (TypeError, OverflowError):
         log_err(f"Failed to save plist to {path}.")
         sys.exit(-1)
