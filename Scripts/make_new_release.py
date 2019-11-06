@@ -21,6 +21,7 @@ import optparse
 import os
 import plistlib
 import re
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,8 @@ from distutils.version import LooseVersion
 from pprint import pprint
 from shutil import rmtree
 from time import strftime
+
+import certifi
 
 
 class GitHubAPIError(BaseException):
@@ -66,7 +69,9 @@ def api_call(
 
     req = urllib.request.Request(baseurl + endpoint, headers=headers)
     try:
-        results = urllib.request.urlopen(req, data=data)
+        context = ssl.SSLContext()
+        context.load_verify_locations(certifi.where())
+        results = urllib.request.urlopen(req, data=data, context=context)
     except urllib.error.HTTPError as err:
         print("HTTP error making API call!", file=sys.stderr)
         print(err, file=sys.stderr)
@@ -137,6 +142,19 @@ def main():
             "'autopkg/autopkg'."
         ),
     )
+    parser.add_option(
+        "-b",
+        "--autopkg-branch",
+        help=("A specific branch of AutoPkg repo clone. Otherwise, clone master."),
+    )
+    parser.add_option(
+        "-r",
+        "--recipe-branch",
+        help=(
+            "A specific branch of autopkg-recipes repo clone. "
+            "Otherwise, clone master."
+        ),
+    )
 
     opts = parser.parse_args()[0]
     if not opts.next_version:
@@ -145,11 +163,11 @@ def main():
         sys.exit("Option --token is required!")
     next_version = opts.next_version
     if opts.dry_run:
-        print("Running in 'dry-run' mode..")
+        print("** Running in 'dry-run' mode..")
     publish_user, publish_repo = opts.user_repo.split("/")
     token = opts.token
-
     # ensure our OAuth token works before we go any further
+    print("** Verifying OAuth token")
     api_call(f"/users/{publish_user}", token)
 
     # set up some paths and important variables
@@ -157,30 +175,30 @@ def main():
     version_plist_path = os.path.join(autopkg_root, "Code/autopkglib/version.plist")
     changelog_path = os.path.join(autopkg_root, "CHANGELOG.md")
 
+    git_cmd = ["git", "clone"]
+    if opts.autopkg_branch:
+        git_cmd.extend(["--branch", opts.autopkg_branch])
+    git_cmd.extend([f"https://github.com/{publish_user}/{publish_repo}", autopkg_root])
     # clone Git master
-    subprocess.check_call(
-        [
-            "git",
-            "clone",
-            f"https://github.com/{publish_user}/{publish_repo}",
-            autopkg_root,
-        ]
-    )
+    print("** Clone git master")
+    subprocess.check_call(git_cmd)
     os.chdir(autopkg_root)
 
     # get the current autopkg version
     try:
-        plist = plistlib.readPlist(version_plist_path)
+        with open(version_plist_path, "rb") as f:
+            plist = plistlib.load(f)
         current_version = plist["Version"]
     except BaseException:
         sys.exit("Couldn't determine current autopkg version!")
-    print(f"Current AutoPkg version: {current_version}")
+    print(f"** Current AutoPkg version: {current_version}")
     if LooseVersion(next_version) <= LooseVersion(current_version):
         sys.exit(
             f"Next version (gave {next_version}) must be greater than current version "
             f"{current_version}!"
         )
 
+    print("** Checking published releases")
     tag_name = f"v{current_version}"
     if opts.prerelease:
         tag_name += opts.prerelease
@@ -198,6 +216,7 @@ def main():
             pprint(rel, stream=sys.stderr)
             sys.exit()
 
+    print("** Writing date into CHANGELOG.md")
     # write today's date in the changelog
     with open(changelog_path, "r") as fdesc:
         changelog = fdesc.read()
@@ -207,6 +226,7 @@ def main():
     with open(changelog_path, "w") as fdesc:
         fdesc.write(new_changelog)
 
+    print("** Creating git commit")
     # commit and push the new release
     subprocess.check_call(["git", "add", changelog_path])
     subprocess.check_call(
@@ -214,9 +234,11 @@ def main():
     )
     subprocess.check_call(["git", "tag", tag_name])
     if not opts.dry_run:
+        print("** Pushing git release")
         subprocess.check_call(["git", "push", "origin", "master"])
         subprocess.check_call(["git", "push", "--tags", "origin", "master"])
 
+    print("** Gathering release notes")
     # extract release notes for this new version
     notes_rex = r"(?P<current_ver_notes>\#\#\# \[%s\].+?)\#\#\#" % current_version
     match = re.search(notes_rex, new_changelog, re.DOTALL)
@@ -224,34 +246,37 @@ def main():
         sys.exit("Couldn't extract release notes for this version!")
     release_notes = match.group("current_ver_notes")
 
-    # run the actual AutoPkg.pkg recipe
     recipes_dir = tempfile.mkdtemp()
-    subprocess.check_call(
-        ["git", "clone", "https://github.com/autopkg/recipes", recipes_dir]
-    )
+    git_cmd = ["git", "clone"]
+    if opts.recipe_branch:
+        git_cmd.extend(["--branch", opts.recipe_branch])
+    git_cmd.extend(["https://github.com/autopkg/recipes", recipes_dir])
+    print("** Cloning autopkg-recipes")
+    subprocess.check_call(git_cmd)
+    os.chdir(autopkg_root)
+
+    print("** Running AutoPkgGitMaster recipe")
     # running using the system AutoPkg directory so that we ensure we're at the
     # minimum required version to run the AutoPkg recipe
     report_plist_path = tempfile.mkstemp()[1]
-    proc = subprocess.Popen(
-        [
-            "/Library/AutoPkg/autopkg",
-            "run",
-            "-k",
-            "force_pkg_build=true",
-            "--search-dir",
-            recipes_dir,
-            "--report-plist",
-            report_plist_path,
-            "AutoPkgGitMaster.pkg",
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    out, err = proc.communicate()
-    print(out)
-    print(err, file=sys.stderr)
+    parent_path = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+    cmd = [
+        os.path.join(parent_path, "Code/autopkg"),
+        "run",
+        "-k",
+        "force_pkg_build=true",
+        "-k",
+        "BRANCH=py2-to-3",
+        "--search-dir",
+        recipes_dir,
+        "--report-plist",
+        report_plist_path,
+        "AutoPkgGitMaster.pkg",
+    ]
+    subprocess.run(args=cmd, text=True, check=True)
     try:
-        report = plistlib.readPlist(report_plist_path)
+        with open(report_plist_path, "rb") as f:
+            report = plistlib.load(f)
     except BaseException as err:
         print(
             "Couldn't parse a valid report plist from the autopkg run!", file=sys.stderr
@@ -262,6 +287,7 @@ def main():
     if report["failures"]:
         sys.exit(f"Recipe run error: {report['failures'][0]['message']}")
 
+    print("** Collecting package data")
     # collect pkg file data
     pkg_result = report["summary_results"]["pkg_creator_summary_result"]
     built_pkg_path = pkg_result["data_rows"][0]["pkg_path"]
@@ -281,6 +307,7 @@ def main():
 
     # create the release
     if not opts.dry_run:
+        print("** Creating GitHub release")
         create_release = api_call(
             f"/repos/{publish_user}/{publish_repo}/releases", token, data=release_data
         )
@@ -289,6 +316,7 @@ def main():
             pprint(create_release)
             print()
 
+            print("** Uploading package as release asset")
             # upload the pkg as a release asset
             new_release_id = create_release["id"]
             endpoint = "/repos/{}/{}/releases/{}/assets?name={}".format(
@@ -308,9 +336,10 @@ def main():
                 print()
 
     # increment version
-    print(f"Incrementing version to {next_version}..")
+    print(f"** Incrementing version to {next_version}..")
     plist["Version"] = next_version
-    plistlib.writePlist(plist, version_plist_path)
+    with open(version_plist_path, "wb") as f:
+        plistlib.dump(plist, f)
 
     # increment changelog
     new_changelog = (
@@ -322,12 +351,14 @@ def main():
     with open(changelog_path, "w") as fdesc:
         fdesc.write(new_changelog)
 
+    print("** Creating commit for change increment")
     # commit and push increment
     subprocess.check_call(["git", "add", version_plist_path, changelog_path])
     subprocess.check_call(
         ["git", "commit", "-m", f"Bumping to v{next_version} for development."]
     )
     if not opts.dry_run:
+        print("** Pushing commit to master")
         subprocess.check_call(["git", "push", "origin", "master"])
     else:
         print(
