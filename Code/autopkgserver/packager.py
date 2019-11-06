@@ -99,7 +99,7 @@ class Packager:
             """Returns a list of mounted volume paths as reported by diskutil."""
             out, err = cmd_output(["/usr/sbin/diskutil", "list", "-plist"])
             try:
-                du_list = plistlib.readPlistFromString(out)
+                du_list = plistlib.loads(out)
             except ExpatError:
                 self.log.debug("WARNING: Error parsing diskutil output.")
                 self.log.debug(err)
@@ -162,7 +162,7 @@ class Packager:
                 ["/usr/sbin/diskutil", "info", "-plist", mount_for_path]
             )
             try:
-                du_info = plistlib.readPlistFromString(out)
+                du_info = plistlib.loads(out)
             except ExpatError:
                 self.log.debug("WARNING: Error parsing diskutil output.")
                 self.log.debug(err)
@@ -184,35 +184,35 @@ class Packager:
         self.log.debug("Verifying packaging request")
         # Check that a disk-based pkgroot isn't somewhere where 'ignore ownerships'
         # is set.
-        if not check_ownerships_enabled(self.request.pkgroot):
+        if not check_ownerships_enabled(self.request["pkgroot"]):
             raise PackagerError(
                 (
                     "'Ignore ownerships' is set on the disk where pkgroot "
-                    f"'{self.request.pkgroot}' "
+                    f"'{self.request['pkgroot']}' "
                     "was set, and packaging cannot continue. Ownerships must "
                     "be enabled on the volume where a package is to be built."
                 )
             )
 
         # Check owner and type of directories.
-        verify_dir_and_owner(self.request.pkgroot, self.uid)
+        verify_dir_and_owner(self.request["pkgroot"], self.uid)
         self.log.debug("pkgroot ok")
-        verify_dir_and_owner(self.request.pkgdir, self.uid)
+        verify_dir_and_owner(self.request["pkgdir"], self.uid)
         self.log.debug("pkgdir ok")
 
         # Check name.
-        if len(self.request.pkgname) > 80:
+        if len(self.request["pkgname"]) > 80:
             raise PackagerError("Package name too long")
-        if not self.re_pkgname.search(self.request.pkgname):
+        if not self.re_pkgname.search(self.request["pkgname"]):
             raise PackagerError("Invalid package name")
-        if self.request.pkgname.lower().endswith(".pkg"):
+        if self.request["pkgname"].lower().endswith(".pkg"):
             raise PackagerError("Package name mustn't include '.pkg'")
         self.log.debug("pkgname ok")
 
         # Check ID.
-        if len(self.request.id) > 80:
+        if len(self.request["id"]) > 80:
             raise PackagerError("Package id too long")
-        components = self.request.id.split(".")
+        components = self.request["id"].split(".")
         if len(components) < 2:
             raise PackagerError("Invalid package id")
         for comp in components:
@@ -221,20 +221,20 @@ class Packager:
         self.log.debug("id ok")
 
         # Check version.
-        if len(self.request.version) > 40:
+        if len(self.request["version"]) > 40:
             raise PackagerError("Version too long")
-        components = self.request.version.split(".")
+        components = self.request["version"].split(".")
         if len(components) < 1:
-            raise PackagerError(f'Invalid version "{self.request.version}"')
+            raise PackagerError(f"Invalid version \"{self.request['version']}\"")
         for comp in components:
             if not self.re_version.search(comp):
                 raise PackagerError(f'Invalid version component "{comp}"')
         self.log.debug("version ok")
 
         # Make sure infofile and resources exist and can be read.
-        if self.request.infofile:
+        if self.request["infofile"]:
             try:
-                with open(self.request.infofile, "rb"):
+                with open(self.request["infofile"], "rb"):
                     pass
             except OSError as e:
                 raise PackagerError(f"Can't open infofile: {e}")
@@ -242,20 +242,20 @@ class Packager:
 
         # Make sure scripts is a directory and its contents
         # are executable.
-        if self.request.scripts:
-            if self.request.pkgtype == "bundle":
+        if self.request["scripts"]:
+            if self.request["pkgtype"] == "bundle":
                 raise PackagerError(
                     "Installer scripts are not supported with " "bundle package types."
                 )
-            if not os.path.isdir(self.request.scripts):
+            if not os.path.isdir(self.request["scripts"]):
                 raise PackagerError(
-                    f"Can't find scripts directory: {self.request.scripts}"
+                    f"Can't find scripts directory: {self.request['scripts']}"
                 )
             for script in ["preinstall", "postinstall"]:
-                script_path = os.path.join(self.request.scripts, script)
+                script_path = os.path.join(self.request["scripts"], script)
                 if os.path.exists(script_path) and not os.access(script_path, os.X_OK):
                     raise PackagerError(
-                        f"{script} script found in {self.request.scripts} but it is "
+                        f"{script} script found in {self.request['scripts']} but it is "
                         "not executable!"
                     )
             self.log.debug("scripts ok")
@@ -273,7 +273,7 @@ class Packager:
         os.chown(self.tmp_pkgroot, 0, 80)
         try:
             p = subprocess.Popen(
-                ("/usr/bin/ditto", self.request.pkgroot, self.tmp_pkgroot),
+                ("/usr/bin/ditto", self.request["pkgroot"], self.tmp_pkgroot),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
@@ -284,7 +284,7 @@ class Packager:
             )
         if p.returncode != 0:
             raise PackagerError(
-                f"Couldn't copy pkgroot from {self.request.pkgroot} to "
+                f"Couldn't copy pkgroot from {self.request['pkgroot']} to "
                 f"{self.tmp_pkgroot}: {' '.join(str(err).split())}"
             )
 
@@ -311,39 +311,41 @@ class Packager:
                 if os.path.islink(checkpath):
                     raise PackagerError(f"chown path {relpath} is a soft link")
 
-        for entry in self.request.chown:
+        for entry in self.request["chown"]:
+            self.log.debug("Let's check the path!")
+            self.log.debug(entry["path"])
             # Check path.
-            verify_relative_valid_path(self.tmp_pkgroot, entry.path)
+            verify_relative_valid_path(self.tmp_pkgroot, entry["path"])
             # Check user.
-            if isinstance(entry.user, str):
+            if isinstance(entry["user"], str):
                 try:
-                    uid = pwd.getpwnam(entry.user).pw_uid
+                    uid = pwd.getpwnam(entry["user"]).pw_uid
                 except KeyError:
-                    raise PackagerError(f"Unknown chown user {entry.user}")
+                    raise PackagerError(f"Unknown chown user {entry['user']}")
             else:
-                uid = int(entry.user)
+                uid = int(entry["user"])
             if uid < 0:
-                raise PackagerError("Invalid uid %d" % uid)
+                raise PackagerError(f"Invalid uid {uid}")
             # Check group.
-            if isinstance(entry.group, str):
+            if isinstance(entry["group"], str):
                 try:
-                    gid = grp.getgrnam(entry.group).gr_gid
+                    gid = grp.getgrnam(entry["group"]).gr_gid
                 except KeyError:
-                    raise PackagerError(f"Unknown chown group {entry.group}")
+                    raise PackagerError(f"Unknown chown group {entry['group']}")
             else:
-                gid = int(entry.group)
+                gid = int(entry["group"])
             if gid < 0:
-                raise PackagerError("Invalid gid %d" % gid)
+                raise PackagerError(f"Invalid gid {gid}")
 
             self.log.info(
-                f"Setting owner and group of {entry.path} to {str(entry.user)}:"
-                f"{str(entry.group)}"
+                f"Setting owner and group of {entry['path']} to {entry['user']}:"
+                f"{entry['group']}"
             )
 
-            # If an absolute path is passed in entry.path, os.path.join
+            # If an absolute path is passed in entry["path"], os.path.join
             # will not join it to the tmp_pkgroot. We need to strip out
             # the leading / to make sure we only touch the pkgroot.
-            chownpath = os.path.join(self.tmp_pkgroot, entry.path.lstrip("/"))
+            chownpath = os.path.join(self.tmp_pkgroot, entry["path"].lstrip("/"))
             if "mode" in list(entry.keys()):
                 chmod_present = True
             else:
@@ -352,9 +354,9 @@ class Packager:
                 os.lchown(chownpath, uid, gid)
                 if chmod_present:
                     self.log.info(
-                        "Setting mode of {} to {}".format(entry.path, str(entry.mode))
+                        "Setting mode of {} to {}".format(entry["path"], entry["mode"])
                     )
-                    os.chmod(chownpath, int(entry.mode, 8))
+                    os.chmod(chownpath, int(entry["mode"], 8))
             else:
                 for (dirpath, dirnames, filenames) in os.walk(chownpath):
                     try:
@@ -366,16 +368,16 @@ class Packager:
                         try:
                             os.lchown(path, uid, gid)
                             if chmod_present:
-                                os.chmod(path, int(entry.mode, 8))
+                                os.chmod(path, int(entry["mode"], 8))
                         except OSError as e:
                             raise PackagerError(f"Can't lchown {path}: {e}")
 
         self.log.info("Chown applied")
 
-    def random_string(self, len):
-        rand = os.urandom((len + 1) / 2)
-        randstr = "".join(["%02x" % ord(c) for c in rand])
-        return randstr[:len]
+    def random_string(self, length):
+        rand = os.urandom(int((length + 1) / 2))
+        randstr = "".join(["%02x" % ord(c) for c in str(rand)])
+        return randstr[:length]
 
     def make_component_property_list(self):
         """Use pkgutil --analyze to build a component property list; then
@@ -404,7 +406,8 @@ class Packager:
                 f"{' '.join(str(err).split())}"
             )
         try:
-            plist = plistlib.readPlist(self.component_plist)
+            with open(self.component_plist, "rb") as f:
+                plist = plistlib.load(f)
         except BaseException:
             raise PackagerError(f"Couldn't read {self.component_plist}")
         # plist is an array of dicts, iterate through
@@ -412,21 +415,23 @@ class Packager:
             if bundle.get("BundleIsRelocatable"):
                 bundle["BundleIsRelocatable"] = False
         try:
-            plistlib.writePlist(plist, self.component_plist)
+            with open(self.component_plist, "wb") as f:
+                plist = plistlib.dump(plist, f)
         except BaseException:
             raise PackagerError(f"Couldn't write {self.component_plist}")
 
     def create_pkg(self):
         self.log.info("Creating package")
-        if self.request.pkgtype != "flat":
-            raise PackagerError(f"Unsupported pkgtype {repr(self.request.pkgtype)}")
+        if self.request["pkgtype"] != "flat":
+            raise PackagerError(f"Unsupported pkgtype {self.request['pkgtype']}")
 
-        pkgname = self.request.pkgname + ".pkg"
-        pkgpath = os.path.join(self.request.pkgdir, pkgname)
+        pkgname = self.request["pkgname"] + ".pkg"
+        pkgpath = os.path.join(self.request["pkgdir"], pkgname)
 
         # Remove existing pkg if it exists and is owned by uid.
         if os.path.exists(pkgpath):
             try:
+                self.log.info("Checking if package is owned by uid")
                 if os.lstat(pkgpath).st_uid != self.uid:
                     raise PackagerError(
                         f"Existing pkg {pkgpath} not owned by {self.uid}"
@@ -439,13 +444,13 @@ class Packager:
                 raise PackagerError(
                     f"Can't remove existing pkg {pkgpath}: {e.strerror}"
                 )
-
+        self.log.info("Creating random name")
         # Use a temporary name while building.
         temppkgname = "autopkgtmp-{}-{}.pkg".format(
-            self.random_string(16), self.request.pkgname
+            self.random_string(16), self.request["pkgname"]
         )
-        temppkgpath = os.path.join(self.request.pkgdir, temppkgname)
-
+        temppkgpath = os.path.join(self.request["pkgdir"], temppkgname)
+        self.log.info("Starting cmd try block")
         # Wrap package building in try/finally to remove temporary package if
         # it fails.
         try:
@@ -455,21 +460,22 @@ class Packager:
                 "--root",
                 self.tmp_pkgroot,
                 "--identifier",
-                self.request.id,
+                self.request["id"],
                 "--version",
-                self.request.version,
+                self.request["version"],
                 "--ownership",
                 "preserve",
                 "--component-plist",
                 self.component_plist,
             ]
-            if self.request.infofile:
-                cmd.extend(["--info", self.request.infofile])
-            if self.request.scripts:
-                cmd.extend(["--scripts", self.request.scripts])
+            if self.request["infofile"]:
+                cmd.extend(["--info", self.request["infofile"]])
+            if self.request["scripts"]:
+                cmd.extend(["--scripts", self.request["scripts"]])
             cmd.append(temppkgpath)
 
             # Execute pkgbuild.
+            self.log.info("Sending package build command")
             try:
                 p = subprocess.Popen(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -484,7 +490,7 @@ class Packager:
                     f"pkgbuild failed with exit code {p.returncode}: "
                     f"{' '.join(str(err).split())}"
                 )
-
+            self.log.info("Changing name and owner")
             # Change to final name and owner.
             os.rename(temppkgpath, pkgpath)
             os.chown(pkgpath, self.uid, self.gid)

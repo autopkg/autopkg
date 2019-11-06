@@ -110,7 +110,7 @@ class RunHandler(socketserver.StreamRequestHandler):
 
             # Try to parse it.
             try:
-                plist = plistlib.readPlistFromString(plist_string)
+                plist = plistlib.loads(plist_string)
             except BaseException:
                 self.log.error("Malformed request")
                 self.request.send("ERROR:Malformed request\n")

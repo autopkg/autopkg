@@ -75,7 +75,6 @@ Request format:
 import logging
 import logging.handlers
 import os
-import platform
 import plistlib
 import re
 import socket
@@ -153,15 +152,14 @@ class PkgHandler(socketserver.StreamRequestHandler):
                     syntax_ok = False
 
         if syntax_ok:
-
             # Check package type.
-            if plist.pkgtype not in ("flat"):
+            if plist["pkgtype"] not in "flat":
                 errors.append("pkgtype must be flat")
                 syntax_ok = False
 
             # Make sure all chown entries are dictionaries, and children are
             # the correct type.
-            for chown_entry in plist.chown:
+            for chown_entry in plist["chown"]:
                 if not isinstance(chown_entry, dict):
                     errors.append("chown entry isn't dictionary")
                     syntax_ok = False
@@ -229,10 +227,10 @@ class PkgHandler(socketserver.StreamRequestHandler):
 
             # Try to parse it.
             try:
-                plist = plistlib.readPlistFromString(plist_string)
+                plist = plistlib.loads(plist_string)
             except BaseException:
                 self.log.error("Malformed request")
-                self.request.send("ERROR:Malformed request\n")
+                self.request.send("ERROR:Malformed request\n".encode())
                 return
             self.log.debug("Parsed request plist")
 
@@ -240,28 +238,29 @@ class PkgHandler(socketserver.StreamRequestHandler):
             syntax_ok, errors = self.verify_request_syntax(plist)
             if not syntax_ok:
                 self.log.error("Plist syntax error")
-                self.request.send("".join([f"ERROR:{e}\n" for e in errors]))
+                self.request.send("".join([f"ERROR:{e}\n" for e in errors]).encode())
                 return
 
-            if os.path.exists(plist.pkgroot):
-                name = os.path.basename(plist.pkgroot)
+            if os.path.exists(plist["pkgroot"]):
+                name = os.path.basename(plist["pkgroot"])
             else:
-                self.request.send("ERROR:Can't find pkgroot")
+                self.request.send("ERROR:Can't find pkgroot".encode())
                 return
 
-            self.log.info("Dispatching worker to process request for user %d" % (uid))
+            self.log.info(f"Dispatching worker to process request for user {uid}")
             try:
                 pkgr = Packager(self.log, plist, name, uid, gid)
                 pkgpath = pkgr.package()
                 self.log.info(f"Package built at {pkgpath}")
-                self.request.send(f"OK:{pkgpath}\n")
+                print("Sending request")
+                self.request.send(f"OK:{pkgpath}\n".encode())
             except PackagerError as err:
                 self.log.error(f"Packaging failed: {err}")
-                self.request.send(str(err) + "\n")
+                self.request.send(f"{err}\n".encode())
 
         except BaseException as err:
-            self.log.error(f"Caught exception: {repr(err)}")
-            self.request.send(f"ERROR:Caught exception: {repr(err)}")
+            self.log.error(f"Caught exception: {err}")
+            self.request.send(f"ERROR:Caught exception: {err}".encode())
             return
 
 
@@ -351,39 +350,19 @@ def main(argv):
         # Sleep to avoid respawn.
         time.sleep(10)
         return 1
-
     # Keep track of time for launchd.
     start_time = time.time()
 
     # Get socket file descriptors from launchd.
-    if int(platform.mac_ver()[0].split(".")[1]) >= 10:
-        import launch2
+    import launch2
+    try:
+        sockets = launch2.launch_activate_socket(b"AutoPkgServer")
+    except launch2.LaunchDError as err:
+        print(f"launchd check-in failed: {err}", file=sys.stderr)
+        time.sleep(10)
+        return 1
 
-        try:
-            sockets = launch2.launch_activate_socket("AutoPkgServer")
-        except launch2.LaunchDError as err:
-            print(f"launchd check-in failed: {err}", file=sys.stderr)
-            time.sleep(10)
-            return 1
-
-        sock_fd = sockets[0]
-
-    else:
-        import launch
-
-        try:
-            sockets = launch.get_launchd_socket_fds()
-        except launch.LaunchDCheckInError as err:
-            print(f"launchd check-in failed: {err}", file=sys.stderr)
-            time.sleep(10)
-            return 1
-
-        if "AutoPkgServer" not in sockets:
-            print("No AutoPkgServer in launchd sockets", file=sys.stderr)
-            time.sleep(10)
-            return 1
-
-        sock_fd = sockets["AutoPkgServer"][0]
+    sock_fd = sockets[0]
 
     # Create the server object.
     server = AutoPkgServer(sock_fd, PkgHandler)

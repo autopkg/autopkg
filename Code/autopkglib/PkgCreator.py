@@ -250,10 +250,8 @@ class PkgCreator(Processor):
         self.socket.send(plistlib.dumps(request))
         with os.fdopen(self.socket.fileno()) as fileref:
             reply = fileref.read()
-
         if reply.startswith("OK:"):
             return reply.replace("OK:", "").rstrip()
-
         errors = reply.rstrip().split("\n")
         if not errors:
             errors = ["ERROR:No reply from server (crash?), check system logs"]
@@ -261,7 +259,10 @@ class PkgCreator(Processor):
 
     def disconnect(self):
         """Disconnect from the autopkgserver"""
-        self.socket.close()
+        try:
+            self.socket.close()
+        except OSError as e:
+            self.output(f"Failed to close socket: {e}", verbose_level=2)
 
     def main(self):
         """Package something!"""
