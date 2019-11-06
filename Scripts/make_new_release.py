@@ -308,6 +308,7 @@ def main():
     release_data["draft"] = False
     if opts.prerelease:
         release_data["prerelease"] = True
+        release_data["name"] += " Beta"
 
     # create the release
     if not opts.dry_run:
