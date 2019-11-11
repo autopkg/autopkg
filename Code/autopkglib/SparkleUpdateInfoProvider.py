@@ -1,5 +1,6 @@
 #!/usr/local/autopkg/python
 #
+# Refactoring 2018 Michal Moravec
 # Copyright 2013-2016 Timothy Sutton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,15 +18,14 @@
 """See docstring for SparkleUpdateInfoProvider class"""
 
 import os
-import subprocess
-import urllib.error
-import urllib.parse
-import urllib.request
+import urllib
+import urlparse
 from distutils.version import LooseVersion
 from operator import itemgetter
 from xml.etree import ElementTree
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import ProcessorError
+from autopkglib.URLGetter import URLGetter
 
 __all__ = ["SparkleUpdateInfoProvider"]
 
@@ -33,7 +33,7 @@ DEFAULT_XMLNS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 SUPPORTED_ADDITIONAL_PKGINFO_KEYS = ["description", "minimum_os_version"]
 
 
-class SparkleUpdateInfoProvider(Processor):
+class SparkleUpdateInfoProvider(URLGetter):
     """Provides URL to the highest version number or latest update."""
 
     description = __doc__
@@ -63,6 +63,12 @@ class SparkleUpdateInfoProvider(Processor):
                 "that used for 'vanilla' Sparkle appcasts."
             ),
         },
+        "curl_opts": {
+            "required": False,
+            "description": (
+                "Optional array of options to include with the download " "request."
+            ),
+        },
         "pkginfo_keys_to_copy_from_sparkle_feed": {
             "required": False,
             "description": (
@@ -75,8 +81,8 @@ class SparkleUpdateInfoProvider(Processor):
                 "is usually equivalent to 'release notes' for that "
                 "specific version. Defaults to "
                 "['minimum_os_version']. "
-                "Currently supported keys: "
-                f"{', '.join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS)}."
+                "Currently supported keys: %s."
+                % ", ".join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS)
             ),
         },
         "urlencode_path_component": {
@@ -94,11 +100,6 @@ class SparkleUpdateInfoProvider(Processor):
                 "If provided, the download is skipped and we just use "
                 "this package or disk image."
             ),
-        },
-        "CURL_PATH": {
-            "required": False,
-            "default": "/usr/bin/curl",
-            "description": "Path to curl binary. Defaults to /usr/bin/curl.",
         },
     }
     output_variables = {
@@ -121,27 +122,79 @@ class SparkleUpdateInfoProvider(Processor):
         },
     }
 
+    def prepare_curl_cmd(self, url, headers=None):
+        """Assemble curl command and return it."""
+
+        curl_cmd = [super().curl_binary(), "--location", "--compressed"]
+        super().add_curl_common_opts(curl_cmd)
+        if headers:
+            for header, value in headers.items():
+                curl_cmd.extend(["--header", f"{header}: {value}"])
+        curl_cmd.append(url)
+        return curl_cmd
+
     def fetch_content(self, url, headers=None):
         """Returns content retrieved by curl, given a url and an optional
-        dictionary of header-name/value mappings. Logic here borrowed from
-        URLTextSearcher processor."""
+        dictionary of header-name/value mappings."""
 
-        try:
-            cmd = [self.env["CURL_PATH"], "--location", "--compressed"]
-            if headers:
-                for header, value in list(headers.items()):
-                    cmd.extend(["--header", f"{header}: {value}"])
-            cmd.append(url)
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            (data, stderr) = proc.communicate()
-            if proc.returncode:
-                raise ProcessorError(f"Could not retrieve URL {url}: {stderr}")
-        except OSError:
-            raise ProcessorError(f"Could not retrieve URL: {url}")
-
-        return data
+        curl_cmd = self.prepare_curl_cmd(url, headers)
+        content = super().download(curl_cmd)
+        return content
 
     def get_feed_data(self, url):
+        """Downloads raw feed XML"""
+
+        # query string
+        if "appcast_query_pairs" in self.env:
+            queries = self.env["appcast_query_pairs"]
+            new_query = urllib.urlencode([(k, v) for (k, v) in queries.items()])
+            scheme, netloc, path, _, frag = urlparse.urlsplit(url)
+            url = urlparse.urlunsplit((scheme, netloc, path, new_query, frag))
+
+        data = self.fetch_content(url, headers=self.env.get("appcast_request_headers"))
+        return data
+
+    def build_url(self, enclosure):
+        """URL-quote the path component to handle spaces, etc.
+        (Panic apps do this)"""
+
+        url_bits = urlparse.urlsplit(enclosure.get("url"))
+        if self.env.get("urlencode_path_component", True):
+            encoded_path = urllib.quote(url_bits.path)
+        else:
+            encoded_path = url_bits.path
+        built_url = url_bits.scheme + "://" + url_bits.netloc + encoded_path
+        if url_bits.query:
+            built_url += "?" + url_bits.query
+        return built_url
+
+    def determine_version(self, enclosure, url):
+        """Gets version from enclosure"""
+
+        version = enclosure.get("{%s}version" % self.xmlns)
+
+        if version is None:
+            # Sparkle tries to guess a version from the download URL for
+            # rare cases where there is no sparkle:version enclosure
+            # attribute, for the format: AppnameOrAnything_1.2.3.zip
+            # https://github.com/sparkle-project/Sparkle/blob/
+            # 89081ca030c0de218400f7c0f97530df524d687d/Sparkle/
+            # SUAppcastItem.m#L69-L76
+            #
+            # We can even support OmniGroup's alternate appcast format
+            # by cheating and using the '-' as a delimiter to derive
+            # version info
+            filename = os.path.basename(os.path.splitext(url)[0])
+            for delimiter in ["_", "-"]:
+                if delimiter in filename:
+                    version = filename.split(delimiter)[-1]
+                    break
+        # if we still found nothing, fail
+        if version is None:
+            raise ProcessorError("Can't extract version info from item in feed!")
+        return version
+
+    def parse_feed_data(self, data):
         """Returns an array of dicts, one per update item, structured like:
         version: 1234
         human_version: 1.2.3.4 (optional)
@@ -156,22 +209,6 @@ class SparkleUpdateInfoProvider(Processor):
         metadata we're never going to use. If it's a URL, this must be handled
         by whoever calls this function."""
 
-        # handle custom xmlns and version attributes
-        if "alternate_xmlns_url" in self.env:
-            xmlns = self.env["alternate_xmlns_url"]
-        else:
-            xmlns = DEFAULT_XMLNS
-
-        # query string
-        if "appcast_query_pairs" in self.env:
-            queries = self.env["appcast_query_pairs"]
-            new_query = urllib.parse.urlencode(
-                [(k, v) for (k, v) in list(queries.items())]
-            )
-            scheme, netloc, path, _, frag = urllib.parse.urlsplit(url)
-            url = urllib.parse.urlunsplit((scheme, netloc, path, new_query, frag))
-
-        data = self.fetch_content(url, headers=self.env.get("appcast_request_headers"))
         try:
             xmldata = ElementTree.fromstring(data)
         except Exception:
@@ -186,58 +223,63 @@ class SparkleUpdateInfoProvider(Processor):
             enclosure = item_elem.find("enclosure")
             if enclosure is not None:
                 item = {}
-                # URL-quote the path component to handle spaces, etc.
-                # (Panic apps do this)
-                url_bits = urllib.parse.urlsplit(enclosure.get("url"))
-                if self.env.get("urlencode_path_component", True):
-                    encoded_path = urllib.parse.quote(url_bits.path)
-                else:
-                    encoded_path = url_bits.path
-                built_url = url_bits.scheme + "://" + url_bits.netloc + encoded_path
-                if url_bits.query:
-                    built_url += "?" + url_bits.query
-                item["url"] = built_url
+                item["url"] = self.build_url(enclosure)
+                item["version"] = self.determine_version(enclosure, item["url"])
 
-                item["version"] = enclosure.get(f"{{{xmlns}}}version")
-                if item["version"] is None:
-                    # Sparkle tries to guess a version from the download URL for
-                    # rare cases where there is no sparkle:version enclosure
-                    # attribute, for the format: AppnameOrAnything_1.2.3.zip
-                    # https://github.com/sparkle-project/Sparkle/blob/
-                    # 89081ca030c0de218400f7c0f97530df524d687d/Sparkle/
-                    # SUAppcastItem.m#L69-L76
-                    #
-                    # We can even support OmniGroup's alternate appcast format
-                    # by cheating and using the '-' as a delimiter to derive
-                    # version info
-                    filename = os.path.basename(os.path.splitext(item["url"])[0])
-                    for delimiter in ["_", "-"]:
-                        if delimiter in filename:
-                            item["version"] = filename.split(delimiter)[-1]
-                            break
-                # if we still found nothing, fail
-                if item["version"] is None:
-                    raise ProcessorError(
-                        "Can't extract version info from item in feed!"
-                    )
-
-                human_version = enclosure.get(f"{{{xmlns}}}shortVersionString")
+                human_version = enclosure.get("{%s}shortVersionString" % self.xmlns)
                 if human_version is not None:
                     item["human_version"] = human_version
-                min_version = item_elem.find(f"{{{xmlns}}}minimumSystemVersion")
+
+                min_version = item_elem.find("{%s}minimumSystemVersion" % self.xmlns)
                 if min_version is not None:
                     item["minimum_os_version"] = min_version.text
-                description_elem = item_elem.find(f"{{{xmlns}}}releaseNotesLink")
+
+                description_elem = item_elem.find("{%s}releaseNotesLink" % self.xmlns)
                 # Strip possible surrounding whitespace around description_url
                 # element text as we'll be passing this as an argument to a
                 # curl process
                 if description_elem is not None:
                     item["description_url"] = description_elem.text.strip()
+
                 if item_elem.find("description") is not None:
                     item["description_data"] = item_elem.find("description").text
                 versions.append(item)
 
         return versions
+
+    def handle_pkginfo(self, latest):
+        """Handles any keys we may have defined"""
+
+        pkginfo = {}
+        sparkle_pkginfo_keys = self.env.get("pkginfo_keys_to_copy_from_sparkle_feed")
+        if sparkle_pkginfo_keys:
+            for k in sparkle_pkginfo_keys:
+                if k not in SUPPORTED_ADDITIONAL_PKGINFO_KEYS:
+                    self.output(
+                        "Key %s isn't a supported key to copy from the "
+                        "Sparkle feed, ignoring it." % k
+                    )
+            # Format description
+            if "description" in sparkle_pkginfo_keys:
+                if "description_url" in latest.keys():
+                    description = self.fetch_content(latest["description_url"])
+                elif "description_data" in latest.keys():
+                    description = (
+                        "<html><body>" + latest["description_data"] + "</html></body>"
+                    )
+                else:
+                    description = ""
+                pkginfo["description"] = description.decode("UTF-8")
+
+            if "minimum_os_version" in sparkle_pkginfo_keys:
+                if latest.get("minimum_os_version") is not None:
+                    pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
+            for copied_key in pkginfo.keys():
+                self.output(
+                    "Copied key %s from Sparkle feed to additional "
+                    "pkginfo." % copied_key
+                )
+        return pkginfo
 
     def main(self):
         """Get URL for latest version in update feed"""
@@ -266,52 +308,25 @@ class SparkleUpdateInfoProvider(Processor):
             self.env["version"] = "NotSetBySparkleUpdateInfoProvider"
             return
 
-        items = self.get_feed_data(self.env.get("appcast_url"))
+        # handle custom xmlns and version attributes
+        self.xmlns = self.env.get("alternate_xmlns_url", DEFAULT_XMLNS)
+
+        data = self.get_feed_data(self.env.get("appcast_url"))
+        items = self.parse_feed_data(data)
         sorted_items = sorted(items, key=itemgetter("version"), cmp=compare_version)
         latest = sorted_items[-1]
-        self.output(f"Version retrieved from appcast: {latest['version']}")
+        self.output("Version retrieved from appcast: %s" % latest["version"])
         if latest.get("human_version"):
             self.output(
-                f"User-facing version retrieved from appcast: {latest['human_version']}"
+                "User-facing version retrieved from appcast: %s"
+                % latest["human_version"]
             )
 
-        pkginfo = {}
-        # Handle any keys we may have defined
-        sparkle_pkginfo_keys = self.env.get("pkginfo_keys_to_copy_from_sparkle_feed")
-        if sparkle_pkginfo_keys:
-            for k in sparkle_pkginfo_keys:
-                if k not in SUPPORTED_ADDITIONAL_PKGINFO_KEYS:
-                    self.output(
-                        f"Key {k} isn't a supported key to copy from the "
-                        "Sparkle feed, ignoring it."
-                    )
-            # Format description
-            if "description" in sparkle_pkginfo_keys:
-                if "description_url" in list(latest.keys()):
-                    description = self.fetch_content(latest["description_url"])
-                elif "description_data" in list(latest.keys()):
-                    description = (
-                        "<html><body>" + latest["description_data"] + "</html></body>"
-                    )
-                else:
-                    description = ""
-                pkginfo["description"] = description.decode("UTF-8")
-
-            if "minimum_os_version" in sparkle_pkginfo_keys:
-                if latest.get("minimum_os_version") is not None:
-                    pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
-            for copied_key in list(pkginfo.keys()):
-                self.output(
-                    f"Copied key {copied_key} from Sparkle feed to additional "
-                    "pkginfo."
-                )
+        pkginfo = self.handle_pkginfo(latest)
 
         self.env["url"] = latest["url"]
-        if latest.get("human_version"):
-            self.env["version"] = latest["human_version"]
-        else:
-            self.env["version"] = latest["version"]
-        self.output(f"Found URL {self.env['url']}")
+        self.env["version"] = latest.get("human_version", latest["version"])
+        self.output("Found URL %s" % self.env["url"])
         self.env["additional_pkginfo"] = pkginfo
 
 

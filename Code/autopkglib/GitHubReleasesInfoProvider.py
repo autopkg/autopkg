@@ -58,6 +58,13 @@ class GitHubReleasesInfoProvider(Processor):
                 "release may be posted later."
             ),
         },
+        "curl_opts": {
+            "required": False,
+            "description": (
+                "Optional array of curl options to include with "
+                "the download request."
+            ),
+        },
     }
     output_variables = {
         "release_notes": {
@@ -81,7 +88,8 @@ class GitHubReleasesInfoProvider(Processor):
         """Return a list of releases dicts for a given GitHub repo. repo must
         be of the form 'user/repo'"""
         releases = None
-        github = autopkglib.github.GitHubSession()
+        curl_opts = self.env.get("curl_opts")
+        github = autopkglib.github.GitHubSession(curl_opts)
         releases_uri = f"/repos/{repo}/releases"
         (releases, status) = github.call_api(releases_uri)
         if status != 200:
