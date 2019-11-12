@@ -18,8 +18,9 @@
 """See docstring for SparkleUpdateInfoProvider class"""
 
 import os
-import urllib
-import urlparse
+import urllib.error
+import urllib.parse as urlparse
+import urllib.request
 from distutils.version import LooseVersion
 from operator import itemgetter
 from xml.etree import ElementTree
@@ -81,8 +82,8 @@ class SparkleUpdateInfoProvider(URLGetter):
                 "is usually equivalent to 'release notes' for that "
                 "specific version. Defaults to "
                 "['minimum_os_version']. "
-                "Currently supported keys: %s."
-                % ", ".join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS)
+                "Currently supported keys: "
+                f"{', '.join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS)}"
             ),
         },
         "urlencode_path_component": {
@@ -171,7 +172,7 @@ class SparkleUpdateInfoProvider(URLGetter):
     def determine_version(self, enclosure, url):
         """Gets version from enclosure"""
 
-        version = enclosure.get("{%s}version" % self.xmlns)
+        version = enclosure.get(f"{self.xmlns}version")
 
         if version is None:
             # Sparkle tries to guess a version from the download URL for
@@ -226,15 +227,15 @@ class SparkleUpdateInfoProvider(URLGetter):
                 item["url"] = self.build_url(enclosure)
                 item["version"] = self.determine_version(enclosure, item["url"])
 
-                human_version = enclosure.get("{%s}shortVersionString" % self.xmlns)
+                human_version = enclosure.get(f"{self.xmlns}shortVersionString")
                 if human_version is not None:
                     item["human_version"] = human_version
 
-                min_version = item_elem.find("{%s}minimumSystemVersion" % self.xmlns)
+                min_version = item_elem.find(f"{self.xmlns}minimumSystemVersion")
                 if min_version is not None:
                     item["minimum_os_version"] = min_version.text
 
-                description_elem = item_elem.find("{%s}releaseNotesLink" % self.xmlns)
+                description_elem = item_elem.find(f"{self.xmlns}releaseNotesLink")
                 # Strip possible surrounding whitespace around description_url
                 # element text as we'll be passing this as an argument to a
                 # curl process
@@ -256,8 +257,8 @@ class SparkleUpdateInfoProvider(URLGetter):
             for k in sparkle_pkginfo_keys:
                 if k not in SUPPORTED_ADDITIONAL_PKGINFO_KEYS:
                     self.output(
-                        "Key %s isn't a supported key to copy from the "
-                        "Sparkle feed, ignoring it." % k
+                        f"Key {k} isn't a supported key to copy from the "
+                        "Sparkle feed, ignoring it."
                     )
             # Format description
             if "description" in sparkle_pkginfo_keys:
@@ -276,8 +277,8 @@ class SparkleUpdateInfoProvider(URLGetter):
                     pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
             for copied_key in pkginfo.keys():
                 self.output(
-                    "Copied key %s from Sparkle feed to additional "
-                    "pkginfo." % copied_key
+                    f"Copied key {copied_key} from Sparkle feed to additional "
+                    "pkginfo."
                 )
         return pkginfo
 
@@ -315,18 +316,17 @@ class SparkleUpdateInfoProvider(URLGetter):
         items = self.parse_feed_data(data)
         sorted_items = sorted(items, key=itemgetter("version"), cmp=compare_version)
         latest = sorted_items[-1]
-        self.output("Version retrieved from appcast: %s" % latest["version"])
+        self.output(f"Version retrieved from appcast: {latest['version']}")
         if latest.get("human_version"):
             self.output(
-                "User-facing version retrieved from appcast: %s"
-                % latest["human_version"]
+                f"User-facing version retrieved from appcast: {latest['human_version']}"
             )
 
         pkginfo = self.handle_pkginfo(latest)
 
         self.env["url"] = latest["url"]
         self.env["version"] = latest.get("human_version", latest["version"])
-        self.output("Found URL %s" % self.env["url"])
+        self.output(f"Found URL {self.env['url']}")
         self.env["additional_pkginfo"] = pkginfo
 
 
