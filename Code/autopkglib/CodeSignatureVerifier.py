@@ -198,7 +198,7 @@ class CodeSignatureVerifier(DmgMounter):
 
         # Parse the output for certificate authority names
         authority_name_chain = []
-        for match in re.finditer(RE_AUTHORITY_PKGUTIL, output):
+        for match in re.finditer(RE_AUTHORITY_PKGUTIL, output.decode("utf-8")):
             authority_name_chain.append(match.group("authority"))
 
         # Return a tuple with boolean status and
