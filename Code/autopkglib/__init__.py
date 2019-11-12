@@ -552,6 +552,12 @@ class AutoPackagerError(Exception):
     pass
 
 
+class AutoPackagerLoadError(Exception):
+    """Represent an exception loading a recipe or processor."""
+
+    pass
+
+
 class AutoPackager:
     """Instantiate and execute processors from a recipe."""
 
@@ -617,7 +623,7 @@ class AutoPackager:
         for step in recipe["Process"]:
             try:
                 processor_class = get_processor(
-                    step["Processor"], recipe=recipe, env=self.env
+                    step["Processor"], verbose=self.verbose, recipe=recipe, env=self.env
                 )
             except (KeyError, AttributeError):
                 msg = f"Unknown processor '{step['Processor']}'."
@@ -626,6 +632,12 @@ class AutoPackager:
                         " This shared processor can be added via the "
                         f"repo: {step['SharedProcessorRepoURL']}."
                     )
+                raise AutoPackagerError(msg)
+            except AutoPackagerLoadError:
+                msg = (
+                    f"Unable to import '{step['Processor']}', likely due "
+                    "to syntax or Python error."
+                )
                 raise AutoPackagerError(msg)
             # Add arguments to set of variables.
             variables.update(set(step.get("Arguments", {}).keys()))
@@ -674,7 +686,7 @@ class AutoPackager:
             processor_name = extract_processor_name_with_recipe_identifier(
                 step["Processor"]
             )[0]
-            processor_class = get_processor(processor_name)
+            processor_class = get_processor(processor_name, verbose=self.verbose)
             processor = processor_class(self.env)
             processor.inject(step.get("Arguments", {}))
 
@@ -794,7 +806,7 @@ def extract_processor_name_with_recipe_identifier(processor_name):
     return (processor_name, identifier)
 
 
-def get_processor(processor_name, recipe=None, env=None):
+def get_processor(processor_name, verbose=None, recipe=None, env=None):
     """Returns a Processor object given a name and optionally a recipe,
     importing a processor from the recipe directory if available"""
     if env is None:
@@ -828,7 +840,9 @@ def get_processor(processor_name, recipe=None, env=None):
             )
             processor_search_dirs.extend(parent_recipe_dirs)
 
-        for directory in processor_search_dirs:
+        # Dedupe the list first
+        deduped_processors = set([dir for dir in processor_search_dirs])
+        for directory in deduped_processors:
             processor_filename = os.path.join(directory, processor_name + ".py")
             if os.path.exists(processor_filename):
                 try:
@@ -844,6 +858,11 @@ def get_processor(processor_name, recipe=None, env=None):
                     # if we aren't successful, that might be OK, we're
                     # going see if the processor was already imported
                     log_err(f"WARNING: {processor_filename}: {err}")
+                    if verbose:
+                        exc_type, exc_value, exc_traceback = sys.exc_info()
+                        traceback.print_exc(file=sys.stdout)
+                        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+                    raise AutoPackagerLoadError(err)
 
     return globals()[processor_name]
 
