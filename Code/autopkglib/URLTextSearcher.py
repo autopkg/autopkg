@@ -111,7 +111,7 @@ class URLTextSearcher(Processor):
         except OSError:
             raise ProcessorError(f"Could not retrieve URL: {url}")
 
-        match = re_pattern.search(content)
+        match = re_pattern.search(content.decode("utf-8"))
 
         if not match:
             raise ProcessorError(f"No match found on URL: {url}")
