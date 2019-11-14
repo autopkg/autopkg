@@ -292,7 +292,7 @@ class URLDownloader(URLGetter):
             xattr.setxattr(
                 self.env["pathname"],
                 self.xattr_last_modified,
-                header.get("last-modified"),
+                header.get("last-modified").encode(),
             )
             self.output(
                 f"Storing new Last-Modified header: {header.get('last-modified')}"
@@ -301,7 +301,9 @@ class URLDownloader(URLGetter):
         self.env["etag"] = ""
         if header.get("etag"):
             self.env["etag"] = header.get("etag")
-            xattr.setxattr(self.env["pathname"], self.xattr_etag, header.get("etag"))
+            xattr.setxattr(
+                self.env["pathname"], self.xattr_etag, header.get("etag").encode()
+            )
             self.output(f"Storing new ETag header: {header.get('etag')}")
 
     def main(self):
