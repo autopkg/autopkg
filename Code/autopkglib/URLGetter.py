@@ -160,6 +160,7 @@ class URLGetter(Processor):
             curl_cmd,
             shell=False,
             bufsize=1,
+            text=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
