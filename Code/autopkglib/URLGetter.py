@@ -154,13 +154,13 @@ class URLGetter(Processor):
                     self.clear_header(header)
         return header
 
-    def execute_curl(self, curl_cmd):
+    def execute_curl(self, curl_cmd, text_mode=True):
         """Execute curl comamnd. Return stdout, stderr and return code."""
         proc = subprocess.Popen(
             curl_cmd,
             shell=False,
             bufsize=1,
-            text=True,
+            text=text_mode,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -170,16 +170,14 @@ class URLGetter(Processor):
 
         return proc_stdout, proc_stderr, proc.returncode
 
-    def download(self, curl_cmd):
+    def download(self, curl_cmd, text_mode=True):
         """Launch curl, return its output, and handle failures."""
 
-        proc_stdout, proc_stderr, retcode = self.execute_curl(curl_cmd)
+        proc_stdout, proc_stderr, retcode = self.execute_curl(curl_cmd, text_mode)
 
         if retcode:  # Non-zero exit code from curl => problem with download
             curl_err = self.parse_curl_error(proc_stderr)
-            raise ProcessorError(
-                f"curl failure: {curl_err} (exit code {retcode})"
-            )
+            raise ProcessorError(f"curl failure: {curl_err} (exit code {retcode})")
 
         return proc_stdout
 
