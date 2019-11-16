@@ -19,7 +19,6 @@
 
 import os
 from distutils.version import LooseVersion
-from operator import itemgetter
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree
 
@@ -282,16 +281,6 @@ class SparkleUpdateInfoProvider(URLGetter):
     def main(self):
         """Get URL for latest version in update feed"""
 
-        def compare_version(this, that):
-            """Compare loose versions"""
-            # cmp() doesn't exist in Python3, so this uses the suggested
-            # solutions from What's New In Python 3.0:
-            # https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
-            # This will be refactored in Python 3.
-            this_comparison = LooseVersion(this) > LooseVersion(that)
-            that_comparison = LooseVersion(this) < LooseVersion(that)
-            return this_comparison - that_comparison
-
         if "PKG" in self.env:
             self.output("Local PKG provided, no downloaded needed.")
             self.output(
@@ -311,7 +300,8 @@ class SparkleUpdateInfoProvider(URLGetter):
 
         data = self.get_feed_data(self.env.get("appcast_url"))
         items = self.parse_feed_data(data)
-        sorted_items = sorted(items, key=itemgetter("version"), cmp=compare_version)
+
+        sorted_items = sorted(items, key=lambda a: LooseVersion(a["version"]))
         latest = sorted_items[-1]
         self.output(f"Version retrieved from appcast: {latest['version']}")
         if latest.get("human_version"):
