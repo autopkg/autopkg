@@ -18,11 +18,9 @@
 """See docstring for SparkleUpdateInfoProvider class"""
 
 import os
-import urllib.error
-import urllib.parse as urlparse
-import urllib.request
 from distutils.version import LooseVersion
 from operator import itemgetter
+from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree
 
 from autopkglib import ProcessorError
@@ -148,9 +146,9 @@ class SparkleUpdateInfoProvider(URLGetter):
         # query string
         if "appcast_query_pairs" in self.env:
             queries = self.env["appcast_query_pairs"]
-            new_query = urllib.urlencode([(k, v) for (k, v) in queries.items()])
-            scheme, netloc, path, _, frag = urlparse.urlsplit(url)
-            url = urlparse.urlunsplit((scheme, netloc, path, new_query, frag))
+            new_query = urlencode([(k, v) for (k, v) in queries.items()])
+            scheme, netloc, path, _, frag = urlsplit(url)
+            url = urlunsplit((scheme, netloc, path, new_query, frag))
 
         data = self.fetch_content(url, headers=self.env.get("appcast_request_headers"))
         return data
@@ -159,9 +157,9 @@ class SparkleUpdateInfoProvider(URLGetter):
         """URL-quote the path component to handle spaces, etc.
         (Panic apps do this)"""
 
-        url_bits = urlparse.urlsplit(enclosure.get("url"))
+        url_bits = urlsplit(enclosure.get("url"))
         if self.env.get("urlencode_path_component", True):
-            encoded_path = urllib.quote(url_bits.path)
+            encoded_path = quote(url_bits.path)
         else:
             encoded_path = url_bits.path
         built_url = url_bits.scheme + "://" + url_bits.netloc + encoded_path
