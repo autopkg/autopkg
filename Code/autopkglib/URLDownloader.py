@@ -125,7 +125,6 @@ class URLDownloader(URLGetter):
             "--silent",
             "--show-error",
             "--no-buffer",
-            "--fail",
             "--dump-header",
             "-",
             "--speed-time",
@@ -141,7 +140,7 @@ class URLDownloader(URLGetter):
         """Assemble file download curl command and return it."""
 
         curl_cmd = self.prepare_base_curl_cmd()
-        curl_cmd.extend(["--output", pathname_temporary])
+        curl_cmd.extend(["--fail", "--output", pathname_temporary])
 
         super().add_curl_common_opts(curl_cmd)
 
