@@ -170,7 +170,7 @@ class SparkleUpdateInfoProvider(URLGetter):
     def determine_version(self, enclosure, url):
         """Gets version from enclosure"""
 
-        version = enclosure.get(f"{self.xmlns}version")
+        version = enclosure.get(f"{{{self.xmlns}}}version")
 
         if version is None:
             # Sparkle tries to guess a version from the download URL for
@@ -225,15 +225,14 @@ class SparkleUpdateInfoProvider(URLGetter):
                 item["url"] = self.build_url(enclosure)
                 item["version"] = self.determine_version(enclosure, item["url"])
 
-                human_version = enclosure.get(f"{self.xmlns}shortVersionString")
+                human_version = enclosure.get(f"{{{self.xmlns}}}shortVersionString")
                 if human_version is not None:
                     item["human_version"] = human_version
-
-                min_version = item_elem.find(f"{self.xmlns}minimumSystemVersion")
+                min_version = item_elem.find(f"{{{self.xmlns}}}minimumSystemVersion")
                 if min_version is not None:
                     item["minimum_os_version"] = min_version.text
 
-                description_elem = item_elem.find(f"{self.xmlns}releaseNotesLink")
+                description_elem = item_elem.find(f"{{{self.xmlns}}}releaseNotesLink")
                 # Strip possible surrounding whitespace around description_url
                 # element text as we'll be passing this as an argument to a
                 # curl process
