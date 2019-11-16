@@ -185,7 +185,7 @@ class CodeSignatureVerifier(DmgMounter):
         """
         process = ["/usr/sbin/pkgutil", "--check-signature", path]
 
-        proc = subprocess.Popen(process, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen(process, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         (output, error) = proc.communicate()
 
         # Log everything
