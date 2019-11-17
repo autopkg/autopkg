@@ -169,7 +169,7 @@ class DmgMounter(Processor):
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            stderr = proc.communicate()[1]
+            (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
