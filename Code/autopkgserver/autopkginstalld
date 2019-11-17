@@ -113,7 +113,7 @@ class RunHandler(socketserver.StreamRequestHandler):
                 plist = plistlib.loads(plist_string)
             except BaseException:
                 self.log.error("Malformed request")
-                self.request.send("ERROR:Malformed request\n")
+                self.request.send("ERROR:Malformed request\n".encode())
                 return
             self.log.debug("Parsed request plist")
 
@@ -125,10 +125,10 @@ class RunHandler(socketserver.StreamRequestHandler):
                 try:
                     installer = Installer(self.log, self.request, plist)
                     installer.install()
-                    self.request.send("OK:DONE\n")
+                    self.request.send("OK:DONE\n".encode())
                 except InstallerError as err:
                     self.log.error(f"Installing failed: {err}")
-                    self.request.send(str(err) + "\n")
+                    self.request.send(f"{err}\n".encode())
             elif "mount_point" in plist:
                 self.log.info(
                     "Dispatching ItemCopier worker to process request for "
@@ -137,17 +137,17 @@ class RunHandler(socketserver.StreamRequestHandler):
                 try:
                     copier = ItemCopier(self.log, self.request, plist)
                     copier.copy()
-                    self.request.send("OK:DONE\n")
+                    self.request.send("OK:DONE\n".encode())
                 except ItemCopierError as err:
                     self.log.error(f"Copying failed: {err}")
-                    self.request.send(str(err) + "\n")
+                    self.request.send(f"{err}\n".encode())
             else:
                 self.log.error("Unsupported request format")
-                self.request.send("ERROR:Unsupported request format")
+                self.request.send("ERROR:Unsupported request format".encode())
 
         except BaseException as err:
             self.log.error(f"Caught exception: {repr(err)}")
-            self.request.send(f"ERROR:Caught exception: {repr(err)}")
+            self.request.send(f"ERROR:Caught exception: {repr(err)}".encode())
 
 
 class AutoPkgInstallDaemonError(Exception):
