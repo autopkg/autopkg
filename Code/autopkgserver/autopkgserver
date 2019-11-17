@@ -355,8 +355,9 @@ def main(argv):
 
     # Get socket file descriptors from launchd.
     import launch2
+
     try:
-        sockets = launch2.launch_activate_socket(b"AutoPkgServer")
+        sockets = launch2.launch_activate_socket("AutoPkgServer")
     except launch2.LaunchDError as err:
         print(f"launchd check-in failed: {err}", file=sys.stderr)
         time.sleep(10)
