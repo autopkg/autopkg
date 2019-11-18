@@ -100,7 +100,7 @@ class PkgCreator(Processor):
                 "PackageInfo",
             ]
             proc = subprocess.Popen(
-                xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             (_, stderr) = proc.communicate()
         except OSError as err:

@@ -18,11 +18,8 @@
 """See docstring for SparkleUpdateInfoProvider class"""
 
 import os
-import urllib.error
-import urllib.parse as urlparse
-import urllib.request
 from distutils.version import LooseVersion
-from operator import itemgetter
+from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree
 
 from autopkglib import ProcessorError
@@ -148,9 +145,9 @@ class SparkleUpdateInfoProvider(URLGetter):
         # query string
         if "appcast_query_pairs" in self.env:
             queries = self.env["appcast_query_pairs"]
-            new_query = urllib.urlencode([(k, v) for (k, v) in queries.items()])
-            scheme, netloc, path, _, frag = urlparse.urlsplit(url)
-            url = urlparse.urlunsplit((scheme, netloc, path, new_query, frag))
+            new_query = urlencode([(k, v) for (k, v) in queries.items()])
+            scheme, netloc, path, _, frag = urlsplit(url)
+            url = urlunsplit((scheme, netloc, path, new_query, frag))
 
         data = self.fetch_content(url, headers=self.env.get("appcast_request_headers"))
         return data
@@ -159,9 +156,9 @@ class SparkleUpdateInfoProvider(URLGetter):
         """URL-quote the path component to handle spaces, etc.
         (Panic apps do this)"""
 
-        url_bits = urlparse.urlsplit(enclosure.get("url"))
+        url_bits = urlsplit(enclosure.get("url"))
         if self.env.get("urlencode_path_component", True):
-            encoded_path = urllib.quote(url_bits.path)
+            encoded_path = quote(url_bits.path)
         else:
             encoded_path = url_bits.path
         built_url = url_bits.scheme + "://" + url_bits.netloc + encoded_path
@@ -172,7 +169,7 @@ class SparkleUpdateInfoProvider(URLGetter):
     def determine_version(self, enclosure, url):
         """Gets version from enclosure"""
 
-        version = enclosure.get(f"{self.xmlns}version")
+        version = enclosure.get(f"{{{self.xmlns}}}version")
 
         if version is None:
             # Sparkle tries to guess a version from the download URL for
@@ -227,15 +224,14 @@ class SparkleUpdateInfoProvider(URLGetter):
                 item["url"] = self.build_url(enclosure)
                 item["version"] = self.determine_version(enclosure, item["url"])
 
-                human_version = enclosure.get(f"{self.xmlns}shortVersionString")
+                human_version = enclosure.get(f"{{{self.xmlns}}}shortVersionString")
                 if human_version is not None:
                     item["human_version"] = human_version
-
-                min_version = item_elem.find(f"{self.xmlns}minimumSystemVersion")
+                min_version = item_elem.find(f"{{{self.xmlns}}}minimumSystemVersion")
                 if min_version is not None:
                     item["minimum_os_version"] = min_version.text
 
-                description_elem = item_elem.find(f"{self.xmlns}releaseNotesLink")
+                description_elem = item_elem.find(f"{{{self.xmlns}}}releaseNotesLink")
                 # Strip possible surrounding whitespace around description_url
                 # element text as we'll be passing this as an argument to a
                 # curl process
@@ -285,16 +281,6 @@ class SparkleUpdateInfoProvider(URLGetter):
     def main(self):
         """Get URL for latest version in update feed"""
 
-        def compare_version(this, that):
-            """Compare loose versions"""
-            # cmp() doesn't exist in Python3, so this uses the suggested
-            # solutions from What's New In Python 3.0:
-            # https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
-            # This will be refactored in Python 3.
-            this_comparison = LooseVersion(this) > LooseVersion(that)
-            that_comparison = LooseVersion(this) < LooseVersion(that)
-            return this_comparison - that_comparison
-
         if "PKG" in self.env:
             self.output("Local PKG provided, no downloaded needed.")
             self.output(
@@ -314,7 +300,8 @@ class SparkleUpdateInfoProvider(URLGetter):
 
         data = self.get_feed_data(self.env.get("appcast_url"))
         items = self.parse_feed_data(data)
-        sorted_items = sorted(items, key=itemgetter("version"), cmp=compare_version)
+
+        sorted_items = sorted(items, key=lambda a: LooseVersion(a["version"]))
         latest = sorted_items[-1]
         self.output(f"Version retrieved from appcast: {latest['version']}")
         if latest.get("human_version"):

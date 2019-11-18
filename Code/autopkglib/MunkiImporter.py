@@ -483,7 +483,7 @@ class MunkiImporter(Processor):
         # Call makepkginfo.
         try:
             proc = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
             )
             (out, err_out) = proc.communicate()
         except OSError as err:
@@ -492,11 +492,11 @@ class MunkiImporter(Processor):
                 f"{err.strerror}"
             )
         if err_out:
-            for err_line in err_out.splitlines():
+            for err_line in err_out.decode().splitlines():
                 self.output(err_line)
         if proc.returncode != 0:
             raise ProcessorError(
-                f"creating pkginfo for {self.env['pkg_path']} failed: {err_out}"
+                f"creating pkginfo for {self.env['pkg_path']} failed: {err_out.decode()}"
             )
 
         # Get pkginfo from output plist.

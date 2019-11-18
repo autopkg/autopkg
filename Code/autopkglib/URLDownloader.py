@@ -115,7 +115,7 @@ class URLDownloader(URLGetter):
     def getxattr(self, attr):
         """Get a named xattr from a file. Return None if not present"""
         if attr in xattr.listxattr(self.env["pathname"]):
-            return xattr.getxattr(self.env["pathname"], attr)
+            return xattr.getxattr(self.env["pathname"], attr).decode()
         return None
 
     def prepare_base_curl_cmd(self):
@@ -125,7 +125,6 @@ class URLDownloader(URLGetter):
             "--silent",
             "--show-error",
             "--no-buffer",
-            "--fail",
             "--dump-header",
             "-",
             "--speed-time",
@@ -141,7 +140,7 @@ class URLDownloader(URLGetter):
         """Assemble file download curl command and return it."""
 
         curl_cmd = self.prepare_base_curl_cmd()
-        curl_cmd.extend(["--output", pathname_temporary])
+        curl_cmd.extend(["--fail", "--output", pathname_temporary])
 
         super().add_curl_common_opts(curl_cmd)
 
@@ -292,7 +291,7 @@ class URLDownloader(URLGetter):
             xattr.setxattr(
                 self.env["pathname"],
                 self.xattr_last_modified,
-                header.get("last-modified"),
+                header.get("last-modified").encode(),
             )
             self.output(
                 f"Storing new Last-Modified header: {header.get('last-modified')}"
@@ -301,7 +300,9 @@ class URLDownloader(URLGetter):
         self.env["etag"] = ""
         if header.get("etag"):
             self.env["etag"] = header.get("etag")
-            xattr.setxattr(self.env["pathname"], self.xattr_etag, header.get("etag"))
+            xattr.setxattr(
+                self.env["pathname"], self.xattr_etag, header.get("etag").encode()
+            )
             self.output(f"Storing new ETag header: {header.get('etag')}")
 
     def main(self):

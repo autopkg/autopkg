@@ -75,7 +75,7 @@ class MunkiInstallsItemsCreator(Processor):
         # Call makepkginfo.
         try:
             proc = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
             )
             (out, err) = proc.communicate()
         except OSError as err:
@@ -84,7 +84,7 @@ class MunkiInstallsItemsCreator(Processor):
                 f"{err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError(f"creating pkginfo failed: {err}")
+            raise ProcessorError(f"creating pkginfo failed: {err.decode()}")
 
         # Get pkginfo from output plist.
         pkginfo = plistlib.loads(out)

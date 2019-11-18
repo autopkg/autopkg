@@ -77,7 +77,7 @@ class PkgPayloadUnpacker(Processor):
                 self.env["destination_path"],
             ]
             proc = subprocess.Popen(
-                dittocmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                dittocmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             (_, err_out) = proc.communicate()
         except OSError as err:
