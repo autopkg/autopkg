@@ -55,7 +55,7 @@ class FlatPkgUnpacker(DmgMounter):
         "destination_path": {
             "required": True,
             "description": (
-                "Directory where archive will be unpacked, created " "if necessary."
+                "Directory where archive will be unpacked, created if necessary."
             ),
         },
         "purge_destination": {

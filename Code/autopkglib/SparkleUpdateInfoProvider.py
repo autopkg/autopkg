@@ -64,7 +64,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         "curl_opts": {
             "required": False,
             "description": (
-                "Optional array of options to include with the download " "request."
+                "Optional array of options to include with the download request."
             ),
         },
         "pkginfo_keys_to_copy_from_sparkle_feed": {

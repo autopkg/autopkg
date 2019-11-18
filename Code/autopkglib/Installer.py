@@ -37,7 +37,7 @@ class Installer(DmgMounter):
         "pkg_path": {
             "required": True,
             "description": (
-                "Path to the package to be installed. Can be inside a disk " "image."
+                "Path to the package to be installed. Can be inside a disk image."
             ),
         },
         "new_package_request": {
@@ -132,7 +132,7 @@ class Installer(DmgMounter):
             if result == "DONE":
                 self.env["installer_summary_result"] = {
                     "summary_text": (
-                        "The following pkgs " "were successfully installed:"
+                        "The following pkgs were successfully installed:"
                     ),
                     "data": {"pkg_path": matched_pkg_path},
                 }
@@ -168,7 +168,7 @@ class Installer(DmgMounter):
         errors = data.rstrip().split("\n")
         if not errors:
             errors = [
-                "ERROR:No reply from autopkginstalld (crash?), " "check system logs"
+                "ERROR:No reply from autopkginstalld (crash?), check system logs"
             ]
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 

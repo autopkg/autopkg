@@ -136,7 +136,7 @@ class InstallFromDMG(DmgMounter):
         errors = data.rstrip().split("\n")
         if not errors:
             errors = [
-                "ERROR:No reply from autopkginstalld (crash?), " "check system logs"
+                "ERROR:No reply from autopkginstalld (crash?), check system logs"
             ]
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 

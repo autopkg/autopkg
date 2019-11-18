@@ -281,7 +281,7 @@ class CodeSignatureVerifier(DmgMounter):
 
     def main(self):
         if self.env.get("DISABLE_CODE_SIGNATURE_VERIFICATION"):
-            self.output("Code signature verification disabled for this recipe " "run.")
+            self.output("Code signature verification disabled for this recipe run.")
             return
         # Check if we're trying to read something inside a dmg.
         input_path = self.env["input_path"]

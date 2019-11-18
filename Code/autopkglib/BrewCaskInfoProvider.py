@@ -94,7 +94,7 @@ class BrewCaskInfoProvider(Processor):
             "removed in a future AutoPkg release."
         )
         github_raw_baseurl = (
-            "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/" "Casks"
+            "https://raw.githubusercontent.com/caskroom/homebrew-cask/master/Casks"
         )
         cask_url = f"{github_raw_baseurl}/{self.env['cask_name']}.rb"
         try:

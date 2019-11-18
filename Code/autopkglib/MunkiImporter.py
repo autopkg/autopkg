@@ -56,7 +56,7 @@ class MunkiImporter(Processor):
         "pkginfo": {
             "required": False,
             "description": (
-                "Dictionary of pkginfo keys to copy to " "generated pkginfo."
+                "Dictionary of pkginfo keys to copy to generated pkginfo."
             ),
         },
         "force_munkiimport": {

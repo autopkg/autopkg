@@ -208,7 +208,7 @@ class PkgCreator(Processor):
         pkg_path = os.path.join(request["pkgdir"], request["pkgname"] + ".pkg")
         if self.pkg_already_exists(pkg_path, request["id"], request["version"]):
             self.output(
-                "Existing package matches version and identifier, " "not building."
+                "Existing package matches version and identifier, not building."
             )
             self.env["pkg_path"] = pkg_path
             self.env["new_package_request"] = False

@@ -247,7 +247,7 @@ class Packager:
         if self.request["scripts"]:
             if self.request["pkgtype"] == "bundle":
                 raise PackagerError(
-                    "Installer scripts are not supported with " "bundle package types."
+                    "Installer scripts are not supported with bundle package types."
                 )
             if not os.path.isdir(self.request["scripts"]):
                 raise PackagerError(

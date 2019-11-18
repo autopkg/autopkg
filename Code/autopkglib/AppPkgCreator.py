@@ -127,7 +127,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         # its identifier and version to the one we're going to build.
         if self.pkg_already_exists(pkg_path, self.env["bundleid"], self.env["version"]):
             self.output(
-                "Existing package matches version and identifier, " "not building."
+                "Existing package matches version and identifier, not building."
             )
             self.env["pkg_path"] = pkg_path
             self.env["new_package_request"] = False

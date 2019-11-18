@@ -112,7 +112,7 @@ def main():
     parser.add_option(
         "-v",
         "--next-version",
-        help=("Next version to which AutoPkg will be " "incremented. Required."),
+        help=("Next version to which AutoPkg will be incremented. Required."),
     )
     parser.add_option(
         "-p",

@@ -45,7 +45,7 @@ class URLDownloader(URLGetter):
         "curl_opts": {
             "required": False,
             "description": (
-                "Optional array of options to include with the download " "request."
+                "Optional array of options to include with the download request."
             ),
         },
         "download_dir": {

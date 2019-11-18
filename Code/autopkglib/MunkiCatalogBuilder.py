@@ -30,7 +30,7 @@ class MunkiCatalogBuilder(Processor):
         "munki_repo_changed": {
             "required": False,
             "description": (
-                "If not defined or False, causes running " "makecatalogs to be skipped."
+                "If not defined or False, causes running makecatalogs to be skipped."
             ),
         },
     }
