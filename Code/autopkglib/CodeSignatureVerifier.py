@@ -158,22 +158,15 @@ class CodeSignatureVerifier(DmgMounter):
         if self.env.get("CODE_SIGNATURE_VERIFICATION_DEBUG"):
             self.output(f"{' '.join(process)}")
 
-        proc = subprocess.Popen(
-            process,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        (output, error) = proc.communicate()
+        proc = subprocess.run(process, capture_output=True, text=True)
 
         # Log all output. codesign seems to output only
         # to stderr but check the stdout too
-        if error:
-            for line in error.splitlines():
+        if proc.stderr:
+            for line in proc.stderr.splitlines():
                 self.output(line)
-        if output:
-            for line in output.splitlines():
+        if proc.stdout:
+            for line in proc.stdout.splitlines():
                 self.output(line)
 
         # Return True if codesign exited with 0
@@ -186,22 +179,19 @@ class CodeSignatureVerifier(DmgMounter):
         """
         process = ["/usr/sbin/pkgutil", "--check-signature", path]
 
-        proc = subprocess.Popen(
-            process, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        (output, error) = proc.communicate()
+        proc = subprocess.run(process, capture_output=True, text=True)
 
         # Log everything
-        if output:
-            for line in output.splitlines():
+        if proc.stdout:
+            for line in proc.stdout.splitlines():
                 self.output(line)
-        if error:
-            for line in error.splitlines():
+        if proc.stderr:
+            for line in proc.stderr.splitlines():
                 self.output(line)
 
         # Parse the output for certificate authority names
         authority_name_chain = []
-        for match in re.finditer(RE_AUTHORITY_PKGUTIL, output):
+        for match in re.finditer(RE_AUTHORITY_PKGUTIL, proc.stdout):
             authority_name_chain.append(match.group("authority"))
 
         # Return a tuple with boolean status and

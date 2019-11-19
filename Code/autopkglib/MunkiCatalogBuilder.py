@@ -50,17 +50,14 @@ class MunkiCatalogBuilder(Processor):
 
         # Call makecatalogs.
         try:
-            proc = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            (_, err_out) = proc.communicate()
+            proc = subprocess.run(args, capture_output=True, text=True)
         except OSError as err:
             raise ProcessorError(
                 f"makecatalog execution failed with error code {err.errno}: "
                 f"{err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError(f"makecatalogs failed: {err_out}")
+            raise ProcessorError(f"makecatalogs failed: {proc.stderr}")
         self.output("Munki catalogs rebuilt!")
 
 

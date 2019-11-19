@@ -73,20 +73,17 @@ class DmgMounter(Processor):
         """Returns true if dmg has a Software License Agreement.
         These dmgs normally cannot be attached without user intervention"""
         has_sla = False
-        proc = subprocess.Popen(
+        proc = subprocess.run(
             ["/usr/bin/hdiutil", "imageinfo", dmgpath, "-plist"],
-            bufsize=-1,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
-        (stdout, stderr) = proc.communicate()
-        if stderr:
+        if proc.stderr:
             # some error with hdiutil. Print it, but try to continue anyway.
             # (APFS disk images generate extranous output to stderr)
-            self.output(f"hdiutil imageinfo error {stderr} with image {dmgpath}.")
+            self.output(f"hdiutil imageinfo error {proc.stderr} with image {dmgpath}.")
 
-        (pliststr, stdout) = self.get_first_plist(stdout)
+        (pliststr, stdout) = self.get_first_plist(proc.stdout)
         if pliststr:
             try:
                 plist = plistlib.loads(pliststr.encode())
@@ -110,7 +107,7 @@ class DmgMounter(Processor):
 
         # Call hdiutil.
         try:
-            proc = subprocess.Popen(
+            proc = subprocess.run(
                 (
                     "/usr/bin/hdiutil",
                     "attach",
@@ -120,21 +117,19 @@ class DmgMounter(Processor):
                     "-nobrowse",
                     pathname,
                 ),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE,
+                input=stdin,
+                capture_output=True,
                 text=True,
             )
-            (stdout, stderr) = proc.communicate(stdin)
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError(f"mounting {pathname} failed: {stderr}")
+            raise ProcessorError(f"mounting {pathname} failed: {proc.stderr}")
 
         # Read output plist.
-        (pliststr, stdout) = self.get_first_plist(stdout)
+        (pliststr, stdout) = self.get_first_plist(proc.stdout)
         try:
             output = plistlib.loads(pliststr.encode())
         except Exception:
@@ -162,19 +157,17 @@ class DmgMounter(Processor):
 
         # Call hdiutil.
         try:
-            proc = subprocess.Popen(
+            proc = subprocess.run(
                 ("/usr/bin/hdiutil", "detach", self.mounts[pathname]),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
             )
-            (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError(f"unmounting {pathname} failed: {stderr}")
+            raise ProcessorError(f"unmounting {pathname} failed: {proc.stderr}")
 
         # Delete mount from mount list.
         del self.mounts[pathname]

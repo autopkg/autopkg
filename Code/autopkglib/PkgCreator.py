@@ -99,17 +99,14 @@ class PkgCreator(Processor):
                 source_path,
                 "PackageInfo",
             ]
-            proc = subprocess.Popen(
-                xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            (_, stderr) = proc.communicate()
+            proc = subprocess.run(xarcmd, capture_output=True, text=True)
         except OSError as err:
             raise ProcessorError(
                 f"xar execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
             raise ProcessorError(
-                f"extraction of {source_path} with xar failed: {stderr}"
+                f"extraction of {source_path} with xar failed: {proc.stderr}"
             )
 
     def pkg_already_exists(self, pkg_path, identifier, version):

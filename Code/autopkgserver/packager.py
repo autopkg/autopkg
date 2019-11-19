@@ -87,15 +87,12 @@ class Packager:
                 raise PackagerError(f"{path} is not a directory")
 
         def cmd_output(cmd):
-            """Outputs a stdout, stderr tuple from command output using a Popen"""
-            p = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
-            )
-            out, err = p.communicate()
-            if err:
+            """Outputs a stdout, stderr tuple from command output using a subprocess."""
+            p = subprocess.run(cmd, capture_output=True, text=False)
+            if p.stderr:
                 self.log.debug(f"WARNING: errors from command '{', '.join(cmd)}':")
-                self.log.debug(err.decode())
-            return (out, err)
+                self.log.debug(p.stderr.decode())
+            return (p.stdout, p.stderr)
 
         def get_mounts():
             """Returns a list of mounted volume paths as reported by diskutil."""
@@ -274,13 +271,11 @@ class Packager:
         os.chmod(self.tmp_pkgroot, 0o1775)
         os.chown(self.tmp_pkgroot, 0, 80)
         try:
-            p = subprocess.Popen(
+            p = subprocess.run(
                 ("/usr/bin/ditto", self.request["pkgroot"], self.tmp_pkgroot),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
             )
-            (_, err) = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"ditto execution failed with error code {e.errno}: {e.strerror}"
@@ -288,7 +283,7 @@ class Packager:
         if p.returncode != 0:
             raise PackagerError(
                 f"Couldn't copy pkgroot from {self.request['pkgroot']} to "
-                f"{self.tmp_pkgroot}: {' '.join(str(err).split())}"
+                f"{self.tmp_pkgroot}: {' '.join(str(p.stderr).split())}"
             )
 
         self.log.info(f"Package root copied to {self.tmp_pkgroot}")
@@ -385,7 +380,7 @@ class Packager:
         turn off package relocation"""
         self.component_plist = os.path.join(self.tmproot, "component.plist")
         try:
-            p = subprocess.Popen(
+            p = subprocess.run(
                 (
                     "/usr/bin/pkgbuild",
                     "--analyze",
@@ -393,11 +388,9 @@ class Packager:
                     self.tmp_pkgroot,
                     self.component_plist,
                 ),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
             )
-            (_, err) = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
@@ -405,7 +398,7 @@ class Packager:
         if p.returncode != 0:
             raise PackagerError(
                 f"pkgbuild failed with exit code {p.returncode}: "
-                f"{' '.join(str(err).split())}"
+                f"{' '.join(str(p.stderr).split())}"
             )
         try:
             with open(self.component_plist, "rb") as f:
@@ -479,10 +472,7 @@ class Packager:
             # Execute pkgbuild.
             self.log.info("Sending package build command")
             try:
-                p = subprocess.Popen(
-                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-                )
-                (_, err) = p.communicate()
+                p = subprocess.run(cmd, capture_output=True, text=True)
             except OSError as e:
                 raise PackagerError(
                     f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
@@ -490,7 +480,7 @@ class Packager:
             if p.returncode != 0:
                 raise PackagerError(
                     f"pkgbuild failed with exit code {p.returncode}: "
-                    f"{' '.join(str(err).split())}"
+                    f"{' '.join(str(p.stderr).split())}"
                 )
             self.log.info("Changing name and owner")
             # Change to final name and owner.

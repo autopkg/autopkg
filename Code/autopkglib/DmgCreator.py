@@ -143,16 +143,15 @@ class DmgCreator(Processor):
 
         # Call hdiutil.
         try:
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            (_, stderr) = proc.communicate()
+            proc = subprocess.run(cmd, capture_output=True, text=True)
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError(f"creation of {self.env['dmg_path']} failed: {stderr}")
+            raise ProcessorError(
+                f"creation of {self.env['dmg_path']} failed: {proc.stderr}"
+            )
 
         self.output(
             f"Created dmg from {self.env['dmg_root']} at {self.env['dmg_path']}"
