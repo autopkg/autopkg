@@ -79,10 +79,7 @@ class MunkiInfoCreator(Processor):
 
             # Call makepkginfo.
             try:
-                proc = subprocess.Popen(
-                    args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
-                )
-                (stdout, stderr) = proc.communicate()
+                proc = subprocess.run(args, capture_output=True, text=False)
             except OSError as err:
                 raise ProcessorError(
                     f"makepkginfo execution failed with error code {err.errno}: "
@@ -90,7 +87,7 @@ class MunkiInfoCreator(Processor):
                 )
             if proc.returncode != 0:
                 raise ProcessorError(
-                    f"creating pkginfo for {self.env['pkg_path']} failed: {stderr.decode()}"
+                    f"creating pkginfo for {self.env['pkg_path']} failed: {proc.stderr.decode()}"
                 )
 
         # makepkginfo cleanup.
@@ -99,7 +96,7 @@ class MunkiInfoCreator(Processor):
                 shutil.rmtree(temp_path)
 
         # Read output plist.
-        output = plistlib.loads(stdout)
+        output = plistlib.loads(proc.stdout)
 
         # Set version and name.
         if "version" in self.env:

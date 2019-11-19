@@ -144,10 +144,7 @@ class Unarchiver(Processor):
 
         # Call command.
         try:
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            (_, stderr) = proc.communicate()
+            proc = subprocess.run(cmd, capture_output=True, text=True)
         except OSError as err:
             raise ProcessorError(
                 f"{os.path.basename(cmd[0])} execution failed with error code "
@@ -156,7 +153,7 @@ class Unarchiver(Processor):
         if proc.returncode != 0:
             raise ProcessorError(
                 f"Unarchiving {archive_path} with {os.path.basename(cmd[0])} failed: "
-                f"{stderr}"
+                f"{proc.stderr}"
             )
 
         self.output(f"Unarchived {archive_path} to {destination_path}")

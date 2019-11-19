@@ -55,9 +55,7 @@ class MunkiImporter(Processor):
         },
         "pkginfo": {
             "required": False,
-            "description": (
-                "Dictionary of pkginfo keys to copy to generated pkginfo."
-            ),
+            "description": ("Dictionary of pkginfo keys to copy to generated pkginfo."),
         },
         "force_munkiimport": {
             "required": False,
@@ -482,25 +480,22 @@ class MunkiImporter(Processor):
 
         # Call makepkginfo.
         try:
-            proc = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
-            )
-            (out, err_out) = proc.communicate()
+            proc = subprocess.run(args, capture_output=True, text=False)
         except OSError as err:
             raise ProcessorError(
                 f"makepkginfo execution failed with error code {err.errno}: "
                 f"{err.strerror}"
             )
-        if err_out:
-            for err_line in err_out.decode().splitlines():
+        if proc.stderr:
+            for err_line in proc.stderr.decode().splitlines():
                 self.output(err_line)
         if proc.returncode != 0:
             raise ProcessorError(
-                f"creating pkginfo for {self.env['pkg_path']} failed: {err_out.decode()}"
+                f"creating pkginfo for {self.env['pkg_path']} failed: {proc.stderr.decode()}"
             )
 
         # Get pkginfo from output plist.
-        pkginfo = plistlib.loads(out)
+        pkginfo = plistlib.loads(proc.stdout)
 
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:

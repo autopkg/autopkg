@@ -76,10 +76,7 @@ class PkgPayloadUnpacker(Processor):
                 self.env["pkg_payload_path"],
                 self.env["destination_path"],
             ]
-            proc = subprocess.Popen(
-                dittocmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            (_, err_out) = proc.communicate()
+            proc = subprocess.run(dittocmd, capture_output=True, text=True)
         except OSError as err:
             raise ProcessorError(
                 f"ditto execution failed with error code {err.errno}: {err.strerror}"
@@ -87,7 +84,7 @@ class PkgPayloadUnpacker(Processor):
         if proc.returncode != 0:
             raise ProcessorError(
                 f"extraction of {self.env['pkg_payload_path']} with ditto failed: "
-                f"{err_out}"
+                f"{proc.stderr}"
             )
         self.output(
             f"Unpacked {self.env['pkg_payload_path']} to {self.env['destination_path']}"

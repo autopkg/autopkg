@@ -484,19 +484,16 @@ class Processor:
         """Execute a command and return output."""
 
         try:
-            proc = subprocess.Popen(
-                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-            (stdout, stderr) = proc.communicate()
+            proc = subprocess.run(command, capture_output=True)
         except OSError as err:
             raise ProcessorError(
                 f"{command[0]} execution failed with error code "
                 f"{err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError(f"{description} failed: {stderr}")
+            raise ProcessorError(f"{description} failed: {proc.stderr}")
 
-        return stdout
+        return proc.stdout
 
     def execute_shell(self):
         """Execute as a standalone binary on the commandline."""

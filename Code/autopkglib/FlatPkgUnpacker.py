@@ -111,17 +111,14 @@ class FlatPkgUnpacker(DmgMounter):
             ]
             if self.env.get("skip_payload"):
                 xarcmd.extend(["--exclude", "Payload"])
-            proc = subprocess.Popen(
-                xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            (_, stderr) = proc.communicate()
+            proc = subprocess.run(xarcmd, capture_output=True, text=True)
         except OSError as err:
             raise ProcessorError(
                 f"xar execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
             raise ProcessorError(
-                f"extraction of {self.env['flat_pkg_path']} with xar failed: {stderr}"
+                f"extraction of {self.env['flat_pkg_path']} with xar failed: {proc.stderr}"
             )
 
     def pkgutil_expand(self):
@@ -142,10 +139,7 @@ class FlatPkgUnpacker(DmgMounter):
                 self.source_path,
                 self.env["destination_path"],
             ]
-            proc = subprocess.Popen(
-                pkgutilcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            (_, stderr) = proc.communicate()
+            proc = subprocess.run(pkgutilcmd, capture_output=True, text=True)
         except OSError as err:
             raise ProcessorError(
                 f"pkgutil execution failed with error code {err.errno}: {err.strerror}"
@@ -153,7 +147,7 @@ class FlatPkgUnpacker(DmgMounter):
         if proc.returncode != 0:
             raise ProcessorError(
                 f"extraction of {self.env['flat_pkg_path']} with pkgutil failed: "
-                f"{stderr}"
+                f"{proc.stderr}"
             )
 
     def main(self):

@@ -71,19 +71,17 @@ class PkgExtractor(DmgMounter):
 
         # Unpack payload.
         try:
-            proc = subprocess.Popen(
+            proc = subprocess.run(
                 ("/usr/bin/ditto", "-x", "-z", archive_path, extract_path),
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
             )
-            (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"ditto execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError(f"Unpacking payload failed: {stderr}")
+            raise ProcessorError(f"Unpacking payload failed: {proc.stderr}")
 
     def main(self):
         # Check if we're trying to read something inside a dmg.
