@@ -63,6 +63,11 @@ class GitHubReleasesInfoProvider(Processor):
                 "the download request."
             ),
         },
+        "CURL_PATH": {
+            "required": False,
+            "default": "/usr/bin/curl",
+            "description": "Path to curl binary. Defaults to /usr/bin/curl.",
+        },
     }
     output_variables = {
         "release_notes": {
@@ -87,7 +92,7 @@ class GitHubReleasesInfoProvider(Processor):
         be of the form 'user/repo'"""
         releases = None
         curl_opts = self.env.get("curl_opts")
-        github = autopkglib.github.GitHubSession(curl_opts)
+        github = autopkglib.github.GitHubSession(self.env["CURL_PATH"], curl_opts)
         releases_uri = f"/repos/{repo}/releases"
         (releases, status) = github.call_api(releases_uri)
         if status != 200:
