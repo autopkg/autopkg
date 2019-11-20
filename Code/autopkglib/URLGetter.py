@@ -181,6 +181,37 @@ class URLGetter(Processor):
 
         return proc_stdout
 
+    def prepare_base_curl_cmd(self), url:
+        """Assemble base curl command and return it."""
+        curl_cmd = [
+            self.curl_binary(),
+            "--silent",
+            "--show-error",
+            "--no-buffer",
+            "--dump-header",
+            "-",
+            "--speed-time",
+            "30",
+            "--location",
+            "--url",
+            url,
+        ]
+        return curl_cmd
+
+    def prepare_download_curl_cmd(self, url, pathname_temporary):
+        """Assemble file download curl command and return it."""
+        curl_cmd = self.prepare_base_curl_cmd(url)
+        curl_cmd.extend(["--fail", "--output", pathname_temporary])
+        self.add_curl_common_opts(curl_cmd)
+        return curl_cmd
+
+    def simple_download(self, url, filename):
+        """Download URL to filename."""
+        curl_cmd = self.prepare_download_curl_cmd(url, filename)
+        self.download(curl_cmd)
+        # This will raise a ProcessorError if it fails, so we can safely assume
+        # at this point that we have a good download
+
     def main(self):
         pass
 
