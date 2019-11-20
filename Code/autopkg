@@ -18,6 +18,7 @@ related tasks"""
 
 from __future__ import print_function
 
+import copy
 import difflib
 import glob
 import hashlib
@@ -47,6 +48,8 @@ from autopkglib import (
     get_identifier,
     get_pref,
     get_processor,
+    globalPreferences,
+    is_mac,
     log,
     log_err,
     processor_names,
@@ -65,7 +68,7 @@ if sys.platform != "darwin":
 
 try:
     import FoundationPlist
-except:
+except ImportError:
     log("WARNING: importing plistlib as FoundationPlist;")
     log("WARNING: some plist formats will be unsupported")
     import plistlib as FoundationPlist
@@ -84,12 +87,16 @@ def print_version(argv):
 def gen_common_parser():
     """Generate a common optparse parser with default options."""
     parser = optparse.OptionParser()
+    parser.add_option("--prefs", dest="file_path")
     return parser
 
 
 def common_parse(parser, argv):
     """Parse an optparse parser with some enhancements and return a tuple."""
     options, arguments = parser.parse_args(argv[2:])
+    if options.file_path:
+        # Attempt to set the global preferences
+        globalPreferences.read_file(options.file_path)
     return (options, arguments)
 
 
@@ -824,7 +831,7 @@ def repo_list(argv):
     parser.set_usage(
         "Usage: %s %s\n" "List all installed recipe repos." % ("%prog", verb)
     )
-
+    _options, _arguments = common_parse(parser, argv)
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     if recipe_repos:
         for key in sorted(recipe_repos.keys()):
@@ -1311,7 +1318,7 @@ def list_recipes(argv):
 
     # Parse options
     add_search_and_override_dir_options(parser)
-    options = common_parse(parser, argv[1:])[0]
+    (options, arguments) = common_parse(parser, argv)
 
     augmented_list = False
     if options.with_identifiers or options.with_paths or options.plist:
@@ -2269,8 +2276,8 @@ def run_recipes(argv):
 
         log("Processing %s..." % recipe_path)
 
-        # Obtain prefs from the defaults domain
-        prefs = get_all_prefs()
+        # Create a local copy of preferences
+        prefs = copy.deepcopy(dict(get_all_prefs()))
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
         prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])
@@ -2769,7 +2776,7 @@ def main(argv):
     }
 
     # Warn against running as root
-    if os.getuid() == 0:
+    if is_mac() and os.getuid() == 0:
         log_err("\n" + "WARNING! " * 8 + "\n")
         log_err(
             "    Running AutoPkg as root or using `sudo` is not recommended!\n"

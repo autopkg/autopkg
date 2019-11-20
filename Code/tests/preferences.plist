@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CACHE_DIR</key>
+	<string>/Users/Shared/AutoPkg/Cache</string>
+	<key>MUNKI_REPO</key>
+	<string>/Users/Shared/munki_repo</string>
+	<key>RECIPE_OVERRIDE_DIRS</key>
+	<string>/Users/Shared/AutoPkg/RecipeOverrides</string>
+	<key>RECIPE_REPOS</key>
+	<dict/>
+	<key>RECIPE_REPO_DIR</key>
+	<string>/Users/Shared/AutoPkg/RecipeRepos</string>
+	<key>RECIPE_SEARCH_DIRS</key>
+	<array>
+		<string>.</string>
+		<string>~/Library/AutoPkg/Recipes</string>
+		<string>/Library/AutoPkg/Recipes</string>
+		<string>/Users/Shared/AutoPkg/Recipes</string>
+	</array>
+</dict>
+</plist>
