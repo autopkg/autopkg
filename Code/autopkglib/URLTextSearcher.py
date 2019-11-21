@@ -104,7 +104,7 @@ class URLTextSearcher(URLGetter):
         match = re_pattern.search(content)
 
         if not match:
-            raise ProcessorError("No match found on URL: %s" % self.env["url"])
+            raise ProcessorError("No match found on URL: {}".format(self.env["url"]))
 
         # return the last matched group with the dict of named groups
         return (match.group(match.lastindex or 0), match.groupdict())
@@ -126,7 +126,7 @@ class URLTextSearcher(URLGetter):
         self.output_variables = {}
         for key in groupdict.keys():
             self.env[key] = groupdict[key]
-            self.output("Found matching text (%s): %s" % (key, self.env[key]))
+            self.output("Found matching text ({}): {}".format(key, self.env[key]))
             self.output_variables[key] = {
                 "description": "Matched regular expression group"
             }
