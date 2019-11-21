@@ -31,10 +31,12 @@ TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 class GitHubSession(URLGetter):
     """Handles a session with the GitHub API"""
 
-    def __init__(self, curl_opts=None):
-        super().__init__()
+    def __init__(self, curl_path=None, curl_opts=None):
+        super(GitHubSession, self).__init__()
         self.env = {}
         self.env["url"] = None
+        if curl_path:
+            self.env["CURL_PATH"] = curl_path
         if curl_opts:
             self.env["curl_opts"] = curl_opts
         token = get_pref("GITHUB_TOKEN")
