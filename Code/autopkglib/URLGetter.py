@@ -185,6 +185,15 @@ class URLGetter(Processor):
 
         return proc_stdout
 
+    def download(self, url):
+        """Download content with default curl options"""
+
+        curl_cmd = self.prepare_curl_cmd()
+        curl_cmd.append(url)
+        output = self.download_with_curl(curl_cmd)
+
+        return output
+
     def main(self):
         pass
 
