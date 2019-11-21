@@ -137,7 +137,7 @@ To save the token, paste it to the following prompt."""
 
         return curl_cmd
 
-    def download(self, curl_cmd):
+    def download_with_curl(self, curl_cmd):
         """Download file using curl and return raw headers."""
 
         p_stdout, p_stderr, retcode = super(GitHubSession, self).execute_curl(curl_cmd)
@@ -191,7 +191,7 @@ To save the token, paste it to the following prompt."""
         curl_cmd = self.prepare_curl_cmd(method, accept, headers, data, temp_content)
 
         # Execute curl command and parse headers
-        raw_headers = self.download(curl_cmd)
+        raw_headers = self.download_with_curl(curl_cmd)
         header = super(GitHubSession, self).parse_headers(raw_headers)
         if header["http_result_code"] != "000":
             self.http_result_code = int(header["http_result_code"])

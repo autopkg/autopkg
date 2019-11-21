@@ -145,7 +145,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         dictionary of header-name/value mappings."""
 
         curl_cmd = self.prepare_curl_cmd(url, headers)
-        content = super(SparkleUpdateInfoProvider, self).download(curl_cmd)
+        content = super(SparkleUpdateInfoProvider, self).download_with_curl(curl_cmd)
         return content
 
     def get_feed_data(self, url):

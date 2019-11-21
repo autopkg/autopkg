@@ -119,7 +119,7 @@ class URLTextSearcher(URLGetter):
         curl_cmd = self.prepare_curl_cmd()
 
         # Execute curl command and search in content
-        content = super(URLTextSearcher, self).download(curl_cmd)
+        content = super(URLTextSearcher, self).download_with_curl(curl_cmd)
         groupmatch, groupdict = self.re_search(content)
 
         # favor a named group over a normal group match
