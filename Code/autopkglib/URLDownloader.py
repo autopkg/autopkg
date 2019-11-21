@@ -183,7 +183,7 @@ class URLDownloader(URLGetter):
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--head"])
 
-        raw_headers = super().download(curl_cmd)
+        raw_headers = super().download_with_curl(curl_cmd)
         header = super().parse_headers(raw_headers)
 
         if "filename=" in header.get("content-disposition", ""):
