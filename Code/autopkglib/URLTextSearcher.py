@@ -88,11 +88,8 @@ class URLTextSearcher(URLGetter):
 
     def prepare_curl_cmd(self):
         """Assemble curl command and return it."""
-        curl_cmd = [
-            super(URLTextSearcher, self).curl_binary(),
-            "--location",
-            "--compressed",
-        ]
+
+        curl_cmd = super(URLTextSearcher, self).prepare_curl_cmd()
         super(URLTextSearcher, self).add_curl_common_opts(curl_cmd)
         curl_cmd.append(self.env["url"])
         return curl_cmd
