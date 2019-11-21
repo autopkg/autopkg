@@ -66,10 +66,15 @@ class URLGetter(Processor):
         """Assemble basic curl command and return it."""
         return [self.curl_binary(), "--compressed", "--location"]
 
+    def add_curl_headers(self, curl_cmd, headers):
+        """Add headers to curl_cmd"""
+        if headers:
+            for header, value in headers.items():
+                curl_cmd.extend(["--header", "%s: %s" % (header, value)])
+
     def add_curl_common_opts(self, curl_cmd):
         """Add request_headers and curl_opts to curl_cmd"""
-        for header, value in self.env.get("request_headers", {}).items():
-            curl_cmd.extend(["--header", "%s: %s" % (header, value)])
+        self.add_curl_headers(curl_cmd, self.env.get("request_headers"))
 
         for item in self.env.get("curl_opts", []):
             curl_cmd.extend([item])
@@ -185,10 +190,11 @@ class URLGetter(Processor):
 
         return proc_stdout
 
-    def download(self, url):
+    def download(self, url, headers=None):
         """Download content with default curl options"""
 
         curl_cmd = self.prepare_curl_cmd()
+        self.add_curl_headers(curl_cmd, headers)
         curl_cmd.append(url)
         output = self.download_with_curl(curl_cmd)
 
