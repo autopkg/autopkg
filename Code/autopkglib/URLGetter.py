@@ -75,8 +75,7 @@ class URLGetter(Processor):
 
     def add_curl_common_opts(self, curl_cmd):
         """Add request_headers and curl_opts to curl_cmd"""
-        for header, value in self.env.get("request_headers", {}).items():
-            curl_cmd.extend(["--header", f"{header}: {value}"])
+        self.add_curl_headers(curl_cmd, self.env.get("request_headers"))
 
         for item in self.env.get("curl_opts", []):
             curl_cmd.extend([item])
@@ -197,7 +196,7 @@ class URLGetter(Processor):
         curl_cmd = self.prepare_curl_cmd()
         self.add_curl_headers(curl_cmd, headers)
         curl_cmd.append(url)
-        output = self.download_with_curl(curl_cmd)
+        output = self.download_with_curl(curl_cmd, text_mode)
 
         return output
 
