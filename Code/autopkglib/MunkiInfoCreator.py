@@ -80,7 +80,7 @@ class MunkiInfoCreator(Processor):
             # Call makepkginfo.
             try:
                 proc = subprocess.Popen(
-                    args, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                    args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
                 )
                 (stdout, stderr) = proc.communicate()
             except OSError as err:
@@ -90,7 +90,7 @@ class MunkiInfoCreator(Processor):
                 )
             if proc.returncode != 0:
                 raise ProcessorError(
-                    f"creating pkginfo for {self.env['pkg_path']} failed: {stderr}"
+                    f"creating pkginfo for {self.env['pkg_path']} failed: {stderr.decode()}"
                 )
 
         # makepkginfo cleanup.

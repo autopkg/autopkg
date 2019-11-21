@@ -138,8 +138,7 @@ class ItemCopier:
             # all tests passed, OK to copy
             self.log.info(f"Copying {source_itemname} to {full_destpath}")
             self.socket.send(
-                f"STATUS:Copying {source_itemname.encode('UTF-8')} to "
-                f"{full_destpath.encode('UTF-8')}\n"
+                f"STATUS:Copying {source_itemname} to {full_destpath}\n".encode()
             )
             retcode = subprocess.call(
                 ["/bin/cp", "-pR", source_itempath, full_destpath]

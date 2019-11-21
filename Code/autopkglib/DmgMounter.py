@@ -50,8 +50,8 @@ class DmgMounter(Processor):
         Returns a tuple - the first plist (if any) and the remaining
         string after the plist"""
 
-        plist_header = b"<?xml version"
-        plist_footer = b"</plist>"
+        plist_header = "<?xml version"
+        plist_footer = "</plist>"
         plist_start_index = text_string.find(plist_header)
         if plist_start_index == -1:
             # not found
@@ -78,6 +78,7 @@ class DmgMounter(Processor):
             bufsize=-1,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            text=True,
         )
         (stdout, stderr) = proc.communicate()
         if stderr:
@@ -89,7 +90,7 @@ class DmgMounter(Processor):
         (pliststr, stdout) = self.get_first_plist(stdout)
         if pliststr:
             try:
-                plist = plistlib.loads(pliststr)
+                plist = plistlib.loads(pliststr.encode())
                 properties = plist.get("Properties")
                 if properties:
                     has_sla = properties.get("Software License Agreement", False)
@@ -123,6 +124,7 @@ class DmgMounter(Processor):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 stdin=subprocess.PIPE,
+                text=True,
             )
             (stdout, stderr) = proc.communicate(stdin)
         except OSError as err:
@@ -135,7 +137,7 @@ class DmgMounter(Processor):
         # Read output plist.
         (pliststr, stdout) = self.get_first_plist(stdout)
         try:
-            output = plistlib.loads(pliststr)
+            output = plistlib.loads(pliststr.encode())
         except Exception:
             raise ProcessorError(
                 f"mounting {pathname} failed: unexpected output from hdiutil"
@@ -165,8 +167,9 @@ class DmgMounter(Processor):
                 ("/usr/bin/hdiutil", "detach", self.mounts[pathname]),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                text=True,
             )
-            stderr = proc.communicate()[1]
+            (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"

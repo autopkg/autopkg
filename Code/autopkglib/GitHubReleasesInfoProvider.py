@@ -33,19 +33,17 @@ class GitHubReleasesInfoProvider(Processor):
         "asset_regex": {
             "required": False,
             "description": (
-                "If set, return only a release asset that " "matches this regex."
+                "If set, return only a release asset that matches this regex."
             ),
         },
         "github_repo": {
             "required": True,
-            "description": (
-                "Name of a GitHub user and repo, ie. " "'MagerValp/AutoDMG'"
-            ),
+            "description": ("Name of a GitHub user and repo, ie. 'MagerValp/AutoDMG'"),
         },
         "include_prereleases": {
             "required": False,
             "description": (
-                "If set to True or a non-empty value, include " "prereleases."
+                "If set to True or a non-empty value, include prereleases."
             ),
         },
         "sort_by_highest_tag_names": {
@@ -58,19 +56,26 @@ class GitHubReleasesInfoProvider(Processor):
                 "release may be posted later."
             ),
         },
+        "curl_opts": {
+            "required": False,
+            "description": (
+                "Optional array of curl options to include with "
+                "the download request."
+            ),
+        },
     }
     output_variables = {
         "release_notes": {
-            "description": ("Full release notes body text from the chosen " "release.")
+            "description": ("Full release notes body text from the chosen release.")
         },
         "url": {
             "description": (
-                "URL for the first asset found for the project's " "latest release."
+                "URL for the first asset found for the project's latest release."
             )
         },
         "version": {
             "description": (
-                "Version info parsed, naively derived from the " "release's tag."
+                "Version info parsed, naively derived from the release's tag."
             )
         },
     }
@@ -81,7 +86,8 @@ class GitHubReleasesInfoProvider(Processor):
         """Return a list of releases dicts for a given GitHub repo. repo must
         be of the form 'user/repo'"""
         releases = None
-        github = autopkglib.github.GitHubSession()
+        curl_opts = self.env.get("curl_opts")
+        github = autopkglib.github.GitHubSession(curl_opts)
         releases_uri = f"/repos/{repo}/releases"
         (releases, status) = github.call_api(releases_uri)
         if status != 200:

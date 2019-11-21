@@ -41,7 +41,7 @@ def launch_activate_socket(name):
     try:
         fds = POINTER(c_int)()
         cnt = c_size_t(0)
-        err = libc.launch_activate_socket(name, byref(fds), byref(cnt))
+        err = libc.launch_activate_socket(name.encode(), byref(fds), byref(cnt))
         if err:
             raise LaunchDError(
                 f"Failed to retrieve sockets from launchd: {os.strerror(err)}"

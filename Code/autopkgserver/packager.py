@@ -88,11 +88,13 @@ class Packager:
 
         def cmd_output(cmd):
             """Outputs a stdout, stderr tuple from command output using a Popen"""
-            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
+            )
             out, err = p.communicate()
             if err:
                 self.log.debug(f"WARNING: errors from command '{', '.join(cmd)}':")
-                self.log.debug(err)
+                self.log.debug(err.decode())
             return (out, err)
 
         def get_mounts():
@@ -245,7 +247,7 @@ class Packager:
         if self.request["scripts"]:
             if self.request["pkgtype"] == "bundle":
                 raise PackagerError(
-                    "Installer scripts are not supported with " "bundle package types."
+                    "Installer scripts are not supported with bundle package types."
                 )
             if not os.path.isdir(self.request["scripts"]):
                 raise PackagerError(
@@ -276,8 +278,9 @@ class Packager:
                 ("/usr/bin/ditto", self.request["pkgroot"], self.tmp_pkgroot),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                text=True,
             )
-            out, err = p.communicate()
+            (_, err) = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"ditto execution failed with error code {e.errno}: {e.strerror}"
@@ -394,8 +397,9 @@ class Packager:
                 ),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                text=True,
             )
-            (out, err) = p.communicate()
+            (_, err) = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
@@ -478,9 +482,9 @@ class Packager:
             self.log.info("Sending package build command")
             try:
                 p = subprocess.Popen(
-                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                    cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
                 )
-                (out, err) = p.communicate()
+                (_, err) = p.communicate()
             except OSError as e:
                 raise PackagerError(
                     f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"

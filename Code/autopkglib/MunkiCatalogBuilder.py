@@ -30,7 +30,7 @@ class MunkiCatalogBuilder(Processor):
         "munki_repo_changed": {
             "required": False,
             "description": (
-                "If not defined or False, causes running " "makecatalogs to be skipped."
+                "If not defined or False, causes running makecatalogs to be skipped."
             ),
         },
     }
@@ -51,7 +51,7 @@ class MunkiCatalogBuilder(Processor):
         # Call makecatalogs.
         try:
             proc = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             (_, err_out) = proc.communicate()
         except OSError as err:

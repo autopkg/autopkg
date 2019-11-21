@@ -41,7 +41,7 @@ class Versioner(DmgMounter):
             "required": False,
             "default": "CFBundleShortVersionString",
             "description": (
-                "Which plist key to use; defaults to " "CFBundleShortVersionString"
+                "Which plist key to use; defaults to CFBundleShortVersionString"
             ),
         },
     }

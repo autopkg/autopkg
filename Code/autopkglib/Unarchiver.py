@@ -144,7 +144,9 @@ class Unarchiver(Processor):
 
         # Call command.
         try:
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            proc = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
             (_, stderr) = proc.communicate()
         except OSError as err:
             raise ProcessorError(

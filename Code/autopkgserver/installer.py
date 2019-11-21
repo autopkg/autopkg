@@ -59,12 +59,13 @@ class Installer:
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                text=True,
             )
             while True:
-                output = proc.stdout.readline().decode("UTF-8")
+                output = proc.stdout.readline()
                 if not output and (proc.poll() is not None):
                     break
-                self.socket.send(f"STATUS:{output.encode('UTF-8')}")
+                self.socket.send(f"STATUS:{output}".encode())
                 self.log.info(output.rstrip())
 
             if proc.returncode != 0:

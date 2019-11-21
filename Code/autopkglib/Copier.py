@@ -17,7 +17,7 @@
 
 import os.path
 import shutil
-from glob import glob
+import glob
 
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
@@ -81,13 +81,18 @@ class Copier(DmgMounter):
         source_path = self.env["source_path"]
         # Check if we're trying to copy something inside a dmg.
         (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(source_path)
+        self.output(
+            f"Parsed dmg results: dmg_path: {dmg_path}, dmg: {dmg}, "
+            f"dmg_source_path: {dmg_source_path}",
+            verbose_level=2,
+        )
         try:
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
                 source_path = os.path.join(mount_point, dmg_source_path)
             # process path with glob.glob
-            matches = glob(source_path)
+            matches = glob.glob(source_path)
             if len(matches) == 0:
                 raise ProcessorError(
                     f"Error processing path '{source_path}' with glob. "

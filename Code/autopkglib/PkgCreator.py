@@ -100,7 +100,7 @@ class PkgCreator(Processor):
                 "PackageInfo",
             ]
             proc = subprocess.Popen(
-                xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             (_, stderr) = proc.communicate()
         except OSError as err:
@@ -208,7 +208,7 @@ class PkgCreator(Processor):
         pkg_path = os.path.join(request["pkgdir"], request["pkgname"] + ".pkg")
         if self.pkg_already_exists(pkg_path, request["id"], request["version"]):
             self.output(
-                "Existing package matches version and identifier, " "not building."
+                "Existing package matches version and identifier, not building."
             )
             self.env["pkg_path"] = pkg_path
             self.env["new_package_request"] = False

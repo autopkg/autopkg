@@ -75,6 +75,7 @@ class PkgExtractor(DmgMounter):
                 ("/usr/bin/ditto", "-x", "-z", archive_path, extract_path),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                text=True,
             )
             (_, stderr) = proc.communicate()
         except OSError as err:

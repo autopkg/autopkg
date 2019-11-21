@@ -55,7 +55,7 @@ class FlatPkgUnpacker(DmgMounter):
         "destination_path": {
             "required": True,
             "description": (
-                "Directory where archive will be unpacked, created " "if necessary."
+                "Directory where archive will be unpacked, created if necessary."
             ),
         },
         "purge_destination": {
@@ -112,7 +112,7 @@ class FlatPkgUnpacker(DmgMounter):
             if self.env.get("skip_payload"):
                 xarcmd.extend(["--exclude", "Payload"])
             proc = subprocess.Popen(
-                xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             (_, stderr) = proc.communicate()
         except OSError as err:
@@ -143,7 +143,7 @@ class FlatPkgUnpacker(DmgMounter):
                 self.env["destination_path"],
             ]
             proc = subprocess.Popen(
-                pkgutilcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                pkgutilcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             (_, stderr) = proc.communicate()
         except OSError as err:
