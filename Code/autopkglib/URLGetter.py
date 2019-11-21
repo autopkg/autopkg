@@ -181,7 +181,7 @@ class URLGetter(Processor):
 
         return proc_stdout
 
-    def prepare_base_curl_cmd(self), url:
+    def prepare_base_curl_cmd(self, url):
         """Assemble base curl command and return it."""
         curl_cmd = [
             self.curl_binary(),
