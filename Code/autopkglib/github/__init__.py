@@ -49,7 +49,9 @@ class GitHubSession(URLGetter):
                     self.token = tokenf.read()
             except IOError as err:
                 log_err(
-                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err)
+                    "Couldn't read token file at {}! Error: {}".format(
+                        TOKEN_LOCATION, err
+                    )
                 )
                 self.token = None
         else:
@@ -71,15 +73,16 @@ To save the token, paste it to the following prompt."""
 
             token = raw_input("Token: ")
             if token:
-                log("""Writing token file %s.""" % TOKEN_LOCATION)
+                log("""Writing token file {}.""".format(TOKEN_LOCATION))
                 try:
                     with open(TOKEN_LOCATION, "w") as tokenf:
                         tokenf.write(token)
                     os.chmod(TOKEN_LOCATION, 0o600)
                 except IOError as err:
                     log_err(
-                        "Couldn't write token file at %s! Error: %s"
-                        % (TOKEN_LOCATION, err)
+                        "Couldn't write token file at {}! Error: {}".format(
+                            TOKEN_LOCATION, err
+                        )
                     )
             else:
                 log("Skipping token file creation.")
@@ -89,7 +92,9 @@ To save the token, paste it to the following prompt."""
                     token = tokenf.read()
             except IOError as err:
                 log_err(
-                    "Couldn't read token file at %s! Error: %s" % (TOKEN_LOCATION, err)
+                    "Couldn't read token file at {}! Error: {}".format(
+                        TOKEN_LOCATION, err
+                    )
                 )
 
             # TODO: validate token given we found one but haven't checked its
@@ -110,13 +115,16 @@ To save the token, paste it to the following prompt."""
         ]
 
         curl_cmd.extend(["-X", method])
-        curl_cmd.extend(["--header", "%s: %s" % ("User-Agent", "AutoPkg")])
-        curl_cmd.extend(["--header", "%s: %s" % ("Accept", accept)])
+        curl_cmd.extend(["--header", "{}: {}".format("User-Agent", "AutoPkg")])
+        curl_cmd.extend(["--header", "{}: {}".format("Accept", accept)])
 
         # Pass the GitHub token as a header
         if self.token:
             curl_cmd.extend(
-                ["--header", "%s: %s" % ("Authorization", "token %s" % self.token)]
+                [
+                    "--header",
+                    "{}: {}".format("Authorization", "token {}".format(self.token)),
+                ]
             )
 
         self.add_curl_common_opts(curl_cmd)
@@ -124,7 +132,7 @@ To save the token, paste it to the following prompt."""
         # Additional headers if defined
         if headers:
             for header, value in headers.items():
-                curl_cmd.extend(["--header", "%s: %s" % (header, value)])
+                curl_cmd.extend(["--header", "{}: {}".format(header, value)])
 
         # Set the data header if defined
         if data:
@@ -145,8 +153,9 @@ To save the token, paste it to the following prompt."""
         if retcode:  # Non-zero exit code from curl => problem with download
             curl_err = self.parse_curl_error(p_stderr)
             log_err(
-                "Curl failure: Could not retrieve URL %s: %s"
-                % (self.env["url"], curl_err)
+                "Curl failure: Could not retrieve URL {}: {}".format(
+                    self.env["url"], curl_err
+                )
             )
 
             if retcode == 22:
