@@ -62,6 +62,10 @@ class URLGetter(Processor):
 
         raise ProcessorError("Unable to locate or execute any curl binary")
 
+    def prepare_curl_cmd(self):
+        """Assemble basic curl command and return it."""
+        return [self.curl_binary(), "--compressed", "--location"]
+
     def add_curl_common_opts(self, curl_cmd):
         """Add request_headers and curl_opts to curl_cmd"""
         for header, value in self.env.get("request_headers", {}).items():
