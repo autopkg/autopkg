@@ -47,9 +47,9 @@ class URLGetter(Processor):
                 return curl_path_pref
             else:
                 log_err(
-                    "WARNING: curl path given in the 'CURL_PATH' preference:'%s' "
+                    "WARNING: curl path given in the 'CURL_PATH' preference:'{}' "
                     "either doesn't exist or is not executable! Falling back "
-                    "to one set in PATH, or /usr/bin/curl." % curl_path_pref
+                    "to one set in PATH, or /usr/bin/curl.".format(curl_path_pref)
                 )
 
         for path_env in os.environ["PATH"].split(":"):
@@ -70,7 +70,7 @@ class URLGetter(Processor):
         """Add headers to curl_cmd"""
         if headers:
             for header, value in headers.items():
-                curl_cmd.extend(["--header", "%s: %s" % (header, value)])
+                curl_cmd.extend(["--header", "{}: {}".format(header, value)])
 
     def add_curl_common_opts(self, curl_cmd):
         """Add request_headers and curl_opts to curl_cmd"""
@@ -185,7 +185,7 @@ class URLGetter(Processor):
         if retcode:  # Non-zero exit code from curl => problem with download
             curl_err = self.parse_curl_error(proc_stderr)
             raise ProcessorError(
-                "curl failure: %s (exit code %s)" % (curl_err, retcode)
+                "curl failure: {} (exit code {})".format(curl_err, retcode)
             )
 
         return proc_stdout
