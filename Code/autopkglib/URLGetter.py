@@ -163,13 +163,13 @@ class URLGetter(Processor):
                     self.clear_header(header)
         return header
 
-    def execute_curl(self, curl_cmd, text_mode=True):
+    def execute_curl(self, curl_cmd, text=True):
         """Execute curl comamnd. Return stdout, stderr and return code."""
         proc = subprocess.Popen(
             curl_cmd,
             shell=False,
             bufsize=1,
-            text=text_mode,
+            text=text,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -196,7 +196,7 @@ class URLGetter(Processor):
         curl_cmd = self.prepare_curl_cmd()
         self.add_curl_headers(curl_cmd, headers)
         curl_cmd.append(url)
-        output = self.download_with_curl(curl_cmd, text_mode)
+        output = self.download_with_curl(curl_cmd, text)
 
         return output
 
