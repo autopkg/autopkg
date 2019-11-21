@@ -126,7 +126,7 @@ class URLDownloader(URLGetter):
     def prepare_base_curl_cmd(self):
         """Assemble base curl command and return it."""
         curl_cmd = [
-            super(URLDownloader, self).curl_binary(),
+            self.curl_binary(),
             "--silent",
             "--show-error",
             "--no-buffer",
@@ -148,7 +148,7 @@ class URLDownloader(URLGetter):
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--output", pathname_temporary])
 
-        super(URLDownloader, self).add_curl_common_opts(curl_cmd)
+        self.add_curl_common_opts(curl_cmd)
 
         # if file already exists and the size is 0, discard it and download again
         if (
@@ -189,8 +189,8 @@ class URLDownloader(URLGetter):
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--head"])
 
-        raw_headers = super(URLDownloader, self).download_with_curl(curl_cmd)
-        header = super(URLDownloader, self).parse_headers(raw_headers)
+        raw_headers = self.download_with_curl(curl_cmd)
+        header = self.parse_headers(raw_headers)
 
         if "filename=" in header.get("content-disposition", ""):
             filename = header["content-disposition"].rpartition("filename=")[2]
@@ -330,8 +330,8 @@ class URLDownloader(URLGetter):
         curl_cmd = self.prepare_download_curl_cmd(pathname_temporary)
 
         # Execute curl command and parse headers
-        raw_headers = super(URLDownloader, self).download_with_curl(curl_cmd)
-        header = super(URLDownloader, self).parse_headers(raw_headers)
+        raw_headers = self.download_with_curl(curl_cmd)
+        header = self.parse_headers(raw_headers)
 
         if self.download_changed(header):
             self.env["download_changed"] = True

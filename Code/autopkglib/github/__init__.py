@@ -100,7 +100,7 @@ To save the token, paste it to the following prompt."""
     def prepare_curl_cmd(self, method, accept, headers, data, temp_content):
         """Assemble curl command and return it."""
         curl_cmd = [
-            super(GitHubSession, self).curl_binary(),
+            self.curl_binary(),
             "--location",
             "--silent",
             "--show-error",
@@ -119,7 +119,7 @@ To save the token, paste it to the following prompt."""
                 ["--header", "%s: %s" % ("Authorization", "token %s" % self.token)]
             )
 
-        super(GitHubSession, self).add_curl_common_opts(curl_cmd)
+        self.add_curl_common_opts(curl_cmd)
 
         # Additional headers if defined
         if headers:
@@ -140,10 +140,10 @@ To save the token, paste it to the following prompt."""
     def download_with_curl(self, curl_cmd):
         """Download file using curl and return raw headers."""
 
-        p_stdout, p_stderr, retcode = super(GitHubSession, self).execute_curl(curl_cmd)
+        p_stdout, p_stderr, retcode = self.execute_curl(curl_cmd)
 
         if retcode:  # Non-zero exit code from curl => problem with download
-            curl_err = super(GitHubSession, self).parse_curl_error(p_stderr)
+            curl_err = self.parse_curl_error(p_stderr)
             log_err(
                 "Curl failure: Could not retrieve URL %s: %s"
                 % (self.env["url"], curl_err)
@@ -192,7 +192,7 @@ To save the token, paste it to the following prompt."""
 
         # Execute curl command and parse headers
         raw_headers = self.download_with_curl(curl_cmd)
-        header = super(GitHubSession, self).parse_headers(raw_headers)
+        header = self.parse_headers(raw_headers)
         if header["http_result_code"] != "000":
             self.http_result_code = int(header["http_result_code"])
 

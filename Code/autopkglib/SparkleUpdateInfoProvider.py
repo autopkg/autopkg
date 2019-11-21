@@ -129,7 +129,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         """Assemble curl command and return it."""
 
         curl_cmd = super(SparkleUpdateInfoProvider, self).prepare_curl_cmd()
-        super(SparkleUpdateInfoProvider, self).add_curl_common_opts(curl_cmd)
+        self.add_curl_common_opts(curl_cmd)
         if headers:
             for header, value in headers.items():
                 curl_cmd.extend(["--header", "%s: %s" % (header, value)])
@@ -141,7 +141,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         dictionary of header-name/value mappings."""
 
         curl_cmd = self.prepare_curl_cmd(url, headers)
-        content = super(SparkleUpdateInfoProvider, self).download_with_curl(curl_cmd)
+        content = self.download_with_curl(curl_cmd)
         return content
 
     def get_feed_data(self, url):
