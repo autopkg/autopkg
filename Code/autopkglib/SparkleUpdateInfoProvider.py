@@ -79,8 +79,9 @@ class SparkleUpdateInfoProvider(URLGetter):
                 "is usually equivalent to 'release notes' for that "
                 "specific version. Defaults to "
                 "['minimum_os_version']. "
-                "Currently supported keys: %s."
-                % ", ".join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS)
+                "Currently supported keys: {}.".format(
+                    ", ".join(SUPPORTED_ADDITIONAL_PKGINFO_KEYS)
+                )
             ),
         },
         "urlencode_path_component": {
@@ -128,15 +129,11 @@ class SparkleUpdateInfoProvider(URLGetter):
     def prepare_curl_cmd(self, url, headers=None):
         """Assemble curl command and return it."""
 
-        curl_cmd = [
-            super(SparkleUpdateInfoProvider, self).curl_binary(),
-            "--location",
-            "--compressed",
-        ]
-        super(SparkleUpdateInfoProvider, self).add_curl_common_opts(curl_cmd)
+        curl_cmd = super(SparkleUpdateInfoProvider, self).prepare_curl_cmd()
+        self.add_curl_common_opts(curl_cmd)
         if headers:
             for header, value in headers.items():
-                curl_cmd.extend(["--header", "%s: %s" % (header, value)])
+                curl_cmd.extend(["--header", "{}: {}".format(header, value)])
         curl_cmd.append(url)
         return curl_cmd
 
@@ -145,7 +142,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         dictionary of header-name/value mappings."""
 
         curl_cmd = self.prepare_curl_cmd(url, headers)
-        content = super(SparkleUpdateInfoProvider, self).download(curl_cmd)
+        content = self.download_with_curl(curl_cmd)
         return content
 
     def get_feed_data(self, url):
@@ -178,7 +175,7 @@ class SparkleUpdateInfoProvider(URLGetter):
     def determine_version(self, enclosure, url):
         """Gets version from enclosure"""
 
-        version = enclosure.get("{%s}version" % self.xmlns)
+        version = enclosure.get("{{{}}}version".format(self.xmlns))
 
         if version is None:
             # Sparkle tries to guess a version from the download URL for
@@ -233,15 +230,21 @@ class SparkleUpdateInfoProvider(URLGetter):
                 item["url"] = self.build_url(enclosure)
                 item["version"] = self.determine_version(enclosure, item["url"])
 
-                human_version = enclosure.get("{%s}shortVersionString" % self.xmlns)
+                human_version = enclosure.get(
+                    "{{{}}}shortVersionString".format(self.xmlns)
+                )
                 if human_version is not None:
                     item["human_version"] = human_version
 
-                min_version = item_elem.find("{%s}minimumSystemVersion" % self.xmlns)
+                min_version = item_elem.find(
+                    "{{{}}}minimumSystemVersion".format(self.xmlns)
+                )
                 if min_version is not None:
                     item["minimum_os_version"] = min_version.text
 
-                description_elem = item_elem.find("{%s}releaseNotesLink" % self.xmlns)
+                description_elem = item_elem.find(
+                    "{{{}}}releaseNotesLink".format(self.xmlns)
+                )
                 # Strip possible surrounding whitespace around description_url
                 # element text as we'll be passing this as an argument to a
                 # curl process
@@ -263,8 +266,8 @@ class SparkleUpdateInfoProvider(URLGetter):
             for k in sparkle_pkginfo_keys:
                 if k not in SUPPORTED_ADDITIONAL_PKGINFO_KEYS:
                     self.output(
-                        "Key %s isn't a supported key to copy from the "
-                        "Sparkle feed, ignoring it." % k
+                        "Key {} isn't a supported key to copy from the "
+                        "Sparkle feed, ignoring it.".format(k)
                     )
             # Format description
             if "description" in sparkle_pkginfo_keys:
@@ -283,8 +286,8 @@ class SparkleUpdateInfoProvider(URLGetter):
                     pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
             for copied_key in pkginfo.keys():
                 self.output(
-                    "Copied key %s from Sparkle feed to additional "
-                    "pkginfo." % copied_key
+                    "Copied key {} from Sparkle feed to additional "
+                    "pkginfo.".format(copied_key)
                 )
         return pkginfo
 
@@ -322,18 +325,19 @@ class SparkleUpdateInfoProvider(URLGetter):
         items = self.parse_feed_data(data)
         sorted_items = sorted(items, key=itemgetter("version"), cmp=compare_version)
         latest = sorted_items[-1]
-        self.output("Version retrieved from appcast: %s" % latest["version"])
+        self.output("Version retrieved from appcast: {}".format(latest["version"]))
         if latest.get("human_version"):
             self.output(
-                "User-facing version retrieved from appcast: %s"
-                % latest["human_version"]
+                "User-facing version retrieved from appcast: {}".format(
+                    latest["human_version"]
+                )
             )
 
         pkginfo = self.handle_pkginfo(latest)
 
         self.env["url"] = latest["url"]
         self.env["version"] = latest.get("human_version", latest["version"])
-        self.output("Found URL %s" % self.env["url"])
+        self.output("Found URL {}".format(self.env["url"]))
         self.env["additional_pkginfo"] = pkginfo
 
 

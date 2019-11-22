@@ -88,12 +88,9 @@ class URLTextSearcher(URLGetter):
 
     def prepare_curl_cmd(self):
         """Assemble curl command and return it."""
-        curl_cmd = [
-            super(URLTextSearcher, self).curl_binary(),
-            "--location",
-            "--compressed",
-        ]
-        super(URLTextSearcher, self).add_curl_common_opts(curl_cmd)
+
+        curl_cmd = super(URLTextSearcher, self).prepare_curl_cmd()
+        self.add_curl_common_opts(curl_cmd)
         curl_cmd.append(self.env["url"])
         return curl_cmd
 
@@ -107,7 +104,7 @@ class URLTextSearcher(URLGetter):
         match = re_pattern.search(content)
 
         if not match:
-            raise ProcessorError("No match found on URL: %s" % self.env["url"])
+            raise ProcessorError("No match found on URL: {}".format(self.env["url"]))
 
         # return the last matched group with the dict of named groups
         return (match.group(match.lastindex or 0), match.groupdict())
@@ -119,7 +116,7 @@ class URLTextSearcher(URLGetter):
         curl_cmd = self.prepare_curl_cmd()
 
         # Execute curl command and search in content
-        content = super(URLTextSearcher, self).download(curl_cmd)
+        content = self.download_with_curl(curl_cmd)
         groupmatch, groupdict = self.re_search(content)
 
         # favor a named group over a normal group match
@@ -129,7 +126,7 @@ class URLTextSearcher(URLGetter):
         self.output_variables = {}
         for key in groupdict.keys():
             self.env[key] = groupdict[key]
-            self.output("Found matching text (%s): %s" % (key, self.env[key]))
+            self.output("Found matching text ({}): {}".format(key, self.env[key]))
             self.output_variables[key] = {
                 "description": "Matched regular expression group"
             }

@@ -126,7 +126,7 @@ class URLDownloader(URLGetter):
     def prepare_base_curl_cmd(self):
         """Assemble base curl command and return it."""
         curl_cmd = [
-            super(URLDownloader, self).curl_binary(),
+            self.curl_binary(),
             "--silent",
             "--show-error",
             "--no-buffer",
@@ -148,7 +148,7 @@ class URLDownloader(URLGetter):
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--output", pathname_temporary])
 
-        super(URLDownloader, self).add_curl_common_opts(curl_cmd)
+        self.add_curl_common_opts(curl_cmd)
 
         # if file already exists and the size is 0, discard it and download again
         if (
@@ -164,9 +164,11 @@ class URLDownloader(URLGetter):
             etag = self.getxattr(self.xattr_etag)
             last_modified = self.getxattr(self.xattr_last_modified)
             if etag:
-                curl_cmd.extend(["--header", "If-None-Match: %s" % etag])
+                curl_cmd.extend(["--header", "If-None-Match: {}".format(etag)])
             if last_modified:
-                curl_cmd.extend(["--header", "If-Modified-Since: %s" % last_modified])
+                curl_cmd.extend(
+                    ["--header", "If-Modified-Since: {}".format(last_modified)]
+                )
 
         return curl_cmd
 
@@ -177,8 +179,8 @@ class URLDownloader(URLGetter):
             del self.env["url_downloader_summary_result"]
 
         # XATTR names for Etag and Last-Modified headers
-        self.xattr_etag = "%s.etag" % BUNDLE_ID
-        self.xattr_last_modified = "%s.last-modified" % BUNDLE_ID
+        self.xattr_etag = "{}.etag".format(BUNDLE_ID)
+        self.xattr_last_modified = "{}.last-modified".format(BUNDLE_ID)
 
         self.env["last_modified"] = ""
         self.env["etag"] = ""
@@ -189,8 +191,8 @@ class URLDownloader(URLGetter):
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--head"])
 
-        raw_headers = super(URLDownloader, self).download(curl_cmd)
-        header = super(URLDownloader, self).parse_headers(raw_headers)
+        raw_headers = self.download_with_curl(curl_cmd)
+        header = self.parse_headers(raw_headers)
 
         if "filename=" in header.get("content-disposition", ""):
             filename = header["content-disposition"].rpartition("filename=")[2]
@@ -206,7 +208,7 @@ class URLDownloader(URLGetter):
         if "PKG" in self.env:
             self.env["pathname"] = os.path.expanduser(self.env["PKG"])
             self.env["download_changed"] = True
-            self.output("Given %s, no download needed." % self.env["pathname"])
+            self.output("Given {}, no download needed.".format(self.env["pathname"]))
             return None
 
         if self.env.get("prefetch_filename", False):
@@ -232,7 +234,7 @@ class URLDownloader(URLGetter):
                 os.makedirs(download_dir)
             except OSError as err:
                 raise ProcessorError(
-                    "Can't create %s: %s" % (download_dir, err.strerror)
+                    "Can't create {}: {}".format(download_dir, err.strerror)
                 )
         return download_dir
 
@@ -262,21 +264,21 @@ class URLDownloader(URLGetter):
                 self.env["download_changed"] = False
                 self.output(
                     "File size returned by webserver matches that "
-                    "of the cached file: %s bytes" % size_header
+                    "of the cached file: {} bytes".format(size_header)
                 )
                 self.output(
                     "WARNING: Matching a download by filesize is a "
                     "fallback mechanism that does not guarantee "
                     "that a build is unchanged."
                 )
-                self.output("Using existing %s" % self.env["pathname"])
+                self.output("Using existing {}".format(self.env["pathname"]))
                 return False
 
         if header["http_result_code"] == "304":
             # resource not modified
             self.env["download_changed"] = False
             self.output("Item at URL is unchanged.")
-            self.output("Using existing %s" % self.env["pathname"])
+            self.output("Using existing {}".format(self.env["pathname"]))
             return False
 
         return True
@@ -289,7 +291,7 @@ class URLDownloader(URLGetter):
             os.rename(pathname_temporary, self.env["pathname"])
         except OSError:
             raise ProcessorError(
-                "Can't move %s to %s" % (pathname_temporary, self.env["pathname"])
+                "Can't move {} to {}".format(pathname_temporary, self.env["pathname"])
             )
 
     def store_headers(self, header):
@@ -302,14 +304,16 @@ class URLDownloader(URLGetter):
                 header.get("last-modified"),
             )
             self.output(
-                "Storing new Last-Modified header: %s" % header.get("last-modified")
+                "Storing new Last-Modified header: {}".format(
+                    header.get("last-modified")
+                )
             )
 
         self.env["etag"] = ""
         if header.get("etag"):
             self.env["etag"] = header.get("etag")
             xattr.setxattr(self.env["pathname"], self.xattr_etag, header.get("etag"))
-            self.output("Storing new ETag header: %s" % header.get("etag"))
+            self.output("Storing new ETag header: {}".format(header.get("etag")))
 
     def main(self):
         if not is_mac():
@@ -330,8 +334,8 @@ class URLDownloader(URLGetter):
         curl_cmd = self.prepare_download_curl_cmd(pathname_temporary)
 
         # Execute curl command and parse headers
-        raw_headers = super(URLDownloader, self).download(curl_cmd)
-        header = super(URLDownloader, self).parse_headers(raw_headers)
+        raw_headers = self.download_with_curl(curl_cmd)
+        header = self.parse_headers(raw_headers)
 
         if self.download_changed(header):
             self.env["download_changed"] = True
@@ -347,7 +351,7 @@ class URLDownloader(URLGetter):
         self.store_headers(header)
 
         # Generate output messages and variables
-        self.output("Downloaded %s" % self.env["pathname"])
+        self.output("Downloaded {}".format(self.env["pathname"]))
         self.env["url_downloader_summary_result"] = {
             "summary_text": "The following new items were downloaded:",
             "data": {"download_path": self.env["pathname"]},
