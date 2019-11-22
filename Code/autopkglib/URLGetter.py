@@ -63,6 +63,16 @@ class URLGetter(Processor):
 
         raise ProcessorError("Unable to locate or execute any curl binary")
 
+    def prepare_curl_cmd(self):
+        """Assemble basic curl command and return it."""
+        return [self.curl_binary(), "--compressed", "--location"]
+
+    def add_curl_headers(self, curl_cmd, headers):
+        """Add headers to curl_cmd"""
+        if headers:
+            for header, value in headers.items():
+                curl_cmd.extend(["--header", "{}: {}".format(header, value)])
+
     def add_curl_common_opts(self, curl_cmd):
         """Add request_headers and curl_opts to curl_cmd"""
         for header, value in self.env.get("request_headers", {}).items():
@@ -170,47 +180,28 @@ class URLGetter(Processor):
 
         return proc_stdout, proc_stderr, proc.returncode
 
-    def download(self, curl_cmd, text_mode=True):
+    def download_with_curl(self, curl_cmd, text=True):
         """Launch curl, return its output, and handle failures."""
 
-        proc_stdout, proc_stderr, retcode = self.execute_curl(curl_cmd, text_mode)
+        proc_stdout, proc_stderr, retcode = self.execute_curl(curl_cmd, text)
 
         if retcode:  # Non-zero exit code from curl => problem with download
             curl_err = self.parse_curl_error(proc_stderr)
-            raise ProcessorError(f"curl failure: {curl_err} (exit code {retcode})")
+            raise ProcessorError(
+                "curl failure: {} (exit code {})".format(curl_err, retcode)
+            )
 
         return proc_stdout
 
-    def prepare_base_curl_cmd(self, url):
-        """Assemble base curl command and return it."""
-        curl_cmd = [
-            self.curl_binary(),
-            "--silent",
-            "--show-error",
-            "--no-buffer",
-            "--dump-header",
-            "-",
-            "--speed-time",
-            "30",
-            "--location",
-            "--url",
-            url,
-        ]
-        return curl_cmd
+    def download(self, url, headers=None, text=False):
+        """Download content with default curl options"""
 
-    def prepare_download_curl_cmd(self, url, pathname_temporary):
-        """Assemble file download curl command and return it."""
-        curl_cmd = self.prepare_base_curl_cmd(url)
-        curl_cmd.extend(["--fail", "--output", pathname_temporary])
-        self.add_curl_common_opts(curl_cmd)
-        return curl_cmd
+        curl_cmd = self.prepare_curl_cmd()
+        self.add_curl_headers(curl_cmd, headers)
+        curl_cmd.append(url)
+        output = self.download_with_curl(curl_cmd)
 
-    def simple_download(self, url, filename):
-        """Download URL to filename."""
-        curl_cmd = self.prepare_download_curl_cmd(url, filename)
-        self.download(curl_cmd)
-        # This will raise a ProcessorError if it fails, so we can safely assume
-        # at this point that we have a good download
+        return output
 
     def main(self):
         pass

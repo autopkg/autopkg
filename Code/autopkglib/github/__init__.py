@@ -71,15 +71,16 @@ To save the token, paste it to the following prompt."""
 
             token = input("Token: ")
             if token:
-                log("""Writing token file %s.""" % TOKEN_LOCATION)
+                log("""Writing token file {}.""".format(TOKEN_LOCATION))
                 try:
                     with open(TOKEN_LOCATION, "w") as tokenf:
                         tokenf.write(token)
                     os.chmod(TOKEN_LOCATION, 0o600)
                 except OSError as err:
                     log_err(
-                        "Couldn't write token file at %s! Error: %s"
-                        % (TOKEN_LOCATION, err)
+                        "Couldn't write token file at {}! Error: {}".format(
+                            TOKEN_LOCATION, err
+                        )
                     )
             else:
                 log("Skipping token file creation.")
@@ -100,7 +101,7 @@ To save the token, paste it to the following prompt."""
     def prepare_curl_cmd(self, method, accept, headers, data, temp_content):
         """Assemble curl command and return it."""
         curl_cmd = [
-            super().curl_binary(),
+            self.curl_binary(),
             "--location",
             "--silent",
             "--show-error",
@@ -116,10 +117,13 @@ To save the token, paste it to the following prompt."""
         # Pass the GitHub token as a header
         if self.token:
             curl_cmd.extend(
-                ["--header", "{}: {}".format("Authorization", "token %s" % self.token)]
+                [
+                    "--header",
+                    "{}: {}".format("Authorization", "token {}".format(self.token)),
+                ]
             )
 
-        super().add_curl_common_opts(curl_cmd)
+        self.add_curl_common_opts(curl_cmd)
 
         # Additional headers if defined
         if headers:
@@ -137,16 +141,17 @@ To save the token, paste it to the following prompt."""
 
         return curl_cmd
 
-    def download(self, curl_cmd):
+    def download_with_curl(self, curl_cmd):
         """Download file using curl and return raw headers."""
 
-        p_stdout, p_stderr, retcode = super().execute_curl(curl_cmd)
+        p_stdout, p_stderr, retcode = self.execute_curl(curl_cmd)
 
         if retcode:  # Non-zero exit code from curl => problem with download
-            curl_err = super().parse_curl_error(p_stderr)
+            curl_err = self.parse_curl_error(p_stderr)
             log_err(
-                "Curl failure: Could not retrieve URL %s: %s"
-                % (self.env["url"], curl_err)
+                "Curl failure: Could not retrieve URL {}: {}".format(
+                    self.env["url"], curl_err
+                )
             )
 
             if retcode == 22:
@@ -191,8 +196,8 @@ To save the token, paste it to the following prompt."""
         curl_cmd = self.prepare_curl_cmd(method, accept, headers, data, temp_content)
 
         # Execute curl command and parse headers
-        raw_headers = self.download(curl_cmd)
-        header = super().parse_headers(raw_headers)
+        raw_headers = self.download_with_curl(curl_cmd)
+        header = self.parse_headers(raw_headers)
         if header["http_result_code"] != "000":
             self.http_result_code = int(header["http_result_code"])
 

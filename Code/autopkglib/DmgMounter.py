@@ -82,10 +82,9 @@ class DmgMounter(Processor):
         )
         (stdout, stderr) = proc.communicate()
         if stderr:
-            # some error with hdiutil.
-            # Output but return False so we can attempt to continue
-            self.output(f"hdiutil imageinfo error {stderr} with image {dmgpath}.")
-            return False
+            # some error with hdiutil. Print it, but try to continue anyway.
+            # (APFS disk images generate extranous output to stderr)
+            self.output("hdiutil imageinfo error %s with image %s." % (stderr, dmgpath))
 
         (pliststr, stdout) = self.get_first_plist(stdout)
         if pliststr:

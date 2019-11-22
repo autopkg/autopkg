@@ -83,12 +83,8 @@ class URLTextSearcher(URLGetter):
 
     def prepare_curl_cmd(self):
         """Assemble curl command and return it."""
-        curl_cmd = [
-            super().curl_binary(),
-            "--location",
-            "--compressed",
-        ]
-        super().add_curl_common_opts(curl_cmd)
+        curl_cmd = super().prepare_curl_cmd()
+        self.add_curl_common_opts(curl_cmd)
         curl_cmd.append(self.env["url"])
         return curl_cmd
 
@@ -114,7 +110,7 @@ class URLTextSearcher(URLGetter):
         curl_cmd = self.prepare_curl_cmd()
 
         # Execute curl command and search in content
-        content = super().download(curl_cmd)
+        content = self.download_with_curl(curl_cmd)
         groupmatch, groupdict = self.re_search(content)
 
         # favor a named group over a normal group match
