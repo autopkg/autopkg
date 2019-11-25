@@ -123,7 +123,7 @@ class SparkleUpdateInfoProvider(URLGetter):
     def prepare_curl_cmd(self, url, headers=None):
         """Assemble curl command and return it."""
 
-        curl_cmd = super(SparkleUpdateInfoProvider, self).prepare_curl_cmd()
+        curl_cmd = super().prepare_curl_cmd()
         self.add_curl_common_opts(curl_cmd)
         if headers:
             for header, value in headers.items():
