@@ -1,4 +1,4 @@
-### [1.4](https://github.com/autopkg/autopkg/compare/v1.3.1...HEAD) (Unreleased)
+### [1.4](https://github.com/autopkg/autopkg/compare/v1.3.1...v1.4) (November 25, 2019)
 
 FIXES:
   * DmgMounter now correctly handles APFS disk images, especially with EULAs/SLAs (https://github.com/autopkg/autopkg/commit/4b77f6d5948a2f36258f4695f503513ec7671745)
