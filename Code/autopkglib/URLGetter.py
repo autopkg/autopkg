@@ -71,7 +71,7 @@ class URLGetter(Processor):
         """Add headers to curl_cmd"""
         if headers:
             for header, value in headers.items():
-                curl_cmd.extend(["--header", "{}: {}".format(header, value)])
+                curl_cmd.extend(["--header", f"{header}: {value}"])
 
     def add_curl_common_opts(self, curl_cmd):
         """Add request_headers and curl_opts to curl_cmd"""
@@ -188,7 +188,7 @@ class URLGetter(Processor):
         if retcode:  # Non-zero exit code from curl => problem with download
             curl_err = self.parse_curl_error(proc_stderr)
             raise ProcessorError(
-                "curl failure: {} (exit code {})".format(curl_err, retcode)
+                f"curl failure: {curl_err} (exit code {retcode})"
             )
 
         return proc_stdout

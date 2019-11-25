@@ -55,9 +55,7 @@ class MunkiImporter(Processor):
         },
         "pkginfo": {
             "required": False,
-            "description": (
-                "Dictionary of pkginfo keys to copy to generated pkginfo."
-            ),
+            "description": ("Dictionary of pkginfo keys to copy to generated pkginfo."),
         },
         "force_munkiimport": {
             "required": False,
@@ -442,16 +440,12 @@ class MunkiImporter(Processor):
         extension = self.env.get("MUNKI_PKGINFO_FILE_EXTENSION", "plist")
         if len(extension) > 0:
             extension = "." + extension.strip(".")
-        pkginfo_name = "{}-{}{}".format(
-            pkginfo["name"], pkginfo["version"].strip(), extension
-        )
+        pkginfo_name = f"{pkginfo['name']}-{pkginfo['version'].strip()}{extension}"
         pkginfo_path = os.path.join(destination_path, pkginfo_name)
         index = 0
         while os.path.exists(pkginfo_path):
             index += 1
-            pkginfo_name = "{}-{}__{}{}".format(
-                pkginfo["name"], pkginfo["version"], index, extension
-            )
+            pkginfo_name = f"{pkginfo['name']}-{pkginfo['version']}__{index}{extension}"
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
         try:

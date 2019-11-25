@@ -123,7 +123,7 @@ def recipe_plist_from_file(filename):
             with open(filename, "rb") as f:
                 recipe_plist = plistlib.load(f)
         except Exception as err:
-            log_err("WARNING: plist error for {}: {}".format(filename, str(err)))
+            log_err(f"WARNING: plist error for {filename}: {err}")
             return
         return recipe_plist
 
@@ -1029,7 +1029,7 @@ def display_help(argv, subcommands):
     for key in sorted(subcommands.keys()):
         # pad name of subcommand to make pretty columns
         subcommand = key + (" " * (max_key_len - len(key)))
-        print("    {}  ({})".format(subcommand, subcommands[key]["help"]))
+        print(f"    {subcommand}  ({subcommands[key]['help']})")
     print()
     print(f"{main_command_name} <verb> --help for more help for that verb")
 
@@ -1038,7 +1038,7 @@ def get_info(argv):
     """Display info about configuration or a recipe"""
     verb = argv[1]
     parser = gen_common_parser()
-    parser.set_usage("Usage: {} {} [options] [recipe]".format("%prog", verb))
+    parser.set_usage(f"Usage: {'%prog'} {verb} [options] [recipe]")
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
@@ -1085,14 +1085,14 @@ def processor_info(argv):
         """Print a dict of dicts and strings"""
         for key, value in list(var_dict.items()):
             if isinstance(value, dict):
-                print(f" " * indent, "{key}:")
+                print(f" " * indent, f"{key}:")
                 print_vars(value, indent=indent + 2)
             else:
-                print(" " * indent, "{}: {}".format(key, str(value).encode("UTF-8")))
+                print(" " * indent, f"{key}: {value}")
 
     verb = argv[1]
     parser = gen_common_parser()
-    parser.set_usage("Usage: {} {} [options] processorname".format("%prog", verb))
+    parser.set_usage(f"Usage: {'%prog'} {verb} [options] processorname")
     parser.add_option(
         "-r", "--recipe", metavar="RECIPE", help="Name of recipe using the processor."
     )

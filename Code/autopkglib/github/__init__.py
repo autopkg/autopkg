@@ -48,9 +48,7 @@ class GitHubSession(URLGetter):
                 with open(TOKEN_LOCATION, "r") as tokenf:
                     self.token = tokenf.read()
             except OSError as err:
-                log_err(
-                    f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}"
-                )
+                log_err(f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}")
                 self.token = None
         else:
             self.token = None
@@ -71,16 +69,14 @@ To save the token, paste it to the following prompt."""
 
             token = input("Token: ")
             if token:
-                log("""Writing token file {}.""".format(TOKEN_LOCATION))
+                log(f"Writing token file {TOKEN_LOCATION}.")
                 try:
                     with open(TOKEN_LOCATION, "w") as tokenf:
                         tokenf.write(token)
                     os.chmod(TOKEN_LOCATION, 0o600)
                 except OSError as err:
                     log_err(
-                        "Couldn't write token file at {}! Error: {}".format(
-                            TOKEN_LOCATION, err
-                        )
+                        f"Couldn't write token file at {TOKEN_LOCATION}! Error: {err}"
                     )
             else:
                 log("Skipping token file creation.")
@@ -89,9 +85,7 @@ To save the token, paste it to the following prompt."""
                 with open(TOKEN_LOCATION, "r") as tokenf:
                     token = tokenf.read()
             except OSError as err:
-                log_err(
-                    f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}"
-                )
+                log_err(f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}")
 
             # TODO: validate token given we found one but haven't checked its
             # auth status
@@ -111,17 +105,12 @@ To save the token, paste it to the following prompt."""
         ]
 
         curl_cmd.extend(["-X", method])
-        curl_cmd.extend(["--header", "{}: {}".format("User-Agent", "AutoPkg")])
-        curl_cmd.extend(["--header", "{}: {}".format("Accept", accept)])
+        curl_cmd.extend(["--header", "User-Agent: AutoPkg"])
+        curl_cmd.extend(["--header", f"Accept: {accept}"])
 
         # Pass the GitHub token as a header
         if self.token:
-            curl_cmd.extend(
-                [
-                    "--header",
-                    "{}: {}".format("Authorization", "token {}".format(self.token)),
-                ]
-            )
+            curl_cmd.extend(["--header", f"Authorization: token {self.token}"])
 
         self.add_curl_common_opts(curl_cmd)
 
@@ -149,9 +138,7 @@ To save the token, paste it to the following prompt."""
         if retcode:  # Non-zero exit code from curl => problem with download
             curl_err = self.parse_curl_error(p_stderr)
             log_err(
-                "Curl failure: Could not retrieve URL {}: {}".format(
-                    self.env["url"], curl_err
-                )
+                f"Curl failure: Could not retrieve URL {self.env['url']}: {curl_err}"
             )
 
             if retcode == 22:

@@ -281,7 +281,7 @@ class URLDownloader(URLGetter):
             os.rename(pathname_temporary, self.env["pathname"])
         except OSError:
             raise ProcessorError(
-                "Can't move {} to {}".format(pathname_temporary, self.env["pathname"])
+                f"Can't move {pathname_temporary} to {self.env['pathname']}"
             )
 
     def store_headers(self, header):

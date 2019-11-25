@@ -118,8 +118,9 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             pkgname = os.path.splitext(os.path.basename(pkg_path))[0]
         else:
             pkgdir = self.env["RECIPE_CACHE_DIR"]
-            pkgname = "{}-{}".format(
-                os.path.splitext(os.path.basename(app_path))[0], self.env["version"]
+            pkgname = (
+                f"{os.path.splitext(os.path.basename(app_path))[0]}-"
+                f"{self.env['version']}"
             )
             pkg_path = os.path.join(pkgdir, pkgname + ".pkg")
 

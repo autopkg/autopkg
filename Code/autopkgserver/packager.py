@@ -356,9 +356,7 @@ class Packager:
             if os.path.isfile(chownpath):
                 os.lchown(chownpath, uid, gid)
                 if chmod_present:
-                    self.log.info(
-                        "Setting mode of {} to {}".format(entry["path"], entry["mode"])
-                    )
+                    self.log.info(f"Setting mode of {entry['path']} to {entry['mode']}")
                     os.chmod(chownpath, int(entry["mode"], 8))
             else:
                 for (dirpath, dirnames, filenames) in os.walk(chownpath):
@@ -450,8 +448,8 @@ class Packager:
                 )
         self.log.info("Creating random name")
         # Use a temporary name while building.
-        temppkgname = "autopkgtmp-{}-{}.pkg".format(
-            self.random_string(16), self.request["pkgname"]
+        temppkgname = (
+            f"autopkgtmp-{self.random_string(16)}-{self.request['pkgname']}.pkg"
         )
         temppkgpath = os.path.join(self.request["pkgdir"], temppkgname)
         self.log.info("Starting cmd try block")
