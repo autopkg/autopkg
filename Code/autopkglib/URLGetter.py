@@ -187,9 +187,7 @@ class URLGetter(Processor):
 
         if retcode:  # Non-zero exit code from curl => problem with download
             curl_err = self.parse_curl_error(proc_stderr)
-            raise ProcessorError(
-                f"curl failure: {curl_err} (exit code {retcode})"
-            )
+            raise ProcessorError(f"curl failure: {curl_err} (exit code {retcode})")
 
         return proc_stdout
 

@@ -490,7 +490,8 @@ class MunkiImporter(Processor):
                 self.output(err_line)
         if proc.returncode != 0:
             raise ProcessorError(
-                f"creating pkginfo for {self.env['pkg_path']} failed: {err_out.decode()}"
+                f"creating pkginfo for {self.env['pkg_path']} failed: "
+                f"{err_out.decode()}"
             )
 
         # Get pkginfo from output plist.
