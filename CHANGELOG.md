@@ -1,12 +1,41 @@
 ### [2.0.1](https://github.com/autopkg/autopkg/compare/v2.0...HEAD) (UNRELEASED)
 
-FIXES:
+CHANGES FROM BETA 3:
+- DmgMounter now handles APFS disk images (with SLAs/EULAs) (https://github.com/autopkg/autopkg/commit/4b77f6d5948a2f36258f4695f503513ec7671745)
 
-- Release package now includes a symlink to /usr/local/autopkg/python, so all Python
-  now uses that interpreter.
+CHANGES FROM BETA 2:
+
+- Thanks to @MichalMMac's heroic efforts, URLGetter is now much easier for other processors to use. There are now two ways a custom processor can download things without needing to write any urllib logic:
+  - `URLGetter.download_with_curl(curl_command, text=True)` takes a curl command as an argument (a list of strings that is passed to subprocess). You can use this along with the other helper functions to arrange your own curl command with custom headers and arguments, and parse the output.
+  - `URLGetter.download(url, headers=None, text=False)` takes a URL (and optional headers) and returns the output of the curl command. You can use this to simply retrieve the results of requesting a web page (such as for URLTextSearcher).
+- In both cases, you can pass text mode to determine if you get straight text output.
+- All custom processors that need to make a web request of any kind in autopkg/recipes have been switched to using URLGetter's methods. No more urllib in processors!
+- Some minor formatting changes in the code itself
+
+CHANGES FROM BETA 1:
+
+- The new URLGetter base Processor class has been merged in. It provides a new centralized way to handle fetching and downloading things from the web. In the future, more convenience functions will be added to allow any custom processor to easily fetch web resources without having to write their own urllib/web-handling code.
+- Failing to import a processor due to a Python syntax error (such as due to py2 vs. py3 imports) now has a more specific and clear error message (e52ae69)
+- Many, many, many bytes vs. string issues resolved in core processors
+- Copier now has a unit test, and produces some more useful output
+- autopkgserver shouldn't complain about socket descriptors anymore
+- isort now has a seed config that explicitly lists certain third party modules so that they're sorted at the top or bottom of import blocks correctly
+- All custom processors in autopkg-recipes now use certifi to set the base SSL certs so that urllib web requests work; this will be removed in the future once URLGetter's convenience functions are written
+
+CHANGES IN INITIAL 2.0 RELEASE:
+
+- FoundationPlist has been retired. plistlib in Python 3 should be used to handle all plist parsing.
+- All Python string interpolation should prefer the use of f-strings (formatted string literals).
+- All references to unicode vs. string types have been refactored to use Python 3's native byte strings whenever possible.
+- All unit tests were updated to Python 3.
+- All Python code now use a hardcoded path to the embedded Python framework. This path may change at a later time to incorporate a symlink, for easier cross-platform compatibility.
+
+KNOWN ISSUES:
+
+- There are likely still edge cases in the autopkg/recipes that slipped through testing, so please file issues if you find recipes that don't work as intended.
 
 
-### [2.0](https://github.com/autopkg/autopkg/compare/v1.3.1...2.0) (November 06, 2019)
+### [2.0](https://github.com/autopkg/autopkg/compare/v1.4...2.0) (November 06, 2019)
 
 PYTHON 3
 
@@ -84,8 +113,20 @@ Build a relocatable python bundle:
   that uses the `requirements.txt` file for pip
 - Move/copy the bundle into /Library/AutoPkg/Python3/Python.framework
 
+### [1.4](https://github.com/autopkg/autopkg/compare/v1.3.1...HEAD) (Unreleased)
 
-### [1.3.1](https://github.com/autopkg/autopkg/compare/v1.3...v1.3.1) (November 06, 2019)
+FIXES:
+  * DmgMounter now correctly handles APFS disk images, especially with EULAs/SLAs (https://github.com/autopkg/autopkg/commit/4b77f6d5948a2f36258f4695f503513ec7671745)
+
+ADDITIONS:
+* The new URLGetter base Processor class has been merged in. It provides a new centralized way to handle fetching and downloading things from the web. In the future, more convenience functions will be added to allow any custom processor to easily fetch web resources without having to write their own urllib/web-handling code.
+* Thanks to @MichalMMac's heroic efforts, URLGetter is now much easier for other processors to use. There are now two ways a custom processor can download things without needing to write any urllib logic:
+  * `URLGetter.download_with_curl(curl_command, text=True)` takes a curl command as an argument (a list of strings that is passed to subprocess). You can use this along with the other helper functions to arrange your own curl command with custom headers and arguments, and parse the output.
+  * `URLGetter.download(url, headers=None, text=False)` takes a URL (and optional headers) and returns the output of the curl command. You can use this to simply retrieve the results of requesting a web page (such as for URLTextSearcher).
+* In both cases, you can pass text mode to determine if you get straight text output.
+* All custom processors that need to make a web request of any kind in autopkg/recipes have been switched to using URLGetter's methods. No more urllib in processors!
+
+### [1.3.1](https://github.com/autopkg/autopkg/compare/v1.3...v1.4) (November 06, 2019)
 
 FIXES:
 
