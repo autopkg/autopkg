@@ -1,6 +1,17 @@
-### [2.0](https://github.com/autopkg/autopkg/compare/v1.3.1...HEAD) (Unreleased)
+### [1.4](https://github.com/autopkg/autopkg/compare/v1.3.1...HEAD) (Unreleased)
 
-### [1.3.1](https://github.com/autopkg/autopkg/compare/v1.3...v1.3.1) (November 06, 2019)
+FIXES:
+  * DmgMounter now correctly handles APFS disk images, especially with EULAs/SLAs (https://github.com/autopkg/autopkg/commit/4b77f6d5948a2f36258f4695f503513ec7671745)
+
+ADDITIONS:
+* The new URLGetter base Processor class has been merged in. It provides a new centralized way to handle fetching and downloading things from the web. In the future, more convenience functions will be added to allow any custom processor to easily fetch web resources without having to write their own urllib/web-handling code.
+* Thanks to @MichalMMac's heroic efforts, URLGetter is now much easier for other processors to use. There are now two ways a custom processor can download things without needing to write any urllib logic:
+  * `URLGetter.download_with_curl(curl_command, text=True)` takes a curl command as an argument (a list of strings that is passed to subprocess). You can use this along with the other helper functions to arrange your own curl command with custom headers and arguments, and parse the output.
+  * `URLGetter.download(url, headers=None, text=False)` takes a URL (and optional headers) and returns the output of the curl command. You can use this to simply retrieve the results of requesting a web page (such as for URLTextSearcher).
+* In both cases, you can pass text mode to determine if you get straight text output.
+* All custom processors that need to make a web request of any kind in autopkg/recipes have been switched to using URLGetter's methods. No more urllib in processors!
+
+### [1.3.1](https://github.com/autopkg/autopkg/compare/v1.3...v1.4) (November 06, 2019)
 
 FIXES:
 
