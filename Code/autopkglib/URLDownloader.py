@@ -63,13 +63,15 @@ class URLDownloader(URLGetter):
             "default": False,
             "required": False,
             "description": (
-                "If True, URLDownloader attempts to determine filename from HTTP"
-                "headers downloaded before file itself. Beware `prefetch_filename`"
-                "overrides `filename` option. Filename is determnied from the first"
-                "available source of information in the following way:"
-                "1. Content-Disposition header, 2. Location header,"
-                "3. `filename option (if set), 4. last part of `url`."
-                "`prefetch_filename` is usefull for URLs with redirects"
+                "If True, URLDownloader attempts to determine filename from HTTP "
+                "headers downloaded before the file itself. 'prefetch_filename' "
+                "overrides 'filename' option. Filename is determined from the first "
+                "available source of information in this order:\n"
+                "\t1. Content-Disposition header\n"
+                "\t2. Location header\n"
+                "\t3. 'filename' option (if set)\n"
+                "\t4. last part of 'url'.\n"
+                "'prefetch_filename' is useful for URLs with redirects."
             ),
         },
         "CHECK_FILESIZE_ONLY": {
