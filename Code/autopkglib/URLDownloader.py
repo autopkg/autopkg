@@ -70,7 +70,7 @@ class URLDownloader(URLGetter):
                 "\t1. Content-Disposition header\n"
                 "\t2. Location header\n"
                 "\t3. 'filename' option (if set)\n"
-                "\t4. last part of 'url'.\n"
+                "\t4. last part of 'url'.  \n"
                 "'prefetch_filename' is useful for URLs with redirects."
             ),
         },
