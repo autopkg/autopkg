@@ -206,10 +206,10 @@ class URLGetter(Processor):
         self.add_curl_headers(curl_cmd, headers)
         curl_cmd.append(url)
         curl_cmd.extend(["-o", filename])
-        self.download_with_curl(curl_cmd, text=False)
+        self.download_with_curl(curl_cmd)
         if os.path.exists(filename):
             return filename
-        raise ProcessorError(f"{filename} was not written!")
+        raise ProcessorError("{} was not written!".format(filename))
 
     def main(self):
         pass
