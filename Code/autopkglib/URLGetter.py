@@ -165,19 +165,18 @@ class URLGetter(Processor):
 
     def execute_curl(self, curl_cmd, text=True):
         """Execute curl comamnd. Return stdout, stderr and return code."""
-        proc = subprocess.Popen(
-            curl_cmd,
-            shell=False,
-            bufsize=1,
-            text=text,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-
-        proc_stdout, proc_stderr = proc.communicate()
-
-        return proc_stdout, proc_stderr, proc.returncode
+        try:
+            result = subprocess.run(
+                curl_cmd,
+                shell=False,
+                bufsize=1,
+                capture_output=True,
+                check=True,
+                text=text,
+            )
+        except subprocess.CalledProcessError as e:
+            raise ProcessorError(e)
+        return result.stdout, result.stderr, result.returncode
 
     def download_with_curl(self, curl_cmd, text=True):
         """Launch curl, return its output, and handle failures."""
