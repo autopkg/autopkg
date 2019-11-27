@@ -181,23 +181,19 @@ class URLGetter(Processor):
 
     def download_with_curl(self, curl_cmd, text=True):
         """Launch curl, return its output, and handle failures."""
-
         proc_stdout, proc_stderr, retcode = self.execute_curl(curl_cmd, text)
-
+        self.output(f"Curl command: {curl_cmd}", verbose_level=4)
         if retcode:  # Non-zero exit code from curl => problem with download
             curl_err = self.parse_curl_error(proc_stderr)
             raise ProcessorError(f"curl failure: {curl_err} (exit code {retcode})")
-
         return proc_stdout
 
     def download(self, url, headers=None, text=False):
         """Download content with default curl options"""
-
         curl_cmd = self.prepare_curl_cmd()
         self.add_curl_headers(curl_cmd, headers)
         curl_cmd.append(url)
         output = self.download_with_curl(curl_cmd, text)
-
         return output
 
     def main(self):
