@@ -195,6 +195,17 @@ class URLGetter(Processor):
         output = self.download_with_curl(curl_cmd, text)
         return output
 
+    def download_to_file(self, url, filename, headers=None):
+        """Download content to a file with default curl options"""
+        curl_cmd = self.prepare_curl_cmd()
+        self.add_curl_headers(curl_cmd, headers)
+        curl_cmd.append(url)
+        curl_cmd.extend(["-o", filename])
+        self.download_with_curl(curl_cmd, text=False)
+        if os.path.exists(filename):
+            return filename
+        raise ProcessorError(f"{filename} was not written!")
+
     def main(self):
         pass
 
