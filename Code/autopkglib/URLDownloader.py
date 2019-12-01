@@ -38,8 +38,7 @@ class URLDownloader(URLGetter):
         "request_headers": {
             "required": False,
             "description": (
-                "Optional dictionary of headers to include with the download "
-                "request."
+                "Optional dictionary of headers to include with the download request."
             ),
         },
         "curl_opts": {
@@ -115,7 +114,7 @@ class URLDownloader(URLGetter):
     }
 
     def getxattr(self, attr):
-        """Get a named xattr from a file. Return None if not present"""
+        """Get a named xattr from a file. Return None if not present."""
         if attr in xattr.listxattr(self.env["pathname"]):
             return xattr.getxattr(self.env["pathname"], attr).decode()
         return None
@@ -138,36 +137,24 @@ class URLDownloader(URLGetter):
 
         return curl_cmd
 
+    def clear_zero_file(self, pathname):
+        """If file already exists and the size is 0, discard it to download again."""
+        if os.path.exists(pathname) and os.path.getsize(pathname) == 0:
+            os.remove(pathname)
+
     def prepare_download_curl_cmd(self, pathname_temporary):
         """Assemble file download curl command and return it."""
-
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--fail", "--output", pathname_temporary])
-
+        # Add the common options
         self.add_curl_common_opts(curl_cmd)
-
-        # if file already exists and the size is 0, discard it and download again
-        if (
-            os.path.exists(self.env["pathname"])
-            and os.path.getsize(self.env["pathname"]) == 0
-        ):
-            os.remove(self.env["pathname"])
-
-        # if file already exists, add some headers to the request
-        # so we don't retrieve the content if it hasn't changed
-        if os.path.exists(self.env["pathname"]):
-            self.existing_file_size = os.path.getsize(self.env["pathname"])
-            etag = self.getxattr(self.xattr_etag)
-            last_modified = self.getxattr(self.xattr_last_modified)
-            if etag:
-                curl_cmd.extend(["--header", f"If-None-Match: {etag}"])
-            if last_modified:
-                curl_cmd.extend(["--header", f"If-Modified-Since: {last_modified}"])
-
+        # Clear out a potentially zero-byte file
+        self.clear_zero_file(self.env["pathname"])
+        self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.env["pathname"]))
         return curl_cmd
 
     def clear_vars(self):
-        """Clear and initializace variables"""
+        """Clear and initialize variables."""
         # Delete summary result if exists
         if "url_downloader_summary_result" in self.env:
             del self.env["url_downloader_summary_result"]
@@ -181,7 +168,7 @@ class URLDownloader(URLGetter):
         self.existing_file_size = None
 
     def prefetch_filename(self):
-        """Atempt to find filename in HTTP headers."""
+        """Attempt to find filename in HTTP headers."""
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--head"])
 

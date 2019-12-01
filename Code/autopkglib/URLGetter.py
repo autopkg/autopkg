@@ -68,31 +68,45 @@ class URLGetter(Processor):
         return [self.curl_binary(), "--compressed", "--location"]
 
     def add_curl_headers(self, curl_cmd, headers):
-        """Add headers to curl_cmd"""
+        """Add headers to curl_cmd."""
         if headers:
             for header, value in headers.items():
                 curl_cmd.extend(["--header", f"{header}: {value}"])
 
     def add_curl_common_opts(self, curl_cmd):
-        """Add request_headers and curl_opts to curl_cmd"""
+        """Add request_headers and curl_opts to curl_cmd."""
         self.add_curl_headers(curl_cmd, self.env.get("request_headers"))
 
         for item in self.env.get("curl_opts", []):
             curl_cmd.extend([item])
 
+    def produce_etag_headers(self, filename):
+        """Produce a dict of curl headers containing etag headers from the download."""
+        headers = {}
+        # If the download file already exists, add some headers to the request
+        # so we don't retrieve the content if it hasn't changed
+        if os.path.exists(filename):
+            self.existing_file_size = os.path.getsize(filename)
+            etag = self.getxattr(self.xattr_etag)
+            last_modified = self.getxattr(self.xattr_last_modified)
+            if etag:
+                headers["If-None-Match"] = etag
+            if last_modified:
+                headers["If-Modified-Since"] = last_modified
+        return headers
+
     def clear_header(self, header):
-        """Clear header dictionary"""
+        """Clear header dictionary."""
         # Save redirect URL before clear
         http_redirected = header.get("http_redirected", None)
         header.clear()
         header["http_result_code"] = "000"
         header["http_result_description"] = ""
-
         # Restore redirect URL
         header["http_redirected"] = http_redirected
 
     def parse_http_protocol(self, line, header):
-        """Parse first HTTP header line"""
+        """Parse first HTTP header line."""
         try:
             header["http_result_code"] = line.split(None, 2)[1]
             header["http_result_description"] = line.split(None, 2)[2]
@@ -164,7 +178,7 @@ class URLGetter(Processor):
         return header
 
     def execute_curl(self, curl_cmd, text=True):
-        """Execute curl comamnd. Return stdout, stderr and return code."""
+        """Execute curl command. Return stdout, stderr and return code."""
         try:
             result = subprocess.run(
                 curl_cmd,
@@ -188,7 +202,7 @@ class URLGetter(Processor):
         return proc_stdout
 
     def download(self, url, headers=None, text=False):
-        """Download content with default curl options"""
+        """Download content with default curl options."""
         curl_cmd = self.prepare_curl_cmd()
         self.add_curl_headers(curl_cmd, headers)
         curl_cmd.append(url)
@@ -196,7 +210,7 @@ class URLGetter(Processor):
         return output
 
     def download_to_file(self, url, filename, headers=None):
-        """Download content to a file with default curl options"""
+        """Download content to a file with default curl options."""
         curl_cmd = self.prepare_curl_cmd()
         self.add_curl_headers(curl_cmd, headers)
         curl_cmd.append(url)
