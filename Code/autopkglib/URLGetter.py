@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/autopkg/python
 #
 # Copyright 2018 Michal Moravec
 # Based on code from Greg Neagle, Timothy Sutton and Per Olofsson
