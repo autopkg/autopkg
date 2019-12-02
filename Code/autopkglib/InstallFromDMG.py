@@ -90,7 +90,7 @@ class InstallFromDMG(DmgMounter):
                 self.output("Sending installation request")
                 result = self.send_request(request)
             except Exception as err:
-                result = f"ERROR: {repr(err)}"
+                result = f"ERROR: {err}"
             finally:
                 self.output("Disconnecting")
                 self.disconnect()
@@ -142,7 +142,11 @@ class InstallFromDMG(DmgMounter):
 
     def disconnect(self):
         """Disconnect from autopkginstalld"""
-        self.socket.close()
+        try:
+            self.socket.close()
+        except OSError:
+            # the socket is already closed
+            pass
 
     def main(self):
         """Install something!"""
