@@ -1,4 +1,9 @@
-### [2.0](https://github.com/autopkg/autopkg/compare/v1.4...HEAD) (Unreleased)
+### [1.4.1](https://github.com/autopkg/autopkg/compare/v1.4...HEAD) (Unreleased)
+
+FIXES:
+* URLGetter now has a `download_to_file(url, filename)` function that can be used in
+custom processors. It simply downloads a URL to a specific filename, and raises a
+ProcessorError if it fails for any reason.
 
 ### [1.4](https://github.com/autopkg/autopkg/compare/v1.3.1...v1.4) (November 25, 2019)
 
