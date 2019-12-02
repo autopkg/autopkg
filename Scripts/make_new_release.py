@@ -157,6 +157,7 @@ def main():
     changelog_path = os.path.join(autopkg_root, "CHANGELOG.md")
 
     # clone Git master
+    print("**Cloning git master")
     subprocess.check_call(
         [
             "git",
@@ -173,7 +174,7 @@ def main():
         current_version = plist["Version"]
     except BaseException:
         sys.exit("Couldn't determine current autopkg version!")
-    print("Current AutoPkg version: %s" % current_version)
+    print("**Current AutoPkg version: %s" % current_version)
     if LooseVersion(next_version) <= LooseVersion(current_version):
         sys.exit(
             "Next version (gave %s) must be greater than current version %s!"
@@ -198,6 +199,7 @@ def main():
             sys.exit()
 
     # write today's date in the changelog
+    print("**Updating changelog")
     with open(changelog_path, "r") as fdesc:
         changelog = fdesc.read()
     release_date = strftime("(%B %d, %Y)")
@@ -207,12 +209,14 @@ def main():
         fdesc.write(new_changelog)
 
     # commit and push the new release
+    print("**Creating commit")
     subprocess.check_call(["git", "add", changelog_path])
     subprocess.check_call(
         ["git", "commit", "-m", "Release version %s." % current_version]
     )
     subprocess.check_call(["git", "tag", tag_name])
     if not opts.dry_run:
+        print("**Pushing commit")
         subprocess.check_call(["git", "push", "origin", "master"])
         subprocess.check_call(["git", "push", "--tags", "origin", "master"])
 
@@ -224,12 +228,14 @@ def main():
     release_notes = match.group("current_ver_notes")
 
     # run the actual AutoPkg.pkg recipe
+    print("**Cloning autopkg-recipes")
     recipes_dir = tempfile.mkdtemp()
     subprocess.check_call(
         ["git", "clone", "https://github.com/autopkg/recipes", recipes_dir]
     )
     # running using the system AutoPkg directory so that we ensure we're at the
     # minimum required version to run the AutoPkg recipe
+    print("**Running AutoPkgGitMaster.pkg")
     report_plist_path = tempfile.mkstemp()[1]
     proc = subprocess.Popen(
         [
