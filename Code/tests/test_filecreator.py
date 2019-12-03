@@ -1,9 +1,8 @@
 #!/local/autopkg/python
 
-import os
 import plistlib
 import unittest
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 from autopkglib.FileCreator import FileCreator
 
@@ -20,15 +19,17 @@ class TestFileCreator(unittest.TestCase):
     def tearDown(self):
         pass
 
+    @patch(
+        "builtins.open", new_callable=mock_open, read_data="Hello world",
+    )
     @patch("autopkglib.FileCreator")
-    def test_no_fail_if_good_env(self, _):
-        """The processor should not raise any exceptions if run normally."""
+    def test_file_content(self, mock_load, mock_file):
+        """The file created by the processor should have the expected contents."""
         self.processor.env = self.good_env
         self.processor.main()
-        with open(self.processor.env["file_path"], "r") as openfile:
-            test_content = openfile.read()
-        self.assertEqual(self.processor.env["file_content"], test_content)
-        os.remove(self.processor.env["file_path"])
+        with open(mock_file, "rb") as openfile:
+            result = openfile.read()
+        self.assertEqual(self.processor.env["file_content"], result)
 
 
 if __name__ == "__main__":
