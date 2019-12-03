@@ -6,7 +6,6 @@ import unittest
 from unittest.mock import patch
 
 from autopkglib.FileCreator import FileCreator
-from autopkglib.FileFinder import FileFinder
 
 
 class TestFileCreator(unittest.TestCase):
