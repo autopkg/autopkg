@@ -1,5 +1,4 @@
-### [2.0.1](https://github.com/autopkg/autopkg/compare/v2.0...HEAD) (UNRELEASED)
-
+### [2.0.1](https://github.com/autopkg/autopkg/compare/v1.4.1...HEAD) (UNRELEASED)
 CHANGES FROM BETA 3:
 - DmgMounter now handles APFS disk images (with SLAs/EULAs) (https://github.com/autopkg/autopkg/commit/4b77f6d5948a2f36258f4695f503513ec7671745)
 
@@ -35,7 +34,7 @@ KNOWN ISSUES:
 - There are likely still edge cases in the autopkg/recipes that slipped through testing, so please file issues if you find recipes that don't work as intended.
 
 
-### [2.0](https://github.com/autopkg/autopkg/compare/v1.4...2.0) (November 06, 2019)
+### [2.0](https://github.com/autopkg/autopkg/compare/v1.4.1...2.0) (November 06, 2019)
 
 PYTHON 3
 
@@ -112,6 +111,13 @@ Build a relocatable python bundle:
 - Use the CONTRIBUTING guide's instructions on building a relocatable python bundle
   that uses the `requirements.txt` file for pip
 - Move/copy the bundle into /Library/AutoPkg/Python3/Python.framework
+
+### [1.4.1](https://github.com/autopkg/autopkg/compare/v1.4...v1.4.1) (December 02, 2019)
+
+FIXES:
+* URLGetter now has a `download_to_file(url, filename)` function that can be used in
+custom processors. It simply downloads a URL to a specific filename, and raises a
+ProcessorError if it fails for any reason.
 
 ### [1.4](https://github.com/autopkg/autopkg/compare/v1.3.1...HEAD) (Unreleased)
 
