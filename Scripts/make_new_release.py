@@ -218,7 +218,6 @@ def main():
 
     print("** Writing date into CHANGELOG.md")
     # write today's date in the changelog
-    print("**Updating changelog")
     with open(changelog_path, "r") as fdesc:
         changelog = fdesc.read()
     release_date = strftime("(%B %d, %Y)")
@@ -229,7 +228,6 @@ def main():
 
     print("** Creating git commit")
     # commit and push the new release
-    print("**Creating commit")
     subprocess.check_call(["git", "add", changelog_path])
     subprocess.check_call(
         ["git", "commit", "-m", f"Release version {current_version}."]
