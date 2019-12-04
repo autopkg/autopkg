@@ -1,4 +1,4 @@
-### [2.0 RC1](https://github.com/autopkg/autopkg/compare/2.0b3...HEAD) (UNRELEASED)
+### [2.0 RC1](https://github.com/autopkg/autopkg/compare/2.0b3...HEAD) (Unreleased)
 
 CHANGES FROM BETA 3:
 - Some fixes around URLGetter's behavior and callsites
