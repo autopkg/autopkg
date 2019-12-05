@@ -127,13 +127,16 @@ class GitHubReleasesInfoProvider(Processor):
                     selected = (rel, asset)
                     break
                 else:
-                    if re.match(regex, asset["name"]):
-                        self.output(
-                            f"Matched regex '{regex}' among asset(s): "
-                            f"{', '.join([x['name'] for x in assets])}"
-                        )
-                        selected = (rel, asset)
-                        break
+                    try:
+                        if re.match(regex, asset["name"]):
+                            self.output(
+                                f"Matched regex '{regex}' among asset(s): "
+                                f"{', '.join([x['name'] for x in assets])}"
+                            )
+                            selected = (rel, asset)
+                            break
+                    except re.error as e:
+                        raise ProcessorError(f"Invalid regex: {e}")
         if not selected:
             raise ProcessorError(
                 "No release assets were found that satisfy the criteria."
