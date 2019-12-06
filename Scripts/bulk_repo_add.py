@@ -1,16 +1,17 @@
 #!/usr/local/autopkg/python
 
+import argparse
+import getpass
 import json
-import subprocess
 import os
-import sys
-import certifi
 import ssl
-
-
+import subprocess
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+
+import certifi
 
 
 class GitHubAPIError(BaseException):
@@ -66,25 +67,90 @@ def api_call(
     return None
 
 
+def output(quiet, msg):
+    """Print a message unless in quiet mode."""
+    if not quiet:
+        print(msg)
+
+
+def repo_add(repo):
+    """Add a repo using 'repo-add'."""
+    cmd = ["/usr/local/bin/autopkg", "repo-add", repo]
+    subprocess.run(cmd, check=False, capture_output=True)
+
+
+def get_repo_list(prefs):
+    """Get list of all repos in <name-recipes> form."""
+    cmd = ["/usr/local/bin/autopkg", "repo-list"]
+    if prefs:
+        cmd.extend(["--prefs", prefs])
+    result = subprocess.run(cmd, check=False, capture_output=True)
+    full_repo_list = result.stdout.strip().splitlines()
+    repo_list = [x.split(b" ")[0].split(b".")[-1].decode() for x in full_repo_list]
+    return repo_list
+
+
 def main():
-    token = None
-    username = "nmcspadden"
+    """
+    Lists (and repo-adds) all recipe repo in the autopkg org.
+
+    Requirements:
+
+    API token:
+    You'll need an API OAuth token with push access to the repo. You can create a
+    Personal Access Token in your user's Account Settings:
+    https://github.com/settings/tokens
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-t",
+        "--token",
+        help="GitHub API OAuth token. Defaults to reading from ~/.autopkg_gh_token.",
+    )
+    parser.add_argument(
+        "-u",
+        "--username",
+        help="Username to validate token. Defaults to current logged in user.",
+    )
+    parser.add_argument(
+        "-a", "--add", help=("Use 'repo-add' to add all found recipe repos.")
+    )
+    parser.add_argument(
+        "-i",
+        "--ignore-existing",
+        help=("Show/add repos that already exist on disk."),
+        action="store_true",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        help=("Only output directory repo names, no flavor text."),
+        action="store_true",
+    )
+    parser.add_argument("-p", "--prefs", help=("Pass in a preferences file."))
+    args = parser.parse_args()
+
+    token = args.token
+    if not args.token:
+        if os.path.exists(os.path.expanduser("~/.autopkg_gh_token")):
+            with open(os.path.expanduser("~/.autopkg_gh_token"), "r") as f:
+                token = f.read().strip()
+        if not token:
+            sys.exit("Invalid token")
+    username = getpass.getuser()
+    if args.username:
+        username = args.username
     page = 1
     per_page = 100
     repos = []
 
-    if os.path.exists(os.path.expanduser("~/.autopkg_gh_token")):
-        with open(os.path.expanduser("~/.autopkg_gh_token"), "r") as f:
-            token = f.read().strip()
-            print(token)
-    if not token:
-        sys.exit("Invalid token")
-
     # ensure our OAuth token works before we go any further
-    print("** Verifying OAuth token")
+    output(args.quiet, "** Verifying OAuth token")
     api_call(f"/users/{username}", token)
 
-    print("** Querying repos")
+    output(args.quiet, "** Gathering current repo list")
+    repo_list = get_repo_list(args.prefs)
+    output(args.quiet, "** Querying repos")
     while True:
         data = {"page": page, "per_page": per_page}
         encoded_data = urllib.parse.urlencode(data)
@@ -92,7 +158,7 @@ def main():
         if not response:
             break
 
-        print(f"** Processing page {page} of repos...")
+        output(args.quiet, f"** Processing page {page} of repos...")
         repos.extend([x["full_name"] for x in response])
         page += 1
 
@@ -100,8 +166,12 @@ def main():
     repos.remove("autopkg/autopkg")
     for repo in repos:
         dirname = repo.replace("autopkg/", "")
-        if not os.path.isdir(dirname):
-            print(dirname)
+        if dirname in repo_list and not args.ignore_existing:
+            # Ignore ones we've already got
+            continue
+        print(dirname)
+        if args.add:
+            repo_add(dirname)
 
 
 if __name__ == "__main__":
