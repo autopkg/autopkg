@@ -74,7 +74,7 @@ def call_api(
     if query:
         url += "?" + query
     if data:
-        data = json.dumps(data)
+        data = json.dumps(data).encode()
 
     # Setup custom request and its headers
     req = RequestWithMethod(method, url)
