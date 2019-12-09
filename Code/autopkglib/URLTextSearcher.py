@@ -29,7 +29,7 @@ class URLTextSearcher(URLGetter):
     """Downloads a URL using curl and performs a regular expression match
     on the text.
 
-    Requires version 0.2.9."""
+    Requires version 1.4."""
 
     input_variables = {
         "re_pattern": {
