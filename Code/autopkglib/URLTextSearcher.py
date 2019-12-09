@@ -88,13 +88,18 @@ class URLTextSearcher(URLGetter):
         curl_cmd.append(self.env["url"])
         return curl_cmd
 
-    def re_search(self, content):
-        """Search for re_pattern in content"""
+    def prepare_re_flags(self):
+        """Create flag varible for re.compile"""
         flag_accumulator = 0
         for flag in self.env.get("re_flags", {}):
             if flag in re.__dict__:
                 flag_accumulator += re.__dict__[flag]
-        re_pattern = re.compile(self.env["re_pattern"], flags=flag_accumulator)
+        return flag_accumulator
+
+    def re_search(self, content):
+        """Search for re_pattern in content"""
+
+        re_pattern = re.compile(self.env["re_pattern"], flags=self.prepare_re_flags())
         match = re_pattern.search(content)
 
         if not match:
