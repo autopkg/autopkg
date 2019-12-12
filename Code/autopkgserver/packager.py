@@ -88,11 +88,11 @@ class Packager:
 
         def cmd_output(cmd):
             """Outputs a stdout, stderr tuple from command output using a subprocess."""
-            p = subprocess.run(cmd, capture_output=True, text=False)
-            if p.stderr:
+            proc = subprocess.run(cmd, capture_output=True, text=False)
+            if proc.stderr:
                 self.log.debug(f"WARNING: errors from command '{', '.join(cmd)}':")
-                self.log.debug(p.stderr.decode())
-            return (p.stdout, p.stderr)
+                self.log.debug(proc.stderr.decode())
+            return (proc.stdout, proc.stderr)
 
         def get_mounts():
             """Returns a list of mounted volume paths as reported by diskutil."""
@@ -271,7 +271,7 @@ class Packager:
         os.chmod(self.tmp_pkgroot, 0o1775)
         os.chown(self.tmp_pkgroot, 0, 80)
         try:
-            p = subprocess.run(
+            proc = subprocess.run(
                 ("/usr/bin/ditto", self.request["pkgroot"], self.tmp_pkgroot),
                 capture_output=True,
                 text=True,
@@ -280,10 +280,10 @@ class Packager:
             raise PackagerError(
                 f"ditto execution failed with error code {e.errno}: {e.strerror}"
             )
-        if p.returncode != 0:
+        if proc.returncode != 0:
             raise PackagerError(
                 f"Couldn't copy pkgroot from {self.request['pkgroot']} to "
-                f"{self.tmp_pkgroot}: {' '.join(str(p.stderr).split())}"
+                f"{self.tmp_pkgroot}: {' '.join(str(proc.stderr).split())}"
             )
 
         self.log.info(f"Package root copied to {self.tmp_pkgroot}")
@@ -380,7 +380,7 @@ class Packager:
         turn off package relocation"""
         self.component_plist = os.path.join(self.tmproot, "component.plist")
         try:
-            p = subprocess.run(
+            proc = subprocess.run(
                 (
                     "/usr/bin/pkgbuild",
                     "--analyze",
@@ -395,10 +395,10 @@ class Packager:
             raise PackagerError(
                 f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
             )
-        if p.returncode != 0:
+        if proc.returncode != 0:
             raise PackagerError(
-                f"pkgbuild failed with exit code {p.returncode}: "
-                f"{' '.join(str(p.stderr).split())}"
+                f"pkgbuild failed with exit code {proc.returncode}: "
+                f"{' '.join(str(proc.stderr).split())}"
             )
         try:
             with open(self.component_plist, "rb") as f:
@@ -472,15 +472,15 @@ class Packager:
             # Execute pkgbuild.
             self.log.info("Sending package build command")
             try:
-                p = subprocess.run(cmd, capture_output=True, text=True)
+                proc = subprocess.run(cmd, capture_output=True, text=True)
             except OSError as e:
                 raise PackagerError(
                     f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
                 )
-            if p.returncode != 0:
+            if proc.returncode != 0:
                 raise PackagerError(
-                    f"pkgbuild failed with exit code {p.returncode}: "
-                    f"{' '.join(str(p.stderr).split())}"
+                    f"pkgbuild failed with exit code {proc.returncode}: "
+                    f"{' '.join(str(proc.stderr).split())}"
                 )
             self.log.info("Changing name and owner")
             # Change to final name and owner.
