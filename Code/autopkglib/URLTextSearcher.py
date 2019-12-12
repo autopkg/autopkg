@@ -29,7 +29,7 @@ class URLTextSearcher(URLGetter):
     """Downloads a URL using curl and performs a regular expression match
     on the text.
 
-    Requires version 0.2.9."""
+    Requires version 1.4."""
 
     input_variables = {
         "re_pattern": {
@@ -81,6 +81,9 @@ class URLTextSearcher(URLGetter):
 
     description = __doc__
 
+    match_message = "Found matching text"
+    no_match_message = "No match found on URL"
+
     def prepare_curl_cmd(self):
         """Assemble curl command and return it."""
         curl_cmd = super().prepare_curl_cmd()
@@ -88,17 +91,22 @@ class URLTextSearcher(URLGetter):
         curl_cmd.append(self.env["url"])
         return curl_cmd
 
-    def re_search(self, content):
-        """Search for re_pattern in content"""
+    def prepare_re_flags(self):
+        """Create flag varible for re.compile"""
         flag_accumulator = 0
         for flag in self.env.get("re_flags", {}):
             if flag in re.__dict__:
                 flag_accumulator += re.__dict__[flag]
-        re_pattern = re.compile(self.env["re_pattern"], flags=flag_accumulator)
+        return flag_accumulator
+
+    def re_search(self, content):
+        """Search for re_pattern in content"""
+
+        re_pattern = re.compile(self.env["re_pattern"], flags=self.prepare_re_flags())
         match = re_pattern.search(content)
 
         if not match:
-            raise ProcessorError(f"No match found on URL: {self.env['url']}")
+            raise ProcessorError(f"{self.no_match_message}: {self.env['url']}")
 
         # return the last matched group with the dict of named groups
         return (match.group(match.lastindex or 0), match.groupdict())
@@ -120,7 +128,7 @@ class URLTextSearcher(URLGetter):
         self.output_variables = {}
         for key in groupdict.keys():
             self.env[key] = groupdict[key]
-            self.output(f"Found matching text ({key}): {self.env[key]}")
+            self.output(f"{self.match_message} ({key}): {self.env[key]}")
             self.output_variables[key] = {
                 "description": "Matched regular expression group"
             }
