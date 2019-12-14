@@ -17,7 +17,6 @@
 
 import os.path
 import re
-import subprocess
 from distutils.version import StrictVersion
 from glob import glob
 
@@ -114,14 +113,14 @@ class CodeSignatureVerifier(DmgMounter):
         if not codesign_additional_arguments:
             codesign_additional_arguments = []
 
-        process = ["/usr/bin/codesign", "--verify", "--verbose=1"]
+        cmd = ["/usr/bin/codesign", "--verify", "--verbose=1"]
 
         # Use --deep option in OS X 10.9.5 or later
         darwin_version = os.uname()[2]
         if StrictVersion(darwin_version) >= StrictVersion("13.4.0"):
             if deep_verification:
                 self.output("Deep verification enabled...")
-                process.append("--deep")
+                cmd.append("--deep")
             else:
                 self.output("Deep verification disabled...")
 
@@ -133,10 +132,10 @@ class CodeSignatureVerifier(DmgMounter):
                 )
             elif strict_verification:
                 self.output("Strict verification enabled...")
-                process.append("--strict")
+                cmd.append("--strict")
             elif not strict_verification:
                 self.output("Strict verification disabled...")
-                process.append("--no-strict")
+                cmd.append("--no-strict")
             else:
                 self.output(
                     "Strict verification value type unknown. Using codesign defaults..."
@@ -144,59 +143,58 @@ class CodeSignatureVerifier(DmgMounter):
 
         # Add additional arguments (if any).
         for argument in codesign_additional_arguments:
-            process.append(argument)
+            cmd.append(argument)
 
         # Add the requirement string
         if test_requirement:
             if self.env.get("CODE_SIGNATURE_VERIFICATION_DEBUG"):
                 self.output(f"Requirement: {test_requirement}")
-            process.append("--test-requirement")
-            process.append(f"={test_requirement}")
+            cmd.append("--test-requirement")
+            cmd.append(f"={test_requirement}")
 
-        process.append(path)
+        cmd.append(path)
 
         if self.env.get("CODE_SIGNATURE_VERIFICATION_DEBUG"):
-            self.output(f"{' '.join(process)}")
+            self.output(f"{' '.join(cmd)}")
 
-        proc = subprocess.run(process, capture_output=True, text=True)
+        cmd_result = self.cmdexec(cmd, check=False)
 
         # Log all output. codesign seems to output only
         # to stderr but check the stdout too
-        if proc.stderr:
-            for line in proc.stderr.splitlines():
+        if cmd_result["stderr"]:
+            for line in cmd_result["stderr"].splitlines():
                 self.output(line)
-        if proc.stdout:
-            for line in proc.stdout.splitlines():
+        if cmd_result["stdout"]:
+            for line in cmd_result["stdout"].splitlines():
                 self.output(line)
 
         # Return True if codesign exited with 0
-        return proc.returncode == 0
+        return cmd_result["returncode"] == 0
 
     def pkgutil_check_signature(self, path):
         """
         Runs 'pkgutil --check-signature <path>'. Returns a tuple with boolean
         pkgutil exit status and a list of found certificate authority names
         """
-        process = ["/usr/sbin/pkgutil", "--check-signature", path]
-
-        proc = subprocess.run(process, capture_output=True, text=True)
+        cmd = ["/usr/sbin/pkgutil", "--check-signature", path]
+        cmd_result = self.cmdexec(cmd, check=False)
 
         # Log everything
-        if proc.stdout:
-            for line in proc.stdout.splitlines():
+        if cmd_result["stdout"]:
+            for line in cmd_result["stdout"].splitlines():
                 self.output(line)
-        if proc.stderr:
-            for line in proc.stderr.splitlines():
+        if cmd_result["stderr"]:
+            for line in cmd_result["stderr"].splitlines():
                 self.output(line)
 
         # Parse the output for certificate authority names
         authority_name_chain = []
-        for match in re.finditer(RE_AUTHORITY_PKGUTIL, proc.stdout):
+        for match in re.finditer(RE_AUTHORITY_PKGUTIL, cmd_result["stdout"]):
             authority_name_chain.append(match.group("authority"))
 
         # Return a tuple with boolean status and
         # a list with certificate authority names
-        return proc.returncode == 0, authority_name_chain
+        return cmd_result["returncode"] == 0, authority_name_chain
 
     def process_code_signature(self, path):
         """Verifies the code signature for a path"""
