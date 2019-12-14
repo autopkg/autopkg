@@ -527,16 +527,17 @@ def run_git(git_options_and_arguments, git_directory=None):
     cmd = [gitcmd]
     cmd.extend(git_options_and_arguments)
     try:
-        proc = subprocess.run(cmd, cwd=git_directory, capture_output=True, text=True)
+        proc = subprocess.run(
+            cmd, capture_output=True, check=True, cwd=git_directory, text=True
+        )
+    except subprocess.CalledProcessError as err:
+        raise GitError(f"ERROR: {err.stderr}")
     except OSError as err:
         raise GitError(
             f"ERROR: git execution failed with error code {err.errno}: "
             f"{err.strerror}"
         )
-    if proc.returncode != 0:
-        raise GitError(f"ERROR: {proc.stderr}")
-    else:
-        return proc.stdout
+    return proc.stdout
 
 
 def get_recipe_repo(git_path):
