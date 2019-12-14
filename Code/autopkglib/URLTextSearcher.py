@@ -22,6 +22,9 @@ import re
 from autopkglib import ProcessorError
 from autopkglib.URLGetter import URLGetter
 
+MATCH_MESSAGE = "Found matching text"
+NO_MATCH_MESSAGE = "No match found on URL"
+
 __all__ = ["URLTextSearcher"]
 
 
@@ -81,9 +84,6 @@ class URLTextSearcher(URLGetter):
 
     description = __doc__
 
-    match_message = "Found matching text"
-    no_match_message = "No match found on URL"
-
     def prepare_curl_cmd(self):
         """Assemble curl command and return it."""
         curl_cmd = super().prepare_curl_cmd()
@@ -106,7 +106,7 @@ class URLTextSearcher(URLGetter):
         match = re_pattern.search(content)
 
         if not match:
-            raise ProcessorError(f"{self.no_match_message}: {self.env['url']}")
+            raise ProcessorError(f"{NO_MATCH_MESSAGE}: {self.env['url']}")
 
         # return the last matched group with the dict of named groups
         return (match.group(match.lastindex or 0), match.groupdict())
@@ -128,7 +128,7 @@ class URLTextSearcher(URLGetter):
         self.output_variables = {}
         for key in groupdict.keys():
             self.env[key] = groupdict[key]
-            self.output(f"{self.match_message} ({key}): {self.env[key]}")
+            self.output(f"{MATCH_MESSAGE} ({key}): {self.env[key]}")
             self.output_variables[key] = {
                 "description": "Matched regular expression group"
             }
