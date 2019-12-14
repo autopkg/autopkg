@@ -19,7 +19,6 @@
 
 import os.path
 import shutil
-import subprocess
 from glob import glob
 
 from autopkglib import ProcessorError
@@ -100,26 +99,21 @@ class FlatPkgUnpacker(DmgMounter):
 
     def xar_expand(self):
         """Uses xar to expand an archive"""
-        try:
-            xarcmd = [
-                "/usr/bin/xar",
-                "-x",
-                "-C",
-                self.env["destination_path"],
-                "-f",
-                self.source_path,
-            ]
-            if self.env.get("skip_payload"):
-                xarcmd.extend(["--exclude", "Payload"])
-            proc = subprocess.run(xarcmd, capture_output=True, text=True)
-        except OSError as err:
-            raise ProcessorError(
-                f"xar execution failed with error code {err.errno}: {err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(
-                f"extraction of {self.env['flat_pkg_path']} with xar failed: {proc.stderr}"
-            )
+        cmd = [
+            "/usr/bin/xar",
+            "-x",
+            "-C",
+            self.env["destination_path"],
+            "-f",
+            self.source_path,
+        ]
+        if self.env.get("skip_payload"):
+            cmd.extend(["--exclude", "Payload"])
+
+        self.cmdexec(
+            cmd,
+            exception_text=f"extraction of {self.env['flat_pkg_path']} with xar failed",
+        )
 
     def pkgutil_expand(self):
         """Uses pkgutil to expand a flat package"""
@@ -131,24 +125,16 @@ class FlatPkgUnpacker(DmgMounter):
                 raise ProcessorError(
                     f"Can't remove {self.env['destination_path']}: {err.strerror}"
                 )
-
-        try:
-            pkgutilcmd = [
-                "/usr/sbin/pkgutil",
-                "--expand",
-                self.source_path,
-                self.env["destination_path"],
-            ]
-            proc = subprocess.run(pkgutilcmd, capture_output=True, text=True)
-        except OSError as err:
-            raise ProcessorError(
-                f"pkgutil execution failed with error code {err.errno}: {err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(
-                f"extraction of {self.env['flat_pkg_path']} with pkgutil failed: "
-                f"{proc.stderr}"
-            )
+        cmd = [
+            "/usr/sbin/pkgutil",
+            "--expand",
+            self.source_path,
+            self.env["destination_path"],
+        ]
+        self.cmdexec(
+            cmd,
+            exception_text=f"extraction of {self.env['flat_pkg_path']} with pkgutil failed",
+        )
 
     def main(self):
         # Check if we're trying to copy something inside a dmg.
