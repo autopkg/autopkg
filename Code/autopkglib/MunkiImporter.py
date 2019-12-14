@@ -18,7 +18,6 @@
 import os
 import plistlib
 import shutil
-import subprocess
 
 from autopkglib import Processor, ProcessorError
 
@@ -462,37 +461,31 @@ class MunkiImporter(Processor):
         if "munki_importer_summary_result" in self.env:
             del self.env["munki_importer_summary_result"]
         # Generate arguments for makepkginfo.
-        args = ["/usr/local/munki/makepkginfo", self.env["pkg_path"]]
+        cmd = ["/usr/local/munki/makepkginfo", self.env["pkg_path"]]
         if self.env.get("munkiimport_pkgname"):
-            args.extend(["--pkgname", self.env["munkiimport_pkgname"]])
+            cmd.extend(["--pkgname", self.env["munkiimport_pkgname"]])
         if self.env.get("munkiimport_appname"):
-            args.extend(["--appname", self.env["munkiimport_appname"]])
+            cmd.extend(["--appname", self.env["munkiimport_appname"]])
         # uninstaller pkg will be copied later, this is just to suppress
         # makepkginfo stderr warning output
         if self.env.get("uninstaller_pkg_path"):
-            args.extend(["--uninstallpkg", self.env["uninstaller_pkg_path"]])
+            cmd.extend(["--uninstallpkg", self.env["uninstaller_pkg_path"]])
         if self.env.get("additional_makepkginfo_options"):
-            args.extend(self.env["additional_makepkginfo_options"])
+            cmd.extend(self.env["additional_makepkginfo_options"])
 
         # Call makepkginfo.
-        try:
-            proc = subprocess.run(args, capture_output=True, text=False)
-        except OSError as err:
-            raise ProcessorError(
-                f"makepkginfo execution failed with error code {err.errno}: "
-                f"{err.strerror}"
-            )
-        if proc.stderr:
-            for err_line in proc.stderr.decode().splitlines():
+        cmd_result = self.cmdexec(
+            cmd,
+            exception_text=f"creating pkginfo for {self.env['pkg_path']} failed",
+            text=False,
+        )
+
+        if cmd_result["stderr"]:
+            for err_line in cmd_result["stderr"].decode().splitlines():
                 self.output(err_line)
-        if proc.returncode != 0:
-            raise ProcessorError(
-                f"creating pkginfo for {self.env['pkg_path']} failed: "
-                f"{proc.stderr.decode()}"
-            )
 
         # Get pkginfo from output plist.
-        pkginfo = plistlib.loads(proc.stdout)
+        pkginfo = plistlib.loads(cmd_result["stdout"])
 
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:
