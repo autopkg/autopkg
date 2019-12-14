@@ -18,10 +18,9 @@
 import os.path
 import plistlib
 import shutil
-import subprocess
 import tempfile
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor
 
 __all__ = ["MunkiInfoCreator"]
 
@@ -71,24 +70,18 @@ class MunkiInfoCreator(Processor):
                 pkg_for_makepkginfo = self.env["pkg_path"]
 
             # Generate arguments for makepkginfo.
-            args = ["/usr/local/munki/makepkginfo"]
+            cmd = ["/usr/local/munki/makepkginfo"]
             for option in munkiopts:
                 if option in self.env:
-                    args.append(f"--{option}={self.env[option]}")
-            args.append(pkg_for_makepkginfo)
+                    cmd.append(f"--{option}={self.env[option]}")
+            cmd.append(pkg_for_makepkginfo)
 
             # Call makepkginfo.
-            try:
-                proc = subprocess.run(args, capture_output=True, text=False)
-            except OSError as err:
-                raise ProcessorError(
-                    f"makepkginfo execution failed with error code {err.errno}: "
-                    f"{err.strerror}"
-                )
-            if proc.returncode != 0:
-                raise ProcessorError(
-                    f"creating pkginfo for {self.env['pkg_path']} failed: {proc.stderr.decode()}"
-                )
+            cmd_result = self.cmdexec(
+                cmd,
+                exception_text=f"creating pkginfo for {self.env['pkg_path']} failed",
+                text=False,
+            )
 
         # makepkginfo cleanup.
         finally:
@@ -96,7 +89,7 @@ class MunkiInfoCreator(Processor):
                 shutil.rmtree(temp_path)
 
         # Read output plist.
-        output = plistlib.loads(proc.stdout)
+        output = plistlib.loads(cmd_result["stdout"])
 
         # Set version and name.
         if "version" in self.env:
