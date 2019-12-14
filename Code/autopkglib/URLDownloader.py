@@ -177,9 +177,21 @@ class URLDownloader(URLGetter):
 
         if "filename=" in header.get("content-disposition", ""):
             filename = header["content-disposition"].rpartition("filename=")[2]
+            self.output(
+                f"Filename prefetched from the HTTP Content-Disposition header: {filename}",
+                verbose_level=2,
+            )
         elif header.get("http_redirected", None):
             filename = header["http_redirected"].rpartition("/")[2]
+            self.output(
+                f"Filename prefetched from the HTTP Location header: {filename}",
+                verbose_level=2,
+            )
         else:
+            self.output(
+                "Unable to find filename in the HTTP headers during prefetch",
+                verbose_level=2,
+            )
             return None
 
         return filename
