@@ -15,9 +15,7 @@
 # limitations under the License.
 """See docstring for FlatPkgPacker class"""
 
-import subprocess
-
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor
 
 __all__ = ["FlatPkgPacker"]
 
@@ -45,12 +43,8 @@ class FlatPkgPacker(Processor):
 
     def flatten(self, source_dir, dest_pkg):
         """Flattens a previously expanded flat package"""
-        try:
-            subprocess.check_call(
-                ["/usr/sbin/pkgutil", "--flatten", source_dir, dest_pkg]
-            )
-        except subprocess.CalledProcessError as err:
-            raise ProcessorError(f"{err} flattening {source_dir}")
+        cmd = ["/usr/sbin/pkgutil", "--flatten", source_dir, dest_pkg]
+        self.cmdexec(cmd, exception_text=f"flattening {source_dir} failed")
 
     def main(self):
         source_dir = self.env.get("source_flatpkg_dir")
