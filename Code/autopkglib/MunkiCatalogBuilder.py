@@ -15,9 +15,7 @@
 # limitations under the License.
 """See docstring for MunkiCatalogBuilder class"""
 
-import subprocess
-
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor
 
 __all__ = ["MunkiCatalogBuilder"]
 
@@ -39,25 +37,17 @@ class MunkiCatalogBuilder(Processor):
 
     def main(self):
         # MunkiImporter or other processor must set
-        # env["munki_repo_changed"] = True in order for makecatalogs
-        # to run
+        # env["munki_repo_changed"] = True in order for makecatalogs to run
         if not self.env.get("munki_repo_changed"):
             self.output("Skipping makecatalogs because repo is unchanged.")
             return
 
         # Generate arguments for makecatalogs.
-        args = ["/usr/local/munki/makecatalogs", self.env["MUNKI_REPO"]]
+        cmd = ["/usr/local/munki/makecatalogs", self.env["MUNKI_REPO"]]
 
         # Call makecatalogs.
-        try:
-            proc = subprocess.run(args, capture_output=True, text=True)
-        except OSError as err:
-            raise ProcessorError(
-                f"makecatalog execution failed with error code {err.errno}: "
-                f"{err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(f"makecatalogs failed: {proc.stderr}")
+        self.cmdexec(cmd, exception_text="makecatalogs failed")
+
         self.output("Munki catalogs rebuilt!")
 
 
