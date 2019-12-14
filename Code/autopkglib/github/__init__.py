@@ -135,24 +135,25 @@ To save the token, paste it to the following prompt."""
     def download_with_curl(self, curl_cmd):
         """Download file using curl and return raw headers."""
 
-        p_stdout, p_stderr, retcode = self.execute_curl(curl_cmd)
+        cmd_result = self.cmdexec(curl_cmd, bufsize=1, check=False)
 
-        if retcode:  # Non-zero exit code from curl => problem with download
-            curl_err = self.parse_curl_error(p_stderr)
+        # Non-zero exit code from curl => problem with download
+        if cmd_result["returncode"]:
+            curl_err = self.parse_curl_error(cmd_result["stderr"])
             log_err(
                 f"Curl failure: Could not retrieve URL {self.env['url']}: {curl_err}"
             )
 
-            if retcode == 22:
+            if cmd_result["returncode"] == 22:
                 # 22 means any 400 series return code. Note: header seems not to
                 # be dumped to STDOUT for immediate failures. Hence
                 # http_result_code is likely blank/000. Read it from stderr.
-                if re.search(r"URL returned error: [0-9]+", p_stderr):
-                    m = re.match(r".* (?P<status_code>\d+) .*", p_stderr)
+                if re.search(r"URL returned error: [0-9]+", cmd_result["stderr"]):
+                    m = re.match(r".* (?P<status_code>\d+) .*", cmd_result["stderr"])
                     if m.group("status_code"):
                         self.http_result_code = m.group("status_code")
 
-        return p_stdout
+        return cmd_result["stdout"]
 
     def search_for_name(
         self,

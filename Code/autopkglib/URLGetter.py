@@ -17,7 +17,6 @@
 """See docstring for URLGetter class"""
 
 import os.path
-import subprocess
 
 from autopkglib import Processor, ProcessorError, find_binary
 
@@ -176,13 +175,12 @@ class URLGetter(Processor):
         return result.stdout, result.stderr, result.returncode
 
     def download_with_curl(self, curl_cmd, text=True):
-        """Launch curl, return its output, and handle failures."""
-        proc_stdout, proc_stderr, retcode = self.execute_curl(curl_cmd, text)
+        """Launch curl and return its output."""
         self.output(f"Curl command: {curl_cmd}", verbose_level=4)
-        if retcode:  # Non-zero exit code from curl => problem with download
-            curl_err = self.parse_curl_error(proc_stderr)
-            raise ProcessorError(f"curl failure: {curl_err} (exit code {retcode})")
-        return proc_stdout
+        cmd_result = self.cmdexec(
+            curl_cmd, bufsize=1, exception_text="curl failure", text=text
+        )
+        return cmd_result["stdout"]
 
     def download(self, url, headers=None, text=False):
         """Download content with default curl options."""
