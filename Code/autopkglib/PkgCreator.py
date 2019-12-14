@@ -18,7 +18,6 @@
 import os.path
 import plistlib
 import socket
-import subprocess
 import xml.etree.ElementTree as ET
 
 from autopkglib import Processor, ProcessorError
@@ -89,25 +88,17 @@ class PkgCreator(Processor):
 
     def xar_expand(self, source_path):
         """Uses xar to expand an archive"""
-        try:
-            xarcmd = [
-                "/usr/bin/xar",
-                "-x",
-                "-C",
-                self.env.get("RECIPE_CACHE_DIR"),
-                "-f",
-                source_path,
-                "PackageInfo",
-            ]
-            proc = subprocess.run(xarcmd, capture_output=True, text=True)
-        except OSError as err:
-            raise ProcessorError(
-                f"xar execution failed with error code {err.errno}: {err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(
-                f"extraction of {source_path} with xar failed: {proc.stderr}"
-            )
+
+        cmd = [
+            "/usr/bin/xar",
+            "-x",
+            "-C",
+            self.env.get("RECIPE_CACHE_DIR"),
+            "-f",
+            source_path,
+            "PackageInfo",
+        ]
+        self.cmdexec(cmd, exception_text=f"extraction of {source_path} with xar failed")
 
     def pkg_already_exists(self, pkg_path, identifier, version):
         """Check for an existing flat package in the output dir and compare its
