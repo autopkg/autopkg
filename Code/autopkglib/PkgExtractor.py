@@ -18,7 +18,6 @@
 import os
 import plistlib
 import shutil
-import subprocess
 
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
@@ -70,18 +69,8 @@ class PkgExtractor(DmgMounter):
             raise ProcessorError(f"Failed to create extract_path: {err}")
 
         # Unpack payload.
-        try:
-            proc = subprocess.run(
-                ("/usr/bin/ditto", "-x", "-z", archive_path, extract_path),
-                capture_output=True,
-                text=True,
-            )
-        except OSError as err:
-            raise ProcessorError(
-                f"ditto execution failed with error code {err.errno}: {err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(f"Unpacking payload failed: {proc.stderr}")
+        cmd = ["/usr/bin/ditto", "-x", "-z", archive_path, extract_path]
+        self.cmdexec(cmd, exception_text="Unpacking payload failed")
 
     def main(self):
         # Check if we're trying to read something inside a dmg.
