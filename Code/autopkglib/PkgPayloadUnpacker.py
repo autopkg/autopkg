@@ -17,7 +17,6 @@
 
 import os
 import shutil
-import subprocess
 
 from autopkglib import Processor, ProcessorError
 
@@ -68,24 +67,18 @@ class PkgPayloadUnpacker(Processor):
                 except OSError as err:
                     raise ProcessorError(f"Can't remove {path}: {err.strerror}")
 
-        try:
-            dittocmd = [
-                "/usr/bin/ditto",
-                "-x",
-                "-z",
-                self.env["pkg_payload_path"],
-                self.env["destination_path"],
-            ]
-            proc = subprocess.run(dittocmd, capture_output=True, text=True)
-        except OSError as err:
-            raise ProcessorError(
-                f"ditto execution failed with error code {err.errno}: {err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(
-                f"extraction of {self.env['pkg_payload_path']} with ditto failed: "
-                f"{proc.stderr}"
-            )
+        cmd = [
+            "/usr/bin/ditto",
+            "-x",
+            "-z",
+            self.env["pkg_payload_path"],
+            self.env["destination_path"],
+        ]
+        self.cmdexec(
+            cmd,
+            exception_text=f"extraction of {self.env['pkg_payload_path']} with ditto failed",
+        )
+
         self.output(
             f"Unpacked {self.env['pkg_payload_path']} to {self.env['destination_path']}"
         )
