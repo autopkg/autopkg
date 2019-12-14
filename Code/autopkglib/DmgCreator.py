@@ -16,7 +16,6 @@
 """See docstring for DmgCreator class"""
 
 import os
-import subprocess
 
 from autopkglib import Processor, ProcessorError
 
@@ -142,16 +141,7 @@ class DmgCreator(Processor):
         cmd.extend(["-srcfolder", self.env["dmg_root"], self.env["dmg_path"]])
 
         # Call hdiutil.
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-        except OSError as err:
-            raise ProcessorError(
-                f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(
-                f"creation of {self.env['dmg_path']} failed: {proc.stderr}"
-            )
+        self.cmdexec(cmd, exception_text=f"creation of {self.env['dmg_path']} failed")
 
         self.output(
             f"Created dmg from {self.env['dmg_root']} at {self.env['dmg_path']}"
