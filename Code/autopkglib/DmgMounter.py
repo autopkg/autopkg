@@ -16,7 +16,6 @@
 """See docstring for DmgMounter class"""
 
 import plistlib
-import subprocess
 import sys
 
 from autopkglib import Processor, ProcessorError, log, log_err
@@ -73,17 +72,16 @@ class DmgMounter(Processor):
         """Returns true if dmg has a Software License Agreement.
         These dmgs normally cannot be attached without user intervention"""
         has_sla = False
-        proc = subprocess.run(
-            ["/usr/bin/hdiutil", "imageinfo", dmgpath, "-plist"],
-            capture_output=True,
-            text=True,
-        )
-        if proc.stderr:
+        cmd = ["/usr/bin/hdiutil", "imageinfo", dmgpath, "-plist"]
+        cmd_result = self.cmdexec(cmd, check=False)
+
+        if cmd_result["stderr"]:
             # some error with hdiutil. Print it, but try to continue anyway.
             # (APFS disk images generate extranous output to stderr)
-            self.output(f"hdiutil imageinfo error {proc.stderr} with image {dmgpath}.")
-
-        (pliststr, stdout) = self.get_first_plist(proc.stdout)
+            self.output(
+                f"hdiutil imageinfo error {cmd_result['stderr']} with image {dmgpath}."
+            )
+        (pliststr, stdout) = self.get_first_plist(cmd_result["stdout"])
         if pliststr:
             try:
                 plist = plistlib.loads(pliststr.encode())
@@ -106,30 +104,21 @@ class DmgMounter(Processor):
             stdin = "Y\n"
 
         # Call hdiutil.
-        try:
-            proc = subprocess.run(
-                (
-                    "/usr/bin/hdiutil",
-                    "attach",
-                    "-plist",
-                    "-mountrandom",
-                    "/private/tmp",
-                    "-nobrowse",
-                    pathname,
-                ),
-                input=stdin,
-                capture_output=True,
-                text=True,
-            )
-        except OSError as err:
-            raise ProcessorError(
-                f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(f"mounting {pathname} failed: {proc.stderr}")
+        cmd = [
+            "/usr/bin/hdiutil",
+            "attach",
+            "-plist",
+            "-mountrandom",
+            "/private/tmp",
+            "-nobrowse",
+            pathname,
+        ]
+        cmd_result = self.cmdexec(
+            cmd, exception_text=f"mounting {pathname} failed", input=stdin
+        )
 
         # Read output plist.
-        (pliststr, stdout) = self.get_first_plist(proc.stdout)
+        (pliststr, stdout) = self.get_first_plist(cmd_result["stdout"])
         try:
             output = plistlib.loads(pliststr.encode())
         except Exception:
@@ -156,18 +145,8 @@ class DmgMounter(Processor):
             raise ProcessorError(f"{pathname} is not mounted")
 
         # Call hdiutil.
-        try:
-            proc = subprocess.run(
-                ("/usr/bin/hdiutil", "detach", self.mounts[pathname]),
-                capture_output=True,
-                text=True,
-            )
-        except OSError as err:
-            raise ProcessorError(
-                f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(f"unmounting {pathname} failed: {proc.stderr}")
+        cmd = ["/usr/bin/hdiutil", "detach", self.mounts[pathname]]
+        self.cmdexec(cmd, exception_text=f"unmounting {pathname} failed")
 
         # Delete mount from mount list.
         del self.mounts[pathname]
