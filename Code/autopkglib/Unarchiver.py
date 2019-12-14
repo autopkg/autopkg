@@ -17,7 +17,6 @@
 
 import os
 import shutil
-import subprocess
 
 from autopkglib import Processor, ProcessorError
 
@@ -143,18 +142,10 @@ class Unarchiver(Processor):
                 cmd.append("-j")
 
         # Call command.
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-        except OSError as err:
-            raise ProcessorError(
-                f"{os.path.basename(cmd[0])} execution failed with error code "
-                f"{err.errno}: {err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(
-                f"Unarchiving {archive_path} with {os.path.basename(cmd[0])} failed: "
-                f"{proc.stderr}"
-            )
+        self.cmdexec(
+            cmd,
+            exception_text=f"Unarchiving {archive_path} with {os.path.basename(cmd[0])} failed",
+        )
 
         self.output(f"Unarchived {archive_path} to {destination_path}")
 
