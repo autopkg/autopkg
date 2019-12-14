@@ -6,7 +6,7 @@ from textwrap import dedent
 from unittest.mock import patch
 
 from autopkglib import ProcessorError
-from autopkglib.URLTextSearcher import URLTextSearcher
+from autopkglib.URLTextSearcher import NO_MATCH_MESSAGE, URLTextSearcher
 
 
 class TestURLTextSearcher(unittest.TestCase):
@@ -58,7 +58,7 @@ class TestURLTextSearcher(unittest.TestCase):
         mock_download.return_value = self.web_page
         with self.assertRaises(ProcessorError) as err:
             self.processor.main()
-        self.assertTrue(self.processor.no_match_message in str(err.exception))
+        self.assertTrue(NO_MATCH_MESSAGE in str(err.exception))
 
     @patch("autopkglib.URLTextSearcher.download_with_curl")
     def test_no_fail_if_good_env(self, mock_download):
