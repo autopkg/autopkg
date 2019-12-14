@@ -594,20 +594,45 @@ class Processor:
         self.main()
         return self.env
 
-    def cmdexec(self, command, description):
-        """Execute a command and return output."""
+    def cmdexec(
+        self, cmd, bufsize=-1, check=True, exception_text="", input=None, text=True
+    ):
+        """Execute a command and return a dictionary with keys stdout, stderr
+        and returncode
+
+        If check is True, throw an ProcessorError exception if the command exits
+        non-zero. Use the string 'exception_text' to output the message,
+        followed by stderr.
+        """
 
         try:
-            proc = subprocess.run(command, capture_output=True)
+            proc = subprocess.run(
+                cmd,
+                bufsize=bufsize,
+                capture_output=True,
+                check=check,
+                input=input,
+                text=text,
+            )
+        except subprocess.CalledProcessError as err:
+            if text:
+                error_output = err.stderr
+            else:
+                error_output = err.stderr.decode()
+            raise ProcessorError(
+                f"{exception_text}: {error_output} (exit code: {err.returncode})"
+            )
         except OSError as err:
             raise ProcessorError(
-                f"{command[0]} execution failed with error code "
+                f"{cmd[0]} execution failed with error code "
                 f"{err.errno}: {err.strerror}"
             )
-        if proc.returncode != 0:
-            raise ProcessorError(f"{description} failed: {proc.stderr}")
 
-        return proc.stdout
+        return {
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+            "returncode": proc.returncode,
+        }
 
     def execute_shell(self):
         """Execute as a standalone binary on the commandline."""
