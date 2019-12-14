@@ -16,7 +16,6 @@
 """See docstring for MunkiInstallsItemsCreator class"""
 
 import plistlib
-import subprocess
 
 from autopkglib import Processor, ProcessorError, log
 
@@ -68,23 +67,17 @@ class MunkiInstallsItemsCreator(Processor):
         if self.env.get("faux_root"):
             faux_root = self.env["faux_root"].rstrip("/")
 
-        args = ["/usr/local/munki/makepkginfo"]
+        cmd = ["/usr/local/munki/makepkginfo"]
         for item in self.env["installs_item_paths"]:
-            args.extend(["-f", faux_root + item])
+            cmd.extend(["-f", faux_root + item])
 
         # Call makepkginfo.
-        try:
-            proc = subprocess.run(args, capture_output=True, text=False)
-        except OSError as err:
-            raise ProcessorError(
-                f"makepkginfo execution failed with error code {err.errno}: "
-                f"{err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(f"creating pkginfo failed: {proc.stderr.decode()}")
+        cmd_result = self.cmdexec(
+            cmd, exception_text="creating pkginfo failed", text=False
+        )
 
         # Get pkginfo from output plist.
-        pkginfo = plistlib.loads(proc.stdout)
+        pkginfo = plistlib.loads(cmd_result["stdout"])
         installs_array = pkginfo.get("installs", [])
 
         if faux_root:
