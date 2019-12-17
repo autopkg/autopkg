@@ -19,6 +19,8 @@ import os.path
 
 from autopkglib.DmgMounter import DmgMounter
 
+NO_VERSION_MESSAGE = "UNKNOWN_VERSION"
+
 __all__ = ["Versioner"]
 
 
@@ -61,7 +63,7 @@ class Versioner(DmgMounter):
                 input_plist_path = self.env["input_plist_path"]
             plist = self.load_plist_from_file(input_plist_path)
             self.env["version"] = plist.get(
-                self.env["plist_version_key"], "UNKNOWN_VERSION"
+                self.env["plist_version_key"], NO_VERSION_MESSAGE
             )
             self.output(
                 f"Found version {self.env['version']} in file {input_plist_path}"
