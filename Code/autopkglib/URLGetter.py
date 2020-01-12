@@ -160,7 +160,7 @@ class URLGetter(Processor):
                 self.parse_http_protocol(line, header)
             elif ": " in line:
                 self.parse_http_header(line, header)
-            elif self.env["url"].startswith("ftp://"):
+            elif self.env.get("url", "").startswith("ftp://"):
                 self.parse_ftp_header(line, header)
             elif line == "":
                 # we got an empty line; end of headers (or curl exited)
