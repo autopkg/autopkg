@@ -283,16 +283,7 @@ def recipe_from_file(filename):
     """Create a recipe from a plist or yaml file. Handle exceptions and log"""
     if os.path.isfile(filename):
 
-        if filename.endswith((".recipe", ".plist")):
-            try:
-                # try to read it as a plist
-                with open(filename, "rb") as f:
-                    recipe_dict = plistlib.load(f)
-                return recipe_dict
-            except Exception as err:
-                log_err(f"WARNING: plist error for {filename}: {err}")
-
-        elif filename.endswith(".yaml"):
+        if filename.endswith(".yaml"):
             try:
                 # try to read it as yaml
                 with open(filename, "rb") as f:
@@ -300,6 +291,15 @@ def recipe_from_file(filename):
                 return recipe_dict
             except Exception as err:
                 log_err(f"WARNING: yaml error for {filename}: {err}")
+
+        else:
+            try:
+                # try to read it as a plist
+                with open(filename, "rb") as f:
+                    recipe_dict = plistlib.load(f)
+                return recipe_dict
+            except Exception as err:
+                log_err(f"WARNING: plist error for {filename}: {err}")
 
 
 def get_identifier(recipe):
