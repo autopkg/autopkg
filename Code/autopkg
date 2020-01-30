@@ -51,6 +51,7 @@ from autopkglib import (
     log,
     log_err,
     processor_names,
+    recipe_plist_from_file,
     set_pref,
     version_equal_or_greater,
 )
@@ -113,19 +114,6 @@ def has_check_phase(recipe):
 def builds_a_package(recipe):
     """Does this recipe build any packages?"""
     return recipe_has_step_processor(recipe, "PkgCreator")
-
-
-def recipe_plist_from_file(filename):
-    """Create a recipe plist from a file. Handle exceptions and log"""
-    if os.path.isfile(filename):
-        try:
-            # make sure we can read it
-            with open(filename, "rb") as f:
-                recipe_plist = plistlib.load(f)
-        except Exception as err:
-            log_err(f"WARNING: plist error for {filename}: {err}")
-            return
-        return recipe_plist
 
 
 def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
