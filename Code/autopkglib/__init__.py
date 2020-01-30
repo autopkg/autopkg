@@ -308,12 +308,8 @@ def get_identifier_from_recipe_file(filename):
     """Attempts to read plist file filename and get the
     identifier. Otherwise, returns None."""
     recipe_plist = {}
-    try:
-        # make sure we can read it
-        with open(filename, "rb") as f:
-            recipe_plist = plistlib.load(f)
-    except Exception as err:
-        log_err(f"WARNING: plist error for {filename}: {err}")
+    # make sure we can read it
+    recipe_plist = recipe_plist_from_file(filename)
     return get_identifier(recipe_plist)
 
 

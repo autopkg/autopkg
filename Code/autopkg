@@ -357,8 +357,7 @@ def load_recipe(
 
     if recipe_file:
         # read it
-        with open(recipe_file, "rb") as f:
-            recipe = plistlib.load(f)
+        recipe = recipe_plist_from_file(recipe_file)
 
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
@@ -1793,8 +1792,7 @@ def update_trust_info(argv):
             continue
         # normalize recipe path
         recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
-        with open(recipe_path, "rb") as f:
-            recipe = plistlib.load(f)
+        recipe = recipe_plist_from_file(recipe_path)
         if "ParentRecipe" not in recipe:
             log_err(f"{recipe_name} is not a recipe override and has no parent recipe.")
             log_err(f"Path: {recipe_path}")
