@@ -30,6 +30,8 @@ import sys
 import traceback
 from distutils.version import LooseVersion
 
+import yaml
+
 
 class memoize(dict):
     """Class to cache the return values of an expensive function.
@@ -278,16 +280,26 @@ def log_err(msg):
 
 
 def recipe_from_file(filename):
-    """Create a recipe plist from a file. Handle exceptions and log"""
+    """Create a recipe from a plist or yaml file. Handle exceptions and log"""
     if os.path.isfile(filename):
-        try:
-            # make sure we can read it
-            with open(filename, "rb") as f:
-                recipe_plist = plistlib.load(f)
-        except Exception as err:
-            log_err(f"WARNING: plist error for {filename}: {err}")
-            return
-        return recipe_plist
+
+        if filename.endswith((".recipe", ".plist")):
+            try:
+                # try to read it as a plist
+                with open(filename, "rb") as f:
+                    recipe_dict = plistlib.load(f)
+                return recipe_dict
+            except Exception as err:
+                log_err(f"WARNING: plist error for {filename}: {err}")
+
+        elif filename.endswith(".yaml"):
+            try:
+                # try to read it as yaml
+                with open(filename, "rb") as f:
+                    recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+                return recipe_dict
+            except Exception as err:
+                log_err(f"WARNING: yaml error for {filename}: {err}")
 
 
 def get_identifier(recipe):
