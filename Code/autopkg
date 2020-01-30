@@ -51,7 +51,7 @@ from autopkglib import (
     log,
     log_err,
     processor_names,
-    recipe_plist_from_file,
+    recipe_from_file,
     set_pref,
     version_equal_or_greater,
 )
@@ -131,7 +131,7 @@ def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
 def valid_plist_with_keys(filename, keys_to_verify):
     """Attempts to read a plist file and ensures the keys in
     keys_to_verify exist. Returns False on any failure, True otherwise."""
-    recipe_plist = recipe_plist_from_file(filename)
+    recipe_plist = recipe_from_file(filename)
     return valid_plist_with_keys(recipe_plist, keys_to_verify)
 
 
@@ -148,7 +148,7 @@ def valid_recipe_plist(recipe_plist):
 def valid_recipe_file(filename):
     """Returns True if filename contains a valid recipe,
     otherwise returns False"""
-    recipe_plist = recipe_plist_from_file(filename)
+    recipe_plist = recipe_from_file(filename)
     return valid_recipe_plist(recipe_plist)
 
 
@@ -163,7 +163,7 @@ def valid_override_plist(recipe_plist):
 def valid_override_file(filename):
     """Returns True if filename contains a valid override,
     otherwise returns False"""
-    override_plist = recipe_plist_from_file(filename)
+    override_plist = recipe_from_file(filename)
     return valid_override_plist(override_plist)
 
 
@@ -357,7 +357,7 @@ def load_recipe(
 
     if recipe_file:
         # read it
-        recipe = recipe_plist_from_file(recipe_file)
+        recipe = recipe_from_file(recipe_file)
 
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
@@ -1206,7 +1206,7 @@ def get_recipe_list(
         )
 
         for match in matches:
-            recipe = recipe_plist_from_file(match)
+            recipe = recipe_from_file(match)
             if valid_recipe_plist(recipe):
                 recipe_name = os.path.basename(match)
 
@@ -1230,7 +1230,7 @@ def get_recipe_list(
         for filename in os.listdir(normalized_dir):
             if filename.endswith(".recipe"):
                 pathname = os.path.join(normalized_dir, filename)
-                override = recipe_plist_from_file(pathname)
+                override = recipe_from_file(pathname)
 
                 if valid_override_plist(override):
                     # override points to a valid recipe
@@ -1792,7 +1792,7 @@ def update_trust_info(argv):
             continue
         # normalize recipe path
         recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
-        recipe = recipe_plist_from_file(recipe_path)
+        recipe = recipe_from_file(recipe_path)
         if "ParentRecipe" not in recipe:
             log_err(f"{recipe_name} is not a recipe override and has no parent recipe.")
             log_err(f"Path: {recipe_path}")

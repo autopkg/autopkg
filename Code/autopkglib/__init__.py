@@ -277,7 +277,7 @@ def log_err(msg):
     log(msg, error=True)
 
 
-def recipe_plist_from_file(filename):
+def recipe_from_file(filename):
     """Create a recipe plist from a file. Handle exceptions and log"""
     if os.path.isfile(filename):
         try:
@@ -309,7 +309,7 @@ def get_identifier_from_recipe_file(filename):
     identifier. Otherwise, returns None."""
     recipe_plist = {}
     # make sure we can read it
-    recipe_plist = recipe_plist_from_file(filename)
+    recipe_plist = recipe_from_file(filename)
     return get_identifier(recipe_plist)
 
 
