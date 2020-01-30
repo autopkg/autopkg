@@ -86,7 +86,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         "urlencode_path_component": {
             "required": False,
             "description": (
-                "Boolean value to specify if the path component"
+                "Boolean value to specify if the path component "
                 "from the sparkle feed needs to be urlencoded. "
                 "Defaults to True."
             ),

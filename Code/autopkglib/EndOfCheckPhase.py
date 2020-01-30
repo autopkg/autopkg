@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Place-holder processor that autopkg uses to mark the end of the check
-phase"""
+phase."""
 
 from autopkglib import Processor
 
@@ -22,7 +22,8 @@ __all__ = ["EndOfCheckPhase"]
 
 
 class EndOfCheckPhase(Processor):
-    """This processor does nothing at all."""
+    """This processor performs no action, but serves as a marker to signal
+    where AutoPkg should stop when the -c/--check options are used."""
 
     input_variables = {}
     output_variables = {}
