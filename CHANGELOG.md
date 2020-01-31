@@ -1,4 +1,4 @@
-### [2.0 RC2](https://github.com/autopkg/autopkg/compare/2.0b3...HEAD) (Unreleased)
+### [2.0 RC2](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (January 31, 2020)
 
 CHANGES FROM RC1:
 - Fixed some processor docs (https://github.com/autopkg/autopkg/commit/3812ca12a44531c78c869e67fbbd84d7706b8a93)
