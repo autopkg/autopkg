@@ -1213,27 +1213,29 @@ def get_recipe_list(
             continue
 
         # find all top-level recipes and recipes one level down
-        matches = glob.glob(os.path.join(normalized_dir, "*.recipe")) + glob.glob(
-            os.path.join(normalized_dir, "*/*.recipe")
+        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
         )
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                recipe = recipe_from_file(match)
+                if valid_recipe_plist(recipe):
+                    recipe_name = os.path.basename(match)
 
-        for match in matches:
-            recipe = recipe_from_file(match)
-            if valid_recipe_plist(recipe):
-                recipe_name = os.path.basename(match)
+                    recipe["Name"] = remove_recipe_extension(recipe_name)
+                    recipe["Path"] = match
 
-                recipe["Name"] = os.path.splitext(recipe_name)[0]
-                recipe["Path"] = match
+                    # If a top level "Identifier" key is not discovered,
+                    # this will copy an IDENTIFIER key in the "Input"
+                    # entry to the top level of the recipe dictionary.
+                    if "Identifier" not in recipe:
+                        identifier = get_identifier(recipe)
+                        if identifier:
+                            recipe["Identifier"] = identifier
 
-                # If a top level "Identifier" key is not discovered,
-                # this will copy an IDENTIFIER key in the "Input"
-                # entry to the top level of the recipe dictionary.
-                if "Identifier" not in recipe:
-                    identifier = get_identifier(recipe)
-                    if identifier:
-                        recipe["Identifier"] = identifier
-
-                recipes.append(recipe)
+                    recipes.append(recipe)
 
     for directory in override_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
