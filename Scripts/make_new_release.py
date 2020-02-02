@@ -58,7 +58,7 @@ def api_call(
           unless json_data is False.
     additional_headers: a dict of additional headers for the API call"""
     if data and json_data:
-        data = json.dumps(data, ensure_ascii=False)
+        data = json.dumps(data, ensure_ascii=False).encode()
     headers = {
         "Accept": "application/vnd.github.v3+json",
         "Authorization": f"token {token}",

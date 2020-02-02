@@ -1,3 +1,13 @@
+### [2.0.2](https://github.com/autopkg/autopkg/compare/v2.0.1...HEAD) (Unreleased)
+
+### [2.0 RC2](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (January 31, 2020)
+
+CHANGES FROM RC1:
+- Fixed some processor docs (https://github.com/autopkg/autopkg/commit/3812ca12a44531c78c869e67fbbd84d7706b8a93)
+- Added in "APLooseVersion", loosely based on Munki's version comparison, to replace previous version comparison semantics. (https://github.com/autopkg/autopkg/commit/7c0676fdfe77f66f261b0df53ec5a792d31c5d3c)
+  - This MAY cause a change in behavior for some current version comparisons, but it no longer crashes when comparing
+    certain combinations of strings.
+
 ### [2.0 RC1](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (December 03, 2019)
 
 CHANGES FROM BETA 3:
