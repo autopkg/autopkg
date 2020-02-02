@@ -343,7 +343,7 @@ def load_recipe(
     search_github=True,
 ):
     """Loads a recipe, first locating it by name.
-    If we find one, we load it and return the plist object (which
+    If we find one, we load it and return the plist or yaml object (which
     should be functionally equivelent to a dictionary). If an override file is
     used, it prefers finding the original recipe by identifier rather than
     name, so that if recipe names shift with updated recipe repos, the
@@ -1997,7 +1997,7 @@ def make_override(argv):
     if os.path.exists(override_file):
         if not options.force:
             log_err(
-                f"An override plist already exists at {override_file}, "
+                f"A recipe override already exists at {override_file}, "
                 "will not overwrite it. Use --force to overwrite "
                 "anyway."
             )

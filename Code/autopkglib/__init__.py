@@ -317,12 +317,12 @@ def get_identifier(recipe):
 
 
 def get_identifier_from_recipe_file(filename):
-    """Attempts to read plist file filename and get the
+    """Attempts to read recipe file and get the
     identifier. Otherwise, returns None."""
-    recipe_plist = {}
+    recipe_dict = {}
     # make sure we can read it
-    recipe_plist = recipe_from_file(filename)
-    return get_identifier(recipe_plist)
+    recipe_dict = recipe_from_file(filename)
+    return get_identifier(recipe_dict)
 
 
 def find_recipe_by_identifier(identifier, search_dirs):
