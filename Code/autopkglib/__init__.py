@@ -282,6 +282,16 @@ def log_err(msg):
     log(msg, error=True)
 
 
+def remove_recipe_extension(name):
+    """Removes supported recipe extensions from a filename or path.
+    If the filename or path does not end with any known recipe extension,
+    the name is returned as is."""
+    for ext in RECIPE_EXTS:
+        if name.endswith(ext):
+            return name[: -len(ext)]
+    return name
+
+
 def recipe_from_file(filename):
     """Create a recipe from a plist or yaml file. Handle exceptions and log"""
     if os.path.isfile(filename):

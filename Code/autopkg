@@ -53,6 +53,7 @@ from autopkglib import (
     log_err,
     processor_names,
     recipe_from_file,
+    remove_recipe_extension,
     set_pref,
     version_equal_or_greater,
 )
@@ -159,16 +160,6 @@ def valid_override_file(filename):
     otherwise returns False"""
     override_dict = recipe_from_file(filename)
     return valid_override_dict(override_dict)
-
-
-def remove_recipe_extension(name):
-    """Removes supported recipe extensions from a filename or path.
-    If the filename or path does not end with any known recipe extension,
-    the name is returned as is."""
-    for ext in RECIPE_EXTS:
-        if name.endswith(ext):
-            return name[: -len(ext)]
-    return name
 
 
 def find_recipe_by_name(name, search_dirs):
