@@ -140,13 +140,6 @@ def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
     return False
 
 
-def valid_plist_with_keys(filename, keys_to_verify):
-    """Attempts to read a plist file and ensures the keys in
-    keys_to_verify exist. Returns False on any failure, True otherwise."""
-    recipe_plist = recipe_plist_from_file(filename)
-    return valid_plist_with_keys(recipe_plist, keys_to_verify)
-
-
 def valid_recipe_plist(recipe_plist):
     """Returns True if recipe plist is a valid recipe,
     otherwise returns False"""
