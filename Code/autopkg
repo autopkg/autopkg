@@ -131,21 +131,21 @@ def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify):
     return False
 
 
-def valid_recipe_dict(recipe_plist):
+def valid_recipe_dict(recipe_dict):
     """Returns True if recipe dict is a valid recipe,
     otherwise returns False"""
     return (
-        valid_recipe_dict_with_keys(recipe_plist, ["Input", "Process"])
-        or valid_recipe_dict_with_keys(recipe_plist, ["Input", "Recipe"])
-        or valid_recipe_dict_with_keys(recipe_plist, ["Input", "ParentRecipe"])
+        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
     )
 
 
 def valid_recipe_file(filename):
     """Returns True if filename contains a valid recipe,
     otherwise returns False"""
-    recipe_plist = recipe_from_file(filename)
-    return valid_recipe_dict(recipe_plist)
+    recipe_dict = recipe_from_file(filename)
+    return valid_recipe_dict(recipe_dict)
 
 
 def valid_override_plist(recipe_plist):
