@@ -170,14 +170,21 @@ def valid_override_file(filename):
     return valid_override_plist(override_plist)
 
 
+def remove_recipe_extension(name):
+    """Removes supported recipe extensions from a filename or path.
+    If the filename or path does not end with any known recipe extension,
+    the name is returned as is."""
+    for ext in RECIPE_EXTS:
+        if name.endswith(ext):
+            return name[: -len(ext)]
+    return name
+
+
 def find_recipe_by_name(name, search_dirs):
     """Search search_dirs for a recipe by file/directory naming rules"""
     # drop extension from the end of the name because we're
     # going to add it back on...
-    for ext in RECIPE_EXTS:
-        if name.endswith(ext):
-            name = name[: -len(ext)]
-            break  # stop after first extension match
+    name = remove_recipe_extension(name)
 
     # search by "Name", using file/directory hierarchy rules
     for directory in search_dirs:
@@ -1147,9 +1154,8 @@ def list_processors(argv):
 
 def make_suggestions_for(search_name):
     """Suggest existing recipes with names similar to search name."""
-    # trim '.recipe' from the end if it exists
-    if os.path.splitext(search_name)[1].lower() == ".recipe":
-        search_name = os.path.splitext(search_name)[0]
+    # trim extension from the end if it exists
+    search_name = remove_recipe_extension(search_name)
     (search_name_base, search_name_ext) = os.path.splitext(search_name.lower())
     recipe_names = [os.path.splitext(item["Name"]) for item in get_recipe_list()]
     recipe_names = list(set(recipe_names))
