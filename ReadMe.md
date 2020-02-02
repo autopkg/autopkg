@@ -20,7 +20,7 @@ These tasks typically involve at least several of the following steps:
 
 Often these tasks follow similar patterns for each individual application, and when managing many applications this becomes a daily task full of sub-tasks that one must remember (and/or maintain documentation for) about exactly what had to be done for a successful deployment of every update for every managed piece of software.
 
-With AutoPkg, we define these steps in a "Recipe" plist-based format, run automatically instead of by hand, and shared with others.
+With AutoPkg, we define these steps in a "Recipe" plist or yaml format, run automatically instead of by hand, and shared with others.
 
 
 Installation
