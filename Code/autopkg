@@ -119,12 +119,12 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
-    """Attempts to read a plist and ensures the keys in
-    keys_to_verify exist. Returns False on any failure, True otherwise."""
-    if recipe_plist:
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify):
+    """Ensures the keys in keys_to_verify exist in the recipe
+    dict. Returns False on any failure, True otherwise."""
+    if recipe_dict:
         for key in keys_to_verify:
-            if key not in recipe_plist:
+            if key not in recipe_dict:
                 return False
         # if we get here, we found all the keys
         return True
@@ -135,9 +135,9 @@ def valid_recipe_dict(recipe_plist):
     """Returns True if recipe dict is a valid recipe,
     otherwise returns False"""
     return (
-        valid_recipe_plist_with_keys(recipe_plist, ["Input", "Process"])
-        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
-        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
+        valid_recipe_dict_with_keys(recipe_plist, ["Input", "Process"])
+        or valid_recipe_dict_with_keys(recipe_plist, ["Input", "Recipe"])
+        or valid_recipe_dict_with_keys(recipe_plist, ["Input", "ParentRecipe"])
     )
 
 
@@ -151,9 +151,9 @@ def valid_recipe_file(filename):
 def valid_override_plist(recipe_plist):
     """Returns True if the recipe is a valid override,
     otherwise returns False"""
-    return valid_recipe_plist_with_keys(
+    return valid_recipe_dict_with_keys(
         recipe_plist, ["Input", "ParentRecipe"]
-    ) or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
+    ) or valid_recipe_dict_with_keys(recipe_plist, ["Input", "Recipe"])
 
 
 def valid_override_file(filename):
