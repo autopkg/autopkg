@@ -35,6 +35,7 @@ from urllib.parse import quote, urlparse
 
 import autopkglib.github
 from autopkglib import (
+    RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
@@ -67,9 +68,6 @@ if sys.platform != "darwin":
 
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
-
-# Supported recipe extensions
-RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
 
 
 def print_version(argv):

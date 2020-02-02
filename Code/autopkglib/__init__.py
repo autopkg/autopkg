@@ -32,6 +32,9 @@ from distutils.version import LooseVersion
 
 import yaml
 
+# Supported recipe extensions
+RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
+
 
 class memoize(dict):
     """Class to cache the return values of an expensive function.
