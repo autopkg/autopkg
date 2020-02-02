@@ -159,8 +159,8 @@ def valid_override_dict(recipe_dict):
 def valid_override_file(filename):
     """Returns True if filename contains a valid override,
     otherwise returns False"""
-    override_plist = recipe_from_file(filename)
-    return valid_override_dict(override_plist)
+    override_dict = recipe_from_file(filename)
+    return valid_override_dict(override_dict)
 
 
 def remove_recipe_extension(name):
@@ -1967,19 +1967,19 @@ def make_override(argv):
     reversed_name = ".".join(reversed(override_name.split(".")))
     override_identifier = "local." + reversed_name
 
-    override_plist = {
+    override_dict = {
         "Identifier": override_identifier,
         "Input": recipe["Input"],
         "ParentRecipe": parent_identifier,
     }
 
     # add trust info
-    override_plist["ParentRecipeTrustInfo"] = get_trust_info(
+    override_dict["ParentRecipeTrustInfo"] = get_trust_info(
         recipe, search_dirs=search_dirs
     )
 
-    if "IDENTIFIER" in override_plist["Input"]:
-        del override_plist["Input"]["IDENTIFIER"]
+    if "IDENTIFIER" in override_dict["Input"]:
+        del override_dict["Input"]["IDENTIFIER"]
 
     override_dir = os.path.expanduser(override_dirs[0])
     if not os.path.exists(os.path.join(override_dir)):
@@ -2004,7 +2004,7 @@ def make_override(argv):
             return -1
         os.unlink(override_file)
     with open(override_file, "wb") as f:
-        plistlib.dump(override_plist, f)
+        plistlib.dump(override_dict, f)
     log(f"Override file saved to {override_file}")
     return 0
 
