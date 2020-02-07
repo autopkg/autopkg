@@ -20,3 +20,7 @@ exclude =
   .hg,
 # This will be fine-tuned over time
 max-complexity = 65
+# Ignore the line length limits on tests, where we have in-line plist strings
+# that often exceed 88 characters
+per-file-ignores =
+  tests/*:B950

@@ -64,6 +64,9 @@ if sys.platform != "darwin":
 """
     )
 
+# Catch Python 2 wrappers with an early f-string. Message must be on a single line.
+_ = f"""{sys.version_info.major} It looks like you're running the autopkg tool with an incompatible version of Python. Please update your script to use autopkg's included Python (/usr/local/autopkg/python). AutoPkgr users please note that AutoPkgr 1.5.1 and earlier is NOT compatible with autopkg 2. """  # noqa
+
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
 
@@ -138,13 +141,6 @@ def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
         # if we get here, we found all the keys
         return True
     return False
-
-
-def valid_plist_with_keys(filename, keys_to_verify):
-    """Attempts to read a plist file and ensures the keys in
-    keys_to_verify exist. Returns False on any failure, True otherwise."""
-    recipe_plist = recipe_plist_from_file(filename)
-    return valid_plist_with_keys(recipe_plist, keys_to_verify)
 
 
 def valid_recipe_plist(recipe_plist):

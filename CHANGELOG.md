@@ -1,7 +1,32 @@
-### [2.0.1](https://github.com/autopkg/autopkg/compare/v1.4.1...HEAD) (UNRELEASED)
-CHANGES FROM BETA 3:
-- DmgMounter now handles APFS disk images (with SLAs/EULAs) (https://github.com/autopkg/autopkg/commit/4b77f6d5948a2f36258f4695f503513ec7671745)
+### [2.0.3](https://github.com/autopkg/autopkg/compare/v2.0.2...HEAD) (Unreleased)
 
+### [2.0.2](https://github.com/autopkg/autopkg/compare/v2.0.1...v2.0.2) (February 05, 2020)
+
+CHANGES FROM RC2:
+- Fixed an encoding bug in the make_new_release script (https://github.com/autopkg/autopkg/commit/fca40526a3a19f3e208574be775fa7309244c0d5)
+- Removed some orphaned dead code (https://github.com/autopkg/autopkg/commit/c90e92b1988f347834ed4957cc9108c2b1eef44b)
+
+### [2.0 RC2](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (January 31, 2020)
+
+CHANGES FROM RC1:
+- Fixed some processor docs (https://github.com/autopkg/autopkg/commit/3812ca12a44531c78c869e67fbbd84d7706b8a93)
+- Added in "APLooseVersion", loosely based on Munki's version comparison, to replace previous version comparison semantics. (https://github.com/autopkg/autopkg/commit/7c0676fdfe77f66f261b0df53ec5a792d31c5d3c)
+  - This MAY cause a change in behavior for some current version comparisons, but it no longer crashes when comparing
+    certain combinations of strings.
+
+### [2.0 RC1](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (December 03, 2019)
+
+CHANGES FROM BETA 3:
+- Some fixes around URLGetter's behavior and callsites
+- `URLGetter.execute_curl()` was changed to use `subprocess.run()` instead of `Popen` (https://github.com/autopkg/autopkg/commit/facad8ce48cfb9766578d55823660feb177b3e80)
+- Update URLDownloader variable descriptions to show up better on the wiki (https://github.com/autopkg/autopkg/commit/079c606778a3a4795cd52e4f98a77f5479b36ea9)
+- URLGetter outputs the entire curl command when used with `-vvvv` verbosity (https://github.com/autopkg/autopkg/commit/7c24a05fd327d77f082875aaa70549f48d156802)
+- URLGetter now has a convenient `download_to_file(url, filename)` function, which makes
+it simple to download a file in a custom processor (this was backported to 1.4.1) (https://github.com/autopkg/autopkg/commit/2fac6955a124f268c96ff71a7d433da84242e6fb)
+- Fixed an extraneous socket close error in InstallFromDmg (hat tip to Allister B) (https://github.com/autopkg/autopkg/commit/c31789f8fe32e2f75167b5790e5a353c24904a76)
+- make_new_release.py produces more friendly console output indicating what stage it's on (https://github.com/autopkg/autopkg/commit/1373b31d407b1a2ae023256aa2d65ef165d5956)
+
+### [2.0b3](https://github.com/autopkg/autopkg/compare/12249273c23e9c52675ab947024c2ac505080049...2.0b3) (November 25, 2019)
 CHANGES FROM BETA 2:
 
 - Thanks to @MichalMMac's heroic efforts, URLGetter is now much easier for other processors to use. There are now two ways a custom processor can download things without needing to write any urllib logic:
@@ -10,6 +35,7 @@ CHANGES FROM BETA 2:
 - In both cases, you can pass text mode to determine if you get straight text output.
 - All custom processors that need to make a web request of any kind in autopkg/recipes have been switched to using URLGetter's methods. No more urllib in processors!
 - Some minor formatting changes in the code itself
+- DmgMounter now handles APFS disk images (with SLAs/EULAs) (https://github.com/autopkg/autopkg/commit/4b77f6d5948a2f36258f4695f503513ec7671745)
 
 CHANGES FROM BETA 1:
 
@@ -34,7 +60,7 @@ KNOWN ISSUES:
 - There are likely still edge cases in the autopkg/recipes that slipped through testing, so please file issues if you find recipes that don't work as intended.
 
 
-### [2.0](https://github.com/autopkg/autopkg/compare/v1.4.1...2.0) (November 06, 2019)
+### [2.0b1](https://github.com/autopkg/autopkg/compare/AutoPkg_1.x...12249273c23e9c52675ab947024c2ac505080049) (November 06, 2019)
 
 PYTHON 3
 
@@ -119,7 +145,7 @@ FIXES:
 custom processors. It simply downloads a URL to a specific filename, and raises a
 ProcessorError if it fails for any reason.
 
-### [1.4](https://github.com/autopkg/autopkg/compare/v1.3.1...HEAD) (Unreleased)
+### [1.4](https://github.com/autopkg/autopkg/compare/v1.3.1...v2.0.1) (December 03, 2019)
 
 FIXES:
   * DmgMounter now correctly handles APFS disk images, especially with EULAs/SLAs (https://github.com/autopkg/autopkg/commit/4b77f6d5948a2f36258f4695f503513ec7671745)

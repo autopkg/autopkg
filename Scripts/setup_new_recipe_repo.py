@@ -74,7 +74,7 @@ def call_api(
     if query:
         url += "?" + query
     if data:
-        data = json.dumps(data)
+        data = json.dumps(data).encode()
 
     # Setup custom request and its headers
     req = RequestWithMethod(method, url)
@@ -301,14 +301,14 @@ Type 'yes' to proceed: """
 
     # Duplicate the repo using Git
     # https://help.github.com/articles/duplicating-a-repository
-    repodir = clone_repo(f"https://github.com/{source_repo_user}/{source_repo_name}")
+    repodir = clone_repo(f"ssh://git@github.com/{source_repo_user}/{source_repo_name}")
     os.chdir(repodir)
     subprocess.call(
         [
             "git",
             "push",
             "--mirror",
-            f"https://github.com/{dest_org}/{destination_repo_name}",
+            f"ssh://git@github.com/{dest_org}/{destination_repo_name}",
         ]
     )
 

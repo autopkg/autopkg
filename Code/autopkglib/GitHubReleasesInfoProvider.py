@@ -18,7 +18,7 @@
 import re
 
 import autopkglib.github
-from autopkglib import Processor, ProcessorError
+from autopkglib import APLooseVersion, Processor, ProcessorError
 
 __all__ = ["GitHubReleasesInfoProvider"]
 
@@ -127,13 +127,16 @@ class GitHubReleasesInfoProvider(Processor):
                     selected = (rel, asset)
                     break
                 else:
-                    if re.match(regex, asset["name"]):
-                        self.output(
-                            f"Matched regex '{regex}' among asset(s): "
-                            f"{', '.join([x['name'] for x in assets])}"
-                        )
-                        selected = (rel, asset)
-                        break
+                    try:
+                        if re.match(regex, asset["name"]):
+                            self.output(
+                                f"Matched regex '{regex}' among asset(s): "
+                                f"{', '.join([x['name'] for x in assets])}"
+                            )
+                            selected = (rel, asset)
+                            break
+                    except re.error as e:
+                        raise ProcessorError(f"Invalid regex: {e}")
         if not selected:
             raise ProcessorError(
                 "No release assets were found that satisfy the criteria."
@@ -162,21 +165,8 @@ class GitHubReleasesInfoProvider(Processor):
         # Get our list of releases
         releases = self.get_releases(self.env["github_repo"])
         if self.env.get("sort_by_highest_tag_names"):
-            from operator import itemgetter
-
-            def loose_compare(this, that):
-                # cmp() doesn't exist in Python3, so this uses the suggested
-                # solutions from What's New In Python 3.0:
-                # https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
-                # This will be refactored in Python 3.
-                from distutils.version import LooseVersion
-
-                this_comparison = LooseVersion(this) > LooseVersion(that)
-                that_comparison = LooseVersion(this) < LooseVersion(that)
-                return this_comparison - that_comparison
-
             releases = sorted(
-                releases, key=itemgetter("tag_name"), cmp=loose_compare, reverse=True
+                releases, key=lambda a: APLooseVersion(a["tag_name"]), reverse=True
             )
 
         # Store the first eligible asset

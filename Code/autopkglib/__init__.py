@@ -672,7 +672,7 @@ class AutoPackager:
             try:
                 self.env = processor.process()
             except Exception as err:
-                if self.verbose:
+                if self.verbose > 2:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
                     traceback.print_exc(file=sys.stdout)
                     traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
@@ -714,6 +714,77 @@ class AutoPackager:
 
         if self.verbose > 2:
             pprint.pprint(self.env)
+
+
+def _cmp(x, y):
+    """
+    Replacement for built-in function cmp that was removed in Python 3
+    Compare the two objects x and y and return an integer according to
+    the outcome. The return value is negative if x < y, zero if x == y
+    and strictly positive if x > y.
+    """
+    return (x > y) - (x < y)
+
+
+class APLooseVersion(LooseVersion):
+    """Subclass of distutils.version.LooseVersion to fix issues under Python 3"""
+
+    def _pad(self, version_list, max_length):
+        """Pad a version list by adding extra 0 components to the end if needed."""
+        # copy the version_list so we don't modify it
+        cmp_list = list(version_list)
+        while len(cmp_list) < max_length:
+            cmp_list.append(0)
+        return cmp_list
+
+    def _compare(self, other):
+        """Complete comparison mechanism since LooseVersion's is broken in Python 3."""
+        if not isinstance(other, (LooseVersion, APLooseVersion)):
+            other = APLooseVersion(other)
+        max_length = max(len(self.version), len(other.version))
+        self_cmp_version = self._pad(self.version, max_length)
+        other_cmp_version = self._pad(other.version, max_length)
+        cmp_result = 0
+        for index, value in enumerate(self_cmp_version):
+            try:
+                cmp_result = _cmp(value, other_cmp_version[index])
+            except TypeError:
+                # integer is less than character/string
+                if isinstance(value, int):
+                    return -1
+                return 1
+            else:
+                if cmp_result:
+                    return cmp_result
+        return cmp_result
+
+    def __hash__(self):
+        """Hash method."""
+        return hash(self.version)
+
+    def __eq__(self, other):
+        """Equals comparison."""
+        return self._compare(other) == 0
+
+    def __ne__(self, other):
+        """Not-equals comparison."""
+        return self._compare(other) != 0
+
+    def __lt__(self, other):
+        """Less than comparison."""
+        return self._compare(other) < 0
+
+    def __le__(self, other):
+        """Less than or equals comparison."""
+        return self._compare(other) <= 0
+
+    def __gt__(self, other):
+        """Greater than comparison."""
+        return self._compare(other) > 0
+
+    def __ge__(self, other):
+        """Greater than or equals comparison."""
+        return self._compare(other) >= 0
 
 
 _CORE_PROCESSOR_NAMES = []
@@ -828,7 +899,7 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
                     # if we aren't successful, that might be OK, we're
                     # going see if the processor was already imported
                     log_err(f"WARNING: {processor_filename}: {err}")
-                    if verbose:
+                    if verbose > 2:
                         exc_type, exc_value, exc_traceback = sys.exc_info()
                         traceback.print_exc(file=sys.stdout)
                         traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)

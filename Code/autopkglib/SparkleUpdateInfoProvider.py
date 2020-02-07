@@ -18,11 +18,10 @@
 """See docstring for SparkleUpdateInfoProvider class"""
 
 import os
-from distutils.version import LooseVersion
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree
 
-from autopkglib import ProcessorError
+from autopkglib import APLooseVersion, ProcessorError
 from autopkglib.URLGetter import URLGetter
 
 __all__ = ["SparkleUpdateInfoProvider"]
@@ -86,7 +85,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         "urlencode_path_component": {
             "required": False,
             "description": (
-                "Boolean value to specify if the path component"
+                "Boolean value to specify if the path component "
                 "from the sparkle feed needs to be urlencoded. "
                 "Defaults to True."
             ),
@@ -301,7 +300,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         data = self.get_feed_data(self.env.get("appcast_url"))
         items = self.parse_feed_data(data)
 
-        sorted_items = sorted(items, key=lambda a: LooseVersion(a["version"]))
+        sorted_items = sorted(items, key=lambda a: APLooseVersion(a["version"]))
         latest = sorted_items[-1]
         self.output(f"Version retrieved from appcast: {latest['version']}")
         if latest.get("human_version"):
