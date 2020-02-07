@@ -212,8 +212,8 @@ class CodeSignatureVerifier(DmgMounter):
         """Verifies the code signature for a path"""
         self.output("Verifying code signature...")
         # The first step is to run 'codesign --verify <path>'
-        requirement = self.env.get("requirement", None)
-        strict_verification = self.env.get("strict_verification", None)
+        requirement = self.env.get("requirement")
+        strict_verification = self.env.get("strict_verification")
         deep_verification = self.env.get("deep_verification", True)
         codesign_additional_arguments = self.env.get(
             "codesign_additional_arguments", []
@@ -233,7 +233,7 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
 
-        if self.env.get("expected_authority_names", None):
+        if self.env.get("expected_authority_names"):
             self.output(
                 "ERROR: Using 'expected_authority_names' to verify code "
                 "signature is no longer supported. Recipes should use the "
@@ -265,14 +265,14 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
 
-        if self.env.get("expected_authorities", None):
+        if self.env.get("expected_authorities"):
             self.output(
                 "WARNING: This recipe is using 'expected_authorities' when it "
                 "should be using 'expected_authority_names'. This will become an error "
                 "in future versions of AutoPkg."
             )
             self.env["expected_authority_names"] = self.env["expected_authorities"]
-        if self.env.get("expected_authority_names", None):
+        if self.env.get("expected_authority_names"):
             expected_authority_names = self.env["expected_authority_names"]
             if authority_names != expected_authority_names:
                 self.output("Mismatch in authority names")
