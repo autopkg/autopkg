@@ -124,8 +124,10 @@ class Installer(DmgMounter):
                 result = f"ERROR: {repr(err)}"
             finally:
                 self.output("Disconnecting")
-                self.disconnect()
-
+                try:
+                    self.disconnect()
+                except OSError:
+                    pass
             # Return result.
             self.output(f"Result: {result}")
             self.env["install_result"] = result
