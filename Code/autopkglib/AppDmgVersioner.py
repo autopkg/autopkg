@@ -35,7 +35,13 @@ class AppDmgVersioner(DmgMounter):
         }
     }
     output_variables = {
-        "app_name": {"description": "Name of app found on the disk image."},
+        "app_name": {
+            "description": (
+                "Name of app found at the root of the disk image. This does not search "
+                "recursively for a matching app. If you need to specify a path, use "
+                "Versioner instead."
+            )
+        },
         "bundleid": {"description": "Bundle identifier of the app."},
         "version": {"description": "Version of the app."},
     }
