@@ -707,7 +707,7 @@ class AutoPackager:
             try:
                 self.env = processor.process()
             except Exception as err:
-                if self.verbose:
+                if self.verbose > 2:
                     exc_type, exc_value, exc_traceback = sys.exc_info()
                     traceback.print_exc(file=sys.stdout)
                     traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
@@ -934,7 +934,7 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
                     # if we aren't successful, that might be OK, we're
                     # going see if the processor was already imported
                     log_err(f"WARNING: {processor_filename}: {err}")
-                    if verbose:
+                    if verbose > 2:
                         exc_type, exc_value, exc_traceback = sys.exc_info()
                         traceback.print_exc(file=sys.stdout)
                         traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)

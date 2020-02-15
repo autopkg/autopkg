@@ -1,4 +1,10 @@
-### [2.0.2](https://github.com/autopkg/autopkg/compare/v2.0.1...HEAD) (Unreleased)
+### [2.0.3](https://github.com/autopkg/autopkg/compare/v2.0.2...HEAD) (Unreleased)
+
+### [2.0.2](https://github.com/autopkg/autopkg/compare/v2.0.1...v2.0.2) (February 05, 2020)
+
+CHANGES FROM RC2:
+- Fixed an encoding bug in the make_new_release script (https://github.com/autopkg/autopkg/commit/fca40526a3a19f3e208574be775fa7309244c0d5)
+- Removed some orphaned dead code (https://github.com/autopkg/autopkg/commit/c90e92b1988f347834ed4957cc9108c2b1eef44b)
 
 ### [2.0 RC2](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (January 31, 2020)
 
