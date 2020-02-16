@@ -1957,8 +1957,8 @@ def make_override(argv):
         )
         return 1
 
-    override_name = (
-        options.name or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0]
+    override_name = options.name or remove_recipe_extension(
+        os.path.basename(recipe["RECIPE_PATH"])
     )
 
     reversed_name = ".".join(reversed(override_name.split(".")))
@@ -1986,8 +1986,8 @@ def make_override(argv):
             log_err(f"Could not create {override_dir}: {err}")
             return -1
 
-    override_name = (
-        options.name or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0]
+    override_name = options.name or remove_recipe_extension(
+        os.path.basename(recipe["RECIPE_PATH"])
     )
 
     override_file = os.path.join(override_dir, f"{override_name}.recipe")
