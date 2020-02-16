@@ -2328,7 +2328,7 @@ def run_recipes(argv):
             )
 
         # build a pathname for a receipt
-        recipe_basename = os.path.splitext(os.path.basename(recipe_path))[0]
+        recipe_basename = remove_recipe_extension(os.path.basename(recipe_path))
         # TO-DO: if recipe processing fails too early,
         # autopackager.env["RECIPE_CACHE_DIR"] is not defined and we can't
         # write a recipt. We should handle this better.
