@@ -1803,6 +1803,12 @@ def update_trust_info(argv):
         recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
         with open(recipe_path, "rb") as f:
             recipe = plistlib.load(f)
+        if recipe.get("Identifier", "").startswith("local."):
+            log_err(
+                f"{recipe_name} appears to be the identifier of a recipe override. "
+                "Please pass in a recipe instead."
+            )
+            continue
         if "ParentRecipe" not in recipe:
             log_err(f"{recipe_name} is not a recipe override and has no parent recipe.")
             log_err(f"Path: {recipe_path}")
