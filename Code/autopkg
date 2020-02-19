@@ -1806,7 +1806,7 @@ def update_trust_info(argv):
         if recipe.get("Identifier", "").startswith("local."):
             log_err(
                 f"{recipe_name} appears to be the identifier of a recipe override. "
-                "Please provide a recipe instead."
+                "Please pass in a recipe instead."
             )
             continue
         if "ParentRecipe" not in recipe:
