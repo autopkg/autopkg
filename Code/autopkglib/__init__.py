@@ -444,6 +444,8 @@ class Processor:
         try:
             with open(self.outfile, "wb") as f:
                 plistlib.dump(self.env, f)
+        except TypeError:
+            plistlib.dump(self.env, self.outfile.buffer)
         except BaseException as err:
             raise ProcessorError(err)
 
