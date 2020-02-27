@@ -409,7 +409,7 @@ class Processor:
 
     def output(self, msg, verbose_level=1):
         """Print a message if verbosity is >= verbose_level"""
-        if self.env.get("verbose", 0) >= verbose_level:
+        if int(self.env.get("verbose", 0)) >= verbose_level:
             print(f"{self.__class__.__name__}: {msg}")
 
     def main(self):
