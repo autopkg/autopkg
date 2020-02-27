@@ -432,6 +432,8 @@ class Processor:
                 self.env = plistlib.loads(indata)
             else:
                 self.env = {}
+        except TypeError:
+            self.env = plistlib.loads(self.infile.buffer.read())
         except BaseException as err:
             raise ProcessorError(err)
 
