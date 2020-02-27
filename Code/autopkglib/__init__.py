@@ -427,7 +427,7 @@ class Processor:
         """Read environment from input plist."""
 
         try:
-            indata = self.infile.read()
+            indata = self.infile.buffer.read()
             if indata:
                 self.env = plistlib.loads(indata)
             else:
