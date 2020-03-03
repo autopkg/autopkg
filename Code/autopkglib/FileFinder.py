@@ -58,7 +58,7 @@ class FileFinder(DmgMounter):
         """If multiple files are found the last alphanumerically sorted found
         file is returned"""
 
-        glob_matches = glob(pattern)
+        glob_matches = glob(pattern, recursive=True)
 
         if len(glob_matches) < 1:
             raise ProcessorError("No matching filename found")
