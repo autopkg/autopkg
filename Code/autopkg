@@ -227,6 +227,54 @@ def get_identifier_from_override(override):
     return name
 
 
+def search_gh_for_name(name: str):
+    """Search GitHub for results for a given name."""
+    results_limit = 100
+    query = f"q={name}+extension:recipe+user:autopkg+in:file,path"
+    query += f"&per_page={results_limit}"
+
+    results = do_gh_code_search(query, use_token=False)
+
+    if not results or not results.get("total_count"):
+        log("Nothing found.")
+        return None
+
+    results_items = results["items"]
+
+    if not results_items:
+        log("Nothing found.")
+        return None
+    return results_items
+
+
+def get_repository_from_identifier(identifier: str):
+    """Get a repository name from a recipe identifier."""
+    results = search_gh_for_name(identifier)
+    # so now we have a list of items containing file names and URLs
+    # we want to fetch these so we can look inside the contents for a matching
+    # identifier
+    # We just want to fetch the repos that contain these
+    # Is the name an indentifier?
+    identifier_fragments = identifier.split(".")
+    if identifier_fragments[0] != "com":
+        # This is not an identifier
+        return None
+    correct_item = None
+    for item in results:
+        for text_match in item["text_matches"]:
+            # The identifier must match the fragment matches
+            fragment_matches = [x["text"] for x in text_match["matches"]]
+            if fragment_matches != identifier_fragments:
+                continue
+            if "ParentRecipe" not in text_match["fragment"]:
+                # This is likely it?
+                correct_item = item
+                break
+    # Did we get correct item?
+    print(f"Found this recipe in repository: {correct_item['repository']['name']}")
+    return correct_item["repository"]["name"]
+
+
 def locate_recipe(
     name, override_dirs, recipe_dirs, make_suggestions=True, search_github=True
 ):
@@ -257,64 +305,32 @@ def locate_recipe(
 
     if not recipe_file and search_github:
         indef_article = "a"
-        if name[0] in ["a", "e", "i", "o", "u"]:
+        if name[0].lower() in ["a", "e", "i", "o", "u"]:
             indef_article = "an"
         answer = input(
             f"Search GitHub AutoPkg repos for {indef_article} {name} recipe? [y/n]: "
         )
         if answer.lower().startswith("y"):
-            results_limit = 100
-            query = f"q={name}+extension:recipe+user:autopkg+in:file,path"
-            query += f"&per_page={results_limit}"
-
-            results = do_gh_code_search(query, use_token=False)
-
-            if not results or not results.get("total_count"):
-                log("Nothing found.")
-                return None
-
-            results_items = results["items"]
-
-            # Note 2015-03-11: this next block would erroneously remove repos
-            # that have new recipes that match our search (new recipes we don't
-            # yet have locally because we haven't done a repo-update)
-            #
-            ## filter out any results that are in repos we already have added
-            ## locally
-            # recipe_repo_urls = []
-            # recipe_repos = get_pref("RECIPE_REPOS") or {}
-            # for key in recipe_repos.keys():
-            #    recipe_repo_urls.append(recipe_repos[key]['URL'])
-            # results_items = [
-            #    item for item in results_items
-            #    if item['repository']['html_url'] not in recipe_repo_urls]
-            # if len(results_items) > 1:
-            #    # filter results items by matching filenames.
-            #    # this works around the fact that we can't do a
-            #    # case-insensitive filename search with the GitHub API
-            #    results_items = [item for item in results_items
-            #                     if name.lower() in item['name'].lower()]
-
-            if not results_items:
-                log("Nothing found.")
-                return None
-
-            print_gh_search_results(results_items)
-
-            # make a list of unique repo names
-            repo_names = []
-            for item in results_items:
-                repo_name = item["repository"]["name"]
-                if repo_name not in repo_names:
-                    repo_names.append(repo_name)
+            identifier_fragments = name.split(".")
+            if identifier_fragments[0] == "com":
+                repo_names = [get_repository_from_identifier(name)]
+            else:
+                results_items = search_gh_for_name(name)
+                print_gh_search_results(results_items)
+                # make a list of unique repo names
+                repo_names = []
+                for item in results_items:
+                    repo_name = item["repository"]["name"]
+                    if repo_name not in repo_names:
+                        repo_names.append(repo_name)
 
             if len(repo_names) == 1:
                 # we found results in a single repo, so offer to add it
-                repo = results_items[0]["repository"]
+                repo = repo_names[0]
                 print()
-                answer = input(f"Add recipe repo '{repo['name']}'? [y/n]: ")
+                answer = input(f"Add recipe repo '{repo}'? [y/n]: ")
                 if answer.lower().startswith("y"):
-                    repo_add([None, "repo-add", repo["name"]])
+                    repo_add([None, "repo-add", repo])
                     # try once again to locate the recipe, but don't
                     # search GitHub again!
                     print()
