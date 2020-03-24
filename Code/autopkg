@@ -258,7 +258,7 @@ def get_repository_from_identifier(identifier: str):
     identifier_fragments = identifier.split(".")
     if identifier_fragments[0] != "com":
         # This is not an identifier
-        return None
+        return
     correct_item = None
     for item in results:
         for text_match in item["text_matches"]:
@@ -271,6 +271,8 @@ def get_repository_from_identifier(identifier: str):
                 correct_item = item
                 break
     # Did we get correct item?
+    if not correct_item:
+        return
     print(f"Found this recipe in repository: {correct_item['repository']['name']}")
     return correct_item["repository"]["name"]
 
@@ -320,9 +322,13 @@ def locate_recipe(
             answer = "y"
         if answer.lower().startswith("y"):
             identifier_fragments = name.split(".")
+            repo_names = []
             if identifier_fragments[0] == "com":
-                repo_names = [get_repository_from_identifier(name)]
-            else:
+                # Filter out "None" results if we don't find a matching recipe
+                parent_repo = get_repository_from_identifier(name)
+                repo_names = [parent_repo] if parent_repo else []
+
+            if not repo_names:
                 results_items = search_gh_for_name(name)
                 print_gh_search_results(results_items)
                 # make a list of unique repo names
