@@ -316,7 +316,8 @@ def locate_recipe(
             indef_article = "an"
         if not auto_pull:
             answer = input(
-                f"Search GitHub AutoPkg repos for {indef_article} {name} recipe? [y/n]: "
+                f"Search GitHub AutoPkg repos for {indef_article} {name} recipe? "
+                "[y/n]: "
             )
         else:
             answer = "y"
