@@ -28,6 +28,7 @@ import re
 import subprocess
 import sys
 import traceback
+from copy import deepcopy
 from distutils.version import LooseVersion
 
 
@@ -228,7 +229,7 @@ class Preferences:
 
     def get_pref(self, key):
         """Retrieve a preference value."""
-        return self.prefs.get(key)
+        return deepcopy(self.prefs.get(key))
 
     def get_all_prefs(self):
         """Retrieve a dict of all preferences."""
