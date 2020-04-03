@@ -31,6 +31,7 @@ import subprocess
 import sys
 import time
 import traceback
+from base64 import b64decode
 from urllib.parse import quote, urlparse
 
 import autopkglib.github
@@ -254,22 +255,21 @@ def get_repository_from_identifier(identifier: str):
     # we want to fetch these so we can look inside the contents for a matching
     # identifier
     # We just want to fetch the repos that contain these
-    # Is the name an indentifier?
+    # Is the name an identifier?
     identifier_fragments = identifier.split(".")
     if identifier_fragments[0] != "com":
         # This is not an identifier
         return
     correct_item = None
     for item in results:
-        for text_match in item["text_matches"]:
-            # The identifier must match the fragment matches
-            fragment_matches = [x["text"] for x in text_match["matches"]]
-            if fragment_matches != identifier_fragments:
-                continue
-            if "ParentRecipe" not in text_match["fragment"]:
-                # This is likely it?
-                correct_item = item
-                break
+        file_contents_raw = do_gh_repo_contents_fetch(
+            item["repository"]["name"], item.get("path")
+        )
+        file_contents_data = plistlib.loads(file_contents_raw)
+        if not file_contents_data.get("ParentRecipe"):
+            # This is likely it?
+            correct_item = item
+            break
     # Did we get correct item?
     if not correct_item:
         return
@@ -917,6 +917,37 @@ def repo_update(argv):
             log(run_git(["pull"], git_directory=repo_dir))
         except GitError as err:
             log_err(err)
+
+
+def do_gh_repo_contents_fetch(
+    repo: str, path: str, use_token=False, decode=True
+) -> str:
+    """Fetch file contents from GitHub and return as a string."""
+    gh_session = autopkglib.github.GitHubSession()
+    if use_token:
+        gh_session.setup_token()
+    # Do the search, including text match metadata
+    (results, code) = gh_session.call_api(
+        f"/repos/autopkg/{repo}/contents/{quote(path)}"
+    )
+
+    if code == 403:
+        log_err(
+            "You've probably hit the GitHub's search rate limit, officially 5 "
+            "requests per minute.\n"
+        )
+        if results:
+            log_err("Server response follows:\n")
+            log_err(results.get("message", None))
+            log_err(results.get("documentation_url", None))
+
+        return None
+    if results is None or code is None:
+        log_err("A GitHub API error occurred!")
+        return None
+    if decode:
+        return b64decode(results["content"])
+    return results["content"]
 
 
 def do_gh_code_search(query, use_token=False):
