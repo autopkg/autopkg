@@ -267,8 +267,7 @@ def get_repository_from_identifier(identifier: str):
             item["repository"]["name"], item.get("path")
         )
         file_contents_data = plistlib.loads(file_contents_raw)
-        if not file_contents_data.get("ParentRecipe"):
-            # This is likely it?
+        if file_contents_data.get("Identifier") == identifier:
             correct_item = item
             break
     # Did we get correct item?
