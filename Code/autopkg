@@ -32,6 +32,7 @@ import sys
 import time
 import traceback
 from base64 import b64decode
+from typing import List
 from urllib.parse import quote, urlparse
 
 import autopkglib.github
@@ -228,7 +229,7 @@ def get_identifier_from_override(override):
     return name
 
 
-def search_gh_for_name(name: str):
+def search_gh_for_name(name: str) -> List:
     """Search GitHub for results for a given name."""
     results_limit = 100
     query = f"q={name}+extension:recipe+user:autopkg+in:file,path"
@@ -238,13 +239,13 @@ def search_gh_for_name(name: str):
 
     if not results or not results.get("total_count"):
         log("Nothing found.")
-        return None
+        return []
 
     results_items = results["items"]
 
     if not results_items:
         log("Nothing found.")
-        return None
+        return []
     return results_items
 
 
@@ -979,6 +980,8 @@ def do_gh_code_search(query, use_token=False):
 
 def print_gh_search_results(results_items):
     """Pretty print our GitHub search results"""
+    if not results_items:
+        return
     column_spacer = 4
     max_name_length = max([len(r["name"]) for r in results_items]) + column_spacer
     max_repo_length = (
