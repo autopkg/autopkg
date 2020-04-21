@@ -2722,6 +2722,7 @@ def main(argv):
             "function": list_recipes,
             "help": "List recipes available locally",
         },
+        "list-repos": {"function": repo_list, "help": "see repo-list"},
         "list-processors": {
             "function": list_processors,
             "help": "List available core Processors",
@@ -2731,6 +2732,10 @@ def main(argv):
         "processor-info": {
             "function": processor_info,
             "help": "Get information about a specific processor",
+        },
+        "processor-list": {
+            "function": list_processors,
+            "help": "see list-processors",
         },
         "repo-add": {
             "function": repo_add,
