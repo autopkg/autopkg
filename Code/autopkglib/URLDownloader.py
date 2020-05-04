@@ -170,7 +170,7 @@ class URLDownloader(URLGetter):
     def prefetch_filename(self):
         """Attempt to find filename in HTTP headers."""
         curl_cmd = self.prepare_base_curl_cmd()
-        curl_cmd.extend(["--head"])
+        curl_cmd.extend(["--head", "--request", "GET"])
 
         raw_headers = self.download_with_curl(curl_cmd)
         header = self.parse_headers(raw_headers)
