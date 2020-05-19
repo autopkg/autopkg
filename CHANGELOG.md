@@ -1,4 +1,4 @@
-### [2.1](https://github.com/autopkg/autopkg/compare/v2.0.2...HEAD) (Unreleased)
+### [2.1](https://github.com/autopkg/autopkg/compare/v2.0.2...v2.1) (May 19, 2020)
 
 NEW FEATURES
 AutoPkg now supports the verbs `list-repos` and `processor-list` for convenience (https://github.com/autopkg/autopkg/pull/628)
