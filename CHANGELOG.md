@@ -1,4 +1,57 @@
-### [2.0.3](https://github.com/autopkg/autopkg/compare/v2.0.2...HEAD) (Unreleased)
+### [2.1](https://github.com/autopkg/autopkg/compare/v2.0.2...HEAD) (Unreleased)
+
+NEW FEATURES
+AutoPkg now supports the verbs `list-repos` and `processor-list` for convenience (https://github.com/autopkg/autopkg/pull/628)
+
+`autopkg info --pull`/`-p` now allows you to fetch all parent repos of a recipe
+automatically.
+
+Example:
+```
+$ autopkg repo-delete recipes
+$ autopkg info -p GoogleChrome.munki
+Didn't find a recipe for com.github.autopkg.munki.google-chrome.
+Found this recipe in repository: recipes
+Attempting git clone...
+
+Adding /Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes to RECIPE_SEARCH_DIRS...
+Updated search path:
+  '.'
+  '~/Library/AutoPkg/Recipes'
+  '/Library/AutoPkg/Recipes'
+  '/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes'
+
+Description:         Downloads the latest Google Chrome disk image and imports into Munki.
+Identifier:          local.munki.GoogleChrome
+Munki import recipe: True
+Has check phase:     True
+Builds package:      False
+Recipe file path:    /Users/nmcspadden/Library/AutoPkg/RecipeOverrides/GoogleChrome.munki.recipe
+Parent recipe(s):    /Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.munki.recipe
+                     /Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.download.recipe
+```
+
+The automatic fetching works by looking at the parent identifier of a recipe, and
+searching GitHub via API for that file. It fetches that parent file from GitHub
+directly, and adds the repo that it belongs to. Then it parses its parent, recursively
+until it finds a recipe with no parents.
+
+Note that the only verb to support this is `autopkg info`. You can use this feature to
+dynamically fetch parents on-demand, instead of preconfiguring your environment with a
+list of known repos.
+
+CHANGES FROM 2.0.2:
+- URLGetter can handle parsing headers without an explicit `url` in the environment (https://github.com/autopkg/autopkg/pull/605)
+- FileCreator now has a unit test (https://github.com/autopkg/autopkg/pull/591)
+- AutoPkg warns you more helpfully if you are trying to run it with Python 2 (https://github.com/autopkg/autopkg/pull/610)
+- If a recipe generates a Python stacktrace, the traceback output is only provided with verbosity > 2 (https://github.com/autopkg/autopkg/pull/609)
+- CodeSignatureVerifier warns you if you attempt to use the deprecated `expected_authorities` argument (https://github.com/autopkg/autopkg/commit/1a3481f1ff9a992ace27dc8d301e1ef3e86c691d)
+- Installing packages with AutoPkg .install recipes should no longer generate warnings about failing to close the socket (https://github.com/autopkg/autopkg/commit/09a5f5c2d6f5aaa9dd2963b722ced6f4915b60f1)
+- Updated AppDmgVersioner's description to clarify its limitations (https://github.com/autopkg/autopkg/commit/ababfd363171f47840c73409824bb34ee879241e)
+- Processors can now be run standalone again by accepting variables from a plist read from stdin (https://github.com/autopkg/autopkg/pull/621)
+- FileFinder handles recursive searching correctly (https://github.com/autopkg/autopkg/pull/622)
+- URLGetter has better error handling (https://github.com/autopkg/autopkg/pull/629)
+- Fetching a filename with URLGetter now works more reliably (https://github.com/autopkg/autopkg/commit/6d2b9410a05e73f52fce8c84834a54c3ae206f20)
 
 ### [2.0.2](https://github.com/autopkg/autopkg/compare/v2.0.1...v2.0.2) (February 05, 2020)
 
