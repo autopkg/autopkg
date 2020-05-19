@@ -1,3 +1,5 @@
+### [2.1.1](https://github.com/autopkg/autopkg/compare/v2.1...HEAD) (Unreleased)
+
 ### [2.1](https://github.com/autopkg/autopkg/compare/v2.0.2...v2.1) (May 19, 2020)
 
 NEW FEATURES
