@@ -176,7 +176,7 @@ class URLDownloader(URLGetter):
         header = self.parse_headers(raw_headers)
 
         if "filename=" in header.get("content-disposition", ""):
-            filename = header["content-disposition"].rpartition("filename=")[2]
+            filename = header["content-disposition"].rpartition("filename=")[2].replace('"', '')
             self.output(
                 f"Filename prefetched from the HTTP Content-Disposition header: {filename}",
                 verbose_level=2,
