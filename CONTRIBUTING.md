@@ -11,11 +11,7 @@ requirements are enforced by [pre-commit](https://pre-commit.com).
 ## Use relocatable-python to safely build 3
 
 We recommend using Greg Neagle's [Relocatable Python](https://github.com/gregneagle/relocatable-python)
-to build a custom Python 2 and Python 3 framework.
-
-This project provides a requirements.txt files for Python 3. You can use
-Relocatable Python to build a custom Python framework with all
-of the requirements pre-installed.
+to build a custom Python 3 framework with the included [requirements.txt](https://github.com/autopkg/autopkg/blob/master/requirements.txt).
 
 First, create a safe path to place your frameworks. The easiest choice is
 /Users/Shared, because you won't have any permissions issues there, but you can
