@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ctypes import *
+from ctypes import CDLL, CFUNCTYPE, c_char_p, c_int, c_size_t, c_void_p
 
 libc = CDLL("/usr/lib/libc.dylib")
 
@@ -228,21 +228,21 @@ def get_launchd_socket_fds():
     try:
         # Create a checkin request.
         checkin_request = launch_data_new_string(LAUNCH_KEY_CHECKIN)
-        if checkin_request == None:
+        if checkin_request is None:
             raise LaunchDCheckInError("Could not create checkin request")
 
         # Check the checkin response.
         checkin_response = launch_msg(checkin_request)
-        if checkin_response == None:
+        if checkin_response is None:
             raise LaunchDCheckInError("Error checking in")
 
         if launch_data_get_type(checkin_response) == LAUNCH_DATA_ERRNO:
             errno = launch_data_get_errno(checkin_response)
-            raise LaunchDCheckInError("Checkin failed")
+            raise LaunchDCheckInError(f"Checkin failed with errno:{errno}")
 
         # Get a dictionary of sockets.
         sockets = launch_data_dict_lookup(checkin_response, LAUNCH_JOBKEY_SOCKETS)
-        if sockets == None:
+        if sockets is None:
             raise LaunchDCheckInError(
                 "Could not get socket dictionary from checkin response"
             )

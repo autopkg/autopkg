@@ -19,9 +19,7 @@ class TestFileCreator(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch(
-        "builtins.open", new_callable=mock_open, read_data="Hello world",
-    )
+    @patch("builtins.open", new_callable=mock_open, read_data="Hello world")
     @patch("autopkglib.FileCreator")
     def test_file_content(self, mock_load, mock_file):
         """The file created by the processor should have the expected contents."""

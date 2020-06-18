@@ -1168,7 +1168,7 @@ def processor_info(argv):
         """Print a dict of dicts and strings"""
         for key, value in list(var_dict.items()):
             if isinstance(value, dict):
-                print(f" " * indent, f"{key}:")
+                print(" " * indent, f"{key}:")
                 print_vars(value, indent=indent + 2)
             else:
                 print(" " * indent, f"{key}: {value}")
@@ -1611,7 +1611,7 @@ def get_trust_info(recipe, search_dirs=None):
             processor_hash = getsha256hash(processor_path)
             git_hash = get_git_commit_hash(processor_path)
         else:
-            log_err(f"WARNING: processor path not found for processor")
+            log_err(f"WARNING: processor path not found for processor: {processor}")
             processor_path = ""
             processor_hash = "PROCESSOR FILEPATH NOT FOUND"
             git_hash = None
@@ -2820,10 +2820,7 @@ def main(argv):
             "function": processor_info,
             "help": "Get information about a specific processor",
         },
-        "processor-list": {
-            "function": list_processors,
-            "help": "see list-processors",
-        },
+        "processor-list": {"function": list_processors, "help": "see list-processors"},
         "repo-add": {
             "function": repo_add,
             "help": "Add one or more recipe repo from a URL",
