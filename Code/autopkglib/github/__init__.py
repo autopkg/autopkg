@@ -24,6 +24,7 @@ import tempfile
 from autopkglib import get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
 
+BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 
 
@@ -43,7 +44,7 @@ class GitHubSession(URLGetter):
         if github_url:
             self.url = github_url
         else:
-            self.url = "https://api.github.com"
+            self.url = BASE_URL
         token = get_pref("GITHUB_TOKEN")
         self.http_result_code = None
         if token:
