@@ -25,7 +25,6 @@ from typing import List, Optional
 from autopkglib import get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
 
-BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 DEFAULT_SEARCH_USER = "autopkg"
 
