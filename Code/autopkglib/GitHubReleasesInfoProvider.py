@@ -68,6 +68,26 @@ class GitHubReleasesInfoProvider(Processor):
             "default": "/usr/bin/curl",
             "description": "Path to curl binary. Defaults to /usr/bin/curl.",
         },
+        "GITHUB_URL": {
+            "required": False,
+            "default": "https://api.github.com",
+            "description": (
+                "If your organization has an internal GitHub instance "
+                "set this value to your internal GitHub URL "
+                "ie. 'https://git.internal.corp.com/api/v3'"
+            ),
+        },
+        "GITHUB_TOKEN_PATH": {
+            "required": False,
+            "default": "~/.autopkg_gh_token",
+            "description": (
+                "Path to a file containing your GitHub token. "
+                "Can be a relative path or absolute path. "
+                "ie. '~/.custom_gh_token' or '/path/to/token' "
+                "NOTE: the AutoPkg preference 'GITHUB_TOKEN' "
+                "take precedence over this value."
+            ),
+        },
     }
     output_variables = {
         "release_notes": {
@@ -92,7 +112,12 @@ class GitHubReleasesInfoProvider(Processor):
         be of the form 'user/repo'"""
         releases = None
         curl_opts = self.env.get("curl_opts")
-        github = autopkglib.github.GitHubSession(self.env["CURL_PATH"], curl_opts)
+        github = autopkglib.github.GitHubSession(
+            self.env["CURL_PATH"],
+            curl_opts,
+            self.env["GITHUB_URL"],
+            self.env["GITHUB_TOKEN_PATH"],
+        )
         releases_uri = f"/repos/{repo}/releases"
         (releases, status) = github.call_api(releases_uri)
         if status != 200:
