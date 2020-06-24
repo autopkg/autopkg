@@ -16,7 +16,7 @@ from unittest.mock import mock_open, patch
 patch("autopkglib.memoize", lambda x: x).start()
 import autopkglib  # isort:skip
 
-autopkg = imp.load_source("autopkg", os.path.join("Code", "autopkg"))
+autopkg = imp.load_source("autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg"))
 
 
 class TestAutoPkg(unittest.TestCase):
