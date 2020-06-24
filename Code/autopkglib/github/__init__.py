@@ -24,14 +24,15 @@ import tempfile
 from autopkglib import get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
 
-BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 
 
 class GitHubSession(URLGetter):
     """Handles a session with the GitHub API"""
 
-    def __init__(self, curl_path=None, curl_opts=None):
+    def __init__(
+        self, curl_path=None, curl_opts=None, github_url=None, token_path=TOKEN_LOCATION
+    ):
         super(GitHubSession, self).__init__()
         self.env = {}
         self.env["url"] = None
@@ -39,19 +40,30 @@ class GitHubSession(URLGetter):
             self.env["CURL_PATH"] = curl_path
         if curl_opts:
             self.env["curl_opts"] = curl_opts
+        if github_url:
+            self.url = github_url
+        else:
+            self.url = "https://api.github.com"
         token = get_pref("GITHUB_TOKEN")
         self.http_result_code = None
         if token:
             self.token = token
-        elif os.path.exists(TOKEN_LOCATION):
-            try:
-                with open(TOKEN_LOCATION, "r") as tokenf:
-                    self.token = tokenf.read()
-            except OSError as err:
-                log_err(f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}")
-                self.token = None
         else:
-            self.token = None
+            if token_path.startswith("~"):
+                token_location = os.path.expanduser(token_path)
+            else:
+                token_location = token_path
+            if os.path.exists(token_location):
+                try:
+                    with open(token_location, "r") as tokenf:
+                        self.token = tokenf.read()
+                except OSError as err:
+                    log_err(
+                        f"Couldn't read token file at {token_location}! Error: {err}"
+                    )
+                    self.token = None
+            else:
+                self.token = None
 
     def setup_token(self):
         """Setup a GitHub OAuth token string. Will help to create one if necessary.
@@ -174,7 +186,7 @@ To save the token, paste it to the following prompt."""
                 assets)."""
 
         # Compose the URL
-        self.env["url"] = BASE_URL + endpoint
+        self.env["url"] = self.url + endpoint
         if query:
             self.env["url"] += "?" + query
 
