@@ -25,6 +25,7 @@ from typing import List, Optional
 from autopkglib import get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
 
+BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 DEFAULT_SEARCH_USER = "autopkg"
 
@@ -57,14 +58,13 @@ class GitHubSession(URLGetter):
         """Reads token from perferences or TOKEN_LOCATION.
             Otherwise returns None.
         """
-        token_location = token_path
         token = get_pref("GITHUB_TOKEN")
-        if not token and os.path.exists(token_location):
+        if not token and os.path.exists(token_path):
             try:
-                with open(token_location, "r") as tokenf:
+                with open(token_path, "r") as tokenf:
                     token = tokenf.read()
             except OSError as err:
-                log_err(f"Couldn't read token file at {token_location}! Error: {err}")
+                log_err(f"Couldn't read token file at {token_path}! Error: {err}")
                 token = None
         # TODO: validate token given we found one but haven't checked its
         # auth status
