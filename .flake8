@@ -21,6 +21,8 @@ exclude =
 # This will be fine-tuned over time
 max-complexity = 65
 # Ignore the line length limits on tests, where we have in-line plist strings
-# that often exceed 88 characters
+# that often exceed 88 characters. Test directory path specified twice to account
+# for running flake8 from root of repo or within the Code/ directory.
 per-file-ignores =
   tests/*:B950
+  Code/tests/*:B950
