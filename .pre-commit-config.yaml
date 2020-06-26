@@ -1,3 +1,4 @@
+exclude: '^Code/nuget/generated/.*$'
 repos:
 -   repo: https://github.com/python/black
     rev: 19.10b0

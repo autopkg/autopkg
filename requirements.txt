@@ -148,3 +148,7 @@ pyobjc-framework-VideoToolbox==6.0.1; sys_platform == 'darwin'
 pyobjc-framework-Vision==6.0.1; sys_platform == 'darwin'
 pyobjc-framework-WebKit==6.0.1; sys_platform == 'darwin'
 pyobjc==6.0.1; sys_platform == 'darwin'
+#
+# Windows Requirements
+#
+generateDS==2.35.24; sys_platform == 'win32'
