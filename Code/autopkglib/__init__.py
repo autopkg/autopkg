@@ -30,6 +30,7 @@ import sys
 import traceback
 from copy import deepcopy
 from distutils.version import LooseVersion
+from typing import Dict, Optional
 
 import appdirs
 
@@ -423,6 +424,71 @@ def update_data(a_dict, key, value):
 def is_executable(exe_path):
     """Is exe_path executable?"""
     return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
+
+
+def find_binary(binary: str, env: Optional[Dict] = None) -> Optional[str]:
+    r"""Returns the full path for `binary`, or `None` if it was not found.
+
+    The search order is as follows:
+    * A key in the optional `env` dictionary named `<binary>_PATH`.
+        Where `binary` is uppercase. E.g., `git` -> `GIT`.
+    * A preference named `<binary>_PATH` uppercase, as above.
+    * The directories listed in the system-dependent `$PATH` environment variable.
+    * On POSIX-y platforms only: `/usr/bin/<binary>`
+    In all cases, the binary found at any path must be executable to be used.
+
+    The `binary` parameter should be given without any file extension. A platform
+    specific file extension for executables will be added automatically, as needed.
+
+    Example: `find_binary('curl')` may return `C:\Windows\system32\curl.exe`.
+    """
+
+    if env is None:
+        env = {}
+    pref_key = f"{binary.upper()}_PATH"
+
+    bin_env = env.get(pref_key)
+    if bin_env:
+        if not is_executable(bin_env):
+            log_err(
+                f"WARNING: path given in the '{pref_key}' environment: '{bin_env}' "
+                "either doesn't exist or is not executable! "
+                f"Continuing search for usable '{binary}'."
+            )
+        else:
+            return env[pref_key]
+
+    bin_pref = get_pref(pref_key)
+    if bin_pref:
+        if not is_executable(bin_pref):
+            log_err(
+                f"WARNING: path given in the '{pref_key}' preference: '{bin_pref}' "
+                "either doesn't exist or is not executable! "
+                f"Continuing search for usable '{binary}'."
+            )
+        else:
+            return bin_pref
+
+    if is_windows():
+        extension = ".exe"
+    else:
+        extension = ""
+
+    full_binary = f"{binary}{extension}"
+
+    for search_dir in os.get_exec_path():
+        exe_path = os.path.join(search_dir, full_binary)
+        if is_executable(exe_path):
+            return exe_path
+
+    if (is_linux() or is_mac()) and is_executable(f"/usr/bin/{binary}"):
+        return f"/usr/bin/{binary}"
+
+    log_err(
+        f"WARNING: Unable to find '{full_binary}' in either configured, "
+        "or environmental locations. Things aren't guaranteed to work from here."
+    )
+    return None
 
 
 # Processor and ProcessorError base class definitions

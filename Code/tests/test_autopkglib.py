@@ -140,6 +140,7 @@ class TestAutoPkg(unittest.TestCase):
     def setUp(self):
         # This forces autopkglib to accept our patching of memoize
         imp.reload(autopkglib)
+        autopkglib.globalPreferences
 
     def tearDown(self):
         pass
@@ -185,6 +186,40 @@ class TestAutoPkg(unittest.TestCase):
         mock_platform.return_value = "Windows-somethingsomething"
         result = autopkglib.is_linux()
         self.assertEqual(result, False)
+
+    @patch("autopkglib.platform.platform")
+    @patch("autopkglib.is_executable")
+    @patch("autopkglib.os.get_exec_path")
+    @patch("autopkglib.os.path")
+    def test_find_binary_windows(
+        self, mock_ospath, mock_getpath, mock_isexe, mock_platform
+    ):
+        # Forcibly use ntpath regardless of platform to test "windows" anywhere.
+        import ntpath
+
+        mock_ospath.join = ntpath.join
+        mock_platform.return_value = "Windows"
+        mock_getpath.return_value = [r"C:\Windows\system32", r"C:\CurlInstall"]
+        mock_isexe.side_effect = [False, True]
+        result = autopkglib.find_binary("curl")
+        self.assertEqual(result, r"C:\CurlInstall\curl.exe")
+
+    @patch("autopkglib.platform.platform")
+    @patch("autopkglib.is_executable")
+    @patch("autopkglib.os.get_exec_path")
+    @patch("autopkglib.os.path")
+    def test_find_binary_posixy(
+        self, mock_ospath, mock_getpath, mock_isexe, mock_platform
+    ):
+        # Forcibly use posixpath regardless of platform to test "linux/mac" anywhere.
+        import posixpath
+
+        mock_ospath.join = posixpath.join
+        mock_platform.return_value = "Darwin"
+        mock_getpath.return_value = ["/usr/bin", "/usr/local/bin"]
+        mock_isexe.side_effect = [True, False]
+        result = autopkglib.find_binary("curl")
+        self.assertEqual(result, "/usr/bin/curl")
 
     def test_get_identifier_returns_identifier(self):
         """get_identifier should return the identifier."""

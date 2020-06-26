@@ -41,6 +41,7 @@ from autopkglib import (
     PreferenceError,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
+    find_binary,
     find_recipe_by_identifier,
     get_all_prefs,
     get_autopkg_version,
@@ -508,31 +509,7 @@ def git_cmd():
     2. a 'git' binary that can be found in the PATH environment variable
     3. '/usr/bin/git'
     """
-
-    def is_executable(exe_path):
-        """Is exe_path executable?"""
-        return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
-
-    git_path_pref = get_pref("GIT_PATH")
-    if git_path_pref:
-        if is_executable(git_path_pref):
-            # take a GIT_PATH pref
-            return git_path_pref
-        else:
-            log_err(
-                "WARNING: Git path given in the 'GIT_PATH' preference: "
-                f"'{git_path_pref}' either doesn't exist or is not executable! Falling "
-                "back to one set in PATH, or /usr/bin/git."
-            )
-    for path_env in os.environ["PATH"].split(":"):
-        gitbin = os.path.join(path_env, "git")
-        if is_executable(gitbin):
-            # take the first 'git' in PATH that we find
-            return gitbin
-    if is_executable("/usr/bin/git"):
-        # fall back to /usr/bin/git
-        return "/usr/bin/git"
-    return None
+    return find_binary("git")
 
 
 class GitError(Exception):
