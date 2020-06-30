@@ -21,7 +21,6 @@ import copy
 import difflib
 import glob
 import hashlib
-import optparse
 import os
 import plistlib
 import pprint
@@ -32,10 +31,10 @@ import sys
 import time
 import traceback
 from base64 import b64decode
-from typing import List
+from typing import Optional
 from urllib.parse import quote, urlparse
 
-import autopkglib.github
+from autopkgcmd import common_parse, gen_common_parser, search_recipes
 from autopkglib import (
     AutoPackager,
     AutoPackagerError,
@@ -48,7 +47,6 @@ from autopkglib import (
     get_identifier,
     get_pref,
     get_processor,
-    globalPreferences,
     is_mac,
     log,
     log_err,
@@ -56,6 +54,7 @@ from autopkglib import (
     set_pref,
     version_equal_or_greater,
 )
+from autopkglib.github import GitHubSession, print_gh_search_results
 
 if sys.platform != "darwin":
     print(
@@ -77,22 +76,6 @@ def print_version(argv):
     """Prints autopkg version"""
     _ = argv[1]
     print(get_autopkg_version())
-
-
-def gen_common_parser():
-    """Generate a common optparse parser with default options."""
-    parser = optparse.OptionParser()
-    parser.add_option("--prefs", dest="file_path")
-    return parser
-
-
-def common_parse(parser, argv):
-    """Parse an optparse parser with some enhancements and return a tuple."""
-    options, arguments = parser.parse_args(argv[2:])
-    if options.file_path:
-        # Attempt to set the global preferences
-        globalPreferences.read_file(options.file_path)
-    return (options, arguments)
 
 
 def recipe_has_step_processor(recipe, processor):
@@ -229,29 +212,9 @@ def get_identifier_from_override(override):
     return name
 
 
-def search_gh_for_name(name: str) -> List:
-    """Search GitHub for results for a given name."""
-    results_limit = 100
-    query = f"q={name}+extension:recipe+user:autopkg+in:file,path"
-    query += f"&per_page={results_limit}"
-
-    results = do_gh_code_search(query, use_token=False)
-
-    if not results or not results.get("total_count"):
-        log("Nothing found.")
-        return []
-
-    results_items = results["items"]
-
-    if not results_items:
-        log("Nothing found.")
-        return []
-    return results_items
-
-
 def get_repository_from_identifier(identifier: str):
     """Get a repository name from a recipe identifier."""
-    results = search_gh_for_name(identifier)
+    results = GitHubSession().search_for_name(identifier)
     # so now we have a list of items containing file names and URLs
     # we want to fetch these so we can look inside the contents for a matching
     # identifier
@@ -330,7 +293,7 @@ def locate_recipe(
                 repo_names = [parent_repo] if parent_repo else []
 
             if not repo_names:
-                results_items = search_gh_for_name(name)
+                results_items = GitHubSession().search_for_name(name)
                 print_gh_search_results(results_items)
                 # make a list of unique repo names
                 repo_names = []
@@ -921,9 +884,9 @@ def repo_update(argv):
 
 def do_gh_repo_contents_fetch(
     repo: str, path: str, use_token=False, decode=True
-) -> str:
+) -> Optional[bytes]:
     """Fetch file contents from GitHub and return as a string."""
-    gh_session = autopkglib.github.GitHubSession()
+    gh_session = GitHubSession()
     if use_token:
         gh_session.setup_token()
     # Do the search, including text match metadata
@@ -948,145 +911,6 @@ def do_gh_repo_contents_fetch(
     if decode:
         return b64decode(results["content"])
     return results["content"]
-
-
-def do_gh_code_search(query, use_token=False):
-    """Search GitHub code repos"""
-    gh_session = autopkglib.github.GitHubSession()
-    if use_token:
-        gh_session.setup_token()
-    # Do the search, including text match metadata
-    (results, code) = gh_session.call_api(
-        "/search/code", query=query, accept="application/vnd.github.v3.text-match+json"
-    )
-
-    if code == 403:
-        log_err(
-            "You've probably hit the GitHub's search rate limit, officially 5 "
-            "requests per minute.\n"
-        )
-        if results:
-            log_err("Server response follows:\n")
-            log_err(results.get("message", None))
-            log_err(results.get("documentation_url", None))
-
-        return None
-    if results is None or code is None:
-        log_err("A GitHub API error occurred!")
-        return None
-    return results
-
-
-def print_gh_search_results(results_items):
-    """Pretty print our GitHub search results"""
-    if not results_items:
-        return
-    column_spacer = 4
-    max_name_length = max([len(r["name"]) for r in results_items]) + column_spacer
-    max_repo_length = (
-        max([len(r["repository"]["name"]) for r in results_items]) + column_spacer
-    )
-    spacers = (max_name_length, max_repo_length)
-
-    print()
-    format_str = "%-{}s %-{}s %-40s".format(*spacers)
-    print(format_str % ("Name", "Repo", "Path"))
-    print(format_str % ("----", "----", "----"))
-    results_items.sort(key=lambda x: x["repository"]["name"])
-    for result in results_items:
-        repo = result["repository"]
-        name = result["name"]
-        path = result["path"]
-        if repo["full_name"].startswith("autopkg"):
-            repo_name = repo["name"]
-        else:
-            repo_name = repo["full_name"]
-        print(format_str % (name, repo_name, path))
-
-
-def search_recipes(argv):
-    """Search recipes on GitHub"""
-    default_user = "autopkg"
-    verb = argv[1]
-    parser = gen_common_parser()
-    parser.set_usage(
-        f"Usage: %prog {verb} [options] search_term\n"
-        "Search for recipes on GitHub. The AutoPkg organization "
-        "at github.com/autopkg\n"
-        "is the canonical 'repository' of recipe repos, "
-        "which is what is searched by\n"
-        "default."
-    )
-    parser.add_option(
-        "-u",
-        "--user",
-        default=default_user,
-        help=(
-            "Alternate GitHub user whose repos to search. "
-            f"Defaults to '{default_user}'."
-        ),
-    )
-    parser.add_option(
-        "-p",
-        "--path-only",
-        action="store_true",
-        default=False,
-        help=(
-            "Restrict search results to the recipe's path "
-            "only. Note that the search API currently does not "
-            "support fuzzy matches, so only exact directory or "
-            "filenames (minus the extensions) will be "
-            "returned."
-        ),
-    )
-    parser.add_option(
-        "-t",
-        "--use-token",
-        action="store_true",
-        default=False,
-        help=(
-            "Use a public-scope GitHub token for a higher "
-            "rate limit. If a token doesn't exist, you'll "
-            "be prompted for your account credentials to "
-            "create one."
-        ),
-    )
-
-    # Parse arguments
-    (options, arguments) = common_parse(parser, argv)
-    if len(arguments) < 1:
-        log_err("No search query specified!")
-        return -1
-
-    results_limit = 100
-    term = quote(arguments[0])
-    query = f"q={term}+extension:recipe+user:{options.user}"
-    qualifier_in = "in:path,file"
-    if options.path_only:
-        qualifier_in += "path"
-    query += "+" + qualifier_in
-    query += f"&per_page={results_limit}"
-
-    results = do_gh_code_search(query, use_token=options.use_token)
-    if not results:
-        return
-
-    count = results.get("total_count", 0)
-    if count == 0:
-        log("No results.")
-        return
-
-    print_gh_search_results(results["items"])
-
-    print()
-    print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
-
-    if count > results_limit:
-        print()
-        print(
-            "Warning: Search yielded more than 100 results. Please try a "
-            "more specific search term."
-        )
 
 
 def display_help(argv, subcommands):
@@ -1168,7 +992,7 @@ def processor_info(argv):
         """Print a dict of dicts and strings"""
         for key, value in list(var_dict.items()):
             if isinstance(value, dict):
-                print(f" " * indent, f"{key}:")
+                print(" " * indent, f"{key}:")
                 print_vars(value, indent=indent + 2)
             else:
                 print(" " * indent, f"{key}: {value}")
@@ -1611,7 +1435,7 @@ def get_trust_info(recipe, search_dirs=None):
             processor_hash = getsha256hash(processor_path)
             git_hash = get_git_commit_hash(processor_path)
         else:
-            log_err(f"WARNING: processor path not found for processor")
+            log_err(f"WARNING: processor path not found for processor: {processor}")
             processor_path = ""
             processor_hash = "PROCESSOR FILEPATH NOT FOUND"
             git_hash = None
@@ -2820,10 +2644,7 @@ def main(argv):
             "function": processor_info,
             "help": "Get information about a specific processor",
         },
-        "processor-list": {
-            "function": list_processors,
-            "help": "see list-processors",
-        },
+        "processor-list": {"function": list_processors, "help": "see list-processors"},
         "repo-add": {
             "function": repo_add,
             "help": "Add one or more recipe repo from a URL",

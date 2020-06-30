@@ -15,9 +15,9 @@
 # limitations under the License.
 """See docstring for Copier class"""
 
+import glob
 import os.path
 import shutil
-import glob
 
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter

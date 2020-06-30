@@ -20,12 +20,14 @@ import json
 import os
 import re
 import tempfile
+from typing import List, Optional
 
 from autopkglib import get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
 
 BASE_URL = "https://api.github.com"
 TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
+DEFAULT_SEARCH_USER = "autopkg"
 
 
 class GitHubSession(URLGetter):
@@ -39,26 +41,32 @@ class GitHubSession(URLGetter):
             self.env["CURL_PATH"] = curl_path
         if curl_opts:
             self.env["curl_opts"] = curl_opts
-        token = get_pref("GITHUB_TOKEN")
         self.http_result_code = None
-        if token:
-            self.token = token
-        elif os.path.exists(TOKEN_LOCATION):
+        self.token = self._get_token()
+
+    def _get_token(self) -> Optional[str]:
+        """Reads token from perferences or TOKEN_LOCATION.
+            Otherwise returns None.
+        """
+        token = get_pref("GITHUB_TOKEN")
+        if not token and os.path.exists(TOKEN_LOCATION):
             try:
                 with open(TOKEN_LOCATION, "r") as tokenf:
-                    self.token = tokenf.read()
+                    token = tokenf.read()
             except OSError as err:
                 log_err(f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}")
-                self.token = None
-        else:
-            self.token = None
+                token = None
+        # TODO: validate token given we found one but haven't checked its
+        # auth status
+        return token
 
-    def setup_token(self):
+    def get_or_setup_token(self):
         """Setup a GitHub OAuth token string. Will help to create one if necessary.
         The string will be stored in TOKEN_LOCATION and used again
         if it exists."""
 
-        if not os.path.exists(TOKEN_LOCATION):
+        token = self._get_token()
+        if not token and not os.path.exists(TOKEN_LOCATION):
             print(
                 """Create a new token in your GitHub settings page:
 
@@ -80,19 +88,13 @@ To save the token, paste it to the following prompt."""
                     )
             else:
                 log("Skipping token file creation.")
-        else:
-            try:
-                with open(TOKEN_LOCATION, "r") as tokenf:
-                    token = tokenf.read()
-            except OSError as err:
-                log_err(f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}")
-
-            # TODO: validate token given we found one but haven't checked its
-            # auth status
 
         self.token = token
+        return token
 
-    def prepare_curl_cmd(self, method, accept, headers, data, temp_content):
+    def prepare_curl_cmd(
+        self, method, accept, headers, data, temp_content
+    ) -> List[str]:
         """Assemble curl command and return it."""
         curl_cmd = [
             self.curl_binary(),
@@ -152,11 +154,68 @@ To save the token, paste it to the following prompt."""
 
         return p_stdout
 
+    def search_for_name(
+        self,
+        name: str,
+        path_only: bool = False,
+        user: str = DEFAULT_SEARCH_USER,
+        use_token: bool = False,
+        results_limit: int = 100,
+    ):
+        """Search GitHub for results for a given name."""
+
+        query = f"q={name}+extension:recipe+user:{user}"
+        if path_only:
+            query += "+in:path,filepath"
+        else:
+            query += "+in:path,file"
+        query += f"&per_page={results_limit}"
+
+        results = self.code_search(query, use_token=False)
+
+        if not results or not results.get("total_count"):
+            log("Nothing found.")
+            return []
+
+        results_items = results["items"]
+
+        if not results_items:
+            log("Nothing found.")
+            return []
+        return results_items
+
+    def code_search(self, query: str, use_token: bool = False):
+        """Search GitHub code repos"""
+        if use_token:
+            _ = self.get_or_setup_token()
+        # Do the search, including text match metadata
+        (results, code) = self.call_api(
+            "/search/code",
+            query=query,
+            accept="application/vnd.github.v3.text-match+json",
+        )
+
+        if code == 403:
+            log_err(
+                "You've probably hit the GitHub's search rate limit, officially 5 "
+                "requests per minute.\n"
+            )
+            if results:
+                log_err("Server response follows:\n")
+                log_err(results.get("message", None))
+                log_err(results.get("documentation_url", None))
+
+            return None
+        if results is None or code is None:
+            log_err("A GitHub API error occurred!")
+            return None
+        return results
+
     def call_api(
         self,
-        endpoint,
-        method="GET",
-        query=None,
+        endpoint: str,
+        method: str = "GET",
+        query: str = None,
         data=None,
         headers=None,
         accept="application/vnd.github.v3+json",
@@ -195,3 +254,30 @@ To save the token, paste it to the following prompt."""
             resp_data = None
 
         return (resp_data, self.http_result_code)
+
+
+def print_gh_search_results(results_items):
+    """Pretty print our GitHub search results"""
+    if not results_items:
+        return
+    column_spacer = 4
+    max_name_length = max([len(r["name"]) for r in results_items]) + column_spacer
+    max_repo_length = (
+        max([len(r["repository"]["name"]) for r in results_items]) + column_spacer
+    )
+    spacers = (max_name_length, max_repo_length)
+
+    print()
+    format_str = "%-{}s %-{}s %-40s".format(*spacers)
+    print(format_str % ("Name", "Repo", "Path"))
+    print(format_str % ("----", "----", "----"))
+    results_items.sort(key=lambda x: x["repository"]["name"])
+    for result in results_items:
+        repo = result["repository"]
+        name = result["name"]
+        path = result["path"]
+        if repo["full_name"].startswith("autopkg"):
+            repo_name = repo["name"]
+        else:
+            repo_name = repo["full_name"]
+        print(format_str % (name, repo_name, path))

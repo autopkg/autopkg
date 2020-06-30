@@ -133,9 +133,7 @@ class Installer(DmgMounter):
             self.env["install_result"] = result
             if result == "DONE":
                 self.env["installer_summary_result"] = {
-                    "summary_text": (
-                        "The following pkgs were successfully installed:"
-                    ),
+                    "summary_text": ("The following pkgs were successfully installed:"),
                     "data": {"pkg_path": matched_pkg_path},
                 }
 
@@ -169,9 +167,7 @@ class Installer(DmgMounter):
 
         errors = data.rstrip().split("\n")
         if not errors:
-            errors = [
-                "ERROR:No reply from autopkginstalld (crash?), check system logs"
-            ]
+            errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
     def disconnect(self):
