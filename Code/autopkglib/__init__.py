@@ -78,14 +78,37 @@ try:
         kCFPreferencesCurrentHost,
     )
 except ImportError:
-    print(
-        "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
-    )
-    print(
-        "WARNING: Failed 'from CoreFoundation import "
-        "CFPreferencesAppSynchronize, ...' in " + __name__
-    )
+    if is_mac():
+        print(
+            "ERROR: Failed 'from Foundation import NSArray, NSDictionary' in "
+            + __name__
+        )
+        print(
+            "ERROR: Failed 'from CoreFoundation import "
+            "CFPreferencesAppSynchronize, ...' in " + __name__
+        )
+        raise
+    # On non-macOS platforms, the above imported names are stubbed out.
+    NSArray = list
+    NSDictionary = dict
+    NSNumber = int
 
+    def CFPreferencesAppSynchronize(*args, **kwargs):
+        pass
+
+    def CFPreferencesCopyAppValue(*args, **kwargs):
+        pass
+
+    def CFPreferencesCopyKeyList(*args, **kwargs):
+        return []
+
+    def CFPreferencesSetAppValue(*args, **kwargs):
+        pass
+
+    kCFPreferencesAnyHost = None
+    kCFPreferencesAnyUser = None
+    kCFPreferencesCurrentUser = None
+    kCFPreferencesCurrentHost = None
 
 BUNDLE_ID = "com.github.autopkg"
 
