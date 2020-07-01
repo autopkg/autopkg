@@ -16,7 +16,9 @@ from unittest.mock import mock_open, patch
 patch("autopkglib.memoize", lambda x: x).start()
 import autopkglib  # isort:skip
 
-autopkg = imp.load_source("autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg"))
+autopkg = imp.load_source(
+    "autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg")
+)
 
 
 class TestAutoPkg(unittest.TestCase):
@@ -224,11 +226,12 @@ class TestAutoPkg(unittest.TestCase):
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertIsNone(id)
 
-    @patch("autopkglib.is_mac")
-    def test_prefs_object_is_empty_on_nonmac(self, mock_ismac):
-        """A new Preferences object on non-macOS should be empty."""
-        mock_ismac.return_value = False
+    @patch("autopkglib.platform")
+    def test_prefs_object_is_empty_on_unsupported(self, mock_platform):
+        """A new Preferences object on unsupported platforms should be empty."""
+        mock_platform.platform.return_value = "__HighlyUnlikely-Platform-Name__"
         fake_prefs = autopkglib.Preferences()
+        self.assertEqual(fake_prefs.file_path, None)
         self.assertEqual(fake_prefs.get_all_prefs(), {})
 
     @patch("autopkglib.CFPreferencesCopyKeyList")
@@ -270,12 +273,26 @@ class TestAutoPkg(unittest.TestCase):
         value = fake_prefs.get_all_prefs()
         self.assertEqual(value, json.loads(self.good_json))
 
-    @patch("autopkglib.is_mac")
-    def test_set_pref_nonmac(self, mock_ismac):
-        """set_pref should change the prefs object."""
-        mock_ismac.return_value = False
+    @patch("autopkglib.platform")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_set_pref_unsupported(self, mock_open, mock_platform):
+        """set_pref should change the prefs object, but not write"""
+        mock_platform.platform.return_value = "__HighlyUnlikely-Platform-Name__"
         fake_prefs = autopkglib.Preferences()
         fake_prefs.set_pref("TEST_KEY", "fake_value")
+        mock_open().write.assert_not_called()
+        value = fake_prefs.get_pref("TEST_KEY")
+        self.assertEqual(value, "fake_value")
+
+    @patch("autopkglib.platform")
+    @patch("builtins.open", new_callable=mock_open, read_data="{}")
+    def test_set_pref_windows(self, mock_open, mock_platform):
+        """set_pref should change the prefs object."""
+        mock_platform.platform.return_value = "Windows"
+        fake_prefs = autopkglib.Preferences()
+        self.assertNotEqual(fake_prefs.file_path, None)
+        fake_prefs.set_pref("TEST_KEY", "fake_value")
+        mock_open().write.assert_called()
         value = fake_prefs.get_pref("TEST_KEY")
         self.assertEqual(value, "fake_value")
 

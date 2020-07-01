@@ -31,6 +31,8 @@ import traceback
 from copy import deepcopy
 from distutils.version import LooseVersion
 
+import appdirs
+
 
 class memoize(dict):
     """Class to cache the return values of an expensive function.
@@ -110,6 +112,7 @@ except ImportError:
     kCFPreferencesCurrentUser = None
     kCFPreferencesCurrentHost = None
 
+APP_NAME = "Autopkg"
 BUNDLE_ID = "com.github.autopkg"
 
 RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
@@ -134,6 +137,8 @@ class Preferences:
         # If we're on macOS, read in the preference domain first.
         if is_mac():
             self.prefs = self._get_macos_prefs()
+        elif is_windows():
+            self.prefs = self._get_windows_prefs()
 
     def _parse_json_or_plist_file(self, file_path):
         """Parse the file. Start with plist, then JSON."""
@@ -201,6 +206,23 @@ class Preferences:
                     prefs[key] = self._get_macos_pref(key)
         return prefs
 
+    def _get_windows_prefs(self):
+        r"""Lookup preferences for Windows in a standardized path, such as:
+        `C:\\Users\username\AppData\Local\Autopkg\config.{plist,json}`
+        Tries to find `config.plist`, then `config.json`."""
+
+        config_dir = appdirs.user_config_dir(APP_NAME, appauthor=False)
+
+        # Try a plist config, then a json config.
+        data = self._parse_json_or_plist_file(os.path.join(config_dir, "config.plist"))
+        if data:
+            return data
+        data = self._parse_json_or_plist_file(os.path.join(config_dir, "config.json"))
+        if data:
+            return data
+
+        return {}
+
     def _set_macos_pref(self, key, value):
         """Sets a preference for domain"""
         try:
@@ -264,7 +286,7 @@ class Preferences:
         # On macOS, write it back to preferences domain if we didn't use a file
         if is_mac() and self.type is None:
             self._set_macos_pref(key, value)
-        elif self.file_path:
+        elif is_windows() and self.file_path is not None:
             self.write_file()
 
 
