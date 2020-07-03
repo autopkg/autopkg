@@ -915,7 +915,7 @@ def import_processors():
     processor_files = [
         os.path.splitext(name)[0]
         for name in os.listdir(mydir)
-        if name.endswith(".py") and not name == "__init__.py"
+        if name.endswith(".py") and name not in ("__init__.py", "xattr.py")
     ]
 
     # Warning! Fancy dynamic importing ahead!
