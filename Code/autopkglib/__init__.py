@@ -69,7 +69,6 @@ def is_linux():
 
 
 try:
-    from Foundation import NSArray, NSDictionary, NSNumber
     from CoreFoundation import (
         CFPreferencesAppSynchronize,
         CFPreferencesCopyAppValue,
@@ -77,9 +76,10 @@ try:
         CFPreferencesSetAppValue,
         kCFPreferencesAnyHost,
         kCFPreferencesAnyUser,
-        kCFPreferencesCurrentUser,
         kCFPreferencesCurrentHost,
+        kCFPreferencesCurrentUser,
     )
+    from Foundation import NSArray, NSDictionary, NSNumber
 except ImportError:
     if is_mac():
         print(

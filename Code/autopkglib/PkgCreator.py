@@ -19,7 +19,7 @@ import os.path
 import plistlib
 import socket
 import subprocess
-import xml.etree.ElementTree as ET
+from xml.etree import ElementTree as ET
 
 from autopkglib import Processor, ProcessorError
 
