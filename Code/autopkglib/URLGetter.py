@@ -19,7 +19,7 @@
 import os.path
 import subprocess
 
-from autopkglib import Processor, ProcessorError, get_pref, is_executable, log_err
+from autopkglib import Processor, ProcessorError, find_binary
 
 __all__ = ["URLGetter"]
 
@@ -35,31 +35,12 @@ class URLGetter(Processor):
         1. env['CURL_PATH']
         2. app pref 'CURL_PATH'
         3. a 'curl' binary that can be found in the PATH environment variable
-        4. '/usr/bin/curl'
+        4. '/usr/bin/curl' (POSIX-y platforms only)
         """
 
-        if "CURL_PATH" in self.env and is_executable(self.env["CURL_PATH"]):
-            return self.env["CURL_PATH"]
-
-        curl_path_pref = get_pref("CURL_PATH")
-        if curl_path_pref:
-            if is_executable(curl_path_pref):
-                return curl_path_pref
-            else:
-                log_err(
-                    "WARNING: curl path given in the 'CURL_PATH' preference: "
-                    f"'{curl_path_pref}' "
-                    "either doesn't exist or is not executable! Falling back "
-                    "to one set in PATH, or /usr/bin/curl."
-                )
-
-        for path_env in os.environ["PATH"].split(":"):
-            curlbin = os.path.join(path_env, "curl")
-            if is_executable(curlbin):
-                return curlbin
-
-        if is_executable("/usr/bin/curl"):
-            return "/usr/bin/curl"
+        curlbin = find_binary("curl", self.env)
+        if curlbin is not None:
+            return curlbin
 
         raise ProcessorError("Unable to locate or execute any curl binary")
 

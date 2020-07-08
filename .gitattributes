@@ -1,0 +1,15 @@
+# This file guarantees that every text file is normalized to LF line endings
+# in the repo, and will be converted to platform native line endings on checkout.
+*                text=auto
+autopkg          text
+*.yaml           text
+*.txt            text
+*.sh             text
+*.py             text
+*.plist          text
+*.md             text
+*.json           text
+*.cfg            text
+.gitignore       text
+.gitattributes   text
+.flake8          text
