@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Sequence, TextIO
 # Constants for various argument constraints derived from
 # https://chocolatey.org/docs/helpers-install-chocolatey-package
 CHOCO_CHECKSUM_TYPES: Sequence[str] = ("md5", "sha1", "sha256", "sha512")
-CHOCO_FILE_TYPES: Sequence[str] = ("exe", "msi", "msu")
+CHOCO_FILE_TYPES: Sequence[str] = ("exe", "msi", "msu", "zip")
 
 
 class ChocolateyValidationError(Exception):
@@ -35,6 +35,11 @@ class ChocolateyInstallGenerator:
 
     The generation of the script is intentionally naive and likely
     can only handle the simplest of use cases.
+
+    The following cases are supported:
+    * Run an installer embedded in the package, or downloaded from a url.
+    * Install a zip file embedded in the package, or downloaded from a url.
+      into the tools directory for the package. Custom locations are not supported.
     """
 
     packageName: str
@@ -78,11 +83,20 @@ class ChocolateyInstallGenerator:
         splat += "\n".join(preamble_lines) + "\n"
         splat += args_splat
 
-        # When a installer file is embedded, we have to use a different install command.
+        # When a installer file is embedded, we have to use different install commands.
         if self.file or self.file64:
-            splat += "Install-ChocolateyInstallPackage @packageArgs\n"
+            if self.fileType == "zip":
+                splat += "Get-ChocolateyUnzip @packageArgs -Destination $toolsDir\n"
+            else:
+                splat += "Install-ChocolateyInstallPackage @packageArgs\n"
         else:
-            splat += "Install-ChocolateyPackage @packageArgs\n"
+            if self.fileType == "zip":
+                splat += (
+                    "Install-ChocolateyZipPackage @packageArgs -Destination $toolsDir\n"
+                )
+            else:
+                splat += "Install-ChocolateyPackage @packageArgs\n"
+        splat += "\n"
         out.write(splat)
 
     def _render_field(self, key: str, value: Any, preamble_lines: List[str]) -> str:

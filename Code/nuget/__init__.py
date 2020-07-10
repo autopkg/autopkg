@@ -18,6 +18,7 @@ from .ChocolateyInstallGenerator import (
     ChocolateyInstallGenerator,
     ChocolateyValidationError,
 )
+from .generated._nuspec import dependency as NuspecDependency
 from .NuspecGenerator import NuspecGenerator, NuspecValidationError
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "CHOCO_FILE_TYPES",
     "ChocolateyInstallGenerator",
     "ChocolateyValidationError",
+    "NuspecDependency",
     "NuspecGenerator",
     "NuspecValidationError",
 ]

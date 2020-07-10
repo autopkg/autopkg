@@ -38,6 +38,7 @@ class TestNuspecGenerator(unittest.TestCase):
         <title>Test software</title>
         <authors>python</authors>
         <description>This is some excellent software</description>
+        <dependencies/>
     </metadata>
 </package>
         """
@@ -175,6 +176,7 @@ $packageArgs = @{{
 }}
 
 Install-ChocolateyInstallPackage @packageArgs
+
             """
         )
 

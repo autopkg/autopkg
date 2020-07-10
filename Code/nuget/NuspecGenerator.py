@@ -19,6 +19,7 @@ from nuget.generated._nuspec import (
     GdsCollector_,
     contentFilesType,
     dependenciesType,
+    dependency,
     licenseType,
     metadataType,
     package,
@@ -58,11 +59,12 @@ class NuspecGenerator(package):
         tags: Optional[str] = None,
         icon: Optional[str] = None,
         license: Optional[licenseType] = None,
-        dependencies: Optional[dependenciesType] = None,
+        dependencies: Optional[Sequence[dependency]] = None,
         contentFiles: Optional[contentFilesType] = None,
     ):
         if not isinstance(title, str):
             raise NuspecValidationError("Argument 'title' must be a string")
+
         super().__init__(
             metadataType(
                 id=id,
@@ -80,7 +82,7 @@ class NuspecGenerator(package):
                 tags=tags,
                 icon=icon,
                 license=license,
-                dependencies=dependencies,
+                dependencies=dependenciesType(dependency=dependencies),
                 contentFiles=contentFiles,
             )
         )
