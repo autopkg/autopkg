@@ -489,7 +489,7 @@ class Processor:
         try:
             self.read_input_plist()
             self.parse_arguments()
-            self.main()
+            self.process()
             self.write_output_plist()
         except ProcessorError as err:
             log_err(f"ProcessorError: {err}")
