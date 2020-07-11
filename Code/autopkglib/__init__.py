@@ -460,7 +460,7 @@ class Processor:
                 )
             # Make sure all required arguments have been supplied.
             if flags.get("required") and (variable not in self.env):
-                raise ProcessorError(f"{self.__name__} requires {variable}")
+                raise ProcessorError(f"{self.__class__.__name__} requires {variable}")
 
         self.main()
         return self.env
