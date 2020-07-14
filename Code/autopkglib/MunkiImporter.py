@@ -16,10 +16,12 @@
 """See docstring for MunkiImporter class"""
 
 import os
+import sys
 import plistlib
 import shutil
 import subprocess
 
+from urllib.parse import urlparse
 from autopkglib import Processor, ProcessorError
 
 __all__ = ["MunkiImporter"]
@@ -32,6 +34,17 @@ class MunkiImporter(Processor):
         "MUNKI_REPO": {
             "description": "Path to a mounted Munki repo.",
             "required": True,
+        },
+        "MUNKI_REPO_PLUGIN": {
+            "description": "Munki repo plugin. Defaults to FileRepo.",
+            "required": False,
+            "default": "FileRepo"
+        },
+        "MUNKILIB_DIR": {
+            "description": ("Directory path that contains munkilib. Defaults "
+                            "to /usr/local/munki"),
+            "required": False,
+            "default": "/usr/local/munki"
         },
         "pkg_path": {
             "required": True,
@@ -56,6 +69,11 @@ class MunkiImporter(Processor):
         "pkginfo": {
             "required": False,
             "description": ("Dictionary of pkginfo keys to copy to generated pkginfo."),
+        },
+        "extract_icon": {
+            "required": False,
+            "description": ("If not empty, attempt to extract and import an "
+                            "icon from the installer item.")
         },
         "force_munkiimport": {
             "required": False,
@@ -458,6 +476,20 @@ class MunkiImporter(Processor):
         return pkginfo_path
 
     def main(self):
+        sys.path.insert(0, self.env["MUNKILIB_DIR"])
+        try:
+            from munkilib import munkirepo
+            from munkilib.admin import munkiimportlib
+            from munkilib.admin import pkginfolib
+            from munkilib.cliutils import get_version, pref, path2url
+        except ImportError as err:
+            raise ProcessorError(
+                "munkilib import error: %s\nMunki tools version 3.2.0.3462 or "
+                "later is required." % str(err))
+
+        if urlparse(self.env["MUNKI_REPO"]).scheme == '':
+            self.env["MUNKI_REPO"] = path2url(self.env["MUNKI_REPO"])
+
         # clear any pre-exising summary result
         if "munki_importer_summary_result" in self.env:
             del self.env["munki_importer_summary_result"]
@@ -520,9 +552,13 @@ class MunkiImporter(Processor):
                     )
                 item["version_comparison_key"] = self.env["version_comparison_key"]
 
+        # connect to repo
+        repo = munkirepo.connect(
+            self.env['MUNKI_REPO'], self.env['MUNKI_REPO_PLUGIN'])
+
         # check to see if this item is already in the repo
-        matchingitem = self.find_matching_item_in_repo(pkginfo)
-        if matchingitem:
+        matchingitem = munkiimportlib.find_matching_pkginfo(repo, pkginfo)
+        if matchingitem and matchingitem['version'] == pkginfo['version']:
             self.env["pkginfo_repo_path"] = ""
             # set env["pkg_repo_path"] to the path of the matching item
             self.env["pkg_repo_path"] = os.path.join(
@@ -539,23 +575,36 @@ class MunkiImporter(Processor):
             return
 
         # copy pkg/dmg to repo
-        relative_path = self.copy_item_to_repo(pkginfo)
+        uploaded_pkgpath = munkiimportlib.copy_item_to_repo(
+            repo, self.env["pkg_path"], pkginfo.get('version'),
+            self.env.get("repo_subdirectory", ""))
         # adjust the installer_item_location to match the actual location
         # and name
-        pkginfo["installer_item_location"] = relative_path
+        pkginfo["installer_item_location"] = uploaded_pkgpath.partition('/')[2]
 
         if self.env.get("uninstaller_pkg_path"):
-            relative_uninstall_path = self.copy_item_to_repo(
-                pkginfo, uninstaller_pkg=True
-            )
-            pkginfo["uninstaller_item_location"] = relative_uninstall_path
+            uploaded_uninstall_path = munkiimportlib.copy_item_to_repo(
+                repo, self.env["uninstaller_pkg_path"],
+                pkginfo.get('version'),
+                self.env.get("repo_subdirectory", ""))
+            pkginfo["uninstaller_item_location"] = (
+                uploaded_uninstall_path.partition('/')[2])
             pkginfo["uninstallable"] = True
 
+        # extract and import icon if requested
+        self.env["icon_repo_path"] = ""
+        if self.env.get("extract_icon"):
+            if not munkiimportlib.icon_exists_in_repo(repo, pkginfo):
+                imported_icon_path = munkiimportlib.extract_and_copy_icon(
+                    repo, self.env["pkg_path"], pkginfo, import_multiple=False)
+                if imported_icon_path:
+                    self.output("Copied icon to %s" % imported_icon_path)
+                    self.env["icon_repo_path"] = imported_icon_path
+
         # set output variables
-        self.env["pkginfo_repo_path"] = self.copy_pkginfo_to_repo(pkginfo)
-        self.env["pkg_repo_path"] = os.path.join(
-            self.env["MUNKI_REPO"], "pkgs", relative_path
-        )
+        self.env["pkginfo_repo_path"] = munkiimportlib.copy_pkginfo_to_repo(
+            repo, pkginfo, subdirectory=self.env.get("repo_subdirectory", ""))
+        self.env["pkg_repo_path"] = uploaded_pkgpath
         # update env["pkg_path"] to match env["pkg_repo_path"]
         # this allows subsequent recipe steps to reuse the uploaded
         # pkg/dmg instead of re-uploading
@@ -572,6 +621,7 @@ class MunkiImporter(Processor):
                 "catalogs",
                 "pkginfo_path",
                 "pkg_repo_path",
+                "icon_repo_path"
             ],
             "data": {
                 "name": pkginfo["name"],
@@ -579,6 +629,7 @@ class MunkiImporter(Processor):
                 "catalogs": ",".join(pkginfo["catalogs"]),
                 "pkginfo_path": self.env["pkginfo_repo_path"].partition("pkgsinfo/")[2],
                 "pkg_repo_path": self.env["pkg_repo_path"].partition("pkgs/")[2],
+                'icon_repo_path': self.env['icon_repo_path'].partition('icons/')[2]
             },
         }
 
