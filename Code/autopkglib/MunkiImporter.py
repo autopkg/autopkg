@@ -49,6 +49,14 @@ class MunkiImporter(Processor):
             "required": False,
             "default": "/usr/local/munki",
         },
+        "force_munki_repo_lib": {
+            "description": (
+                "When True, munki code libraries will be utilized when the FileRepo plugin is "
+                "used. Munki must be installed and available at MUNKILIB_DIR"
+            ),
+            "required": False,
+            "default": False,
+        },
         "pkg_path": {
             "required": True,
             "description": "Path to a pkg or dmg to import.",
@@ -146,9 +154,14 @@ class MunkiImporter(Processor):
     description = __doc__
 
     def _fetch_repo_library(
-        self, munki_repo, munki_repo_plugin, munkilib_dir, repo_subdirectory
+        self,
+        munki_repo,
+        munki_repo_plugin,
+        munkilib_dir,
+        repo_subdirectory,
+        force_munki_lib,
     ):
-        if munki_repo_plugin == "FileRepo":
+        if munki_repo_plugin == "FileRepo" and not force_munki_lib:
             return AutoPkgLib(munki_repo, repo_subdirectory)
         else:
             return MunkiLibAdapter(
@@ -161,6 +174,7 @@ class MunkiImporter(Processor):
             self.env["MUNKI_REPO_PLUGIN"],
             self.env["MUNKILIB_DIR"],
             self.env.get("repo_subdirectory"),
+            self.env["force_munki_repo_lib"],
         )
 
         self.output(f"Using repo lib: {library.__class__.__name__}")
@@ -282,7 +296,7 @@ class MunkiImporter(Processor):
                     self.env["pkg_path"], pkginfo, import_multiple=False
                 )
         else:
-            icon_path = None
+            icon_path = ""
 
         self.env["icon_repo_path"] = icon_path
 
