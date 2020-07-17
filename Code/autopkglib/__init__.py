@@ -594,9 +594,7 @@ class Processor:
         self.main()
         return self.env
 
-    def cmdexec(
-        self, cmd, bufsize=-1, check=True, exception_text="", input=None, text=True
-    ):
+    def cmdexec(self, cmd, exception_text="", check=True, text=True, **kwargs):
         """Execute a command and return a dictionary with keys stdout, stderr
         and returncode
 
@@ -607,12 +605,7 @@ class Processor:
 
         try:
             proc = subprocess.run(
-                cmd,
-                bufsize=bufsize,
-                capture_output=True,
-                check=check,
-                input=input,
-                text=text,
+                cmd, capture_output=True, check=check, text=text, **kwargs,
             )
         except subprocess.CalledProcessError as err:
             if text:

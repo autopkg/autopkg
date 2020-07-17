@@ -135,7 +135,7 @@ To save the token, paste it to the following prompt."""
     def download_with_curl(self, curl_cmd):
         """Download file using curl and return raw headers."""
 
-        cmd_result = self.cmdexec(curl_cmd, bufsize=1, check=False)
+        cmd_result = self.cmdexec(curl_cmd, check=False, bufsize=1)
 
         # Non-zero exit code from curl => problem with download
         if cmd_result["returncode"]:

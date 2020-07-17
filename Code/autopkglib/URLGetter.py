@@ -17,6 +17,7 @@
 """See docstring for URLGetter class"""
 
 import os.path
+import subprocess
 
 from autopkglib import Processor, ProcessorError, find_binary
 
@@ -178,7 +179,7 @@ class URLGetter(Processor):
         """Launch curl and return its output."""
         self.output(f"Curl command: {curl_cmd}", verbose_level=4)
         cmd_result = self.cmdexec(
-            curl_cmd, bufsize=1, exception_text="curl failure", text=text
+            curl_cmd, exception_text="curl failure", text=text, bufsize=1
         )
         return cmd_result["stdout"]
 
