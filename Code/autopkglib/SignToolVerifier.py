@@ -63,7 +63,7 @@ class SignToolVerifier(Processor):
             ),
         },
         "signtool_path": {
-            "required": True,
+            "required": False,
             "description": (
                 "The path to signtool.exe. This varies between versions of the "
                 "Windows SDK, so you can explicitly set that here in an override."
