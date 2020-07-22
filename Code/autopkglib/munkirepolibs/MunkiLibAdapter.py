@@ -66,4 +66,7 @@ class MunkiLibAdapter:
             self.repo, pkg_path, pkginfo, import_multiple
         )
 
-        return self._full_path(uploaded_path)
+        if uploaded_path:
+            return self._full_path(uploaded_path)
+
+        return None

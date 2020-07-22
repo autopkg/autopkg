@@ -295,10 +295,11 @@ class MunkiImporter(Processor):
                 icon_path = icon_library.extract_and_copy_icon_to_repo(
                     self.env["pkg_path"], pkginfo, import_multiple=False
                 )
-        else:
-            icon_path = ""
 
-        self.env["icon_repo_path"] = icon_path
+        else:
+            icon_path = None
+
+        self.env["icon_repo_path"] = icon_path or ""
 
         # import pkginfo
         pkginfo_path = library.copy_pkginfo_to_repo(
