@@ -1,17 +1,21 @@
+exclude: '^Code/nuget/generated/.*$'
 repos:
 -   repo: https://github.com/python/black
     rev: 19.10b0
     hooks:
     - id: black
 -   repo: https://github.com/pre-commit/mirrors-isort
-    rev: v4.3.21  # Use the revision sha / tag you want to point at
+    rev: v5.0.4  # Use the revision sha / tag you want to point at
     hooks:
     - id: isort
 -   repo: https://github.com/asottile/seed-isort-config
-    rev: v1.9.3
+    rev: v2.2.0
     hooks:
     -   id: seed-isort-config
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0  # Use the ref you want to point at
+        # Prevent listing autopkg code as 'third-party'
+        # https://github.com/asottile/seed-isort-config#usage-with-pre-commit
+        args: [--application-directories=Code]
+-   repo: https://gitlab.com/pycqa/flake8
+    rev: 3.8.3  # Use the ref you want to point at
     hooks:
     - id: flake8
