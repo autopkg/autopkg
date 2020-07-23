@@ -277,6 +277,7 @@ class MunkiImporter(Processor):
             pkginfo["uninstallable"] = True
 
         # import icon
+        icon_path = None
         if self.env.get("extract_icon"):
             # munki library is needed to extract and import icons
             if isinstance(library, MunkiLibAdapter):
@@ -291,13 +292,10 @@ class MunkiImporter(Processor):
 
             icon_path = icon_library.find_matching_icon(pkginfo)
 
-            if icon_path is None:
+            if not icon_path:
                 icon_path = icon_library.extract_and_copy_icon_to_repo(
                     self.env["pkg_path"], pkginfo, import_multiple=False
                 )
-
-        else:
-            icon_path = None
 
         self.env["icon_repo_path"] = icon_path or ""
 
