@@ -626,6 +626,14 @@ class Processor:
         else:
             sys.exit(0)
 
+    def load_plist_from_file(plist_path, exception_text="Unable to load plist"):
+        """Load plist from file and return content as dictionary"""
+        try:
+            with open(plist_path, "rb") as f:
+                return plistlib.load(f)
+        except Exception as err:
+            raise ProcessorError(f"{exception_text}: {err}")
+
 
 # AutoPackager class defintion
 
