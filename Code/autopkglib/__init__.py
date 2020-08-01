@@ -30,9 +30,17 @@ import sys
 import traceback
 from copy import deepcopy
 from distutils.version import LooseVersion
-from typing import Dict, Optional
+from typing import IO, Any, Dict, Optional, Union
 
 import appdirs
+
+# Type for methods that accept either a filesystem path or a file-like object.
+FileOrPath = Union[IO, str, bytes, int]
+
+# Type for ubiquitus dictionary type used throughout autopkg.
+# Most commonly for `input_variables` and friends. It also applies to virtually all
+# usages of plistlib results as well.
+VarDict = Dict[str, Any]
 
 
 class memoize(dict):
@@ -626,13 +634,24 @@ class Processor:
         else:
             sys.exit(0)
 
-    def load_plist_from_file(plist_path, exception_text="Unable to load plist"):
-        """Load plist from file and return content as dictionary"""
+    def load_plist_from_file(
+        self, plist_file: FileOrPath, exception_text: str = "Unable to load plist",
+    ) -> VarDict:
+        """Load plist from a path or file-like object and return content as dictionary.
+
+        If there is an error loading the file, the exception raised will be prefixed
+        with `exception_text`.
+        """
         try:
-            with open(plist_path, "rb") as f:
-                return plistlib.load(f)
+            if isinstance(plist_file, (str, bytes, int)):
+                fh: IO = open(plist_file, "rb")
+            else:
+                fh = plist_file
+            return plistlib.load(fh)
         except Exception as err:
             raise ProcessorError(f"{exception_text}: {err}")
+        finally:
+            fh.close()
 
 
 # AutoPackager class defintion
