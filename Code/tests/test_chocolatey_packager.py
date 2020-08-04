@@ -20,12 +20,12 @@ import unittest
 import unittest.mock
 from copy import deepcopy
 from io import BytesIO
-from typing import Dict
+from typing import Any, Dict
 
 from autopkglib import find_binary
 from autopkglib.ChocolateyPackager import ChocolateyPackager
 
-VarDict = Dict[str, str]
+VarDict = Dict[str, Any]
 
 
 def get_mocked_writes(mock: unittest.mock.MagicMock) -> str:
@@ -46,7 +46,7 @@ class TestChocolateyPackager(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = 100000
-        self.test_dir: str = tempfile.TemporaryDirectory()
+        self.test_dir: tempfile.TemporaryDirectory = tempfile.TemporaryDirectory()
         self.common_nuspec_vars: VarDict = {
             "id": "a-package",
             "version": "1.4.4",
