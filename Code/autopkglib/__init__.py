@@ -378,7 +378,7 @@ class Processor:
     returns a new or updated property list that can be processed further.
     """
 
-    def __init__(self, env={}, infile=None, outfile=None):
+    def __init__(self, env=None, infile=None, outfile=None):
         # super(Processor, self).__init__()
         self.env = env
         if infile is None:

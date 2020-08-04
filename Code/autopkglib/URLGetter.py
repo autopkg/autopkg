@@ -29,6 +29,11 @@ class URLGetter(Processor):
 
     description = __doc__
 
+    def __init__(self, env=None, infile=None, outfile=None):
+        super().__init__(env, infile, outfile)
+        if not self.env:
+            self.env = {}
+
     def curl_binary(self):
         """Return a path to a curl binary, priority in the order below.
         Return None if none found.
