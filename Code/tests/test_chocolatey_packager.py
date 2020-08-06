@@ -37,10 +37,21 @@ def get_mocked_writes(mock: unittest.mock.MagicMock) -> str:
     return res
 
 
+def check_for_choco() -> bool:
+    try:
+        return (
+            subprocess.run(
+                [r"C:\ProgramData\chocolatey\bin\choco.exe", "--version"]
+            ).returncode
+            == 0
+        )
+    except FileNotFoundError:
+        pass
+    return False
+
+
 @unittest.skipUnless(sys.platform.startswith("win"), "requires Windows")
-@unittest.skipUnless(
-    (subprocess.run(["choco.exe", "--version"]).returncode == 0), "requires chocolatey"
-)
+@unittest.skipUnless(check_for_choco(), "requires chocolatey")
 class TestChocolateyPackager(unittest.TestCase):
     """Integration tests that we're actually able to build a package successfully."""
 
