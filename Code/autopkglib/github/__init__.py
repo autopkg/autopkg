@@ -163,8 +163,8 @@ To save the token, paste it to the following prompt."""
         results_limit: int = 100,
     ):
         """Search GitHub for results for a given name."""
-
         query = f"q={name}+extension:recipe+user:{user}"
+        query = query.replace(" ", "%20")
         if path_only:
             query += "+in:path,filepath"
         else:
