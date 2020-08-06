@@ -164,8 +164,8 @@ To save the token, paste it to the following prompt."""
         results_limit: int = 100,
     ):
         """Search GitHub for results for a given name."""
-        name = quote(name)
-        query = f"q={name}+extension:recipe+user:{user}"
+
+        query = f"q={quote(name)}+extension:recipe+user:{user}"
 
         if path_only:
             query += "+in:path,filepath"
