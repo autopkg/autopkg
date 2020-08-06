@@ -20,6 +20,7 @@ import json
 import os
 import re
 import tempfile
+from urllib.parse import quote
 from typing import List, Optional
 
 from autopkglib import get_pref, log, log_err
@@ -163,8 +164,9 @@ To save the token, paste it to the following prompt."""
         results_limit: int = 100,
     ):
         """Search GitHub for results for a given name."""
+        name = quote(name)
         query = f"q={name}+extension:recipe+user:{user}"
-        query = query.replace(" ", "%20")
+
         if path_only:
             query += "+in:path,filepath"
         else:
