@@ -29,6 +29,7 @@ EXTNS = {
     "tar_bzip2": ["tar.bz2", "tbz"],
     "tar": ["tar"],
     "gzip": ["gzip"],
+    "gunzip": ["gz"],
 }
 
 
@@ -135,6 +136,8 @@ class Unarchiver(Processor):
             ]
         elif fmt == "gzip":
             cmd = ["/usr/bin/ditto", "--noqtn", "-x", archive_path, destination_path]
+        elif fmt == "gunzip":
+            cmd = ["/usr/bin/gunzip", "-dkf", archive_path]
         elif fmt.startswith("tar"):
             cmd = ["/usr/bin/tar", "-x", "-f", archive_path, "-C", destination_path]
             if fmt.endswith("gzip"):
