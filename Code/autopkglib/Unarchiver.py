@@ -139,7 +139,8 @@ class Unarchiver(Processor):
         elif fmt == "gunzip":
             # Since gunzip doesn't decompress to alternate destinations, have to do this later
             cmd = ["/usr/bin/gunzip", "-dkf", archive_path]
-            unarchived_path = archive_path.replace(".gz", "")
+            # Strip ending '.gz'
+            unarchived_path = archive_path[:-3]
             mv_cmd = ["/bin/mv", unarchived_path, destination_path]
         elif fmt.startswith("tar"):
             cmd = ["/usr/bin/tar", "-x", "-f", archive_path, "-C", destination_path]
