@@ -60,7 +60,7 @@ class Unarchiver(Processor):
             "required": False,
             "description": (
                 "The archive format. Currently supported: 'zip', "
-                "'tar_gzip', 'tar_bzip2', 'tar'. If omitted, the "
+                "'tar_gzip', 'gunzip', 'tar_bzip2', 'tar'. If omitted, the "
                 "file extension is used to guess the format."
             ),
         },
@@ -137,7 +137,10 @@ class Unarchiver(Processor):
         elif fmt == "gzip":
             cmd = ["/usr/bin/ditto", "--noqtn", "-x", archive_path, destination_path]
         elif fmt == "gunzip":
+            # Since gunzip doesn't decompress to alternate destinations, have to do this later
             cmd = ["/usr/bin/gunzip", "-dkf", archive_path]
+            unarchived_path = archive_path.replace(".gz", "")
+            mv_cmd = ["/bin/mv", unarchived_path, destination_path]
         elif fmt.startswith("tar"):
             cmd = ["/usr/bin/tar", "-x", "-f", archive_path, "-C", destination_path]
             if fmt.endswith("gzip"):
@@ -151,6 +154,12 @@ class Unarchiver(Processor):
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             (_, stderr) = proc.communicate()
+            # If gunzip used, move resulting file to destination_path
+            if fmt == "gunzip":
+                gunzip_move_proc = subprocess.Popen(
+                    mv_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                )
+                (_, stderr) = gunzip_move_proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"{os.path.basename(cmd[0])} execution failed with error code "
