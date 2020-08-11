@@ -141,7 +141,6 @@ class Unarchiver(Processor):
             cmd = ["/usr/bin/gunzip", "-dkf", archive_path]
             # Strip ending '.gz'
             unarchived_path = archive_path[:-3]
-            mv_cmd = ["/bin/mv", unarchived_path, destination_path]
         elif fmt.startswith("tar"):
             cmd = ["/usr/bin/tar", "-x", "-f", archive_path, "-C", destination_path]
             if fmt.endswith("gzip"):
@@ -157,10 +156,7 @@ class Unarchiver(Processor):
             (_, stderr) = proc.communicate()
             # If gunzip used, move resulting file to destination_path
             if fmt == "gunzip":
-                gunzip_move_proc = subprocess.Popen(
-                    mv_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-                )
-                (_, stderr) = gunzip_move_proc.communicate()
+                shutil.move(unarchived_path, destination_path)
         except OSError as err:
             raise ProcessorError(
                 f"{os.path.basename(cmd[0])} execution failed with error code "
