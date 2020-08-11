@@ -1810,6 +1810,15 @@ def make_override(argv):
     parser.add_option(
         "-f", "--force", action="store_true", help="Force overwrite an override file."
     )
+    parser.add_option(
+        "-p",
+        "--pull",
+        action="store_true",
+        help=(
+            "Pull the parent repos if they can't be found in the search path."
+            "Implies agreement to search GitHub."
+        ),
+    )
     (options, arguments) = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
@@ -1833,7 +1842,8 @@ def make_override(argv):
         override_dirs=[],
         recipe_dirs=search_dirs,
         make_suggestions=True,
-        search_github=False,
+        search_github=options.pull,
+        auto_pull=options.pull,
     )
     if not recipe:
         log_err(f"No valid recipe found for {recipe_name}")
