@@ -243,7 +243,12 @@ class PkgCreator(Processor):
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.socket.connect(AUTO_PKG_SOCKET)
         except OSError as err:
-            raise ProcessorError(f"Couldn't connect to autopkgserver: {err.strerror}")
+            raise ProcessorError(
+                "Unable to contact autopkgserver socket. "
+                "The launchd com.github.autopkg.autopkgserver is most likely not "
+                "loaded or running."
+                f"\nError message: {err.strerror}"
+            )
 
     def send_request(self, request):
         """Send a packaging request to the autopkgserver"""
