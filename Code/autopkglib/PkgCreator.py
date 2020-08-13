@@ -15,17 +15,15 @@
 # limitations under the License.
 """See docstring for PkgCreator class"""
 
-import os
+import os.path
 import plistlib
 import socket
-import stat
 import subprocess
 from xml.etree import ElementTree as ET
 
 from autopkglib import Processor, ProcessorError
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
-AUTOPKGSERVER_PATH = "/Library/AutoPkg/autopkgserver/autopkgserver"
 
 
 __all__ = ["PkgCreator"]
@@ -271,42 +269,8 @@ class PkgCreator(Processor):
         except OSError as e:
             self.output(f"Failed to close socket: {e}", verbose_level=2)
 
-    def validate_autopkgserver(self):
-        """Validate that autopkgserver has correct ownership."""
-        # Make sure that the executable and all containing directories are owned
-        # by root:wheel or root:admin, and not writeable by other users.
-        root_uid = 0
-        wheel_gid = 0
-        admin_gid = 80
-
-        exepath = os.path.realpath(os.path.abspath(AUTOPKGSERVER_PATH))
-        path_ok = True
-        while True:
-            info = os.stat(exepath)
-            if info.st_uid != root_uid:
-                self.output(f"{exepath} must be owned by root.")
-                path_ok = False
-            if info.st_gid not in (wheel_gid, admin_gid):
-                self.output(f"{exepath} must have group wheel or admin.")
-                path_ok = False
-            if info.st_mode & stat.S_IWOTH:
-                self.output(f"{exepath} mustn't be world writeable.")
-                path_ok = False
-            exepath = os.path.dirname(exepath)
-            if exepath == "/":
-                break
-
-        if not path_ok:
-            raise ProcessorError(
-                "/Library/AutoPkg/autopkgserver contents are different from expected. "
-                "Please reinstall AutoPkg to reset to expected ownership and "
-                "permissions."
-            )
-
     def main(self):
         """Package something!"""
-        # Validate that autopkgserver is in a good state first
-        self.validate_autopkgserver()
         self.package()
 
 
