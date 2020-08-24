@@ -58,6 +58,19 @@ def is_linux():
     return "Linux" in platform.platform()
 
 
+def log(msg, error=False):
+    """Message logger, prints to stdout/stderr."""
+    if error:
+        print(msg, file=sys.stderr)
+    else:
+        print(msg)
+
+
+def log_err(msg):
+    """Message logger for errors."""
+    log(msg, error=True)
+
+
 try:
     from CoreFoundation import (
         CFPreferencesAppSynchronize,
@@ -299,19 +312,6 @@ def get_all_prefs():
     """Return a dict (or an empty dict) with the contents of all
     preferences in the domain."""
     return globalPreferences.get_all_prefs()
-
-
-def log(msg, error=False):
-    """Message logger, prints to stdout/stderr."""
-    if error:
-        print(msg, file=sys.stderr)
-    else:
-        print(msg)
-
-
-def log_err(msg):
-    """Message logger for errors."""
-    log(msg, error=True)
 
 
 def get_identifier(recipe):
