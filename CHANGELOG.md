@@ -1,4 +1,22 @@
-### [2.1.1](https://github.com/autopkg/autopkg/compare/v2.1...HEAD) (Unreleased)
+### [2.2](https://github.com/autopkg/autopkg/compare/v2.1...HEAD) (Unreleased)
+
+NEW FEATURES
+MunkiImporter now supports Munki repo plugins, thanks to @tboyko. The default behavior
+is still to use FileRepo as the default local behavior, so existing behavior is
+unchanged. (https://github.com/autopkg/autopkg/pull/654)
+
+
+CHANGES FROM 2.1:
+- URLDownloader handles Content-Disposition filenames with quotes correctly (https://github.com/autopkg/autopkg/pull/633)
+- README and CONTRIBUTING guides updated with correct Python 3 framework info (https://github.com/autopkg/autopkg/pull/638)
+- PyYAML updated to 5.3.1 to address PyYAML-CVE-2020-1747 (https://github.com/autopkg/autopkg/pull/642)
+- Internal autopkg code structure is being shifted, with more code moving into separate
+  shared modules. Lots of various lint fixes, formatting, and safety handling improvements.
+- GitHub API queries no longer fail when searching for recipes with spaces in the name,
+  and are now quoted correctly (https://github.com/autopkg/autopkg/pull/664)
+- Processor subclasses now automatically configure an empty dictionary for `self.env` if
+  none is provided. This doesn't have any practical effect, but makes it easier to create
+  and use new Processor subclasses in the future.
 
 ### [2.1](https://github.com/autopkg/autopkg/compare/v2.0.2...v2.1) (May 19, 2020)
 
