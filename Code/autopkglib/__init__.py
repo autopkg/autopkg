@@ -133,16 +133,18 @@ class Preferences:
 
     def __init__(self):
         """Init."""
-        self.prefs = {}
+        self.prefs: VarDict = {}
         # What type of preferences input are we using?
-        self.type = None
+        self.type: Optional[str] = None
         # Path to the preferences file we were given
-        self.file_path = None
+        self.file_path: Optional[str] = None
         # If we're on macOS, read in the preference domain first.
         if is_mac():
             self.prefs = self._get_macos_prefs()
-        elif is_windows():
-            self.prefs = self._get_windows_prefs()
+        else:
+            self.prefs = self._get_file_prefs()
+        if not self.prefs:
+            log_err("WARNING: Did not load any default preferences.")
 
     def _parse_json_or_plist_file(self, file_path):
         """Parse the file. Start with plist, then JSON."""
@@ -210,9 +212,10 @@ class Preferences:
                     prefs[key] = self._get_macos_pref(key)
         return prefs
 
-    def _get_windows_prefs(self):
+    def _get_file_prefs(self):
         r"""Lookup preferences for Windows in a standardized path, such as:
-        `C:\\Users\username\AppData\Local\Autopkg\config.{plist,json}`
+        * `C:\\Users\username\AppData\Local\Autopkg\config.{plist,json}`
+        * `/home/username/.config/Autopkg/config.{plist,json}`
         Tries to find `config.plist`, then `config.json`."""
 
         config_dir = appdirs.user_config_dir(APP_NAME, appauthor=False)
@@ -246,6 +249,7 @@ class Preferences:
     def _write_json_file(self):
         """Write out the prefs into JSON."""
         try:
+            assert self.file_path is not None
             with open(self.file_path, "w") as f:
                 json.dump(
                     self.prefs,
@@ -261,6 +265,7 @@ class Preferences:
     def _write_plist_file(self):
         """Write out the prefs into a Plist."""
         try:
+            assert self.file_path is not None
             with open(self.file_path, "wb") as f:
                 plistlib.dump(self.prefs, f)
         except Exception as e:
@@ -290,8 +295,10 @@ class Preferences:
         # On macOS, write it back to preferences domain if we didn't use a file
         if is_mac() and self.type is None:
             self._set_macos_pref(key, value)
-        elif is_windows() and self.file_path is not None:
+        elif self.file_path is not None:
             self.write_file()
+        else:
+            log_err(f"WARNING: Preference change {key}=''{value}'' was not saved.")
 
 
 # Set the global preferences object
