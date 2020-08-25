@@ -15,17 +15,16 @@
 # limitations under the License.
 
 
+import grp
 import os
 import plistlib
+import pwd
 import re
 import shutil
 import stat
 import subprocess
 import tempfile
 from xml.parsers.expat import ExpatError
-
-import grp
-import pwd
 
 __all__ = ["Packager", "PackagerError"]
 

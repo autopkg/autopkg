@@ -20,8 +20,8 @@ import json
 import os
 import re
 import tempfile
-from urllib.parse import quote
 from typing import List, Optional
+from urllib.parse import quote
 
 from autopkglib import get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
