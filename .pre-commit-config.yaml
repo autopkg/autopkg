@@ -8,13 +8,6 @@ repos:
     rev: v5.0.4  # Use the revision sha / tag you want to point at
     hooks:
     - id: isort
--   repo: https://github.com/asottile/seed-isort-config
-    rev: v2.2.0
-    hooks:
-    -   id: seed-isort-config
-        # Prevent listing autopkg code as 'third-party'
-        # https://github.com/asottile/seed-isort-config#usage-with-pre-commit
-        args: [--application-directories=Code]
 -   repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.3  # Use the ref you want to point at
     hooks:
