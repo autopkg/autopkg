@@ -4,7 +4,6 @@ import imp
 import json
 import os
 import plistlib
-import sys
 import unittest
 from textwrap import dedent
 from unittest.mock import mock_open, patch
@@ -255,88 +254,6 @@ class TestAutoPkg(unittest.TestCase):
         del mock_read.return_value["Identifier"]
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertIsNone(id)
-
-    @patch("autopkglib.platform")
-    def test_prefs_object_is_empty_on_unsupported(self, mock_platform):
-        """A new Preferences object on unsupported platforms should be empty."""
-        mock_platform.platform.return_value = "__HighlyUnlikely-Platform-Name__"
-        fake_prefs = autopkglib.Preferences()
-        self.assertEqual(fake_prefs.file_path, None)
-        self.assertEqual(fake_prefs.get_all_prefs(), {})
-
-    @patch("autopkglib.CFPreferencesCopyKeyList")
-    def test_prefs_object_is_empty_by_default(self, mock_ckl):
-        """A new Preferences object should be empty."""
-        mock_ckl.return_value = []
-        fake_prefs = autopkglib.Preferences()
-        self.assertEqual(fake_prefs.get_all_prefs(), {})
-
-    @unittest.skipUnless(sys.platform.startswith("darwin"), "requires macOS")
-    @patch("autopkglib.CFPreferencesCopyAppValue")
-    def test_get_macos_pref_returns_value(self, mock_cav):
-        """get_macos_pref should return a value."""
-        mock_cav.return_value = "FakeValue"
-        fake_prefs = autopkglib.Preferences()
-        value = fake_prefs._get_macos_pref("fake")
-        self.assertEqual(value, "FakeValue")
-
-    def test_parse_file_is_empty_by_default(self):
-        """Parsing a non-existent file should return an empty dict."""
-        fake_prefs = autopkglib.Preferences()
-        value = fake_prefs._parse_json_or_plist_file("fake_filepath")
-        self.assertEqual(value, {})
-
-    @patch("builtins.open", new_callable=mock_open, read_data=good_json)
-    def test_parse_file_reads_json(self, mock_file):
-        """Parsing a JSON file should produce a dictionary."""
-        fake_prefs = autopkglib.Preferences()
-        value = fake_prefs._parse_json_or_plist_file("fake_filepath")
-        self.assertEqual(value, json.loads(self.good_json))
-
-    @patch("autopkglib.CFPreferencesCopyKeyList")
-    @patch("builtins.open", new_callable=mock_open, read_data=good_json)
-    def test_read_file_fills_prefs(self, mock_file, mock_ckl):
-        """read_file should populate the prefs object."""
-        mock_ckl.return_value = []
-        fake_prefs = autopkglib.Preferences()
-        fake_prefs.read_file("fake_filepath")
-        value = fake_prefs.get_all_prefs()
-        self.assertEqual(value, json.loads(self.good_json))
-
-    @patch("autopkglib.platform")
-    @patch("builtins.open", new_callable=mock_open)
-    def test_set_pref_unsupported(self, mock_open, mock_platform):
-        """set_pref should change the prefs object, but not write"""
-        mock_platform.platform.return_value = "__HighlyUnlikely-Platform-Name__"
-        fake_prefs = autopkglib.Preferences()
-        fake_prefs.set_pref("TEST_KEY", "fake_value")
-        mock_open().write.assert_not_called()
-        value = fake_prefs.get_pref("TEST_KEY")
-        self.assertEqual(value, "fake_value")
-
-    @patch("autopkglib.platform")
-    @patch("builtins.open", new_callable=mock_open, read_data="{}")
-    def test_set_pref_windows(self, mock_open, mock_platform):
-        """set_pref should change the prefs object."""
-        mock_platform.platform.return_value = "Windows"
-        fake_prefs = autopkglib.Preferences()
-        self.assertNotEqual(fake_prefs.file_path, None)
-        fake_prefs.set_pref("TEST_KEY", "fake_value")
-        mock_open().write.assert_called()
-        value = fake_prefs.get_pref("TEST_KEY")
-        self.assertEqual(value, "fake_value")
-
-    @unittest.skipUnless(sys.platform.startswith("darwin"), "requires macOS")
-    @patch("autopkglib.is_mac")
-    @patch("autopkglib.CFPreferencesSetAppValue")
-    def test_set_pref_mac(self, mock_sav, mock_ismac):
-        """set_pref should change the prefs object."""
-        mock_ismac.return_value = True
-        fake_prefs = autopkglib.Preferences()
-        fake_prefs.set_pref("TEST_KEY", "fake_value")
-        value = fake_prefs.get_pref("TEST_KEY")
-        self.assertEqual(value, "fake_value")
-        mock_sav.assert_called()
 
 
 if __name__ == "__main__":
