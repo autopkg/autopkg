@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from autopkglib import ProcessorError
 
 
-class MunkiLibAdapter:
+class MunkiLib:
     def __init__(self, munki_repo, munki_repo_plugin, munkilib_dir, repo_subdirectory):
         self.repo_subdirectory = repo_subdirectory
         self.munki_repo = munki_repo
@@ -35,9 +35,8 @@ class MunkiLibAdapter:
     def _full_path(self, path):
         return os.path.join(self.munki_repo, path)
 
-    def find_matching_pkginfo(self, pkginfo):
-        match = self.munkiimportlib.find_matching_pkginfo(self.repo, pkginfo)
-        return match
+    def make_catalog_db(self):
+        return self.munkiimportlib.make_catalog_db(self.repo)
 
     def copy_pkg_to_repo(self, pkginfo, pkg_path):
         uploaded_path = self.munkiimportlib.copy_item_to_repo(
