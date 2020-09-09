@@ -57,8 +57,8 @@ class GitHubSession(URLGetter):
 
     def _get_token(self, token_path: str = TOKEN_LOCATION) -> Optional[str]:
         """Reads token from perferences or provided token path.
-            Defaults to TOKEN_LOCATION for the token path.
-            Otherwise returns None.
+        Defaults to TOKEN_LOCATION for the token path.
+        Otherwise returns None.
         """
         token = get_pref("GITHUB_TOKEN")
         if not token and os.path.exists(token_path):

@@ -39,8 +39,7 @@ class NuspecValidationError(Exception):
 
 
 class NuspecGenerator(package):
-    """NuspecGenerator is a thin wrapper around the `_nuspec.package` generated class.
-    """
+    """NuspecGenerator is a thin wrapper around the `_nuspec.package` generated class."""
 
     def __init__(
         self,
@@ -98,8 +97,7 @@ class NuspecGenerator(package):
             )
 
     def render_to(self, out: TextIO) -> None:
-        """Writes pretty-printed XML of the Nuget package definition to `out`.
-        """
+        """Writes pretty-printed XML of the Nuget package definition to `out`."""
         # Call validate before export, as the definition may have been changed.
         # For example, by a call to `NuspecGenerator.metadata.set_dependencies`.
         self.validate()

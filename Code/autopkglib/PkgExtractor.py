@@ -42,7 +42,7 @@ class PkgExtractor(DmgMounter):
 
     def extract_payload(self, pkg_path, extract_root):
         """Extract package contents to extract_root, preserving intended
-         directory structure"""
+        directory structure"""
         info_plist = os.path.join(pkg_path, "Contents/Info.plist")
         archive_path = os.path.join(pkg_path, "Contents/Archive.pax.gz")
         if not os.path.exists(info_plist):

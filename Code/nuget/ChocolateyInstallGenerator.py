@@ -65,8 +65,7 @@ class ChocolateyInstallGenerator:
         return out.getvalue()
 
     def render_to(self, out: TextIO) -> None:
-        """Writes a `chocolateyInstall.ps1` file to `out`.
-        """
+        """Writes a `chocolateyInstall.ps1` file to `out`."""
         self._validate()
         preamble_lines: List[str] = []
         splat: str = "$ErrorActionPreference = 'Stop'\n"
