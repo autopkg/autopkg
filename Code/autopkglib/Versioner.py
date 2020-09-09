@@ -139,7 +139,9 @@ class Versioner(DmgMounter):
         return deserializer(archive.open(inner_path))
 
     def _read_from_dmg(
-        self, path: str, deserializer: Callable[[FileOrPath], VarDict],
+        self,
+        path: str,
+        deserializer: Callable[[FileOrPath], VarDict],
     ) -> Optional[VarDict]:
         """Parse a file from a DMG and return `bytes`, or `None` if no such file exists.
 

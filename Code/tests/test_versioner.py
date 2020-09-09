@@ -208,7 +208,11 @@ class TestVersioner(unittest.TestCase):
         single_subdir = list(
             map(
                 zipfile.ZipInfo,
-                ("subdir/", "subdir/version.plist", "root_level_file.txt",),
+                (
+                    "subdir/",
+                    "subdir/version.plist",
+                    "root_level_file.txt",
+                ),
             )
         )
         for skip_single_root_dir, plist_file, expected_plist_file, filelist in (

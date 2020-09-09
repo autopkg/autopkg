@@ -624,7 +624,9 @@ class Processor:
             sys.exit(0)
 
     def load_plist_from_file(
-        self, plist_file: FileOrPath, exception_text: str = "Unable to load plist",
+        self,
+        plist_file: FileOrPath,
+        exception_text: str = "Unable to load plist",
     ) -> VarDict:
         """Load plist from a path or file-like object and return content as dictionary.
 

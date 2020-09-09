@@ -114,8 +114,8 @@ class PkgCreator(Processor):
 
     def pkg_already_exists(self, pkg_path, identifier, version):
         """Check for an existing flat package in the output dir and compare its
-           identifier and version to the one we're going to build.
-           Returns a boolean."""
+        identifier and version to the one we're going to build.
+        Returns a boolean."""
         if os.path.exists(pkg_path) and not self.env.get("force_pkg_build"):
             self.output(f"Package already exists at path {pkg_path}.")
             try:
