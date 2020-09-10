@@ -15,8 +15,6 @@
 # limitations under the License.
 
 """Core/shared autopkglib functions"""
-
-
 import glob
 import imp
 import json
@@ -30,9 +28,10 @@ import sys
 import traceback
 from copy import deepcopy
 from distutils.version import LooseVersion
-from typing import IO, Any, Dict, Optional, Union
+from typing import IO, Any, Dict, List, Optional, Union
 
 import appdirs
+import pkg_resources
 
 # Type for methods that accept either a filesystem path or a file-like object.
 FileOrPath = Union[IO, str, bytes, int]
@@ -369,9 +368,11 @@ def find_recipe_by_identifier(identifier, search_dirs):
 def get_autopkg_version():
     """Gets the version number of autopkg"""
     try:
-        with open(os.path.join(os.path.dirname(__file__), "version.plist"), "rb") as f:
-            version_plist = plistlib.load(f)
-    except Exception:
+        version_plist = plistlib.load(
+            pkg_resources.resource_stream(__name__, "version.plist")
+        )
+    except Exception as ex:
+        log_err(f"Unable to get autopkg version: {ex}")
         return "UNKNOWN"
     try:
         return version_plist["Version"]
@@ -924,16 +925,10 @@ _PROCESSOR_NAMES = []
 
 
 def import_processors():
-    """Imports processors from the directory this init file is in"""
-    # get the directory this __init__.py file is in
-    mydir = os.path.dirname(os.path.abspath(__file__))
-    mydirname = os.path.basename(mydir)
-
-    # find all the .py files (minus this one)
-    processor_files = [
+    processor_files: List[str] = [
         os.path.splitext(name)[0]
-        for name in os.listdir(mydir)
-        if name.endswith(".py") and name not in ("__init__.py", "xattr.py")
+        for name in pkg_resources.resource_listdir(__name__, "")
+        if name.endswith(".py")
     ]
 
     # Warning! Fancy dynamic importing ahead!
@@ -945,9 +940,9 @@ def import_processors():
     #
     #    from Bar.Foo import Foo
     #
-    for name in processor_files:
+    for name in filter(lambda f: f not in ("__init__", "xattr"), processor_files):
         globals()[name] = getattr(
-            __import__(mydirname + "." + name, fromlist=[name]), name
+            __import__(__name__ + "." + name, fromlist=[name]), name
         )
         _PROCESSOR_NAMES.append(name)
         _CORE_PROCESSOR_NAMES.append(name)
