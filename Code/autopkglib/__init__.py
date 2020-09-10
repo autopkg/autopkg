@@ -19,7 +19,6 @@ import glob
 import imp
 import json
 import os
-import platform
 import plistlib
 import pprint
 import re
@@ -44,17 +43,17 @@ VarDict = Dict[str, Any]
 
 def is_mac():
     """Return True if current OS is macOS."""
-    return "Darwin" in platform.platform()
+    return "darwin" in sys.platform.lower()
 
 
 def is_windows():
     """Return True if current OS is Windows."""
-    return "Windows" in platform.platform()
+    return "win32" in sys.platform.lower()
 
 
 def is_linux():
     """Return True if current OS is Linux."""
-    return "Linux" in platform.platform()
+    return "linux" in sys.platform.lower()
 
 
 def log(msg, error=False):
