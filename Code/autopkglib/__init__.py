@@ -141,8 +141,13 @@ class Preferences:
             self.prefs = self._get_macos_prefs()
         else:
             self.prefs = self._get_file_prefs()
-        if not self.prefs:
-            log_err("WARNING: Did not load any default preferences.")
+            # On Windows, if the file prefs don't exist, create a blank one
+            if not self.prefs:
+                log_err("WARNING: No prefs file found, creating one.")
+                self.file_path = self.default_prefs_path()
+                os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
+                self.prefs = {"RECIPE_SEARCH_DIRS": [], "CACHE_DIR": "stuff"}
+                self._write_json_file()
 
     def _parse_json_or_plist_file(self, file_path):
         """Parse the file. Start with plist, then JSON."""
@@ -210,22 +215,27 @@ class Preferences:
                     prefs[key] = self._get_macos_pref(key)
         return prefs
 
+    def default_prefs_path(self, plist=False):
+        """Return a path to the default preferences file location. JSON by default."""
+        config_dir = appdirs.user_config_dir(APP_NAME, appauthor=False)
+        ext = "json"
+        if plist:
+            ext = "plist"
+        return os.path.join(config_dir, f"config.{ext}")
+
     def _get_file_prefs(self):
         r"""Lookup preferences for Windows in a standardized path, such as:
         * `C:\\Users\username\AppData\Local\Autopkg\config.{plist,json}`
         * `/home/username/.config/Autopkg/config.{plist,json}`
         Tries to find `config.plist`, then `config.json`."""
 
-        config_dir = appdirs.user_config_dir(APP_NAME, appauthor=False)
-
         # Try a plist config, then a json config.
-        data = self._parse_json_or_plist_file(os.path.join(config_dir, "config.plist"))
-        if data:
-            return data
-        data = self._parse_json_or_plist_file(os.path.join(config_dir, "config.json"))
-        if data:
-            return data
-
+        for plist_value in [True, False]:
+            data = self._parse_json_or_plist_file(
+                self.default_prefs_path(plist=plist_value)
+            )
+            if data:
+                return data
         return {}
 
     def _set_macos_pref(self, key, value):

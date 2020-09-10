@@ -17,6 +17,7 @@
 related tasks"""
 
 
+import appdirs
 import copy
 import difflib
 import glob
@@ -36,6 +37,7 @@ from urllib.parse import quote, urlparse
 
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
 from autopkglib import (
+    APP_NAME,
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
@@ -49,6 +51,7 @@ from autopkglib import (
     get_pref,
     get_processor,
     is_mac,
+    is_windows,
     log,
     log_err,
     processor_names,
@@ -646,7 +649,20 @@ def save_pref_or_warn(key, value):
 
 def get_search_dirs():
     """Return search dirs from preferences or default list"""
-    default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
+    if is_windows():
+        default = [
+            ".",
+            os.path.join(
+                appdirs.user_config_dir(APP_NAME, appauthor=False), "Autopkg", "Recipes"
+            ),
+            os.path.join(
+                appdirs.user_config_dir(APP_NAME, appauthor=False, roaming=True),
+                "Autopkg",
+                "Recipes",
+            ),
+        ]
+    else:
+        default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
 
     dirs = get_pref("RECIPE_SEARCH_DIRS")
     if isinstance(dirs, str):
