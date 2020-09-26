@@ -1866,13 +1866,14 @@ def make_override(argv):
     if "DeprecationWarning" in proc_names:
         if options.ignore_deprecation:
             log_err(
-                f"WARNING: {recipe.get('RECIPE_PATH', recipe_name)} is deprecated. "
-                "Making an override anyway, because --ignore-deprecation is specified."
+                f"WARNING: {recipe.get('RECIPE_PATH', recipe_name)} or one of "
+                "its parents is deprecated. Making an override anyway, "
+                "because --ignore-deprecation is specified."
             )
         else:
             log_err(
-                f"{recipe.get('RECIPE_PATH', recipe_name)} is deprecated. "
-                "Will not make an override."
+                f"{recipe.get('RECIPE_PATH', recipe_name)} or one of its parents "
+                "is deprecated. Will not make an override."
             )
             return 1
 
