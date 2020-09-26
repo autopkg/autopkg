@@ -1873,7 +1873,8 @@ def make_override(argv):
         else:
             log_err(
                 f"{recipe.get('RECIPE_PATH', recipe_name)} or one of its parents "
-                "is deprecated. Will not make an override."
+                "is deprecated. Will not make an override. Use --ignore-deprecation "
+                "to make an override regardless of deprecation status."
             )
             return 1
 
