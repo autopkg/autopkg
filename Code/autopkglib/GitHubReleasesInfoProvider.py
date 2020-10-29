@@ -1,6 +1,7 @@
 #!/usr/local/autopkg/python
 #
 # Copyright 2014-2015 Timothy Sutton
+# 2020 Refactor for private repositories Arjen van Bochoven
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +20,8 @@ import re
 
 import autopkglib.github
 from autopkglib import APLooseVersion, Processor, ProcessorError
+
+BASE_URL = "https://api.github.com"
 
 __all__ = ["GitHubReleasesInfoProvider"]
 
@@ -78,6 +81,12 @@ class GitHubReleasesInfoProvider(Processor):
                 "URL for the first asset found for the project's latest release."
             )
         },
+        "curl_opts": {
+            "description": (
+                "Curl options, including the Github Token for authorization."
+            )
+        },
+        "filename": {"description": ("The filename of the asset.")},
         "version": {
             "description": (
                 "Version info parsed, naively derived from the release's tag."
@@ -150,16 +159,28 @@ class GitHubReleasesInfoProvider(Processor):
             f"'{self.selected_release['name']}'"
         )
 
-    def process_release_asset(self):
-        """Extract what we need from the release and chosen asset, set env
-        variables"""
+    def get_tag(self):
         tag = self.selected_release["tag_name"]
         # Versioned tags usually start with 'v'
         if tag.startswith("v"):
             tag = tag[1:]
+        return tag
 
-        self.env["url"] = self.selected_asset["browser_download_url"]
-        self.env["version"] = tag
+    def get_curl_opts(self):
+        curl_opts = self.env.get("curl_opts", [])
+        github = autopkglib.github.GitHubSession()
+        curl_opts.extend(["--header", f"Accept: application/octet-stream"])
+        if github.token:
+            curl_opts.extend(["--header", f"Authorization: token {github.token}"])
+        return curl_opts
+
+    def get_release_notes(self):
+        release_notes = self.selected_release["body"]
+        # The API may return a JSON null if no body text was provided,
+        # but we cannot ever store a None/NULL in an env.
+        if not release_notes:
+            release_notes = ""
+        return release_notes
 
     def main(self):
         # Get our list of releases
@@ -172,22 +193,12 @@ class GitHubReleasesInfoProvider(Processor):
         # Store the first eligible asset
         self.select_asset(releases, self.env.get("asset_regex"))
 
-        # Record the url
-        self.env["url"] = self.selected_asset["browser_download_url"]
-
-        # Get a version string from the tag name
-        tag = self.selected_release["tag_name"]
-        # Versioned tags usually start with 'v'
-        if tag.startswith("v"):
-            tag = tag[1:]
-        self.env["version"] = tag
-
-        # Record release notes
-        self.env["release_notes"] = self.selected_release["body"]
-        # The API may return a JSON null if no body text was provided,
-        # but we cannot ever store a None/NULL in an env.
-        if not self.env["release_notes"]:
-            self.env["release_notes"] = ""
+        # Set env variables
+        self.env["filename"] = self.selected_asset["name"]
+        self.env["url"] = self.selected_asset["url"]
+        self.env["version"] = self.get_tag()
+        self.env["curl_opts"] = self.get_curl_opts()
+        self.env["release_notes"] = self.get_release_notes()
 
 
 if __name__ == "__main__":
