@@ -100,10 +100,8 @@ class GitHubReleasesInfoProvider(Processor):
         """Return a list of releases dicts for a given GitHub repo. repo must
         be of the form 'user/repo'"""
         releases = None
-        curl_opts = self.env.get("curl_opts")
-        github = autopkglib.github.GitHubSession(self.env["CURL_PATH"], curl_opts)
         releases_uri = f"/repos/{repo}/releases"
-        (releases, status) = github.call_api(releases_uri)
+        (releases, status) = self.github.call_api(releases_uri)
         if status != 200:
             raise ProcessorError(f"Unexpected GitHub API status code {status}.")
 
@@ -165,13 +163,16 @@ class GitHubReleasesInfoProvider(Processor):
         if tag.startswith("v"):
             tag = tag[1:]
         return tag
+    
+    def load_github_session(self):
+        curl_opts = self.env.get("curl_opts")
+        return autopkglib.github.GitHubSession(self.env["CURL_PATH"], curl_opts)
 
     def get_curl_opts(self):
         curl_opts = self.env.get("curl_opts", [])
-        github = autopkglib.github.GitHubSession()
         curl_opts.extend(["--header", f"Accept: application/octet-stream"])
-        if github.token:
-            curl_opts.extend(["--header", f"Authorization: token {github.token}"])
+        if self.github.token:
+            curl_opts.extend(["--header", f"Authorization: token {self.github.token}"])
         return curl_opts
 
     def get_release_notes(self):
@@ -182,7 +183,33 @@ class GitHubReleasesInfoProvider(Processor):
             release_notes = ""
         return release_notes
 
+    def remove_field(self, line):
+        """Check if we have an Accept or Authorization header."""
+        part = line.split(None, 1)
+        return part[0].rstrip(":").lower() in ["accept", "authorization"]
+
+    def filter_curl_opts(self):
+        """Filter Accept and Authorization headers"""
+        curl_opts = self.env.get("curl_opts", [])
+        curl_opts_filtered = []
+        length = len(curl_opts) 
+        i = 0
+        while i < length: 
+            val = curl_opts[i]
+            if val == "--header" and self.remove_field(curl_opts[i + 1]):
+                i += 1
+            else:
+                curl_opts_filtered.extend([val])
+            i += 1
+        self.env["curl_opts"] = curl_opts_filtered
+
     def main(self):
+        # Remove Accept and Authorization form curl options
+        self.filter_curl_opts()
+
+        # load github session
+        self.github = self.load_github_session()
+
         # Get our list of releases
         releases = self.get_releases(self.env["github_repo"])
         if self.env.get("sort_by_highest_tag_names"):
