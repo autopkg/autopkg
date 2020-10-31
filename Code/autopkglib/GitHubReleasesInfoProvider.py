@@ -21,8 +21,6 @@ import re
 import autopkglib.github
 from autopkglib import APLooseVersion, Processor, ProcessorError
 
-BASE_URL = "https://api.github.com"
-
 __all__ = ["GitHubReleasesInfoProvider"]
 
 
