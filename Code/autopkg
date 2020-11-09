@@ -1822,6 +1822,14 @@ def make_override(argv):
             "Implies agreement to search GitHub."
         ),
     )
+    parser.add_option(
+        "--ignore-deprecation",
+        action="store_true",
+        help=(
+            "Make an override even if the specified recipe or one of "
+            "its parents is deprecated."
+        ),
+    )
     (options, arguments) = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
@@ -1852,6 +1860,23 @@ def make_override(argv):
         log_err(f"No valid recipe found for {recipe_name}")
         log_err("Dir(s) searched:\n\t{}".format("\n\t".join(search_dirs)))
         return 1
+
+    # stop or warn if DeprecationWarning processor is detected
+    proc_names = {x.get("Processor") for x in recipe.get("Process", [{}])}
+    if "DeprecationWarning" in proc_names:
+        if options.ignore_deprecation:
+            log_err(
+                f"WARNING: {recipe.get('RECIPE_PATH', recipe_name)} or one of "
+                "its parents is deprecated. Making an override anyway, "
+                "because --ignore-deprecation is specified."
+            )
+        else:
+            log_err(
+                f"{recipe.get('RECIPE_PATH', recipe_name)} or one of its parents "
+                "is deprecated. Will not make an override. Use --ignore-deprecation "
+                "to make an override regardless of deprecation status."
+            )
+            return 1
 
     # make sure parent has an identifier
     parent_identifier = get_identifier(recipe)
