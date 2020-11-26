@@ -319,7 +319,7 @@ def get_all_prefs():
     return globalPreferences.get_all_prefs()
 
 
-def recipe_plist_from_file(filename):
+def recipe_from_file(filename):
     """Create a recipe plist from a file. Handle exceptions and log"""
     if os.path.isfile(filename):
         try:
@@ -349,7 +349,7 @@ def get_identifier(recipe):
 def get_identifier_from_recipe_file(filename):
     """Attempts to read plist file filename and get the
     identifier. Otherwise, returns None."""
-    recipe_plist = recipe_plist_from_file(filename)
+    recipe_plist = recipe_from_file(filename)
     return get_identifier(recipe_plist)
 
 
