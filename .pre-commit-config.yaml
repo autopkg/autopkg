@@ -1,14 +1,14 @@
 exclude: '^Code/nuget/generated/.*$'
 repos:
--   repo: https://github.com/python/black
-    rev: 19.10b0
-    hooks:
-    - id: black
--   repo: https://github.com/pre-commit/mirrors-isort
-    rev: v5.0.4  # Use the revision sha / tag you want to point at
-    hooks:
-    - id: isort
--   repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.3  # Use the ref you want to point at
-    hooks:
-    - id: flake8
+- repo: https://github.com/python/black
+  rev: 20.8b1
+  hooks:
+  - id: black
+- repo: https://github.com/pre-commit/mirrors-isort
+  rev: v5.6.4
+  hooks:
+  - id: isort
+- repo: https://gitlab.com/pycqa/flake8
+  rev: 3.8.4
+  hooks:
+  - id: flake8
