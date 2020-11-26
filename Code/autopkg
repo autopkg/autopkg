@@ -520,7 +520,7 @@ class GitError(Exception):
 
 def run_git(git_options_and_arguments, git_directory=None):
     """Run a git command and return its output if successful;
-       raise GitError if unsuccessful."""
+    raise GitError if unsuccessful."""
     gitcmd = git_cmd()
     if not gitcmd:
         raise GitError("ERROR: git is not installed!")
@@ -1960,7 +1960,7 @@ def parse_recipe_list(filename):
 
 def run_recipes(argv):
     """Run one or more recipes. If called with 'install' verb, run .install
-       recipe"""
+    recipe"""
     verb = argv[1]
     parser = gen_common_parser()
     if verb == "install":
