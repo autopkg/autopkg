@@ -319,6 +319,19 @@ def get_all_prefs():
     return globalPreferences.get_all_prefs()
 
 
+def recipe_plist_from_file(filename):
+    """Create a recipe plist from a file. Handle exceptions and log"""
+    if os.path.isfile(filename):
+        try:
+            # make sure we can read it
+            with open(filename, "rb") as f:
+                recipe_plist = plistlib.load(f)
+        except Exception as err:
+            log_err(f"WARNING: plist error for {filename}: {err}")
+            return
+        return recipe_plist
+
+
 def get_identifier(recipe):
     """Return identifier from recipe dict. Tries the Identifier
     top-level key and falls back to the legacy key location."""
