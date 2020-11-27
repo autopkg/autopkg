@@ -31,6 +31,7 @@ from typing import IO, Any, Dict, List, Optional, Union
 
 import appdirs
 import pkg_resources
+import yaml
 
 # Type for methods that accept either a filesystem path or a file-like object.
 FileOrPath = Union[IO, str, bytes, int]
@@ -320,16 +321,29 @@ def get_all_prefs():
 
 
 def recipe_from_file(filename):
-    """Create a recipe plist from a file. Handle exceptions and log"""
-    if os.path.isfile(filename):
+    """Create a recipe dictionary from a file. Handle exceptions and log"""
+    if not os.path.isfile(filename):
+        return
+
+    if filename.endswith(".yaml"):
         try:
-            # make sure we can read it
+            # try to read it as yaml
             with open(filename, "rb") as f:
-                recipe_plist = plistlib.load(f)
+                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+            return recipe_dict
+        except Exception as err:
+            log_err(f"WARNING: yaml error for {filename}: {err}")
+            return
+
+    else:
+        try:
+            # try to read it as a plist
+            with open(filename, "rb") as f:
+                recipe_dict = plistlib.load(f)
+            return recipe_dict
         except Exception as err:
             log_err(f"WARNING: plist error for {filename}: {err}")
             return
-        return recipe_plist
 
 
 def get_identifier(recipe):
