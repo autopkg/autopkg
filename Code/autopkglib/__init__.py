@@ -384,6 +384,7 @@ def find_recipe_by_identifier(identifier, search_dirs):
     """Search search_dirs for a recipe with the given
     identifier"""
     for directory in search_dirs:
+        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
         patterns.extend(
