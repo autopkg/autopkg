@@ -1120,16 +1120,16 @@ def get_recipe_list(
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
             continue
-        for filename in os.listdir(normalized_dir):
-            if filename.endswith(".recipe"):
-                pathname = os.path.join(normalized_dir, filename)
-                override = recipe_from_file(pathname)
-
+        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                override = recipe_from_file(match)
                 if valid_override_dict(override):
-                    # override points to a valid recipe
-                    override_name = os.path.basename(pathname)
+                    override_name = os.path.basename(match)
+
                     override["Name"] = remove_recipe_extension(override_name)
-                    override["Path"] = pathname
+                    override["Path"] = match
                     override["IsOverride"] = True
 
                     if augmented_list and not show_all:
