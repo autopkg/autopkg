@@ -120,6 +120,9 @@ BUNDLE_ID = "com.github.autopkg"
 
 RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 
+# Supported recipe extensions
+RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
+
 
 class PreferenceError(Exception):
     """Preference exception"""
@@ -318,6 +321,16 @@ def get_all_prefs():
     """Return a dict (or an empty dict) with the contents of all
     preferences in the domain."""
     return globalPreferences.get_all_prefs()
+
+
+def remove_recipe_extension(name):
+    """Removes supported recipe extensions from a filename or path.
+    If the filename or path does not end with any known recipe extension,
+    the name is returned as is."""
+    for ext in RECIPE_EXTS:
+        if name.endswith(ext):
+            return name[: -len(ext)]
+    return name
 
 
 def recipe_from_file(filename):
