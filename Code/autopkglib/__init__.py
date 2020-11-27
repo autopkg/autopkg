@@ -374,10 +374,10 @@ def get_identifier(recipe):
 
 
 def get_identifier_from_recipe_file(filename):
-    """Attempts to read plist file filename and get the
+    """Attempts to read filename and get the
     identifier. Otherwise, returns None."""
-    recipe_plist = recipe_from_file(filename)
-    return get_identifier(recipe_plist)
+    recipe_dict = recipe_from_file(filename)
+    return get_identifier(recipe_dict)
 
 
 def find_recipe_by_identifier(identifier, search_dirs):
@@ -709,7 +709,7 @@ class AutoPackager:
             print(msg)
 
     def get_recipe_identifier(self, recipe):
-        """Return the identifier given an input recipe plist."""
+        """Return the identifier given an input recipe dict."""
         identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
         if not identifier:
             log_err("ID NOT FOUND")

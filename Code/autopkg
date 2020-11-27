@@ -107,48 +107,48 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
-    """Attempts to read a plist and ensures the keys in
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify):
+    """Attempts to read a dict and ensures the keys in
     keys_to_verify exist. Returns False on any failure, True otherwise."""
-    if recipe_plist:
+    if recipe_dict:
         for key in keys_to_verify:
-            if key not in recipe_plist:
+            if key not in recipe_dict:
                 return False
         # if we get here, we found all the keys
         return True
     return False
 
 
-def valid_recipe_plist(recipe_plist):
-    """Returns True if recipe plist is a valid recipe,
+def valid_recipe_dict(recipe_dict):
+    """Returns True if recipe dict is a valid recipe,
     otherwise returns False"""
     return (
-        valid_recipe_plist_with_keys(recipe_plist, ["Input", "Process"])
-        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
-        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
+        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
     )
 
 
 def valid_recipe_file(filename):
     """Returns True if filename contains a valid recipe,
     otherwise returns False"""
-    recipe_plist = recipe_from_file(filename)
-    return valid_recipe_plist(recipe_plist)
+    recipe_dict = recipe_from_file(filename)
+    return valid_recipe_dict(recipe_dict)
 
 
-def valid_override_plist(recipe_plist):
+def valid_override_dict(recipe_dict):
     """Returns True if the recipe is a valid override,
     otherwise returns False"""
-    return valid_recipe_plist_with_keys(
-        recipe_plist, ["Input", "ParentRecipe"]
-    ) or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
+    return valid_recipe_dict_with_keys(
+        recipe_dict, ["Input", "ParentRecipe"]
+    ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
 
 
 def valid_override_file(filename):
     """Returns True if filename contains a valid override,
     otherwise returns False"""
-    override_plist = recipe_from_file(filename)
-    return valid_override_plist(override_plist)
+    override_dict = recipe_from_file(filename)
+    return valid_override_dict(override_dict)
 
 
 def find_recipe_by_name(name, search_dirs):
@@ -334,11 +334,11 @@ def load_recipe(
     auto_pull=False,
 ):
     """Loads a recipe, first locating it by name.
-    If we find one, we load it and return the plist object (which
-    should be functionally equivelent to a dictionary). If an override file is
-    used, it prefers finding the original recipe by identifier rather than
-    name, so that if recipe names shift with updated recipe repos, the
-    override still applies to the recipe from which it was derived."""
+    If we find one, we load it and return the dictionary object. If an
+    override file is used, it prefers finding the original recipe by
+    identifier rather than name, so that if recipe names shift with
+    updated recipe repos, the override still applies to the recipe from
+    which it was derived."""
 
     if override_dirs is None:
         override_dirs = []
@@ -1099,7 +1099,7 @@ def get_recipe_list(
             matches = glob.glob(pattern)
             for match in matches:
                 recipe = recipe_from_file(match)
-                if valid_recipe_plist(recipe):
+                if valid_recipe_dict(recipe):
                     recipe_name = os.path.basename(match)
 
                     recipe["Name"] = remove_recipe_extension(recipe_name)
@@ -1124,7 +1124,7 @@ def get_recipe_list(
                 pathname = os.path.join(normalized_dir, filename)
                 override = recipe_from_file(pathname)
 
-                if valid_override_plist(override):
+                if valid_override_dict(override):
                     # override points to a valid recipe
                     override_name = os.path.basename(pathname)
                     override["Name"] = remove_recipe_extension(override_name)
@@ -1885,19 +1885,19 @@ def make_override(argv):
     reversed_name = ".".join(reversed(override_name.split(".")))
     override_identifier = "local." + reversed_name
 
-    override_plist = {
+    override_dict = {
         "Identifier": override_identifier,
         "Input": recipe["Input"],
         "ParentRecipe": parent_identifier,
     }
 
     # add trust info
-    override_plist["ParentRecipeTrustInfo"] = get_trust_info(
+    override_dict["ParentRecipeTrustInfo"] = get_trust_info(
         recipe, search_dirs=search_dirs
     )
 
-    if "IDENTIFIER" in override_plist["Input"]:
-        del override_plist["Input"]["IDENTIFIER"]
+    if "IDENTIFIER" in override_dict["Input"]:
+        del override_dict["Input"]["IDENTIFIER"]
 
     override_dir = os.path.expanduser(override_dirs[0])
     if not os.path.exists(os.path.join(override_dir)):
@@ -1911,14 +1911,14 @@ def make_override(argv):
     if os.path.exists(override_file):
         if not options.force:
             log_err(
-                f"An override plist already exists at {override_file}, "
+                f"A recipe override already exists at {override_file}, "
                 "will not overwrite it. Use --force to overwrite "
                 "anyway."
             )
             return -1
         os.unlink(override_file)
     with open(override_file, "wb") as f:
-        plistlib.dump(override_plist, f)
+        plistlib.dump(override_dict, f)
     log(f"Override file saved to {override_file}")
     return 0
 
