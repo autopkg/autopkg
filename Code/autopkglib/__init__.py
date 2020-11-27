@@ -716,7 +716,7 @@ class AutoPackager:
             # build a pseudo-identifier based on the recipe pathname
             recipe_path = self.env.get("RECIPE_PATH")
             # get rid of filename extension
-            recipe_path = os.path.splitext(recipe_path)[0]
+            recipe_path = remove_recipe_extension(recipe_path)
             path_parts = recipe_path.split("/")
             identifier = "-".join(path_parts)
         return identifier

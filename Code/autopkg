@@ -1029,9 +1029,8 @@ def list_processors(argv):
 
 def make_suggestions_for(search_name):
     """Suggest existing recipes with names similar to search name."""
-    # trim '.recipe' from the end if it exists
-    if os.path.splitext(search_name)[1].lower() == ".recipe":
-        search_name = os.path.splitext(search_name)[0]
+    # trim extension from the end if it exists
+    search_name = remove_recipe_extension(search_name)
     (search_name_base, search_name_ext) = os.path.splitext(search_name.lower())
     recipe_names = [os.path.splitext(item["Name"]) for item in get_recipe_list()]
     recipe_names = list(set(recipe_names))
@@ -1123,7 +1122,7 @@ def get_recipe_list(
                 if valid_override_plist(override):
                     # override points to a valid recipe
                     override_name = os.path.basename(pathname)
-                    override["Name"] = os.path.splitext(override_name)[0]
+                    override["Name"] = remove_recipe_extension(override_name)
                     override["Path"] = pathname
                     override["IsOverride"] = True
 
@@ -1874,8 +1873,8 @@ def make_override(argv):
         )
         return 1
 
-    override_name = (
-        options.name or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0]
+    override_name = options.name or remove_recipe_extension(
+        os.path.basename(recipe["RECIPE_PATH"])
     )
 
     reversed_name = ".".join(reversed(override_name.split(".")))
@@ -1902,10 +1901,6 @@ def make_override(argv):
         except OSError as err:
             log_err(f"Could not create {override_dir}: {err}")
             return -1
-
-    override_name = (
-        options.name or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0]
-    )
 
     override_file = os.path.join(override_dir, f"{override_name}.recipe")
     if os.path.exists(override_file):
