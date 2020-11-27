@@ -34,6 +34,7 @@ from base64 import b64decode
 from typing import Optional
 from urllib.parse import quote, urlparse
 
+import yaml
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
 from autopkglib import (
     RECIPE_EXTS,
@@ -1708,8 +1709,12 @@ def update_trust_info(argv):
             recipe["ParentRecipeTrustInfo"] = get_trust_info(
                 parent_recipe, search_dirs=search_dirs
             )
-            with open(recipe_path, "wb") as f:
-                plistlib.dump(recipe, f)
+            if recipe_path.endswith(".recipe.yaml"):
+                with open(recipe_path, "wb") as f:
+                    yaml.dump(recipe, f, encoding="utf-8")
+            else:
+                with open(recipe_path, "wb") as f:
+                    plistlib.dump(recipe, f)
             log(f"Wrote updated {recipe_path}")
         else:
             log_err(
