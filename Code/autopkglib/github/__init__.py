@@ -23,7 +23,7 @@ import tempfile
 from typing import List, Optional
 from urllib.parse import quote
 
-from autopkglib import get_pref, log, log_err
+from autopkglib import RECIPE_EXTS, get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
 
 BASE_URL = "https://api.github.com"
@@ -176,7 +176,13 @@ To save the token, paste it to the following prompt."""
     ):
         """Search GitHub for results for a given name."""
 
-        query = f"q={quote(name)}+extension:recipe+user:{user}"
+        # Include all supported recipe extensions in search.
+        # Compound extensions like ".recipe.yaml" aren't definable here,
+        # so further filtering of results is done below.
+        exts = "+".join(("extension:" + ext.split(".")[-1] for ext in RECIPE_EXTS))
+        # Example value: "extension:recipe+extension:plist+extension:yaml"
+
+        query = f"q={quote(name)}+{exts}+user:{user}"
 
         if path_only:
             query += "+in:path,filepath"
@@ -190,7 +196,12 @@ To save the token, paste it to the following prompt."""
             log("Nothing found.")
             return []
 
-        results_items = results["items"]
+        # Filter out files from results that are not AutoPkg recipes.
+        results_items = [
+            item
+            for item in results["items"]
+            if any((item["name"].endswith(ext) for ext in RECIPE_EXTS))
+        ]
 
         if not results_items:
             log("Nothing found.")
