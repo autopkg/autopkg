@@ -2620,7 +2620,7 @@ def new_recipe(argv):
         "Description": "Recipe description",
         "Identifier": identifier,
         "Input": {"NAME": name},
-        "MiniumumVersion": "1.0",
+        "MinimumVersion": "1.0",
         "Process": [
             {
                 "Arguments": {"Argument1": "Value1", "Argument2": "Value2"},
