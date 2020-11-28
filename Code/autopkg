@@ -920,7 +920,7 @@ def get_info(argv):
         "--pull",
         action="store_true",
         help=(
-            "Pull the parent repos if they can't be found in the search path."
+            "Pull the parent repos if they can't be found in the search path. "
             "Implies agreement to search GitHub."
         ),
     )
@@ -1814,7 +1814,7 @@ def make_override(argv):
         "--pull",
         action="store_true",
         help=(
-            "Pull the parent repos if they can't be found in the search path."
+            "Pull the parent repos if they can't be found in the search path. "
             "Implies agreement to search GitHub."
         ),
     )
