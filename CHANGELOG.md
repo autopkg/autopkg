@@ -1,5 +1,15 @@
 ### [2.3](https://github.com/autopkg/autopkg/compare/v2.2...HEAD) (Unreleased)
 
+NEW FEATURES
+
+AutoPkg now supports recipes in yaml format.
+
+CHANGES FROM 2.2:
+
+- MunkiImporter now uses consistent pkginfo matching logic (https://github.com/autopkg/autopkg/pull/671)
+- Typo fixed in the recipe template created by `new-recipe`
+- Minor edits to help text
+
 ### [2.2](https://github.com/autopkg/autopkg/compare/v2.1...v2.2) (August 24, 2020)
 
 NEW FEATURES
