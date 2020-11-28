@@ -1826,6 +1826,15 @@ def make_override(argv):
             "its parents is deprecated."
         ),
     )
+    parser.add_option(
+        "--format",
+        action="store",
+        default="plist",
+        help=(
+            "The format of the recipe override to be created. "
+            "Valid options include: 'plist' (default) or 'yaml'"
+        ),
+    )
     (options, arguments) = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
@@ -1912,7 +1921,13 @@ def make_override(argv):
             log_err(f"Could not create {override_dir}: {err}")
             return -1
 
-    override_file = os.path.join(override_dir, f"{override_name}.recipe")
+    # set file path for override
+    if options.format == "yaml":
+        override_file = os.path.join(override_dir, f"{override_name}.recipe.yaml")
+    else:
+        override_file = os.path.join(override_dir, f"{override_name}.recipe")
+
+    # handle existing override at same path
     if os.path.exists(override_file):
         if not options.force:
             log_err(
@@ -1922,8 +1937,14 @@ def make_override(argv):
             )
             return -1
         os.unlink(override_file)
-    with open(override_file, "wb") as f:
-        plistlib.dump(override_dict, f)
+
+    # write override to file
+    if options.format == "yaml":
+        with open(override_file, "wb") as f:
+            yaml.dump(override_dict, f, encoding="utf-8")
+    else:
+        with open(override_file, "wb") as f:
+            plistlib.dump(override_dict, f)
     log(f"Override file saved to {override_file}")
     return 0
 
