@@ -2604,7 +2604,15 @@ def new_recipe(argv):
     parser.add_option(
         "-p", "--parent-identifier", help="Parent recipe identifier for this recipe."
     )
-
+    parser.add_option(
+        "--format",
+        action="store",
+        default="plist",
+        help=(
+            "The format of the new recipe to be created. "
+            "Valid options include: 'plist' (default) or 'yaml'"
+        ),
+    )
     (options, arguments) = common_parse(parser, argv)
 
     if len(arguments) != 1:
@@ -2632,8 +2640,14 @@ def new_recipe(argv):
         recipe["ParentRecipe"] = options.parent_identifier
 
     try:
-        with open(filename, "wb") as f:
-            plistlib.dump(recipe, f)
+        if options.format == "yaml":
+            # Yaml recipes require AutoPkg 2.3 or later.
+            recipe["MinimumVersion"] = "2.3"
+            with open(filename, "wb") as f:
+                yaml.dump(recipe, f, encoding="utf-8")
+        else:
+            with open(filename, "wb") as f:
+                plistlib.dump(recipe, f)
         log(f"Saved new recipe to {filename}")
     except Exception as err:
         log_err(f"Failed to write recipe: {err}")
