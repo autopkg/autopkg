@@ -2640,7 +2640,7 @@ def new_recipe(argv):
         recipe["ParentRecipe"] = options.parent_identifier
 
     try:
-        if options.format == "yaml":
+        if options.format == "yaml" or filename.endswith(".recipe.yaml"):
             # Yaml recipes require AutoPkg 2.3 or later.
             recipe["MinimumVersion"] = "2.3"
             with open(filename, "wb") as f:
