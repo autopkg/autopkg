@@ -116,7 +116,7 @@ class DmgMounter(Processor):
                     "attach",
                     "-plist",
                     "-mountrandom",
-                    "/private/tmp",
+                    "/Volumes",
                     "-nobrowse",
                     pathname,
                 ),
