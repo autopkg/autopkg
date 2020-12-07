@@ -45,7 +45,7 @@ class TestPreferences(unittest.TestCase):
 
     def setUp(self):
         self._workdir = TemporaryDirectory()
-        self.mock_platform = patch("autopkglib.platform.platform").start()
+        self.mock_platform = patch("autopkglib.sys.platform").start()
         # Force loading to go through the file-backed path by default.
         self.mock_platform.return_value = "__HighlyUnlikely-Platform-Name__"
 

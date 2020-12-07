@@ -139,77 +139,73 @@ class TestAutoPkg(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch("autopkglib.platform.platform")
-    def test_is_mac_returns_true_on_mac(self, mock_platform):
+    @patch("autopkglib.sys")
+    def test_is_mac_returns_true_on_mac(self, mock_sys):
         """On macOS, is_mac() should return True."""
-        mock_platform.return_value = "Darwin-somethingsomething"
+        mock_sys.platform = "Darwin-somethingsomething"
         result = autopkglib.is_mac()
         self.assertEqual(result, True)
 
-    @patch("autopkglib.platform.platform")
-    def test_is_mac_returns_false_on_not_mac(self, mock_platform):
+    @patch("autopkglib.sys")
+    def test_is_mac_returns_false_on_not_mac(self, mock_sys):
         """On not-macOS, is_mac() should return False."""
-        mock_platform.return_value = "Windows-somethingsomething"
+        mock_sys.platform = "Win32-somethingsomething"
         result = autopkglib.is_mac()
         self.assertEqual(result, False)
 
-    @patch("autopkglib.platform.platform")
-    def test_is_windows_returns_true_on_windows(self, mock_platform):
+    @patch("autopkglib.sys")
+    def test_is_windows_returns_true_on_windows(self, mock_sys):
         """On Windows, is_windows() should return True."""
-        mock_platform.return_value = "Windows-somethingsomething"
+        mock_sys.platform = "Win32-somethingsomething"
         result = autopkglib.is_windows()
         self.assertEqual(result, True)
 
-    @patch("autopkglib.platform.platform")
-    def test_is_windows_returns_false_on_not_windows(self, mock_platform):
+    @patch("autopkglib.sys")
+    def test_is_windows_returns_false_on_not_windows(self, mock_sys):
         """On not-Windows, is_windows() should return False."""
-        mock_platform.return_value = "Darwin-somethingsomething"
+        mock_sys.platform = "Darwin-somethingsomething"
         result = autopkglib.is_windows()
         self.assertEqual(result, False)
 
-    @patch("autopkglib.platform.platform")
-    def test_is_linux_returns_true_on_linux(self, mock_platform):
+    @patch("autopkglib.sys")
+    def test_is_linux_returns_true_on_linux(self, mock_sys):
         """On Linux, is_linux() should return True."""
-        mock_platform.return_value = "Linux-somethingsomething"
+        mock_sys.platform = "Linux-somethingsomething"
         result = autopkglib.is_linux()
         self.assertEqual(result, True)
 
-    @patch("autopkglib.platform.platform")
-    def test_is_linux_returns_false_on_not_linux(self, mock_platform):
+    @patch("autopkglib.sys")
+    def test_is_linux_returns_false_on_not_linux(self, mock_sys):
         """On not-Linux, is_linux() should return False."""
-        mock_platform.return_value = "Windows-somethingsomething"
+        mock_sys.platform = "Win32-somethingsomething"
         result = autopkglib.is_linux()
         self.assertEqual(result, False)
 
-    @patch("autopkglib.platform.platform")
+    @patch("autopkglib.sys")
     @patch("autopkglib.is_executable")
     @patch("autopkglib.os.get_exec_path")
     @patch("autopkglib.os.path")
-    def test_find_binary_windows(
-        self, mock_ospath, mock_getpath, mock_isexe, mock_platform
-    ):
+    def test_find_binary_windows(self, mock_ospath, mock_getpath, mock_isexe, mock_sys):
         # Forcibly use ntpath regardless of platform to test "windows" anywhere.
         import ntpath
 
         mock_ospath.join = ntpath.join
-        mock_platform.return_value = "Windows"
+        mock_sys.platform = "Win32"
         mock_getpath.return_value = [r"C:\Windows\system32", r"C:\CurlInstall"]
         mock_isexe.side_effect = [False, True]
         result = autopkglib.find_binary("curl")
         self.assertEqual(result, r"C:\CurlInstall\curl.exe")
 
-    @patch("autopkglib.platform.platform")
+    @patch("autopkglib.sys")
     @patch("autopkglib.is_executable")
     @patch("autopkglib.os.get_exec_path")
     @patch("autopkglib.os.path")
-    def test_find_binary_posixy(
-        self, mock_ospath, mock_getpath, mock_isexe, mock_platform
-    ):
+    def test_find_binary_posixy(self, mock_ospath, mock_getpath, mock_isexe, mock_sys):
         # Forcibly use posixpath regardless of platform to test "linux/mac" anywhere.
         import posixpath
 
         mock_ospath.join = posixpath.join
-        mock_platform.return_value = "Darwin"
+        mock_sys.platform = "Darwin"
         mock_getpath.return_value = ["/usr/bin", "/usr/local/bin"]
         mock_isexe.side_effect = [True, False]
         result = autopkglib.find_binary("curl")
