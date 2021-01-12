@@ -388,7 +388,7 @@ class MunkiImporter(Processor):
             uninstall_path = library.copy_pkg_to_repo(
                 pkginfo, self.env.get("uninstaller_pkg_path")
             )
-            pkginfo["uninstaller_item_location"] = uninstall_path
+            pkginfo["uninstaller_item_location"] = uninstall_path.partition("pkgs/")[2]
             pkginfo["uninstallable"] = True
 
         # import icon
