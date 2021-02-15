@@ -265,7 +265,9 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
 
-        if self.env.get("expected_authorities"):
+        if self.env.get("expected_authorities") and not self.env.get(
+            "expected_authority_names"
+        ):
             self.output(
                 "WARNING: This recipe is using 'expected_authorities' when it "
                 "should be using 'expected_authority_names'. This will become an error "
