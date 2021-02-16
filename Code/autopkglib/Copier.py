@@ -35,9 +35,9 @@ class Copier(DmgMounter):
             "description": (
                 "Path to a file or directory to copy. "
                 "Can point to a path inside a .dmg which will be mounted. "
-                "This path may also contain basic globbing characters such as "
-                "the wildcard '*', but only the first result will be "
-                "returned."
+                "This path may also contain globbing patterns such as the "
+                "wildcard '*', or '**' that matches optional subdirectories "
+                "but only the first result will be returned."
             ),
         },
         "destination_path": {"required": True, "description": "Path to destination."},
@@ -92,7 +92,7 @@ class Copier(DmgMounter):
                 mount_point = self.mount(dmg_path)
                 source_path = os.path.join(mount_point, dmg_source_path)
             # process path with glob.glob
-            matches = glob.glob(source_path)
+            matches = glob.glob(source_path, recursive=True)
             if len(matches) == 0:
                 raise ProcessorError(
                     f"Error processing path '{source_path}' with glob. "
