@@ -20,14 +20,12 @@ CHANGES FROM 2.2:
 ### [2.2](https://github.com/autopkg/autopkg/compare/v2.1...v2.2) (August 24, 2020)
 
 NEW FEATURES
-
 MunkiImporter now supports Munki repo plugins, thanks to @tboyko. The default behavior
 is still to use FileRepo as the default local behavior, so existing behavior is
 unchanged. (https://github.com/autopkg/autopkg/pull/654)
 
 
 CHANGES FROM 2.1:
-
 - URLDownloader handles Content-Disposition filenames with quotes correctly (https://github.com/autopkg/autopkg/pull/633)
 - README and CONTRIBUTING guides updated with correct Python 3 framework info (https://github.com/autopkg/autopkg/pull/638)
 - PyYAML updated to 5.3.1 to address PyYAML-CVE-2020-1747 (https://github.com/autopkg/autopkg/pull/642)
@@ -42,7 +40,6 @@ CHANGES FROM 2.1:
 ### [2.1](https://github.com/autopkg/autopkg/compare/v2.0.2...v2.1) (May 19, 2020)
 
 NEW FEATURES
-
 AutoPkg now supports the verbs `list-repos` and `processor-list` for convenience (https://github.com/autopkg/autopkg/pull/628)
 
 `autopkg info --pull`/`-p` now allows you to fetch all parent repos of a recipe
@@ -83,7 +80,6 @@ dynamically fetch parents on-demand, instead of preconfiguring your environment 
 list of known repos.
 
 CHANGES FROM 2.0.2:
-
 - URLGetter can handle parsing headers without an explicit `url` in the environment (https://github.com/autopkg/autopkg/pull/605)
 - FileCreator now has a unit test (https://github.com/autopkg/autopkg/pull/591)
 - AutoPkg warns you more helpfully if you are trying to run it with Python 2 (https://github.com/autopkg/autopkg/pull/610)
@@ -99,14 +95,12 @@ CHANGES FROM 2.0.2:
 ### [2.0.2](https://github.com/autopkg/autopkg/compare/v2.0.1...v2.0.2) (February 05, 2020)
 
 CHANGES FROM RC2:
-
 - Fixed an encoding bug in the make_new_release script (https://github.com/autopkg/autopkg/commit/fca40526a3a19f3e208574be775fa7309244c0d5)
 - Removed some orphaned dead code (https://github.com/autopkg/autopkg/commit/c90e92b1988f347834ed4957cc9108c2b1eef44b)
 
 ### [2.0 RC2](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (January 31, 2020)
 
 CHANGES FROM RC1:
-
 - Fixed some processor docs (https://github.com/autopkg/autopkg/commit/3812ca12a44531c78c869e67fbbd84d7706b8a93)
 - Added in "APLooseVersion", loosely based on Munki's version comparison, to replace previous version comparison semantics. (https://github.com/autopkg/autopkg/commit/7c0676fdfe77f66f261b0df53ec5a792d31c5d3c)
   - This MAY cause a change in behavior for some current version comparisons, but it no longer crashes when comparing
@@ -115,7 +109,6 @@ CHANGES FROM RC1:
 ### [2.0 RC1](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (December 03, 2019)
 
 CHANGES FROM BETA 3:
-
 - Some fixes around URLGetter's behavior and callsites
 - `URLGetter.execute_curl()` was changed to use `subprocess.run()` instead of `Popen` (https://github.com/autopkg/autopkg/commit/facad8ce48cfb9766578d55823660feb177b3e80)
 - Update URLDownloader variable descriptions to show up better on the wiki (https://github.com/autopkg/autopkg/commit/079c606778a3a4795cd52e4f98a77f5479b36ea9)
@@ -126,7 +119,6 @@ it simple to download a file in a custom processor (this was backported to 1.4.1
 - make_new_release.py produces more friendly console output indicating what stage it's on (https://github.com/autopkg/autopkg/commit/1373b31d407b1a2ae023256aa2d65ef165d5956)
 
 ### [2.0b3](https://github.com/autopkg/autopkg/compare/12249273c23e9c52675ab947024c2ac505080049...2.0b3) (November 25, 2019)
-
 CHANGES FROM BETA 2:
 
 - Thanks to @MichalMMac's heroic efforts, URLGetter is now much easier for other processors to use. There are now two ways a custom processor can download things without needing to write any urllib logic:
@@ -220,13 +212,11 @@ autopkg run -vv Firefox.munki MakeCatalogs.munki
 ```
 
 HOW TO REPORT ISSUES:
-
 Use the "Beta Bug report" GitHub issue template to specifically label the issue as being
 beta only. Please make use of the template to convey all information possible in order
 to reproduce or diagnose the issue as clearly as possible.
 
 SETTING UP AUTOPKG MANUALLY:
-
 If you do not want to use the AutoPkg release installer, you can manually set up an
 AutoPkg 2.0 environment. Setup and place the AutoPkg files as you normally would:
 
@@ -236,7 +226,6 @@ AutoPkg 2.0 environment. Setup and place the AutoPkg files as you normally would
   `sudo chmod -R 755 /Library/AutoPkg/autopkgserver/`
 
 Build a relocatable python bundle:
-
 - Use the CONTRIBUTING guide's instructions on building a relocatable python bundle
   that uses the `requirements.txt` file for pip
 - Move/copy the bundle into /Library/AutoPkg/Python3/Python.framework
@@ -244,7 +233,6 @@ Build a relocatable python bundle:
 ### [1.4.1](https://github.com/autopkg/autopkg/compare/v1.4...v1.4.1) (December 02, 2019)
 
 FIXES:
-
 * URLGetter now has a `download_to_file(url, filename)` function that can be used in
 custom processors. It simply downloads a URL to a specific filename, and raises a
 ProcessorError if it fails for any reason.
@@ -252,11 +240,9 @@ ProcessorError if it fails for any reason.
 ### [1.4](https://github.com/autopkg/autopkg/compare/v1.3.1...v2.0.1) (December 03, 2019)
 
 FIXES:
-
   * DmgMounter now correctly handles APFS disk images, especially with EULAs/SLAs (https://github.com/autopkg/autopkg/commit/4b77f6d5948a2f36258f4695f503513ec7671745)
 
 ADDITIONS:
-
 * The new URLGetter base Processor class has been merged in. It provides a new centralized way to handle fetching and downloading things from the web. In the future, more convenience functions will be added to allow any custom processor to easily fetch web resources without having to write their own urllib/web-handling code.
 * Thanks to @MichalMMac's heroic efforts, URLGetter is now much easier for other processors to use. There are now two ways a custom processor can download things without needing to write any urllib logic:
   * `URLGetter.download_with_curl(curl_command, text=True)` takes a curl command as an argument (a list of strings that is passed to subprocess). You can use this along with the other helper functions to arrange your own curl command with custom headers and arguments, and parse the output.
@@ -292,13 +278,11 @@ FIXES:
   not specified (https://github.com/autopkg/autopkg/commit/02f461cf6f503dfc65151aef5180a882cc6f6f72)
 
 ADDITIONS:
-
 - Preferences can now be provided from an external file using `--prefs`. The input
   file can be either in JSON or plist format, and will be treated identically
   to preferences from macOS. (https://github.com/autopkg/autopkg/commit/7ae2f552535741cb4ee131131d16a1fd93186c14)
 
 IMPROVEMENTS:
-
 - Several unit tests have been added for some core AutoPkg functionality, and
   certain processors.
 - All occurrences of `print()` in the core autopkg script were replaced with `log` and `log_err` (https://github.com/autopkg/autopkg/commit/8300b807e29553be92c8c74894090442c8312b6d)
@@ -380,7 +364,7 @@ FIXES:
 - Trust info is ignored if it is ever present in a recipe which is not an override,
   and warns if any such trust info is found (GH-334)
 - Fix a regression in PlistReader and handling disk images
-- PkgCopier can now mount a disk image in the source path even if its extension is not
+- PkgCopier can now mount a diskimage in the source path even if its extension is not
   `.dmg` (GH-349)
 
 IMPROVEMENTS:
@@ -425,7 +409,7 @@ ADDITIONS:
   previously required for building a package from an application bundle.
 - Support for "rich" recipe lists in property list format, which can specify
   pre/post-processors and additional input variables for that specific run. See the
-  [Running Multiple Recipes article](https://github.com/autopkg/autopkg/wiki/Running-Multiple-Recipes) for more details.
+  [Running Multpiple Recipes article](https://github.com/autopkg/autopkg/wiki/Running-Multiple-Recipes) for more details.
 
 FIXES:
 
@@ -571,7 +555,7 @@ IMPROVEMENTS:
 FIXES:
 
 - Fixes in MunkiImporter's logic when attempting to locate a matching item in a repo.
-- PkgCreator: fix an exception when setting `mode` on a directory (in `chown`, in
+- PkgCreator: fix an exception when setting `mode` on a direcotry (in `chown`, in
   `pkg_request`). (GH-177)
 - BrewCaskInfoProvider now properly interpolates '#{version}' within 'url' strings.
 
@@ -704,8 +688,7 @@ ADDITIONS:
 ### [0.2.8](https://github.com/autopkg/autopkg/compare/v0.2.7...v0.2.8) (January 08, 2014)
 
 FIXES:
-
-- New package release to fix issue with autopkgserver launch daemon plist in 0.2.6 and 0.2.7 package releases.
+- New package release to fix issue with autopkgsever launch daemon plist in 0.2.6 and 0.2.7 package releases.
 
 ### [0.2.7](https://github.com/autopkg/autopkg/compare/v0.2.6...v0.2.7) (January 08, 2014)
 
@@ -810,7 +793,7 @@ CHANGES:
 
 CHANGES:
 
-  - Addresses an issue where creating RecipeOverrides failed if the recipe overrides directory (default: ~/Library/AutoPkg/RecipeOverrides) is missing
+  - Addresses an issue where creating RecipeOverrides failed if the recipe overrides directory (default: ~/Library/AutoPkg/ReceipeOverrides) is missing
 
 ### 0.1.0 (August 23, 2013)
 
