@@ -113,7 +113,7 @@ class URLDownloader(URLGetter):
         """Get a named xattr from a file. Return None if not present."""
 
         if attr in xattr.listxattr(self.env["pathname"]):
-            return xattr.getxattr(self.env["pathname"], attr)
+            return xattr.getxattr(self.env["pathname"], attr).decode()
         return None
 
     def prepare_base_curl_cmd(self):
