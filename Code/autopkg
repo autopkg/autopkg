@@ -24,7 +24,6 @@ import hashlib
 import os
 import plistlib
 import pprint
-import re
 import shutil
 import subprocess
 import sys
@@ -704,15 +703,17 @@ def expand_repo_url(url):
     'reciperepo'              -> 'https://github.com/autopkg/reciperepo'
     'http://some/repo/url     -> 'http://some/repo/url'
     """
+    # Strip leading and trailing slashes
+    url = url.strip("/")
+    # Parse URL to determine scheme
     parsed_url = urlparse(url)
-    # if no URL scheme was given in the URL, try GitHub URLs
+    # If no URL scheme was given in the URL, try GitHub URLs
     if not parsed_url.scheme:
-        # if URL looks like 'name/repo' then prepend the base GitHub URL
-        if re.match(r"\w+/\w+", url):
+        if "/" in url:
+            # If URL looks like 'name/repo' then prepend the base GitHub URL
             url = f"https://github.com/{url}"
-
-        # if URL is one word, assume it's a repo within the 'autopkg' org
-        elif re.match(r"\w", url):
+        else:
+            # If URL is one word, assume it's a repo within the 'autopkg' org
             url = f"https://github.com/autopkg/{url}"
 
     return url
