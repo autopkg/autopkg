@@ -1035,6 +1035,7 @@ def list_processors(argv):
     verb = argv[1]
     parser = gen_common_parser()
     parser.set_usage(f"Usage: %prog {verb} [options]\n" "List the core Processors.")
+    _ = common_parse(parser, argv)[0]
 
     print("\n".join(sorted(processor_names())))
 
