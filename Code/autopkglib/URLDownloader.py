@@ -19,7 +19,7 @@
 import os.path
 import tempfile
 
-from autopkglib import BUNDLE_ID, ProcessorError, xattr
+from autopkglib import BUNDLE_ID, ProcessorError, xattr, metadata
 from autopkglib.URLGetter import URLGetter
 
 __all__ = ["URLDownloader"]
@@ -69,6 +69,17 @@ class URLDownloader(URLGetter):
                 "'prefetch_filename' is useful for URLs with redirects."
             ),
         },
+        "external_metadata_path": {
+            "default": None,
+            "required": False,
+            "description": (
+                "Optional json file with ETag and Last-Modified "
+                "that will be used to match with the download " 
+                "in order to determine if URLDownloader has "
+                "to download the file again or not. "
+                "Defaults to None"
+            ),
+        },
         "CHECK_FILESIZE_ONLY": {
             "default": False,
             "required": False,
@@ -111,9 +122,8 @@ class URLDownloader(URLGetter):
 
     def getxattr(self, attr):
         """Get a named xattr from a file. Return None if not present."""
-
         if attr in xattr.listxattr(self.env["pathname"]):
-            return xattr.getxattr(self.env["pathname"], attr)
+            return xattr.getxattr(self.env["pathname"], attr).decode()
         return None
 
     def prepare_base_curl_cmd(self):
@@ -147,7 +157,10 @@ class URLDownloader(URLGetter):
         self.add_curl_common_opts(curl_cmd)
         # Clear out a potentially zero-byte file
         self.clear_zero_file(self.env["pathname"])
-        self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.env["pathname"]))
+        if self.env["external_metadata_path"]:
+            self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.get_filename()))
+        else:
+            self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.env["pathname"]))
         return curl_cmd
 
     def clear_vars(self):
@@ -268,7 +281,11 @@ class URLDownloader(URLGetter):
 
         if header["http_result_code"] == "304":
             # resource not modified
-            self.env["download_changed"] = False
+            if self.env["external_metadata_path"]:
+                self.env["download_changed"] = False
+                self.env["stop_processing_recipe"] = True
+                self.output("Item at URL is unchanged.")
+                return False
             self.output("Item at URL is unchanged.")
             self.output(f"Using existing {self.env['pathname']}")
             return False
@@ -288,23 +305,41 @@ class URLDownloader(URLGetter):
 
     def store_headers(self, header):
         """Store last-modified and etag headers in pathname xattr."""
+        filename = self.get_filename()
+        metadata_object = metadata.Metadata(self.env["external_metadata_path"])
         if header.get("last-modified"):
-            self.env["last_modified"] = header.get("last-modified")
-            xattr.setxattr(
-                self.env["pathname"],
-                self.xattr_last_modified,
-                header.get("last-modified").encode(),
-            )
+            if self.env["external_metadata_path"]:
+                self.env["last_modified"] = header.get("last-modified")
+                metadata_object.setmetadata(
+                    filename,
+                    self.xattr_last_modified,
+                    header.get("last-modified")
+                )
+            else:
+                self.env["last_modified"] = header.get("last-modified")
+                xattr.setxattr(
+                    self.env["pathname"],
+                    self.xattr_last_modified,
+                    header.get("last-modified").encode(),
+                )
             self.output(
                 f"Storing new Last-Modified header: {header.get('last-modified')}"
             )
 
         self.env["etag"] = ""
         if header.get("etag"):
-            self.env["etag"] = header.get("etag")
-            xattr.setxattr(
-                self.env["pathname"], self.xattr_etag, header.get("etag").encode()
-            )
+            if self.env["external_metadata_path"]:
+                self.env["etag"] = header.get("etag")
+                metadata_object.setmetadata(
+                    filename,
+                    self.xattr_etag,
+                    header.get("etag")
+                )
+            else:
+                self.env["etag"] = header.get("etag")
+                xattr.setxattr(
+                    self.env["pathname"], self.xattr_etag, header.get("etag").encode()
+                )
             self.output(f"Storing new ETag header: {header.get('etag')}")
 
     def main(self):

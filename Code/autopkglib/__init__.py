@@ -939,7 +939,7 @@ def import_processors():
     #
     #    from Bar.Foo import Foo
     #
-    for name in filter(lambda f: f not in ("__init__", "xattr"), processor_files):
+    for name in filter(lambda f: f not in ("__init__", "xattr", "metadata"), processor_files):
         globals()[name] = getattr(
             __import__(__name__ + "." + name, fromlist=[name]), name
         )
