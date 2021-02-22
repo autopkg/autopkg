@@ -16,7 +16,6 @@ Module that provides a way to read data from a json object
 """
 import json
 
-from autopkglib import BUNDLE_ID
 
 class Metadata:
     def __init__(self, json_object):
