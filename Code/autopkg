@@ -775,6 +775,8 @@ def repo_delete(argv):
         if not repo_path:
             log_err(f"ERROR: Can't find an installed repo for {path_or_url}")
             continue
+        else:
+            log(f"Removing repo at {repo_path}...")
 
         # first, remove from RECIPE_SEARCH_DIRS
         if repo_path in recipe_search_dirs:
