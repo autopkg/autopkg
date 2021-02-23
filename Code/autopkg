@@ -1225,7 +1225,7 @@ def list_recipes(argv):
     lowercase_sorted = sorted(recipes, key=lambda s: s["Name"].lower())
 
     if options.plist:
-        print(plistlib.dumps(lowercase_sorted))
+        print(plistlib.dumps(lowercase_sorted).decode())
     else:
         column_spacer = 1
         max_name_length = 0
