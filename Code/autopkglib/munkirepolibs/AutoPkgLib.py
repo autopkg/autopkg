@@ -10,7 +10,7 @@ class AutoPkgLib:
         self.munki_repo = munki_repo
         self.repo_subdirectory = repo_subdirectory
 
-    def _make_catalog_db(self):
+    def make_catalog_db(self):
         """Reads the 'all' catalog and returns a dict we can use like a
         database"""
 
@@ -123,121 +123,6 @@ class AutoPkgLib:
         pkgdb["items"] = catalogitems
 
         return pkgdb
-
-    def find_matching_pkginfo(self, pkginfo):
-        """Looks through all catalog for items matching the one
-        described by pkginfo. Returns a matching item if found."""
-        if not pkginfo.get("installer_item_hash"):
-            return None
-
-        pkgdb = self._make_catalog_db()
-        # match hashes for the pkg or dmg
-        if "installer_item_hash" in pkginfo:
-            matchingindexes = pkgdb["hashes"].get(pkginfo["installer_item_hash"])
-            if matchingindexes:
-                # we have an item with the exact same checksum hash in the repo
-                return pkgdb["items"][matchingindexes[0]]
-
-        # try to match against installed applications
-        applist = [
-            item
-            for item in pkginfo.get("installs", [])
-            if item.get("type") in ("application", "bundle") and "path" in item
-        ]
-        if applist:
-            matching_indexes = []
-            for app in applist:
-                app_path = app["path"]
-                if "version_comparison_key" in app:
-                    app_version = app[app["version_comparison_key"]]
-                else:
-                    app_version = app["CFBundleShortVersionString"]
-                match = pkgdb["applications"].get(app_path, {}).get(app_version)
-                if not match:
-                    # no entry for app['path'] and app['version']
-                    # no point in continuing
-                    return None
-                else:
-                    if not matching_indexes:
-                        # store the array of matching item indexes
-                        matching_indexes = set(match)
-                    else:
-                        # we're only interested in items that match
-                        # all applications
-                        matching_indexes = matching_indexes.intersection(set(match))
-
-            # did we find any matches?
-            if matching_indexes:
-                return pkgdb["items"][list(matching_indexes)[0]]
-
-        # fall back to matching against receipts
-        matching_indexes = []
-        for item in pkginfo.get("receipts", []):
-            pkgid = item.get("packageid")
-            vers = item.get("version")
-            if pkgid and vers:
-                match = pkgdb["receipts"].get(pkgid, {}).get(vers)
-                if not match:
-                    # no entry for pkgid and vers
-                    # no point in continuing
-                    return None
-                else:
-                    if not matching_indexes:
-                        # store the array of matching item indexes
-                        matching_indexes = set(match)
-                    else:
-                        # we're only interested in items that match
-                        # all receipts
-                        matching_indexes = matching_indexes.intersection(set(match))
-
-        # did we find any matches?
-        if matching_indexes:
-            return pkgdb["items"][list(matching_indexes)[0]]
-
-        # try to match against install md5checksums
-        filelist = [
-            item
-            for item in pkginfo.get("installs", [])
-            if item["type"] == "file" and "path" in item and "md5checksum" in item
-        ]
-        if filelist:
-            for fileitem in filelist:
-                cksum = fileitem["md5checksum"]
-                if cksum in pkgdb["checksums"]:
-                    cksum_matches = pkgdb["checksums"][cksum]
-                    for cksum_match in cksum_matches:
-                        if cksum_match["path"] == fileitem["path"]:
-                            matching_pkg = pkgdb["items"][cksum_match["index"]]
-
-                            # TODO: maybe match pkg name, too?
-                            # if matching_pkg['name'] == pkginfo['name']:
-
-                            return matching_pkg
-
-        # Try to match against a simple list of files and paths
-        # where our pkginfo version also matches
-        path_only_filelist = [
-            item
-            for item in pkginfo.get("installs", [])
-            if item.get("type") == "file"
-            and "path" in item
-            and "md5checksum" not in item
-        ]
-        if path_only_filelist:
-            for pathitem in path_only_filelist:
-                path = pathitem["path"]
-                if path in pkgdb["files"]:
-                    path_matches = pkgdb["files"][path]
-                    for path_match in path_matches:
-                        if path_match["path"] == pathitem["path"]:
-                            matching_pkg = pkgdb["items"][path_match["index"]]
-                            # make sure we do this only for items that also
-                            # match our pkginfo version
-                            if matching_pkg["version"] == pkginfo["version"]:
-                                return matching_pkg
-
-        # if we get here, we found no matches
-        return None
 
     def copy_pkg_to_repo(self, pkginfo, pkg_path):
         """Copies an item to the appropriate place in the repo.

@@ -563,7 +563,7 @@ def get_recipe_repo(git_path):
         if not os.path.isdir(os.path.join(dest_dir, ".git")):
             log_err(f"{dest_dir} exists and is not a git repo!")
             return None
-        log("Attempting git pull...")
+        log(f"Attempting git pull for {dest_dir}...")
         try:
             log(run_git(["pull"], git_directory=dest_dir))
             return dest_dir
@@ -571,7 +571,7 @@ def get_recipe_repo(git_path):
             log_err(err)
             return None
     else:
-        log("Attempting git clone...")
+        log(f"Attempting git clone for {git_path}...")
         try:
             log(run_git(["clone", git_path, dest_dir]))
             return dest_dir
