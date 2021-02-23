@@ -31,6 +31,7 @@ from typing import IO, Any, Dict, List, Optional, Union
 
 import appdirs
 import pkg_resources
+import yaml
 
 # Type for methods that accept either a filesystem path or a file-like object.
 FileOrPath = Union[IO, str, bytes, int]
@@ -118,6 +119,9 @@ APP_NAME = "Autopkg"
 BUNDLE_ID = "com.github.autopkg"
 
 RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
+
+# Supported recipe extensions
+RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
 
 
 class PreferenceError(Exception):
@@ -319,6 +323,42 @@ def get_all_prefs():
     return globalPreferences.get_all_prefs()
 
 
+def remove_recipe_extension(name):
+    """Removes supported recipe extensions from a filename or path.
+    If the filename or path does not end with any known recipe extension,
+    the name is returned as is."""
+    for ext in RECIPE_EXTS:
+        if name.endswith(ext):
+            return name[: -len(ext)]
+    return name
+
+
+def recipe_from_file(filename):
+    """Create a recipe dictionary from a file. Handle exceptions and log"""
+    if not os.path.isfile(filename):
+        return
+
+    if filename.endswith(".yaml"):
+        try:
+            # try to read it as yaml
+            with open(filename, "rb") as f:
+                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+            return recipe_dict
+        except Exception as err:
+            log_err(f"WARNING: yaml error for {filename}: {err}")
+            return
+
+    else:
+        try:
+            # try to read it as a plist
+            with open(filename, "rb") as f:
+                recipe_dict = plistlib.load(f)
+            return recipe_dict
+        except Exception as err:
+            log_err(f"WARNING: plist error for {filename}: {err}")
+            return
+
+
 def get_identifier(recipe):
     """Return identifier from recipe dict. Tries the Identifier
     top-level key and falls back to the legacy key location."""
@@ -334,27 +374,22 @@ def get_identifier(recipe):
 
 
 def get_identifier_from_recipe_file(filename):
-    """Attempts to read plist file filename and get the
+    """Attempts to read filename and get the
     identifier. Otherwise, returns None."""
-    recipe_plist = {}
-    try:
-        # make sure we can read it
-        with open(filename, "rb") as f:
-            recipe_plist = plistlib.load(f)
-    except Exception as err:
-        log_err(f"WARNING: plist error for {filename}: {err}")
-    return get_identifier(recipe_plist)
+    recipe_dict = recipe_from_file(filename)
+    return get_identifier(recipe_dict)
 
 
 def find_recipe_by_identifier(identifier, search_dirs):
     """Search search_dirs for a recipe with the given
     identifier"""
     for directory in search_dirs:
+        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [
-            os.path.join(normalized_dir, "*.recipe"),
-            os.path.join(normalized_dir, "*/*.recipe"),
-        ]
+        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
+        )
         for pattern in patterns:
             matches = glob.glob(pattern)
             for match in matches:
@@ -675,14 +710,14 @@ class AutoPackager:
             print(msg)
 
     def get_recipe_identifier(self, recipe):
-        """Return the identifier given an input recipe plist."""
+        """Return the identifier given an input recipe dict."""
         identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
         if not identifier:
             log_err("ID NOT FOUND")
             # build a pseudo-identifier based on the recipe pathname
             recipe_path = self.env.get("RECIPE_PATH")
             # get rid of filename extension
-            recipe_path = os.path.splitext(recipe_path)[0]
+            recipe_path = remove_recipe_extension(recipe_path)
             path_parts = recipe_path.split("/")
             identifier = "-".join(path_parts)
         return identifier

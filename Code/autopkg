@@ -34,8 +34,10 @@ from base64 import b64decode
 from typing import Optional
 from urllib.parse import quote, urlparse
 
+import yaml
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
 from autopkglib import (
+    RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
@@ -52,6 +54,8 @@ from autopkglib import (
     log,
     log_err,
     processor_names,
+    recipe_from_file,
+    remove_recipe_extension,
     set_pref,
     version_equal_or_greater,
 )
@@ -104,76 +108,63 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def recipe_plist_from_file(filename):
-    """Create a recipe plist from a file. Handle exceptions and log"""
-    if os.path.isfile(filename):
-        try:
-            # make sure we can read it
-            with open(filename, "rb") as f:
-                recipe_plist = plistlib.load(f)
-        except Exception as err:
-            log_err(f"WARNING: plist error for {filename}: {err}")
-            return
-        return recipe_plist
-
-
-def valid_recipe_plist_with_keys(recipe_plist, keys_to_verify):
-    """Attempts to read a plist and ensures the keys in
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify):
+    """Attempts to read a dict and ensures the keys in
     keys_to_verify exist. Returns False on any failure, True otherwise."""
-    if recipe_plist:
+    if recipe_dict:
         for key in keys_to_verify:
-            if key not in recipe_plist:
+            if key not in recipe_dict:
                 return False
         # if we get here, we found all the keys
         return True
     return False
 
 
-def valid_recipe_plist(recipe_plist):
-    """Returns True if recipe plist is a valid recipe,
+def valid_recipe_dict(recipe_dict):
+    """Returns True if recipe dict is a valid recipe,
     otherwise returns False"""
     return (
-        valid_recipe_plist_with_keys(recipe_plist, ["Input", "Process"])
-        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
-        or valid_recipe_plist_with_keys(recipe_plist, ["Input", "ParentRecipe"])
+        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
     )
 
 
 def valid_recipe_file(filename):
     """Returns True if filename contains a valid recipe,
     otherwise returns False"""
-    recipe_plist = recipe_plist_from_file(filename)
-    return valid_recipe_plist(recipe_plist)
+    recipe_dict = recipe_from_file(filename)
+    return valid_recipe_dict(recipe_dict)
 
 
-def valid_override_plist(recipe_plist):
+def valid_override_dict(recipe_dict):
     """Returns True if the recipe is a valid override,
     otherwise returns False"""
-    return valid_recipe_plist_with_keys(
-        recipe_plist, ["Input", "ParentRecipe"]
-    ) or valid_recipe_plist_with_keys(recipe_plist, ["Input", "Recipe"])
+    return valid_recipe_dict_with_keys(
+        recipe_dict, ["Input", "ParentRecipe"]
+    ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
 
 
 def valid_override_file(filename):
     """Returns True if filename contains a valid override,
     otherwise returns False"""
-    override_plist = recipe_plist_from_file(filename)
-    return valid_override_plist(override_plist)
+    override_dict = recipe_from_file(filename)
+    return valid_override_dict(override_dict)
 
 
 def find_recipe_by_name(name, search_dirs):
     """Search search_dirs for a recipe by file/directory naming rules"""
-    if name.endswith(".recipe"):
-        # drop ".recipe" from the end of the name because we're
-        # going to add it back on...
-        name = os.path.splitext(name)[0]
+    # drop extension from the end of the name because we're
+    # going to add it back on...
+    name = remove_recipe_extension(name)
     # search by "Name", using file/directory hierarchy rules
     for directory in search_dirs:
+        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_identifier()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [
-            os.path.join(normalized_dir, f"{name}.recipe"),
-            os.path.join(normalized_dir, f"*/{name}.recipe"),
-        ]
+        patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
+        )
         for pattern in patterns:
             matches = glob.glob(pattern)
             for match in matches:
@@ -344,11 +335,11 @@ def load_recipe(
     auto_pull=False,
 ):
     """Loads a recipe, first locating it by name.
-    If we find one, we load it and return the plist object (which
-    should be functionally equivelent to a dictionary). If an override file is
-    used, it prefers finding the original recipe by identifier rather than
-    name, so that if recipe names shift with updated recipe repos, the
-    override still applies to the recipe from which it was derived."""
+    If we find one, we load it and return the dictionary object. If an
+    override file is used, it prefers finding the original recipe by
+    identifier rather than name, so that if recipe names shift with
+    updated recipe repos, the override still applies to the recipe from
+    which it was derived."""
 
     if override_dirs is None:
         override_dirs = []
@@ -366,8 +357,7 @@ def load_recipe(
 
     if recipe_file:
         # read it
-        with open(recipe_file, "rb") as f:
-            recipe = plistlib.load(f)
+        recipe = recipe_from_file(recipe_file)
 
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
@@ -520,7 +510,7 @@ class GitError(Exception):
 
 def run_git(git_options_and_arguments, git_directory=None):
     """Run a git command and return its output if successful;
-       raise GitError if unsuccessful."""
+    raise GitError if unsuccessful."""
     gitcmd = git_cmd()
     if not gitcmd:
         raise GitError("ERROR: git is not installed!")
@@ -930,7 +920,7 @@ def get_info(argv):
         "--pull",
         action="store_true",
         help=(
-            "Pull the parent repos if they can't be found in the search path."
+            "Pull the parent repos if they can't be found in the search path. "
             "Implies agreement to search GitHub."
         ),
     )
@@ -1042,9 +1032,8 @@ def list_processors(argv):
 
 def make_suggestions_for(search_name):
     """Suggest existing recipes with names similar to search name."""
-    # trim '.recipe' from the end if it exists
-    if os.path.splitext(search_name)[1].lower() == ".recipe":
-        search_name = os.path.splitext(search_name)[0]
+    # trim extension from the end if it exists
+    search_name = remove_recipe_extension(search_name)
     (search_name_base, search_name_ext) = os.path.splitext(search_name.lower())
     recipe_names = [os.path.splitext(item["Name"]) for item in get_recipe_list()]
     recipe_names = list(set(recipe_names))
@@ -1097,47 +1086,51 @@ def get_recipe_list(
 
     recipes = []
     for directory in search_dirs:
+        # TODO: Combine with similar code in find_recipe_by_name() and find_recipe_by_identifier()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
             continue
 
         # find all top-level recipes and recipes one level down
-        matches = glob.glob(os.path.join(normalized_dir, "*.recipe")) + glob.glob(
-            os.path.join(normalized_dir, "*/*.recipe")
+        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
         )
 
-        for match in matches:
-            recipe = recipe_plist_from_file(match)
-            if valid_recipe_plist(recipe):
-                recipe_name = os.path.basename(match)
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                recipe = recipe_from_file(match)
+                if valid_recipe_dict(recipe):
+                    recipe_name = os.path.basename(match)
 
-                recipe["Name"] = os.path.splitext(recipe_name)[0]
-                recipe["Path"] = match
+                    recipe["Name"] = remove_recipe_extension(recipe_name)
+                    recipe["Path"] = match
 
-                # If a top level "Identifier" key is not discovered,
-                # this will copy an IDENTIFIER key in the "Input"
-                # entry to the top level of the recipe dictionary.
-                if "Identifier" not in recipe:
-                    identifier = get_identifier(recipe)
-                    if identifier:
-                        recipe["Identifier"] = identifier
+                    # If a top level "Identifier" key is not discovered,
+                    # this will copy an IDENTIFIER key in the "Input"
+                    # entry to the top level of the recipe dictionary.
+                    if "Identifier" not in recipe:
+                        identifier = get_identifier(recipe)
+                        if identifier:
+                            recipe["Identifier"] = identifier
 
-                recipes.append(recipe)
+                    recipes.append(recipe)
 
     for directory in override_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
             continue
-        for filename in os.listdir(normalized_dir):
-            if filename.endswith(".recipe"):
-                pathname = os.path.join(normalized_dir, filename)
-                override = recipe_plist_from_file(pathname)
+        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                override = recipe_from_file(match)
+                if valid_override_dict(override):
+                    override_name = os.path.basename(match)
 
-                if valid_override_plist(override):
-                    # override points to a valid recipe
-                    override_name = os.path.basename(pathname)
-                    override["Name"] = os.path.splitext(override_name)[0]
-                    override["Path"] = pathname
+                    override["Name"] = remove_recipe_extension(override_name)
+                    override["Path"] = match
                     override["IsOverride"] = True
 
                     if augmented_list and not show_all:
@@ -1693,8 +1686,7 @@ def update_trust_info(argv):
             continue
         # normalize recipe path
         recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
-        with open(recipe_path, "rb") as f:
-            recipe = plistlib.load(f)
+        recipe = recipe_from_file(recipe_path)
         if "ParentRecipe" not in recipe:
             log_err(f"{recipe_name} is not a recipe override and has no parent recipe.")
             log_err(f"Path: {recipe_path}")
@@ -1718,8 +1710,12 @@ def update_trust_info(argv):
             recipe["ParentRecipeTrustInfo"] = get_trust_info(
                 parent_recipe, search_dirs=search_dirs
             )
-            with open(recipe_path, "wb") as f:
-                plistlib.dump(recipe, f)
+            if recipe_path.endswith(".recipe.yaml"):
+                with open(recipe_path, "wb") as f:
+                    yaml.dump(recipe, f, encoding="utf-8")
+            else:
+                with open(recipe_path, "wb") as f:
+                    plistlib.dump(recipe, f)
             log(f"Wrote updated {recipe_path}")
         else:
             log_err(
@@ -1819,7 +1815,7 @@ def make_override(argv):
         "--pull",
         action="store_true",
         help=(
-            "Pull the parent repos if they can't be found in the search path."
+            "Pull the parent repos if they can't be found in the search path. "
             "Implies agreement to search GitHub."
         ),
     )
@@ -1829,6 +1825,15 @@ def make_override(argv):
         help=(
             "Make an override even if the specified recipe or one of "
             "its parents is deprecated."
+        ),
+    )
+    parser.add_option(
+        "--format",
+        action="store",
+        default="plist",
+        help=(
+            "The format of the recipe override to be created. "
+            "Valid options include: 'plist' (default) or 'yaml'"
         ),
     )
     (options, arguments) = common_parse(parser, argv)
@@ -1888,26 +1893,26 @@ def make_override(argv):
         )
         return 1
 
-    override_name = (
-        options.name or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0]
+    override_name = options.name or remove_recipe_extension(
+        os.path.basename(recipe["RECIPE_PATH"])
     )
 
     reversed_name = ".".join(reversed(override_name.split(".")))
     override_identifier = "local." + reversed_name
 
-    override_plist = {
+    override_dict = {
         "Identifier": override_identifier,
         "Input": recipe["Input"],
         "ParentRecipe": parent_identifier,
     }
 
     # add trust info
-    override_plist["ParentRecipeTrustInfo"] = get_trust_info(
+    override_dict["ParentRecipeTrustInfo"] = get_trust_info(
         recipe, search_dirs=search_dirs
     )
 
-    if "IDENTIFIER" in override_plist["Input"]:
-        del override_plist["Input"]["IDENTIFIER"]
+    if "IDENTIFIER" in override_dict["Input"]:
+        del override_dict["Input"]["IDENTIFIER"]
 
     override_dir = os.path.expanduser(override_dirs[0])
     if not os.path.exists(os.path.join(override_dir)):
@@ -1917,22 +1922,30 @@ def make_override(argv):
             log_err(f"Could not create {override_dir}: {err}")
             return -1
 
-    override_name = (
-        options.name or os.path.splitext(os.path.basename(recipe["RECIPE_PATH"]))[0]
-    )
+    # set file path for override
+    if options.format == "yaml":
+        override_file = os.path.join(override_dir, f"{override_name}.recipe.yaml")
+    else:
+        override_file = os.path.join(override_dir, f"{override_name}.recipe")
 
-    override_file = os.path.join(override_dir, f"{override_name}.recipe")
+    # handle existing override at same path
     if os.path.exists(override_file):
         if not options.force:
             log_err(
-                f"An override plist already exists at {override_file}, "
+                f"A recipe override already exists at {override_file}, "
                 "will not overwrite it. Use --force to overwrite "
                 "anyway."
             )
             return -1
         os.unlink(override_file)
-    with open(override_file, "wb") as f:
-        plistlib.dump(override_plist, f)
+
+    # write override to file
+    if options.format == "yaml":
+        with open(override_file, "wb") as f:
+            yaml.dump(override_dict, f, encoding="utf-8")
+    else:
+        with open(override_file, "wb") as f:
+            plistlib.dump(override_dict, f)
     log(f"Override file saved to {override_file}")
     return 0
 
@@ -1961,7 +1974,7 @@ def parse_recipe_list(filename):
 
 def run_recipes(argv):
     """Run one or more recipes. If called with 'install' verb, run .install
-       recipe"""
+    recipe"""
     verb = argv[1]
     parser = gen_common_parser()
     if verb == "install":
@@ -2592,7 +2605,15 @@ def new_recipe(argv):
     parser.add_option(
         "-p", "--parent-identifier", help="Parent recipe identifier for this recipe."
     )
-
+    parser.add_option(
+        "--format",
+        action="store",
+        default="plist",
+        help=(
+            "The format of the new recipe to be created. "
+            "Valid options include: 'plist' (default) or 'yaml'"
+        ),
+    )
     (options, arguments) = common_parse(parser, argv)
 
     if len(arguments) != 1:
@@ -2608,7 +2629,7 @@ def new_recipe(argv):
         "Description": "Recipe description",
         "Identifier": identifier,
         "Input": {"NAME": name},
-        "MiniumumVersion": "1.0",
+        "MinimumVersion": "1.0",
         "Process": [
             {
                 "Arguments": {"Argument1": "Value1", "Argument2": "Value2"},
@@ -2620,8 +2641,14 @@ def new_recipe(argv):
         recipe["ParentRecipe"] = options.parent_identifier
 
     try:
-        with open(filename, "wb") as f:
-            plistlib.dump(recipe, f)
+        if options.format == "yaml" or filename.endswith(".recipe.yaml"):
+            # Yaml recipes require AutoPkg 2.3 or later.
+            recipe["MinimumVersion"] = "2.3"
+            with open(filename, "wb") as f:
+                yaml.dump(recipe, f, encoding="utf-8")
+        else:
+            with open(filename, "wb") as f:
+                plistlib.dump(recipe, f)
         log(f"Saved new recipe to {filename}")
     except Exception as err:
         log_err(f"Failed to write recipe: {err}")

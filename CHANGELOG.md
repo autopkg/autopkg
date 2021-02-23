@@ -1,5 +1,22 @@
 ### [2.3](https://github.com/autopkg/autopkg/compare/v2.2...HEAD) (Unreleased)
 
+NEW FEATURES:
+
+AutoPkg now supports recipes in yaml format. Yaml recipes tend to be more human-readable than plist recipes, especially for those who don't work with plists on a daily basis.
+
+AutoPkg can produce new recipes in yaml format using `autopkg new-recipe SomeCoolApp.pkg.recipe.yaml` and make overrides in yaml format using `autopkg make-override --format=yaml SomeCoolApp.pkg`. Searching for public yaml recipes on GitHub is also possible using the standard `search` verb.
+
+NOTES FOR RECIPE AUTHORS:
+
+- Because yaml recipes will require AutoPkg 2.3 or later in order to run, and because some members of the AutoPkg community may still be using AutoPkg 1.x, recipe authors are encouraged to be conservative and keep existing public recipes in their current format for a while.
+- If you have both plist and yaml recipes for the same app in your repo, you may experience unexpected behavior now that AutoPkg detects and uses yaml recipes.
+
+CHANGES FROM 2.2:
+
+- MunkiImporter now uses consistent pkginfo matching logic (https://github.com/autopkg/autopkg/pull/671)
+- Typo fixed in the recipe template created by `new-recipe`
+- Minor edits to help text
+
 ### [2.2](https://github.com/autopkg/autopkg/compare/v2.1...v2.2) (August 24, 2020)
 
 NEW FEATURES
