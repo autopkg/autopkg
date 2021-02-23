@@ -69,11 +69,13 @@ class URLDownloader(URLGetter):
                 "'prefetch_filename' is useful for URLs with redirects."
             ),
         },
-        "external_metadata_path": {
+        "external_metadata": {
             "default": None,
             "required": False,
             "description": (
-                "Optional json file with ETag and Last-Modified "
+                "Optional dictionary of values that represent "
+                "a Redis connection or a path for a JSON file."
+                "Redis DB or JSON file with ETag and Last-Modified "
                 "that will be used to match with the download " 
                 "in order to determine if URLDownloader has "
                 "to download the file again or not. "
@@ -283,8 +285,8 @@ class URLDownloader(URLGetter):
             # resource not modified
             if self.env["external_metadata_path"]:
                 self.env["download_changed"] = False
-                self.env["stop_processing_recipe"] = True
                 self.output("Item at URL is unchanged.")
+                self.env["stop_processing_recipe"] = True
                 return False
             self.output("Item at URL is unchanged.")
             self.output(f"Using existing {self.env['pathname']}")
