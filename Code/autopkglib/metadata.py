@@ -15,27 +15,71 @@
 Module that provides a way to read data from a json object
 """
 import json
+import redis
+
+from redis.exceptions import ConnectionError, ResponseError
+from autopkglib import log_err
 
 
 class Metadata:
-    def __init__(self, json_object):
-        self.json_object = json_object
-        try:
-            with open(self.json_object, "rb") as json_file:
-                self.json_data = json.load(json_file)
-        except:
-            self.json_data = dict()
+    def __init__(self, external_metadata):
+        print(external_metadata)
+        self.metadata_object = None
+        self.host = external_metadata.get("host")
+        self.port = external_metadata.get("port")
+        self.db = external_metadata.get("db")
+        self.path = external_metadata.get("path")
+        if (
+            self.host and
+            self.port and
+            self.db or
+            self.db == 0
+        ):
+            try:
+                self.metadata_object = redis.Redis(
+                    host=self.host,
+                    port=self.port,
+                    db=self.db
+                )
+                self.metadata_object.ping()
+                self.metadata = self.metadata_object
+            except ConnectionError as err:
+                log_err(f"Error connecting to redis db: {err}")
+                raise
+            except ResponseError as err:
+                log_err(f"Error connecting to redis db: {err}")
+                raise
+        if not isinstance(
+            self.metadata_object, redis.client.Redis
+            ) and self.path:
+            try:
+                with open(self.path, "rb") as json_file:
+                    self.metadata = json.load(json_file)
+            except:
+                self.metadata = dict()
     
-    def getmetadata(self, filename, metadata):
+    def getmetadata(self, filename, attribute):
+        if not isinstance(self.metadata_object, redis.client.Redis):
+            try:
+                return self.metadata.get(filename).get(attribute)
+            except AttributeError:
+                return None
         try:
-            return self.json_data.get(filename).get(metadata)
+            return self.metadata.hget(filename, attribute).decode()
         except AttributeError:
             return None
-    def setmetadata(self, filename, metadata, value):
-        try:
-            self.json_data[filename][metadata] = value
-        except KeyError:
-            self.json_data[filename] = dict()
-            self.json_data[filename][metadata] = value
-        with open(self.json_object, "w") as json_file:
-            json.dump(self.json_data, json_file)
+
+    def setmetadata(self, filename, attribute, value):
+        if not isinstance(
+            self.metadata_object, redis.client.Redis
+            ) and self.path:
+            try:
+                self.metadata[filename][attribute] = value
+            except KeyError:
+                self.metadata[filename] = dict()
+                self.metadata[filename][attribute] = value
+            with open(self.path, "w") as json_file:
+                json.dump(self.metadata, json_file)
+            return
+        self.metadata.hset(filename, attribute, value)
+        return
