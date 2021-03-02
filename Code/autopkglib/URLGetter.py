@@ -71,16 +71,19 @@ class URLGetter(Processor):
         headers = {}
         # If the download file already exists, add some headers to the request
         # so we don't retrieve the content if it hasn't changed
-        if self.env["external_metadata_path"]:
-            metadata_object = metadata.Metadata(self.env["external_metadata_path"])
+        if self.env.get("external_metadata") and isinstance(
+            self.env.get("external_metadata"), dict
+        ):
+            metadata_object = metadata.Metadata(self.env.get("external_metadata"))
             etag = metadata_object.getmetadata(filename, self.xattr_etag)
-            last_modified = metadata_object.getmetadata(filename, self.xattr_last_modified)
+            last_modified = metadata_object.getmetadata(
+                filename, self.xattr_last_modified
+            )
             if etag:
                 headers["If-None-Match"] = etag
             if last_modified:
                 headers["If-Modified-Since"] = last_modified
-            return headers
-        if os.path.exists(filename):
+        elif os.path.exists(filename):
             self.existing_file_size = os.path.getsize(filename)
             etag = self.getxattr(self.xattr_etag)
             last_modified = self.getxattr(self.xattr_last_modified)
@@ -88,7 +91,7 @@ class URLGetter(Processor):
                 headers["If-None-Match"] = etag
             if last_modified:
                 headers["If-Modified-Since"] = last_modified
-            return headers
+        return headers
 
     def clear_header(self, header):
         """Clear header dictionary."""

@@ -76,7 +76,7 @@ class URLDownloader(URLGetter):
                 "Optional dictionary of values that represent "
                 "a Redis connection or a path for a JSON file."
                 "Redis DB or JSON file with ETag and Last-Modified "
-                "that will be used to match with the download " 
+                "that will be used to match with the download "
                 "in order to determine if URLDownloader has "
                 "to download the file again or not. "
                 "Defaults to None"
@@ -159,10 +159,16 @@ class URLDownloader(URLGetter):
         self.add_curl_common_opts(curl_cmd)
         # Clear out a potentially zero-byte file
         self.clear_zero_file(self.env["pathname"])
-        if self.env["external_metadata_path"]:
-            self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.get_filename()))
+        if self.env.get("external_metadata") and isinstance(
+            self.env.get("external_metadata"), dict
+        ):
+            self.add_curl_headers(
+                curl_cmd, self.produce_etag_headers(self.get_filename())
+            )
         else:
-            self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.env["pathname"]))
+            self.add_curl_headers(
+                curl_cmd, self.produce_etag_headers(self.env["pathname"])
+            )
         return curl_cmd
 
     def clear_vars(self):
@@ -283,11 +289,14 @@ class URLDownloader(URLGetter):
 
         if header["http_result_code"] == "304":
             # resource not modified
-            if self.env["external_metadata_path"]:
+            if self.env.get("external_metadata") and isinstance(
+                self.env.get("external_metadata"), dict
+            ):
                 self.env["download_changed"] = False
                 self.output("Item at URL is unchanged.")
                 self.env["stop_processing_recipe"] = True
                 return False
+            self.env["download_changed"] = False
             self.output("Item at URL is unchanged.")
             self.output(f"Using existing {self.env['pathname']}")
             return False
@@ -308,14 +317,16 @@ class URLDownloader(URLGetter):
     def store_headers(self, header):
         """Store last-modified and etag headers in pathname xattr."""
         filename = self.get_filename()
-        metadata_object = metadata.Metadata(self.env["external_metadata_path"])
+        metadata_object = None
+        if self.env.get("external_metadata") and isinstance(
+            self.env.get("external_metadata"), dict
+        ):
+            metadata_object = metadata.Metadata(self.env.get("external_metadata"))
         if header.get("last-modified"):
-            if self.env["external_metadata_path"]:
+            if metadata_object:
                 self.env["last_modified"] = header.get("last-modified")
                 metadata_object.setmetadata(
-                    filename,
-                    self.xattr_last_modified,
-                    header.get("last-modified")
+                    filename, self.xattr_last_modified, header.get("last-modified")
                 )
             else:
                 self.env["last_modified"] = header.get("last-modified")
@@ -330,12 +341,10 @@ class URLDownloader(URLGetter):
 
         self.env["etag"] = ""
         if header.get("etag"):
-            if self.env["external_metadata_path"]:
+            if metadata_object:
                 self.env["etag"] = header.get("etag")
                 metadata_object.setmetadata(
-                    filename,
-                    self.xattr_etag,
-                    header.get("etag")
+                    filename, self.xattr_etag, header.get("etag")
                 )
             else:
                 self.env["etag"] = header.get("etag")
