@@ -15,13 +15,10 @@
 # limitations under the License.
 
 """Core/shared autopkglib functions"""
-
-
 import glob
 import imp
 import json
 import os
-import platform
 import plistlib
 import pprint
 import re
@@ -30,25 +27,50 @@ import sys
 import traceback
 from copy import deepcopy
 from distutils.version import LooseVersion
+from typing import IO, Any, Dict, List, Optional, Union
+
+import appdirs
+import pkg_resources
+import yaml
+
+# Type for methods that accept either a filesystem path or a file-like object.
+FileOrPath = Union[IO, str, bytes, int]
+
+# Type for ubiquitus dictionary type used throughout autopkg.
+# Most commonly for `input_variables` and friends. It also applies to virtually all
+# usages of plistlib results as well.
+VarDict = Dict[str, Any]
 
 
 def is_mac():
     """Return True if current OS is macOS."""
-    return "Darwin" in platform.platform()
+    return "darwin" in sys.platform.lower()
 
 
 def is_windows():
     """Return True if current OS is Windows."""
-    return "Windows" in platform.platform()
+    return "win32" in sys.platform.lower()
 
 
 def is_linux():
     """Return True if current OS is Linux."""
-    return "Linux" in platform.platform()
+    return "linux" in sys.platform.lower()
+
+
+def log(msg, error=False):
+    """Message logger, prints to stdout/stderr."""
+    if error:
+        print(msg, file=sys.stderr)
+    else:
+        print(msg)
+
+
+def log_err(msg):
+    """Message logger for errors."""
+    log(msg, error=True)
 
 
 try:
-    from Foundation import NSArray, NSDictionary, NSNumber
     from CoreFoundation import (
         CFPreferencesAppSynchronize,
         CFPreferencesCopyAppValue,
@@ -56,22 +78,50 @@ try:
         CFPreferencesSetAppValue,
         kCFPreferencesAnyHost,
         kCFPreferencesAnyUser,
-        kCFPreferencesCurrentUser,
         kCFPreferencesCurrentHost,
+        kCFPreferencesCurrentUser,
     )
+    from Foundation import NSArray, NSDictionary, NSNumber
 except ImportError:
-    print(
-        "WARNING: Failed 'from Foundation import NSArray, NSDictionary' in " + __name__
-    )
-    print(
-        "WARNING: Failed 'from CoreFoundation import "
-        "CFPreferencesAppSynchronize, ...' in " + __name__
-    )
+    if is_mac():
+        print(
+            "ERROR: Failed 'from Foundation import NSArray, NSDictionary' in "
+            + __name__
+        )
+        print(
+            "ERROR: Failed 'from CoreFoundation import "
+            "CFPreferencesAppSynchronize, ...' in " + __name__
+        )
+        raise
+    # On non-macOS platforms, the above imported names are stubbed out.
+    NSArray = list
+    NSDictionary = dict
+    NSNumber = int
 
+    def CFPreferencesAppSynchronize(*args, **kwargs):
+        pass
 
+    def CFPreferencesCopyAppValue(*args, **kwargs):
+        pass
+
+    def CFPreferencesCopyKeyList(*args, **kwargs):
+        return []
+
+    def CFPreferencesSetAppValue(*args, **kwargs):
+        pass
+
+    kCFPreferencesAnyHost = None
+    kCFPreferencesAnyUser = None
+    kCFPreferencesCurrentUser = None
+    kCFPreferencesCurrentHost = None
+
+APP_NAME = "Autopkg"
 BUNDLE_ID = "com.github.autopkg"
 
 RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
+
+# Supported recipe extensions
+RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
 
 
 class PreferenceError(Exception):
@@ -85,14 +135,18 @@ class Preferences:
 
     def __init__(self):
         """Init."""
-        self.prefs = {}
+        self.prefs: VarDict = {}
         # What type of preferences input are we using?
-        self.type = None
+        self.type: Optional[str] = None
         # Path to the preferences file we were given
-        self.file_path = None
+        self.file_path: Optional[str] = None
         # If we're on macOS, read in the preference domain first.
         if is_mac():
             self.prefs = self._get_macos_prefs()
+        else:
+            self.prefs = self._get_file_prefs()
+        if not self.prefs:
+            log_err("WARNING: Did not load any default preferences.")
 
     def _parse_json_or_plist_file(self, file_path):
         """Parse the file. Start with plist, then JSON."""
@@ -160,6 +214,24 @@ class Preferences:
                     prefs[key] = self._get_macos_pref(key)
         return prefs
 
+    def _get_file_prefs(self):
+        r"""Lookup preferences for Windows in a standardized path, such as:
+        * `C:\\Users\username\AppData\Local\Autopkg\config.{plist,json}`
+        * `/home/username/.config/Autopkg/config.{plist,json}`
+        Tries to find `config.plist`, then `config.json`."""
+
+        config_dir = appdirs.user_config_dir(APP_NAME, appauthor=False)
+
+        # Try a plist config, then a json config.
+        data = self._parse_json_or_plist_file(os.path.join(config_dir, "config.plist"))
+        if data:
+            return data
+        data = self._parse_json_or_plist_file(os.path.join(config_dir, "config.json"))
+        if data:
+            return data
+
+        return {}
+
     def _set_macos_pref(self, key, value):
         """Sets a preference for domain"""
         try:
@@ -179,6 +251,7 @@ class Preferences:
     def _write_json_file(self):
         """Write out the prefs into JSON."""
         try:
+            assert self.file_path is not None
             with open(self.file_path, "w") as f:
                 json.dump(
                     self.prefs,
@@ -194,6 +267,7 @@ class Preferences:
     def _write_plist_file(self):
         """Write out the prefs into a Plist."""
         try:
+            assert self.file_path is not None
             with open(self.file_path, "wb") as f:
                 plistlib.dump(self.prefs, f)
         except Exception as e:
@@ -223,8 +297,10 @@ class Preferences:
         # On macOS, write it back to preferences domain if we didn't use a file
         if is_mac() and self.type is None:
             self._set_macos_pref(key, value)
-        elif self.file_path:
+        elif self.file_path is not None:
             self.write_file()
+        else:
+            log_err(f"WARNING: Preference change {key}=''{value}'' was not saved.")
 
 
 # Set the global preferences object
@@ -247,17 +323,40 @@ def get_all_prefs():
     return globalPreferences.get_all_prefs()
 
 
-def log(msg, error=False):
-    """Message logger, prints to stdout/stderr."""
-    if error:
-        print(msg, file=sys.stderr)
+def remove_recipe_extension(name):
+    """Removes supported recipe extensions from a filename or path.
+    If the filename or path does not end with any known recipe extension,
+    the name is returned as is."""
+    for ext in RECIPE_EXTS:
+        if name.endswith(ext):
+            return name[: -len(ext)]
+    return name
+
+
+def recipe_from_file(filename):
+    """Create a recipe dictionary from a file. Handle exceptions and log"""
+    if not os.path.isfile(filename):
+        return
+
+    if filename.endswith(".yaml"):
+        try:
+            # try to read it as yaml
+            with open(filename, "rb") as f:
+                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+            return recipe_dict
+        except Exception as err:
+            log_err(f"WARNING: yaml error for {filename}: {err}")
+            return
+
     else:
-        print(msg)
-
-
-def log_err(msg):
-    """Message logger for errors."""
-    log(msg, error=True)
+        try:
+            # try to read it as a plist
+            with open(filename, "rb") as f:
+                recipe_dict = plistlib.load(f)
+            return recipe_dict
+        except Exception as err:
+            log_err(f"WARNING: plist error for {filename}: {err}")
+            return
 
 
 def get_identifier(recipe):
@@ -275,27 +374,22 @@ def get_identifier(recipe):
 
 
 def get_identifier_from_recipe_file(filename):
-    """Attempts to read plist file filename and get the
+    """Attempts to read filename and get the
     identifier. Otherwise, returns None."""
-    recipe_plist = {}
-    try:
-        # make sure we can read it
-        with open(filename, "rb") as f:
-            recipe_plist = plistlib.load(f)
-    except Exception as err:
-        log_err(f"WARNING: plist error for {filename}: {err}")
-    return get_identifier(recipe_plist)
+    recipe_dict = recipe_from_file(filename)
+    return get_identifier(recipe_dict)
 
 
 def find_recipe_by_identifier(identifier, search_dirs):
     """Search search_dirs for a recipe with the given
     identifier"""
     for directory in search_dirs:
+        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [
-            os.path.join(normalized_dir, "*.recipe"),
-            os.path.join(normalized_dir, "*/*.recipe"),
-        ]
+        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
+        )
         for pattern in patterns:
             matches = glob.glob(pattern)
             for match in matches:
@@ -308,9 +402,11 @@ def find_recipe_by_identifier(identifier, search_dirs):
 def get_autopkg_version():
     """Gets the version number of autopkg"""
     try:
-        with open(os.path.join(os.path.dirname(__file__), "version.plist"), "rb") as f:
-            version_plist = plistlib.load(f)
-    except Exception:
+        version_plist = plistlib.load(
+            pkg_resources.resource_stream(__name__, "version.plist")
+        )
+    except Exception as ex:
+        log_err(f"Unable to get autopkg version: {ex}")
         return "UNKNOWN"
     try:
         return version_plist["Version"]
@@ -360,6 +456,71 @@ def update_data(a_dict, key, value):
 def is_executable(exe_path):
     """Is exe_path executable?"""
     return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
+
+
+def find_binary(binary: str, env: Optional[Dict] = None) -> Optional[str]:
+    r"""Returns the full path for `binary`, or `None` if it was not found.
+
+    The search order is as follows:
+    * A key in the optional `env` dictionary named `<binary>_PATH`.
+        Where `binary` is uppercase. E.g., `git` -> `GIT`.
+    * A preference named `<binary>_PATH` uppercase, as above.
+    * The directories listed in the system-dependent `$PATH` environment variable.
+    * On POSIX-y platforms only: `/usr/bin/<binary>`
+    In all cases, the binary found at any path must be executable to be used.
+
+    The `binary` parameter should be given without any file extension. A platform
+    specific file extension for executables will be added automatically, as needed.
+
+    Example: `find_binary('curl')` may return `C:\Windows\system32\curl.exe`.
+    """
+
+    if env is None:
+        env = {}
+    pref_key = f"{binary.upper()}_PATH"
+
+    bin_env = env.get(pref_key)
+    if bin_env:
+        if not is_executable(bin_env):
+            log_err(
+                f"WARNING: path given in the '{pref_key}' environment: '{bin_env}' "
+                "either doesn't exist or is not executable! "
+                f"Continuing search for usable '{binary}'."
+            )
+        else:
+            return env[pref_key]
+
+    bin_pref = get_pref(pref_key)
+    if bin_pref:
+        if not is_executable(bin_pref):
+            log_err(
+                f"WARNING: path given in the '{pref_key}' preference: '{bin_pref}' "
+                "either doesn't exist or is not executable! "
+                f"Continuing search for usable '{binary}'."
+            )
+        else:
+            return bin_pref
+
+    if is_windows():
+        extension = ".exe"
+    else:
+        extension = ""
+
+    full_binary = f"{binary}{extension}"
+
+    for search_dir in os.get_exec_path():
+        exe_path = os.path.join(search_dir, full_binary)
+        if is_executable(exe_path):
+            return exe_path
+
+    if (is_linux() or is_mac()) and is_executable(f"/usr/bin/{binary}"):
+        return f"/usr/bin/{binary}"
+
+    log_err(
+        f"WARNING: Unable to find '{full_binary}' in either configured, "
+        "or environmental locations. Things aren't guaranteed to work from here."
+    )
+    return None
 
 
 # Processor and ProcessorError base class definitions
@@ -497,6 +658,27 @@ class Processor:
         else:
             sys.exit(0)
 
+    def load_plist_from_file(
+        self,
+        plist_file: FileOrPath,
+        exception_text: str = "Unable to load plist",
+    ) -> VarDict:
+        """Load plist from a path or file-like object and return content as dictionary.
+
+        If there is an error loading the file, the exception raised will be prefixed
+        with `exception_text`.
+        """
+        try:
+            if isinstance(plist_file, (str, bytes, int)):
+                fh: IO = open(plist_file, "rb")
+            else:
+                fh = plist_file
+            return plistlib.load(fh)
+        except Exception as err:
+            raise ProcessorError(f"{exception_text}: {err}")
+        finally:
+            fh.close()
+
 
 # AutoPackager class defintion
 
@@ -528,14 +710,14 @@ class AutoPackager:
             print(msg)
 
     def get_recipe_identifier(self, recipe):
-        """Return the identifier given an input recipe plist."""
+        """Return the identifier given an input recipe dict."""
         identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
         if not identifier:
             log_err("ID NOT FOUND")
             # build a pseudo-identifier based on the recipe pathname
             recipe_path = self.env.get("RECIPE_PATH")
             # get rid of filename extension
-            recipe_path = os.path.splitext(recipe_path)[0]
+            recipe_path = remove_recipe_extension(recipe_path)
             path_parts = recipe_path.split("/")
             identifier = "-".join(path_parts)
         return identifier
@@ -777,16 +959,10 @@ _PROCESSOR_NAMES = []
 
 
 def import_processors():
-    """Imports processors from the directory this init file is in"""
-    # get the directory this __init__.py file is in
-    mydir = os.path.dirname(os.path.abspath(__file__))
-    mydirname = os.path.basename(mydir)
-
-    # find all the .py files (minus this one)
-    processor_files = [
+    processor_files: List[str] = [
         os.path.splitext(name)[0]
-        for name in os.listdir(mydir)
-        if name.endswith(".py") and not name == "__init__.py"
+        for name in pkg_resources.resource_listdir(__name__, "")
+        if name.endswith(".py")
     ]
 
     # Warning! Fancy dynamic importing ahead!
@@ -798,9 +974,9 @@ def import_processors():
     #
     #    from Bar.Foo import Foo
     #
-    for name in processor_files:
+    for name in filter(lambda f: f not in ("__init__", "xattr"), processor_files):
         globals()[name] = getattr(
-            __import__(mydirname + "." + name, fromlist=[name]), name
+            __import__(__name__ + "." + name, fromlist=[name]), name
         )
         _PROCESSOR_NAMES.append(name)
         _CORE_PROCESSOR_NAMES.append(name)

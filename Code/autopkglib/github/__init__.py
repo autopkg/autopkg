@@ -20,10 +20,10 @@ import json
 import os
 import re
 import tempfile
-from urllib.parse import quote
 from typing import List, Optional
+from urllib.parse import quote
 
-from autopkglib import get_pref, log, log_err
+from autopkglib import RECIPE_EXTS, get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
 
 BASE_URL = "https://api.github.com"
@@ -34,7 +34,9 @@ DEFAULT_SEARCH_USER = "autopkg"
 class GitHubSession(URLGetter):
     """Handles a session with the GitHub API"""
 
-    def __init__(self, curl_path=None, curl_opts=None):
+    def __init__(
+        self, curl_path=None, curl_opts=None, github_url=None, token_path=TOKEN_LOCATION
+    ):
         super(GitHubSession, self).__init__()
         self.env = {}
         self.env["url"] = None
@@ -42,20 +44,29 @@ class GitHubSession(URLGetter):
             self.env["CURL_PATH"] = curl_path
         if curl_opts:
             self.env["curl_opts"] = curl_opts
+        if github_url:
+            self.url = github_url
+        else:
+            self.url = BASE_URL
         self.http_result_code = None
-        self.token = self._get_token()
+        if token_path.startswith("~"):
+            token_abspath = os.path.expanduser(token_path)
+        else:
+            token_abspath = token_path
+        self.token = self._get_token(token_path=token_abspath)
 
-    def _get_token(self) -> Optional[str]:
-        """Reads token from perferences or TOKEN_LOCATION.
-            Otherwise returns None.
+    def _get_token(self, token_path: str = TOKEN_LOCATION) -> Optional[str]:
+        """Reads token from perferences or provided token path.
+        Defaults to TOKEN_LOCATION for the token path.
+        Otherwise returns None.
         """
         token = get_pref("GITHUB_TOKEN")
-        if not token and os.path.exists(TOKEN_LOCATION):
+        if not token and os.path.exists(token_path):
             try:
-                with open(TOKEN_LOCATION, "r") as tokenf:
+                with open(token_path, "r") as tokenf:
                     token = tokenf.read()
             except OSError as err:
-                log_err(f"Couldn't read token file at {TOKEN_LOCATION}! Error: {err}")
+                log_err(f"Couldn't read token file at {token_path}! Error: {err}")
                 token = None
         # TODO: validate token given we found one but haven't checked its
         # auth status
@@ -165,7 +176,13 @@ To save the token, paste it to the following prompt."""
     ):
         """Search GitHub for results for a given name."""
 
-        query = f"q={quote(name)}+extension:recipe+user:{user}"
+        # Include all supported recipe extensions in search.
+        # Compound extensions like ".recipe.yaml" aren't definable here,
+        # so further filtering of results is done below.
+        exts = "+".join(("extension:" + ext.split(".")[-1] for ext in RECIPE_EXTS))
+        # Example value: "extension:recipe+extension:plist+extension:yaml"
+
+        query = f"q={quote(name)}+{exts}+user:{user}"
 
         if path_only:
             query += "+in:path,filepath"
@@ -173,13 +190,18 @@ To save the token, paste it to the following prompt."""
             query += "+in:path,file"
         query += f"&per_page={results_limit}"
 
-        results = self.code_search(query, use_token=False)
+        results = self.code_search(query, use_token=use_token)
 
         if not results or not results.get("total_count"):
             log("Nothing found.")
             return []
 
-        results_items = results["items"]
+        # Filter out files from results that are not AutoPkg recipes.
+        results_items = [
+            item
+            for item in results["items"]
+            if any((item["name"].endswith(ext) for ext in RECIPE_EXTS))
+        ]
 
         if not results_items:
             log("Nothing found.")
@@ -235,7 +257,7 @@ To save the token, paste it to the following prompt."""
                 assets)."""
 
         # Compose the URL
-        self.env["url"] = BASE_URL + endpoint
+        self.env["url"] = self.url + endpoint
         if query:
             self.env["url"] += "?" + query
 

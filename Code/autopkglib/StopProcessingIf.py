@@ -27,7 +27,7 @@ __all__ = ["StopProcessingIf"]
 
 class StopProcessingIf(Processor):
     """Sets a variable to tell AutoPackager to stop processing a recipe if a
-       predicate comparison evaluates to true."""
+    predicate comparison evaluates to true."""
 
     description = __doc__
     input_variables = {

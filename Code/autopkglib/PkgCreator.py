@@ -19,7 +19,7 @@ import os.path
 import plistlib
 import socket
 import subprocess
-import xml.etree.ElementTree as ET
+from xml.etree import ElementTree as ET
 
 from autopkglib import Processor, ProcessorError
 
@@ -114,8 +114,8 @@ class PkgCreator(Processor):
 
     def pkg_already_exists(self, pkg_path, identifier, version):
         """Check for an existing flat package in the output dir and compare its
-           identifier and version to the one we're going to build.
-           Returns a boolean."""
+        identifier and version to the one we're going to build.
+        Returns a boolean."""
         if os.path.exists(pkg_path) and not self.env.get("force_pkg_build"):
             self.output(f"Package already exists at path {pkg_path}.")
             try:
@@ -243,7 +243,12 @@ class PkgCreator(Processor):
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.socket.connect(AUTO_PKG_SOCKET)
         except OSError as err:
-            raise ProcessorError(f"Couldn't connect to autopkgserver: {err.strerror}")
+            raise ProcessorError(
+                "Unable to contact autopkgserver socket. "
+                "The launchd com.github.autopkg.autopkgserver is most likely not "
+                "loaded or running."
+                f"\nError message: {err.strerror}"
+            )
 
     def send_request(self, request):
         """Send a packaging request to the autopkgserver"""

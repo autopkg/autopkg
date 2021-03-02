@@ -1,4 +1,35 @@
-### [2.3](https://github.com/autopkg/autopkg/compare/v2.2...HEAD) (Unreleased)
+### [Unreleased](https://github.com/autopkg/autopkg/compare/v2.2...HEAD) (Unreleased)
+
+NEW FEATURES:
+
+AutoPkg now supports recipes in [yaml](https://yaml.org/) format ([#698](https://github.com/autopkg/autopkg/pull/698), [example recipe](https://github.com/autopkg/autopkg/pull/698#issuecomment-783522503)). Yaml recipes tend to be more human-readable than plist recipes, especially for those who don't work with plists on a daily basis.
+
+AutoPkg can produce new recipes in yaml format using `autopkg new-recipe SomeCoolApp.pkg.recipe.yaml` and make overrides in yaml format using `autopkg make-override --format=yaml SomeCoolApp.pkg`. Searching for public yaml recipes on GitHub is also possible using `autopkg search`.
+
+NOTES FOR RECIPE AUTHORS:
+
+- Because yaml recipes will require AutoPkg 2.3 or later in order to run, and because some members of the AutoPkg community may still be using AutoPkg 1.x, recipe authors are encouraged to be conservative and keep existing public recipes in their current format for a while.
+- If you have both plist and yaml recipes for the same app in your repo, you may experience unexpected behavior now that AutoPkg detects and uses yaml recipes.
+
+OTHER CHANGES FROM 2.2:
+
+- Added support for internal GitHub URLs ([#649](https://github.com/autopkg/autopkg/pull/649))
+- `autopkg make-override` no longer creates override for deprecated recipes by default ([#685](https://github.com/autopkg/autopkg/pull/685))
+- Typo fixed in the recipe template created by `autopkg new-recipe`
+- Fixed a bug causing `autopkg repo-add` and `autopkg repo-delete` to fail for repos in GitHub organizations with non-alphanumeric characters in their names ([#712](https://github.com/autopkg/autopkg/issues/712), [#715](https://github.com/autopkg/autopkg/pull/715))
+- CodeSignatureVerifier warns when certain incorrect input variables are detected
+- MunkiImporter now uses consistent pkginfo matching logic ([#671](https://github.com/autopkg/autopkg/pull/671))
+- Minor edits to help text
+- Improvements to Versioner processor ([#600](https://github.com/autopkg/autopkg/pull/600))
+- Help is now shown for `autopkg list-processors --help`, matching behavior of most other verbs ([#717](https://github.com/autopkg/autopkg/pull/717))
+- The output of `autopkg list-recipes --plist` is now text instead of binary (this matches previous behavior in AutoPkg 1.x)
+- More output when using `autopkg repo-add` and `autopkg repo-delete` ([#704](https://github.com/autopkg/autopkg/pull/704))
+- Fixed a bug in MunkiImporter that caused incorrect `uninstaller_item_location` path ([#702](https://github.com/autopkg/autopkg/pull/702))
+- Building a foundation for long term expansion of platform support ([#648](https://github.com/autopkg/autopkg/pull/648), [#651](https://github.com/autopkg/autopkg/pull/651), [#653](https://github.com/autopkg/autopkg/pull/653), [#656](https://github.com/autopkg/autopkg/pull/656), [#658](https://github.com/autopkg/autopkg/pull/658), [#666](https://github.com/autopkg/autopkg/pull/666), [#670](https://github.com/autopkg/autopkg/pull/670))
+
+KNOWN ISSUES:
+
+- [#710](https://github.com/autopkg/autopkg/issues/710) is currently affecting some `autopkg search` results (regardless of whether the recipes are plist or yaml)
 
 ### [2.2](https://github.com/autopkg/autopkg/compare/v2.1...v2.2) (August 24, 2020)
 

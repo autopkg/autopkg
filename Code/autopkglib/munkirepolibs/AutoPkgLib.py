@@ -12,7 +12,7 @@ class AutoPkgLib:
 
     def make_catalog_db(self):
         """Reads the 'all' catalog and returns a dict we can use like a
-         database"""
+        database"""
 
         all_items_path = os.path.join(self.munki_repo, "catalogs", "all")
         if not os.path.exists(all_items_path):

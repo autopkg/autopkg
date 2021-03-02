@@ -211,6 +211,15 @@ class CodeSignatureVerifier(DmgMounter):
     def process_code_signature(self, path):
         """Verifies the code signature for a path"""
         self.output("Verifying code signature...")
+
+        if self.env.get("requirements") and not self.env.get("requirement"):
+            self.output(
+                "WARNING: This recipe is using 'requirements' when it "
+                "should be using 'requirement'. This will become an error "
+                "in future versions of AutoPkg."
+            )
+            self.env["requirement"] = self.env["requirements"]
+
         # The first step is to run 'codesign --verify <path>'
         requirement = self.env.get("requirement")
         strict_verification = self.env.get("strict_verification")
@@ -265,7 +274,9 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
 
-        if self.env.get("expected_authorities"):
+        if self.env.get("expected_authorities") and not self.env.get(
+            "expected_authority_names"
+        ):
             self.output(
                 "WARNING: This recipe is using 'expected_authorities' when it "
                 "should be using 'expected_authority_names'. This will become an error "

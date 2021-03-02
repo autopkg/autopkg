@@ -19,7 +19,7 @@ upcoming removal of a recipe."""
 
 import os
 
-from autopkglib import Processor
+from autopkglib import Processor, remove_recipe_extension
 
 __all__ = ["DeprecationWarning"]
 
@@ -47,8 +47,7 @@ class DeprecationWarning(Processor):
         )
         self.output(warning_message)
         recipe_name = os.path.basename(self.env["RECIPE_PATH"])
-        if recipe_name.endswith(".recipe"):
-            recipe_name = os.path.splitext(recipe_name)[0]
+        recipe_name = remove_recipe_extension(recipe_name)
         self.env["deprecation_summary_result"] = {
             "summary_text": "The following recipes have deprecation warnings:",
             "report_fields": ["name", "warning"],

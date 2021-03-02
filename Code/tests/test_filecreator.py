@@ -1,4 +1,4 @@
-#!/local/autopkg/python
+#!/usr/local/autopkg/python
 
 import plistlib
 import unittest
