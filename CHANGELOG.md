@@ -1,8 +1,4 @@
-### [Unreleased](https://github.com/autopkg/autopkg/compare/v2.3...HEAD) (Unreleased)
-
-n/a
-
-### [2.3](https://github.com/autopkg/autopkg/compare/v2.2...v2.3) (March 1, 2021)
+### [Unreleased](https://github.com/autopkg/autopkg/compare/v2.2...HEAD) (Unreleased)
 
 NEW FEATURES:
 
