@@ -6,7 +6,7 @@ n/a
 
 NEW FEATURES:
 
-AutoPkg now supports recipes in [yaml](https://yaml.org/) format ([#698](https://github.com/autopkg/autopkg/pull/698)). Yaml recipes tend to be more human-readable than plist recipes, especially for those who don't work with plists on a daily basis.
+AutoPkg now supports recipes in [yaml](https://yaml.org/) format ([#698](https://github.com/autopkg/autopkg/pull/698), [example recipe](https://github.com/autopkg/autopkg/pull/698#issuecomment-783522503)). Yaml recipes tend to be more human-readable than plist recipes, especially for those who don't work with plists on a daily basis.
 
 AutoPkg can produce new recipes in yaml format using `autopkg new-recipe SomeCoolApp.pkg.recipe.yaml` and make overrides in yaml format using `autopkg make-override --format=yaml SomeCoolApp.pkg`. Searching for public yaml recipes on GitHub is also possible using `autopkg search`.
 
