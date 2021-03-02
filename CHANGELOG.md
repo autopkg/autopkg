@@ -1,4 +1,4 @@
-### [Unreleased](https://github.com/autopkg/autopkg/compare/v2.2...HEAD) (Unreleased)
+### [2.3](https://github.com/autopkg/autopkg/compare/v2.2...HEAD) (Unreleased)
 
 NEW FEATURES:
 
