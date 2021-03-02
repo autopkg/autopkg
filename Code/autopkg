@@ -630,7 +630,7 @@ def save_pref_or_warn(key, value):
     try:
         set_pref(key, value)
     except PreferenceError as err:
-        log_err(f"WARNING:{err}")
+        log_err(f"WARNING: {err}")
 
 
 def get_search_dirs():
