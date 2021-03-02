@@ -255,10 +255,9 @@ def main():
     subprocess.check_call(git_cmd)
     os.chdir(autopkg_root)
 
-    print("** Running AutoPkgGitMaster recipe")
+    print("** Running AutoPkgGitMaster.pkg recipe")
     # running using the system AutoPkg directory so that we ensure we're at the
     # minimum required version to run the AutoPkg recipe
-    print("**Running AutoPkgGitMaster.pkg")
     report_plist_path = tempfile.mkstemp()[1]
     parent_path = os.path.join(os.path.abspath(os.path.dirname(__file__)))
     cmd = [
