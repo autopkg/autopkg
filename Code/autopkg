@@ -692,18 +692,23 @@ def expand_repo_url(url):
     'user/reciperepo'         -> 'https://github.com/user/reciperepo'
     'reciperepo'              -> 'https://github.com/autopkg/reciperepo'
     'http://some/repo/url     -> 'http://some/repo/url'
+    '/some/path               -> '/some/path'
+    '~/some/path              -> '~/some/path'
     """
-    # Strip leading and trailing slashes
-    url = url.strip("/")
+    # Strip trailing slashes
+    url = url.rstrip("/")
     # Parse URL to determine scheme
     parsed_url = urlparse(url)
-    # If no URL scheme was given in the URL, try GitHub URLs
-    if not parsed_url.scheme:
+    if url.startswith(("/", "~")):
+        # If the URL looks like a file path, return as is.
+        pass
+    elif not parsed_url.scheme:
+        # If no URL scheme was given in the URL, try GitHub URLs
         if "/" in url:
             # If URL looks like 'name/repo' then prepend the base GitHub URL
             url = f"https://github.com/{url}"
         else:
-            # If URL is one word, assume it's a repo within the 'autopkg' org
+            # Assume it's a repo within the 'autopkg' org
             url = f"https://github.com/autopkg/{url}"
 
     return url
