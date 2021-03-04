@@ -160,7 +160,7 @@ class PkgCreator(Processor):
         """Build a packaging request, send it to the autopkgserver and get the
         constructed package."""
 
-        # clear any pre-exising summary result
+        # clear any pre-existing summary result
         if "pkg_creator_summary_result" in self.env:
             del self.env["pkg_creator_summary_result"]
 
