@@ -1,3 +1,5 @@
+### [2.3.2](https://github.com/autopkg/autopkg/compare/v2.3.1...HEAD) (Unreleased)
+
 ### [2.3.1](https://github.com/autopkg/autopkg/compare/v2.3...v2.3.1) (March 03, 2021)
 
 FIXES:
