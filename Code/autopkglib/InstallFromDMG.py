@@ -64,7 +64,7 @@ class InstallFromDMG(DmgMounter):
 
     def install(self):
         """Build an ItemCopier request, send it to autopkginstalld"""
-        # clear any pre-exising summary result
+        # clear any pre-existing summary result
         if "install_from_dmg_summary_result" in self.env:
             del self.env["install_from_dmg_summary_result"]
 
