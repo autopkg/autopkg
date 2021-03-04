@@ -46,6 +46,13 @@ except ImportError:
 # pylint: enable=import-error
 
 
+# Processors that exist in the codebase but are not yet fully supported.
+EXPERIMENTAL_PROCS = (
+    "ChocolateyPackager",
+    "SignToolVerifier",
+)
+
+
 def writefile(stringdata, path):
     """Writes string data to path."""
     try:
@@ -101,6 +108,8 @@ def generate_sidebar(sidebar_path):
     toc_string = ""
     toc_string += processor_heading + "\n"
     for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
+        if processor_name in EXPERIMENTAL_PROCS:
+            continue
         page_name = f"Processor-{processor_name}"
         page_name.replace(" ", "-")
         toc_string += f"      * [[{processor_name}|{page_name}]]\n"
@@ -180,7 +189,10 @@ def main(_):
     print()
 
     # Generate markdown pages for each processor attributes
-    for processor_name in processor_names():
+    for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
+        if processor_name in EXPERIMENTAL_PROCS:
+            print(f"Skipping experimental processor {processor_name}")
+            continue
         if options.processor:
             if options.processor != processor_name:
                 continue
