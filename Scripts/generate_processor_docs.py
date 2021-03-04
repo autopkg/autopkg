@@ -176,7 +176,7 @@ def main(_):
     # Grab the version for the commit log.
     version = arguments[0]
 
-    print("Cloning AutoPkg wiki..")
+    print("Cloning AutoPkg wiki...")
     print()
 
     if options.directory:
@@ -184,7 +184,7 @@ def main(_):
     else:
         output_dir = clone_wiki_dir()
 
-    print(f"Cloned to {output_dir}.")
+    print(f"Cloned to {output_dir}")
     print()
     print()
 
@@ -259,7 +259,7 @@ def main(_):
         "Shown above is the commit log for the changes to the wiki markdown. \n"
         "Type 'push' to accept and push the changes to GitHub. The wiki repo \n"
         "local clone can be also inspected at:\n"
-        f"{output_dir}."
+        f"{output_dir}"
     )
 
     push_commit = input()
