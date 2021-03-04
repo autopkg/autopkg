@@ -1,5 +1,9 @@
 ### [2.3.1](https://github.com/autopkg/autopkg/compare/v2.3...HEAD) (Unreleased)
 
+FIXES:
+
+- Resolved a bug preventing `autopkg repo-update` and `autopkg repo-delete` operations on local file paths ([#724](https://github.com/autopkg/autopkg/issues/724); fixes [#723](https://github.com/autopkg/autopkg/issues/723) and [lindegroup/autopkgr#666](https://github.com/lindegroup/autopkgr/issues/666))
+
 ### [2.3](https://github.com/autopkg/autopkg/compare/v2.2...v2.3) (March 01, 2021)
 
 NEW FEATURES:
