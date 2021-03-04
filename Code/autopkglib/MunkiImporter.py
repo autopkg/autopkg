@@ -296,7 +296,7 @@ class MunkiImporter(Processor):
         self.output(f'        plugin: {self.env["MUNKI_REPO_PLUGIN"]}')
         self.output(f'          repo: {self.env["MUNKI_REPO"]}')
 
-        # clear any pre-exising summary result
+        # clear any pre-existing summary result
         if "munki_importer_summary_result" in self.env:
             del self.env["munki_importer_summary_result"]
         # Generate arguments for makepkginfo.

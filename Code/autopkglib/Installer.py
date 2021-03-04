@@ -68,7 +68,7 @@ class Installer(DmgMounter):
 
     def install(self):
         """Build an installation request, send it to autopkginstalld"""
-        # clear any pre-exising summary result
+        # clear any pre-existing summary result
         if "installer_summary_result" in self.env:
             del self.env["installer_summary_result"]
 
