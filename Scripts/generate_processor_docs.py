@@ -49,9 +49,8 @@ except ImportError:
 def writefile(stringdata, path):
     """Writes string data to path."""
     try:
-        fileobject = open(path, mode="w", buffering=1)
-        print(stringdata.encode("UTF-8"), file=fileobject)
-        fileobject.close()
+        with open(path, mode="w", buffering=1) as fileobject:
+            print(stringdata, file=fileobject)
     except OSError:
         print(f"Couldn't write to {path}", file=fileobject)
 
