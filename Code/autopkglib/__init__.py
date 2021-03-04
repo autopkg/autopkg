@@ -36,7 +36,7 @@ import yaml
 # Type for methods that accept either a filesystem path or a file-like object.
 FileOrPath = Union[IO, str, bytes, int]
 
-# Type for ubiquitus dictionary type used throughout autopkg.
+# Type for ubiquitous dictionary type used throughout autopkg.
 # Most commonly for `input_variables` and friends. It also applies to virtually all
 # usages of plistlib results as well.
 VarDict = Dict[str, Any]
@@ -439,7 +439,7 @@ def update_data(a_dict, key, value):
             for index in range(len(item)):
                 item[index] = do_variable_substitution(item[index])
         elif isinstance(item, (dict, NSDictionary)):
-            # Modify a copy of the orginal
+            # Modify a copy of the original
             if isinstance(item, dict):
                 item_copy = item.copy()
             else:
