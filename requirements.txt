@@ -22,7 +22,7 @@ pre-commit==2.5
 pycodestyle==2.6.0
 pycparser==2.19
 pyflakes==2.2.0
-PyYAML==5.3.1
+PyYAML==5.4
 six==1.12.0
 tokenize-rt==3.2.0
 toml==0.10.0
