@@ -18,7 +18,7 @@ ignore = E127, E128, E203, E265, E266, E402, E501, E722, P207, P208, W503
 exclude =
   .git,
   .hg,
-  Code/nupkg/generated/*,
+  Code/nuget/generated/*,
 # This will be fine-tuned over time
 max-complexity = 65
 # Ignore the line length limits on tests, where we have in-line plist strings
