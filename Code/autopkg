@@ -2312,6 +2312,14 @@ def run_recipes(argv):
                     result = item["Output"][key]
                     summary_text = result.get("summary_text", "")
                     data = result.get("data")
+                    if not data:
+                        log(
+                            'WARNING: Cannot display summary result because "%s" does not have a '
+                            '"data" dictionary. See wiki for more information: '
+                            "https://github.com/autopkg/autopkg/wiki/Processor-Summary-Reporting"
+                            % key
+                        )
+                        continue
                     if key not in summary_results:
                         summary_results[key] = {}
                         summary_results[key]["summary_text"] = summary_text
