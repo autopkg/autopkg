@@ -56,6 +56,12 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             "description": "Version of the app. If not set, will be extracted from the "
             "CFBundleShortVersionString in the app's Info.plist.",
         },
+        "version_key": {
+            "required": False,
+            "description": "Alternate key from which to get the version of "
+            "the app. If not set or if the key does not exist, will be "
+            "extracted from the CFBundleShortVersionString in the app's Info.plist.",
+        },
         "force_pkg_build": {
             "required": False,
             "description": (
@@ -100,7 +106,10 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         infoplist = self.read_info_plist(app_path)
         if not self.env.get("version"):
             try:
-                self.env["version"] = infoplist["CFBundleShortVersionString"]
+                self.env["version"] = (
+                    infoplist.get(self.env.get("version_key"))
+                    or infoplist["CFBundleShortVersionString"]
+                )
                 self.output(f"Version: {self.env['version']}")
             except BaseException as err:
                 raise ProcessorError(err)
