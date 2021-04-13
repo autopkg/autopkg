@@ -58,9 +58,9 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         },
         "version_key": {
             "required": False,
-            "description": "Alternate key from which to get the version of "
-            "the app. If not set or if the key does not exist, will be "
-            "extracted from the CFBundleShortVersionString in the app's Info.plist.",
+            "description": "Alternate key from which to get the app version. "
+            "If not set or if the key does not exist, will be extracted from "
+            "the CFBundleShortVersionString in the app's Info.plist.",
         },
         "force_pkg_build": {
             "required": False,
