@@ -56,6 +56,12 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             "description": "Version of the app. If not set, will be extracted from the "
             "CFBundleShortVersionString in the app's Info.plist.",
         },
+        "version_key": {
+            "required": False,
+            "description": "Alternate key from which to get the app version. "
+            "If the key does not exist in the app's Info.plist, a "
+            "ProcessorError will be raised.",
+        },
         "force_pkg_build": {
             "required": False,
             "description": (
@@ -99,9 +105,19 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         # get version and bundleid
         infoplist = self.read_info_plist(app_path)
         if not self.env.get("version"):
+            # Default to CFBundleShortVersionString if version_key is unset.
+            version_key = self.env.get("version_key", "CFBundleShortVersionString")
             try:
-                self.env["version"] = infoplist["CFBundleShortVersionString"]
+                self.env["version"] = infoplist[version_key]
                 self.output(f"Version: {self.env['version']}")
+            # Specific error if the key does not exist.
+            except KeyError:
+                raise ProcessorError(
+                    f"The key '{version_key}' does not exist in the App "
+                    f"Bundle's Info.plist! ({app_path}/Contents/Info.plist) "
+                    f"Please check the recipe and try again."
+                )
+            # Trap all other errors.
             except BaseException as err:
                 raise ProcessorError(err)
         if not self.env.get("bundleid"):
