@@ -50,6 +50,7 @@ class FileFinder(DmgMounter):
     output_variables = {
         "found_filename": {"description": "Full path of found filename"},
         "dmg_found_filename": {"description": "DMG-relative path of found filename"},
+        "found_basename": {"description": "Basename of found filename"},
     }
 
     description = __doc__
@@ -96,6 +97,15 @@ class FileFinder(DmgMounter):
                 self.output(
                     f"DMG-relative file match: '{self.env['dmg_found_filename']}'"
                 )
+
+            if match.endswith('/'):
+                self.env["found_basename"] = os.path.basename(match.lstrip("/"))
+            else:
+                self.env["found_basename"] = os.path.basename(match)
+            self.output(
+                f"Basename match: '{self.env['found_basename']}'"
+            )
+
         finally:
             if dmg:
                 self.unmount(dmg_path)
