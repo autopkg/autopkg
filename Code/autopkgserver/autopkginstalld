@@ -218,7 +218,7 @@ def main(argv):
     wheel_gid = 0
     admin_gid = 80
 
-    exepath = os.path.realpath(os.path.abspath(__file__))
+    exepath = os.path.realpath(os.path.abspath(sys.argv[0]))
     path_ok = True
     while True:
         info = os.stat(exepath)
