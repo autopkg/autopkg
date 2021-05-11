@@ -99,7 +99,7 @@ class FileFinder(DmgMounter):
                 )
 
             if match.endswith('/'):
-                self.env["found_basename"] = os.path.basename(match.lstrip("/"))
+                self.env["found_basename"] = os.path.basename(match.rstrip("/"))
             else:
                 self.env["found_basename"] = os.path.basename(match)
             self.output(
