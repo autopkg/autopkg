@@ -542,7 +542,7 @@ def get_recipe_repo(git_path):
     parts = urlparse(git_path)
     domain_and_port = parts.netloc
     # discard user name if any
-    if domain_and_port.find("@") >= 0:
+    if "@" in domain_and_port:
         domain_and_port = domain_and_port.split("@", 1)[1]
     # discard port if any
     domain = domain_and_port.split(":")[0]
@@ -707,7 +707,9 @@ def expand_repo_url(url):
         # If the URL looks like a file path, return as is.
         pass
     elif not parsed_url.scheme:
-        if parsed_url.path.find(":") < parsed_url.path.find("/"):
+        if ":" in parsed_url.path and parsed_url.path.find(":") < parsed_url.path.find(
+            "/"
+        ):
             # If no URL scheme was given check for scp-like syntax, where there is
             # no slash before the first colon and convert this to a valid ssh url
             url = url.replace(":", "/", 1)
