@@ -542,7 +542,7 @@ def get_recipe_repo(git_path):
     parts = urlparse(git_path)
     domain_and_port = parts.netloc
     # discard user name if any
-    if domain_and_port.find("@"):
+    if domain_and_port.find("@") >= 0:
         domain_and_port = domain_and_port.split("@", 1)[1]
     # discard port if any
     domain = domain_and_port.split(":")[0]
