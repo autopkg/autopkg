@@ -381,7 +381,8 @@ class MunkiImporter(Processor):
 
         # import pkg
         install_path = library.copy_pkg_to_repo(pkginfo, self.env["pkg_path"])
-        pkginfo["installer_item_location"] = install_path.partition("pkgs/")[2]
+        install_prefix = os.path.join(library.munki_repo, 'pkgs')
+        pkginfo["installer_item_location"] = os.path.relpath(install_path, install_prefix)
         self.env["pkg_repo_path"] = install_path
 
         if self.env.get("uninstaller_pkg_path"):
@@ -412,12 +413,19 @@ class MunkiImporter(Processor):
                     self.env["pkg_path"], pkginfo, import_multiple=False
                 )
 
-        self.env["icon_repo_path"] = icon_path or ""
+        if icon_path:
+            self.env["icon_repo_path"] = icon_path
+            icon_prefix = os.path.join(library.munki_repo, 'icons')
+            rel_icon_path = os.path.relpath(icon_path, icon_prefix)
+        else:
+            self.env["icon_repo_path"] = rel_icon_path = ""
 
         # import pkginfo
         pkginfo_path = library.copy_pkginfo_to_repo(
             pkginfo, self.env.get("MUNKI_PKGINFO_FILE_EXTENSION", "plist")
         )
+        pkginfo_prefix = os.path.join(library.munki_repo, 'pkgsinfo')
+        pkg_prefix = os.path.join(library.munki_repo, 'pkgs')
 
         self.env["pkginfo_repo_path"] = pkginfo_path
 
@@ -444,9 +452,9 @@ class MunkiImporter(Processor):
                 "name": pkginfo["name"],
                 "version": pkginfo["version"],
                 "catalogs": ",".join(pkginfo["catalogs"]),
-                "pkginfo_path": self.env["pkginfo_repo_path"].partition("pkgsinfo/")[2],
-                "pkg_repo_path": self.env["pkg_repo_path"].partition("pkgs/")[2],
-                "icon_repo_path": self.env["icon_repo_path"].partition("icons/")[2],
+                "pkginfo_path": os.path.relpath(self.env["pkginfo_repo_path"], pkginfo_prefix),
+                "pkg_repo_path": os.path.relpath(self.env["pkg_repo_path"], pkg_prefix),
+                "icon_repo_path": rel_icon_path,  # can be path or ""
             },
         }
 
