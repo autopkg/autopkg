@@ -541,6 +541,9 @@ def get_recipe_repo(git_path):
     # figure out a local directory name to clone to
     parts = urlparse(git_path)
     domain_and_port = parts.netloc
+    # discard user name if any
+    if "@" in domain_and_port:
+        domain_and_port = domain_and_port.split("@", 1)[1]
     # discard port if any
     domain = domain_and_port.split(":")[0]
     reverse_domain = ".".join(reversed(domain.split(".")))
@@ -692,6 +695,7 @@ def expand_repo_url(url):
     'user/reciperepo'         -> 'https://github.com/user/reciperepo'
     'reciperepo'              -> 'https://github.com/autopkg/reciperepo'
     'http://some/repo/url     -> 'http://some/repo/url'
+    'git@server:repo/url      -> 'ssh://git@server/repo/url'
     '/some/path               -> '/some/path'
     '~/some/path              -> '~/some/path'
     """
@@ -703,8 +707,16 @@ def expand_repo_url(url):
         # If the URL looks like a file path, return as is.
         pass
     elif not parsed_url.scheme:
+        if ":" in parsed_url.path and (
+            "/" not in parsed_url.path
+            or parsed_url.path.find(":") < parsed_url.path.find("/")
+        ):
+            # If no URL scheme was given check for scp-like syntax, where there is
+            # no slash before the first colon and convert this to a valid ssh url
+            url = url.replace(":", "/", 1)
+            url = f"ssh://{url}"
         # If no URL scheme was given in the URL, try GitHub URLs
-        if "/" in url:
+        elif "/" in url:
             # If URL looks like 'name/repo' then prepend the base GitHub URL
             url = f"https://github.com/{url}"
         else:
@@ -724,7 +736,7 @@ Download one or more new recipe repos and add it to the search path.
 The 'recipe_repo_url' argument can be of the following forms:
 - repo (implies 'https://github.com/autopkg/repo')
 - user/repo (implies 'https://github.com/user/repo')
-- (http[s]://|git://|user@server:)path/to/any/git/repo
+- (http[s]://|git://|ssh://|user@server:)path/to/any/git/repo
 
 Example: '%prog repo-add recipes'
 ..adds the autopkg/recipes repo from GitHub."""
