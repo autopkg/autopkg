@@ -193,7 +193,7 @@ class GitHubReleasesInfoProvider(Processor):
         tag = self.selected_release["tag_name"]
         # Versioned tags usually start with 'v'
         if tag.startswith("v"):
-            tag = tag[1:]
+            tag = tag.lstrip("v.")
         self.env["version"] = tag
 
         # Record release notes
