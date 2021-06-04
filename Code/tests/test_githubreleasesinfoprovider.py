@@ -11,6 +11,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
     """Test class for GitHubReleasesInfoProvider Processor."""
 
     def setUp(self):
+        self.vers_pattern = r"\d[\d\.]+"
         self.base_env = {
             "CURL_PATH": "/usr/bin/curl",
             "GITHUB_URL": "https://api.github.com",
@@ -45,7 +46,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         test_env.update(self.base_env)
         self.processor.env = test_env
         self.processor.main()
-        m = re.match(r"\d\.[\d\.]+", test_env["version"])
+        m = re.match(self.vers_pattern, test_env["version"])
         self.assertIsNotNone(m)
 
     def test_returns_version_from_tag2(self):
@@ -55,7 +56,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         test_env.update(self.base_env)
         self.processor.env = test_env
         self.processor.main()
-        m = re.match(r"\d\.[\d\.]+", test_env["version"])
+        m = re.match(self.vers_pattern, test_env["version"])
         self.assertIsNotNone(m)
 
     def test_returns_url(self):
