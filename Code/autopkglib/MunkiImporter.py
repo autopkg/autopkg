@@ -175,12 +175,6 @@ class MunkiImporter(Processor):
             return None
 
         pkgdb = repo_library.make_catalog_db()
-        # match hashes for the pkg or dmg
-        if "installer_item_hash" in pkginfo:
-            matchingindexes = pkgdb["hashes"].get(pkginfo["installer_item_hash"])
-            if matchingindexes:
-                # we have an item with the exact same checksum hash in the repo
-                return pkgdb["items"][matchingindexes[0]]
 
         # try to match against installed applications
         applist = [
@@ -212,7 +206,23 @@ class MunkiImporter(Processor):
 
             # did we find any matches?
             if matching_indexes:
-                return pkgdb["items"][list(matching_indexes)[0]]
+                # make a copy of the pkginfo dict so we can edit as needed
+                pkginfo_items = pkginfo.copy()
+                # remove _metadata as not present on pkgdb output
+                pkginfo_items.pop('_metadata', None)
+                # remove installer_item_location as always differs in pkgdb output
+                pkginfo_items.pop('installer_item_location', None)
+                # check each matching item
+                for matching_index in matching_indexes:
+                    # make a copy of the pkginfo dict so we can edit as needed
+                    pkgdb_items = pkgdb["items"][matching_index].copy()
+                    # remove installer_item_location as always differs in pkginfo output
+                    pkgdb_items.pop('installer_item_location', None)
+                    # check installs to see if indeed a match, returning if a match is found
+                    if pkginfo_items == pkgdb_items:
+                        return pkgdb["items"][list(matching_indexes)[matching_index]]
+            # if we have an appslist but no match, return to import item
+            return None
 
         # fall back to matching against receipts
         matching_indexes = []
