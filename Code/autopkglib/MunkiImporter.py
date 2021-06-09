@@ -220,7 +220,7 @@ class MunkiImporter(Processor):
                     pkgdb_items.pop('installer_item_location', None)
                     # check installs to see if indeed a match, returning if a match is found
                     if pkginfo_items == pkgdb_items:
-                        return pkgdb["items"][list(matching_indexes)[matching_index]]
+                        return pkgdb["items"][list(matching_indexes)[0]]
             # if we have an appslist but no match, return to import item
             return None
 
