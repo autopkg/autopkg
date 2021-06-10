@@ -210,18 +210,20 @@ class MunkiImporter(Processor):
                 pkginfo_items = pkginfo.copy()
                 # remove _metadata as not present on pkgdb output
                 pkginfo_items.pop('_metadata', None)
-                # remove installer_item_hash as this can differ in pkgdb output
+                # remove installer_item_*'s as can differ for legit reasons between
+                # pkginfo and pkgdb
                 pkginfo_items.pop('installer_item_hash', None)
-                # remove installer_item_location as always differs in pkgdb output
                 pkginfo_items.pop('installer_item_location', None)
+                pkginfo_items.pop('installer_item_size', None)
                 # check each matching item
                 for matching_index in matching_indexes:
                     # make a copy of the pkginfo dict so we can edit as needed
                     pkgdb_items = pkgdb["items"][matching_index].copy()
-                    # remove installer_item_hash as this can differ in pkginfo output
+                    # remove installer_item_*'s as can differ for legit reasons between
+                    # pkginfo and pkgdb
                     pkgdb_items.pop('installer_item_hash', None)
-                    # remove installer_item_location as always differs in pkginfo output
                     pkgdb_items.pop('installer_item_location', None)
+                    pkgdb_items.pop('installer_item_size', None)
                     # check installs to see if indeed a match, returning if a match is found
                     if pkginfo_items == pkgdb_items:
                         return pkgdb["items"][list(matching_indexes)[0]]
