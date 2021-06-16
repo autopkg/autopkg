@@ -64,7 +64,7 @@ class GitHubSession(URLGetter):
         if not token and os.path.exists(token_path):
             try:
                 with open(token_path, "r") as tokenf:
-                    token = tokenf.read()
+                    token = tokenf.read().strip()
             except OSError as err:
                 log_err(f"Couldn't read token file at {token_path}! Error: {err}")
                 token = None
