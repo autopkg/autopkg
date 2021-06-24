@@ -7,3 +7,4 @@ autopkgc
 
 # IDE-specific files
 .vscode
+.idea

@@ -129,6 +129,14 @@ class MunkiImporter(Processor):
             ),
             "required": False,
         },
+        "set_PackageCompleteURL": {
+            "description": (
+                "If set to True, the PackageCompleteURL key for the package will be "
+                "set to the url of the package, so that clients will pull from "
+                "the original source rather than the repository. "
+            ),
+            "required": False,
+        },
     }
     output_variables = {
         "pkginfo_repo_path": {
@@ -357,6 +365,11 @@ class MunkiImporter(Processor):
                         )
                     )
                 item["version_comparison_key"] = self.env["version_comparison_key"]
+
+        # set the PackageCompleteURL to the url from env so that clients pull the
+        # package from the original source, not the repo
+        if self.env.get("set_PackageCompleteURL"):
+            pkginfo["PackageCompleteURL"] = self.env["url"]
 
         # check to see if this item is already in the repo
         if self.env.get("force_munkiimport"):
