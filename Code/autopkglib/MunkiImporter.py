@@ -131,9 +131,9 @@ class MunkiImporter(Processor):
         },
         "set_PackageCompleteURL": {
             "description": (
-                "If set to True, the PackageCompleteURL key for the package will be "
+                "If set to True, the PackageCompleteURL key will be "
                 "set to the url of the package, so that clients will pull from "
-                "the original source rather than the repository. "
+                "the original download location rather than the repository. "
             ),
             "required": False,
         },
