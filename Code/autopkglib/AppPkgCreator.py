@@ -207,6 +207,9 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             self.output("Disconnecting")
             self.disconnect()
 
+        # Tidy up, deleting the payload dir we created earlier.
+        shutil.rmtree(pkgroot)
+
         # Return path to pkg.
         self.env["pkg_path"] = pkg_path
         self.env["app_pkg_creator_summary_result"] = {
