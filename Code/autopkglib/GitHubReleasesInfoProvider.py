@@ -175,17 +175,6 @@ class GitHubReleasesInfoProvider(Processor):
             f"'{self.selected_release['name']}'"
         )
 
-    def process_release_asset(self):
-        """Extract what we need from the release and chosen asset, set env
-        variables"""
-        tag = self.selected_release["tag_name"]
-        # Versioned tags usually start with 'v'
-        if tag.startswith("v"):
-            tag = tag[1:]
-
-        self.env["url"] = self.selected_asset["browser_download_url"]
-        self.env["version"] = tag
-
     def main(self):
         # Get our list of releases
         releases = self.get_releases(self.env["github_repo"])
@@ -204,7 +193,7 @@ class GitHubReleasesInfoProvider(Processor):
         tag = self.selected_release["tag_name"]
         # Versioned tags usually start with 'v'
         if tag.startswith("v"):
-            tag = tag[1:]
+            tag = tag.lstrip("v.")
         self.env["version"] = tag
 
         # Record release notes
