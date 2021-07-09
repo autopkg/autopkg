@@ -364,7 +364,8 @@ class MunkiImporter(Processor):
         else:
             matchingitem = self._find_matching_pkginfo(library, pkginfo)
 
-        if matchingitem:
+        if matchingitem and (matchingitem.get("supported_architectures") ==
+                             pkginfo.get("supported_architectures")):
             self.env["pkginfo_repo_path"] = ""
             self.env["pkg_repo_path"] = os.path.join(
                 self.env["MUNKI_REPO"], "pkgs", matchingitem["installer_item_location"]
