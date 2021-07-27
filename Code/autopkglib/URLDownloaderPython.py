@@ -28,7 +28,7 @@ from autopkglib.URLDownloader import URLDownloader
 __all__ = ["URLDownloaderPython"]
 
 
-class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
+class URLDownloaderPython(URLDownloader):
     """This is meant to be a pure python replacement for URLDownloader
     See: https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/URLDownloader.py
     """
@@ -156,7 +156,7 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
 
         try:
             # check Content-Length:
-            if (  # pylint: disable=no-else-return
+            if (
                 "Content-Length" in headers_to_test
                 and (
                     int(previous_download_info["http_headers"]["Content-Length"])
@@ -179,7 +179,7 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
         for test in headers_to_test:
             if test != "Content-Length":
                 try:
-                    if previous_download_info[  # pylint: disable=no-else-return
+                    if previous_download_info[
                         "http_headers"
                     ][test] != header.get(test):
                         self.output("{test} is different".format(test=test), 2)
@@ -229,7 +229,7 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
 
         return info_json
 
-    def ssl_context_ignore(self):  # pylint: disable=no-self-use
+    def ssl_context_ignore(self):
         """ssl context - ignore SSL validation"""
         # this doesn't need to be a class method
         ctx = ssl.create_default_context()
@@ -238,13 +238,13 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
         self.output("WARNING: disabling SSL validation is insecure!!!")
         return ctx
 
-    def ssl_context_certifi(self):  # pylint: disable=no-self-use
+    def ssl_context_certifi(self):
         """ssl context using certifi CAs"""
         # this doesn't need to be a class method
         # https://stackoverflow.com/questions/24374400/verifying-https-certificates-with-urllib-request
         return ssl.create_default_context(cafile=certifi.where())
 
-    def download_and_hash(self, file_save_path):  # pylint: disable=too-many-branches
+    def download_and_hash(self, file_save_path):
         """stream down file from url and calculate size & hashes"""
         # it is much more efficient to calculate hashes WHILE downloading
         # this allows the file to be read only once and never from disk
