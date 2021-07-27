@@ -18,28 +18,17 @@
 import json
 import os
 import ssl
+from hashlib import md5, sha1, sha256
+from urllib.request import urlopen
 
-from hashlib import sha1, sha256, md5
-
-try:
-    from urllib.request import urlopen  # Python 3
-except ImportError:
-    print("ERROR: Not tested with Python 2")
-    from urllib2 import urlopen  # Python 2
-
-import certifi  # pylint: disable=import-error
-
-from autopkglib import (  # pylint: disable=import-error,wrong-import-position,unused-import
-    Processor,
-    ProcessorError,
-)
-from autopkglib.URLDownloader import URLDownloader  # pylint: disable=import-error
-
+import certifi
+from autopkglib import Processor, ProcessorError
+from autopkglib.URLDownloader import URLDownloader
 
 __all__ = ["URLDownloaderPython"]
 
 
-class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
+class URLDownloaderPython(URLDownloader):
     """This is meant to be a pure python replacement for URLDownloader
     See: https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/URLDownloader.py
     """
@@ -132,10 +121,10 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
     }
     __doc__ = description
 
-    def download_changed(self, headers):
+    def download_changed(self, header):
         """Check if downloaded file changed on server."""
 
-        self.output("HTTP Headers: \n{headers}".format(headers=headers), 2)
+        self.output("HTTP Headers: \n{headers}".format(headers=header), 2)
 
         # get the list of headers to check
         headers_to_test = self.env.get("HEADERS_TO_TEST", None)
@@ -167,11 +156,11 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
 
         try:
             # check Content-Length:
-            if (  # pylint: disable=no-else-return
+            if (
                 "Content-Length" in headers_to_test
                 and (
                     int(previous_download_info["http_headers"]["Content-Length"])
-                    != int(headers.get("Content-Length"))
+                    != int(header.get("Content-Length"))
                 )
             ):
                 self.output("Content-Length is different", 2)
@@ -190,9 +179,9 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
         for test in headers_to_test:
             if test != "Content-Length":
                 try:
-                    if previous_download_info[  # pylint: disable=no-else-return
+                    if previous_download_info[
                         "http_headers"
-                    ][test] != headers.get(test):
+                    ][test] != header.get(test):
                         self.output("{test} is different".format(test=test), 2)
                         return True
                     else:
@@ -240,7 +229,7 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
 
         return info_json
 
-    def ssl_context_ignore(self):  # pylint: disable=no-self-use
+    def ssl_context_ignore(self):
         """ssl context - ignore SSL validation"""
         # this doesn't need to be a class method
         ctx = ssl.create_default_context()
@@ -249,13 +238,13 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
         self.output("WARNING: disabling SSL validation is insecure!!!")
         return ctx
 
-    def ssl_context_certifi(self):  # pylint: disable=no-self-use
+    def ssl_context_certifi(self):
         """ssl context using certifi CAs"""
         # this doesn't need to be a class method
         # https://stackoverflow.com/questions/24374400/verifying-https-certificates-with-urllib-request
         return ssl.create_default_context(cafile=certifi.where())
 
-    def download_and_hash(self, file_save_path):  # pylint: disable=too-many-branches
+    def download_and_hash(self, file_save_path):
         """stream down file from url and calculate size & hashes"""
         # it is much more efficient to calculate hashes WHILE downloading
         # this allows the file to be read only once and never from disk
