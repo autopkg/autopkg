@@ -19,7 +19,7 @@ import json
 import os
 import ssl
 from hashlib import md5, sha1, sha256
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import certifi
 from autopkglib import Processor, ProcessorError
@@ -156,12 +156,9 @@ class URLDownloaderPython(URLDownloader):
 
         try:
             # check Content-Length:
-            if (
-                "Content-Length" in headers_to_test
-                and (
-                    int(previous_download_info["http_headers"]["Content-Length"])
-                    != int(header.get("Content-Length"))
-                )
+            if "Content-Length" in headers_to_test and (
+                int(previous_download_info["http_headers"]["Content-Length"])
+                != int(header.get("Content-Length"))
             ):
                 self.output("Content-Length is different", 2)
                 return True
@@ -179,9 +176,7 @@ class URLDownloaderPython(URLDownloader):
         for test in headers_to_test:
             if test != "Content-Length":
                 try:
-                    if previous_download_info[
-                        "http_headers"
-                    ][test] != header.get(test):
+                    if previous_download_info["http_headers"][test] != header.get(test):
                         self.output("{test} is different".format(test=test), 2)
                         return True
                     else:
@@ -272,14 +267,23 @@ class URLDownloaderPython(URLDownloader):
             file_save = open(file_save_path, "wb")
 
         # get http headers
-        response = urlopen(url, context=self.ssl_context_certifi())
+        req = Request(url)
+        # the following may be required in some cases:
+        # req.add_header('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36')
+        response = urlopen(
+            req,
+            context=self.ssl_context_certifi(),
+        )
         response_headers = response.info()
 
         self.env["download_changed"] = self.download_changed(response_headers)
         # check if download changed from last run:
         if not self.env.get("download_changed", None):
+            # Close file handle
+            if file_save:
+                file_save.close()
             # Discard the temp file
-            os.remove(file_save_path)
+            self.clear_zero_file(file_save_path)
             return None
 
         # download file
