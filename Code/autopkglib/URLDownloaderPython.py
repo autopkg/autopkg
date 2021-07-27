@@ -18,23 +18,12 @@
 import json
 import os
 import ssl
+from hashlib import md5, sha1, sha256
+from urllib.request import urlopen
 
-from hashlib import sha1, sha256, md5
-
-try:
-    from urllib.request import urlopen  # Python 3
-except ImportError:
-    print("ERROR: Not tested with Python 2")
-    from urllib2 import urlopen  # Python 2
-
-import certifi  # pylint: disable=import-error
-
-from autopkglib import (  # pylint: disable=import-error,wrong-import-position,unused-import
-    Processor,
-    ProcessorError,
-)
-from autopkglib.URLDownloader import URLDownloader  # pylint: disable=import-error
-
+import certifi
+from autopkglib import Processor, ProcessorError
+from autopkglib.URLDownloader import URLDownloader
 
 __all__ = ["URLDownloaderPython"]
 
@@ -132,10 +121,10 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
     }
     __doc__ = description
 
-    def download_changed(self, headers):
+    def download_changed(self, header):
         """Check if downloaded file changed on server."""
 
-        self.output("HTTP Headers: \n{headers}".format(headers=headers), 2)
+        self.output("HTTP Headers: \n{headers}".format(headers=header), 2)
 
         # get the list of headers to check
         headers_to_test = self.env.get("HEADERS_TO_TEST", None)
@@ -171,7 +160,7 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
                 "Content-Length" in headers_to_test
                 and (
                     int(previous_download_info["http_headers"]["Content-Length"])
-                    != int(headers.get("Content-Length"))
+                    != int(header.get("Content-Length"))
                 )
             ):
                 self.output("Content-Length is different", 2)
@@ -192,7 +181,7 @@ class URLDownloaderPython(URLDownloader):  # pylint: disable=invalid-name
                 try:
                     if previous_download_info[  # pylint: disable=no-else-return
                         "http_headers"
-                    ][test] != headers.get(test):
+                    ][test] != header.get(test):
                         self.output("{test} is different".format(test=test), 2)
                         return True
                     else:
