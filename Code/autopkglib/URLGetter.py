@@ -19,7 +19,7 @@
 import os.path
 import subprocess
 
-from autopkglib import Processor, ProcessorError, find_binary
+from autopkglib import Processor, ProcessorError, find_binary, is_windows
 
 __all__ = ["URLGetter"]
 
@@ -53,7 +53,7 @@ class URLGetter(Processor):
         """Assemble basic curl command and return it."""
         curl_bin_path = self.curl_binary()
         # fix windows default curl support
-        if "Windows\\system32" in curl_bin_path:
+        if is_windows() and "Windows\\system32" in curl_bin_path:
             return [curl_bin_path, "--location"]
         return [curl_bin_path, "--compressed", "--location"]
 
