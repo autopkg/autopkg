@@ -34,7 +34,7 @@ sudo ln -s /Users/Shared/Python3/Python.framework/Versions/3.7/bin/python3 /usr/
 ## Use pre-commit to set automatic commit requirements
 
 This project makes use of [pre-commit](https://pre-commit.com/) to do automatic
-lint and style checing on every commit containing Python files.
+lint and style checking on every commit containing Python files.
 
 To install the pre-commit hook, run the executable from your Python 3 framework
 while in your current autopkg git checkout:
