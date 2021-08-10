@@ -53,7 +53,7 @@ class URLGetter(Processor):
         """Assemble basic curl command and return it."""
         curl_bin_path = self.curl_binary()
         # fix windows default curl support
-        if is_windows() and "Windows\\system32" in curl_bin_path:
+        if is_windows() and "windows\\system32" in curl_bin_path.lower():
             return [curl_bin_path, "--location"]
         return [curl_bin_path, "--compressed", "--location"]
 
