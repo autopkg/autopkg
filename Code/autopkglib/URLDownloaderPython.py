@@ -366,6 +366,13 @@ class URLDownloaderPython(URLDownloader):
         filename = self.get_filename()
         if filename is None:
             return
+        
+        # in some cases, the filename could have html parameters after:
+        if "?" in filename:
+            self.output("Removing ? and following characters from filename", 2)
+            # this fix should be applied to URLDownloader.prefetch_filename()
+            filename = filename.split("?",1)[0]
+
         self.env["filename"] = filename
         download_dir = self.get_download_dir()
         self.env["pathname"] = os.path.join(download_dir, filename)
