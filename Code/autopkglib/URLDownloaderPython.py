@@ -181,6 +181,10 @@ class URLDownloaderPython(URLDownloader):
                         return True
                     else:
                         header_matches += 1
+                        if test == "Last-Modified":
+                            self.env["last_modified"] = previous_download_info["http_headers"][test]
+                        if test == "ETag":
+                            self.env["etag"] = previous_download_info["http_headers"][test]
                 except (KeyError, TypeError) as err:
                     self.output(
                         "WARNING: header missing. ({err_type}) {err}".format(
@@ -402,6 +406,10 @@ class URLDownloaderPython(URLDownloader):
         if self.env.get("download_changed", None):
             # store download info for checking for existing download
             self.store_download_info_json(download_dictionary)
+
+            if "http_headers" in download_dictionary:
+                self.env["etag"] = download_dictionary["http_headers"]["ETag"]
+                self.env["last_modified"] = download_dictionary["http_headers"]["Last-Modified"]
 
             # Generate output messages and variables
             self.output(f"Downloaded {self.env['pathname']}")
