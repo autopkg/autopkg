@@ -106,6 +106,10 @@ class URLDownloaderPython(URLDownloader):
             "required": False,
             "description": ("User Agent Header String to use for download"),
         },
+        "download_version": {
+            "required": False,
+            "description": ("version of download"),
+        },
     }
     output_variables = {
         "pathname": {"description": "Path to the downloaded file."},
@@ -150,7 +154,9 @@ class URLDownloaderPython(URLDownloader):
             2,
         )
 
-        header_matches = 0
+        if not previous_download_info:
+            # no previous download info to check against
+            return True
 
         # check that previous download exits:
         previous_download_path = self.env.get("pathname", None)
@@ -158,11 +164,34 @@ class URLDownloaderPython(URLDownloader):
             # previous download doesn't exist!
             return True
 
+        download_version = self.env.get("download_version", None)
+        # compare versions:
+        if download_version:
+            self.output(download_version, 1)
+            if "version" in previous_download_info:
+                self.output(previous_download_info["version"], 1)
+                if download_version != previous_download_info["version"]:
+                    self.output(
+                        "Download Changed: version does not match previous download"
+                    )
+                    return True
+                else:
+                    self.output(
+                        "Download UNCHANGED: version does match previous download"
+                    )
+                    return False
+
+        header_matches = 0
+
         try:
             # check Content-Length:
-            if "Content-Length" in headers_to_test and (
-                int(previous_download_info["http_headers"]["Content-Length"])
-                != int(header.get("Content-Length"))
+            if (
+                headers_to_test
+                and "Content-Length" in headers_to_test
+                and (
+                    int(previous_download_info["http_headers"]["Content-Length"])
+                    != int(header.get("Content-Length"))
+                )
             ):
                 self.output("Content-Length is different", 1)
                 return True
@@ -316,6 +345,10 @@ class URLDownloaderPython(URLDownloader):
         if file_save:
             file_save.close()
 
+        if self.env.get("download_changed", None):
+            # Move the new temporary download file to the pathname
+            self.move_temp_file(file_save_path)
+
         download_dictionary["file_name"] = self.env.get("filename", "")
         download_dictionary["file_size"] = size
         if hashes:
@@ -323,6 +356,12 @@ class URLDownloaderPython(URLDownloader):
             download_dictionary["file_sha256"] = hashes[1].hexdigest()
             download_dictionary["file_md5"] = hashes[2].hexdigest()
         download_dictionary["download_url"] = url
+
+        download_version = self.env.get(
+            "download_version", self.env.get("version", None)
+        )
+        if download_version:
+            download_dictionary["version"] = download_version
         # download_dictionary['http_headers'] = response.info()
         try:
             # save http header info to dict
@@ -344,11 +383,7 @@ class URLDownloaderPython(URLDownloader):
                     err=err, err_type=type(err).__name__
                 )
             )
-            return None
-
-        if self.env.get("download_changed", None):
-            # Move the new temporary download file to the pathname
-            self.move_temp_file(file_save_path)
+            return download_dictionary
 
         # Save last-modified and etag headers to files xattr
         # This is for backwards compatibility with URLDownloader
@@ -414,10 +449,12 @@ class URLDownloaderPython(URLDownloader):
             self.store_download_info_json(download_dictionary)
 
             if download_dictionary and "http_headers" in download_dictionary:
-                self.env["etag"] = download_dictionary["http_headers"]["ETag"]
-                self.env["last_modified"] = download_dictionary["http_headers"][
-                    "Last-Modified"
-                ]
+                if "ETag" in download_dictionary["http_headers"]:
+                    self.env["etag"] = download_dictionary["http_headers"]["ETag"]
+                if "Last-Modified" in download_dictionary["http_headers"]:
+                    self.env["last_modified"] = download_dictionary["http_headers"][
+                        "Last-Modified"
+                    ]
 
             # Generate output messages and variables
             self.output(f"Downloaded {self.env['pathname']}")
