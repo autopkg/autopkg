@@ -413,7 +413,7 @@ class URLDownloaderPython(URLDownloader):
             # store download info for checking for existing download
             self.store_download_info_json(download_dictionary)
 
-            if "http_headers" in download_dictionary:
+            if download_dictionary and "http_headers" in download_dictionary:
                 self.env["etag"] = download_dictionary["http_headers"]["ETag"]
                 self.env["last_modified"] = download_dictionary["http_headers"][
                     "Last-Modified"
