@@ -147,6 +147,10 @@ class URLDownloaderPython(URLDownloader):
         # get previous info to compare
         previous_download_info = self.get_download_info_json()
 
+        if not previous_download_info:
+            # no previous download info to check against
+            return True
+
         self.output(
             "previous_download_info: \n{previous_download_info}\n".format(
                 previous_download_info=previous_download_info
@@ -154,9 +158,9 @@ class URLDownloaderPython(URLDownloader):
             2,
         )
 
-        if not previous_download_info:
-            # no previous download info to check against
-            return True
+        # store previous download_url in case we don't download again
+        if "download_url" in previous_download_info:
+            self.env["download_url"] = previous_download_info["download_url"]
 
         # check that previous download exits:
         previous_download_path = self.env.get("pathname", None)
@@ -355,7 +359,13 @@ class URLDownloaderPython(URLDownloader):
             download_dictionary["file_sha1"] = hashes[0].hexdigest()
             download_dictionary["file_sha256"] = hashes[1].hexdigest()
             download_dictionary["file_md5"] = hashes[2].hexdigest()
-        download_dictionary["download_url"] = url
+        download_dictionary["url"] = url
+
+        # store new download url:
+        if response.url:
+            download_url = response.url
+            download_dictionary["download_url"] = download_url
+            self.env["download_url"] = download_url
 
         download_version = self.env.get(
             "download_version", self.env.get("version", None)
