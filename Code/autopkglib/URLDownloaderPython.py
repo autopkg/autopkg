@@ -104,9 +104,7 @@ class URLDownloaderPython(URLDownloader):
         },
         "User_Agent": {
             "required": False,
-            "description": (
-                "User Agent Header String to use for download"
-            ),
+            "description": ("User Agent Header String to use for download"),
         },
     }
     output_variables = {
@@ -285,7 +283,7 @@ class URLDownloaderPython(URLDownloader):
         # the following may be required in some cases:
         user_agent_value = self.env.get("User_Agent", None)
         if user_agent_value:
-            req.add_header('User-Agent', user_agent_value)
+            req.add_header("User-Agent", user_agent_value)
         response = urlopen(req, context=self.ssl_context_certifi(),)
         response_headers = response.info()
 
