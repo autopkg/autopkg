@@ -160,7 +160,7 @@ class URLDownloaderPython(URLDownloader):
                 int(previous_download_info["http_headers"]["Content-Length"])
                 != int(header.get("Content-Length"))
             ):
-                self.output("Content-Length is different", 2)
+                self.output("Content-Length is different", 1)
                 return True
             else:
                 header_matches += 1
@@ -177,14 +177,18 @@ class URLDownloaderPython(URLDownloader):
             if test != "Content-Length":
                 try:
                     if previous_download_info["http_headers"][test] != header.get(test):
-                        self.output("{test} is different".format(test=test), 2)
+                        self.output("{test} is different".format(test=test), 1)
                         return True
                     else:
                         header_matches += 1
                         if test == "Last-Modified":
-                            self.env["last_modified"] = previous_download_info["http_headers"][test]
+                            self.env["last_modified"] = previous_download_info[
+                                "http_headers"
+                            ][test]
                         if test == "ETag":
-                            self.env["etag"] = previous_download_info["http_headers"][test]
+                            self.env["etag"] = previous_download_info["http_headers"][
+                                test
+                            ]
                 except (KeyError, TypeError) as err:
                     self.output(
                         "WARNING: header missing. ({err_type}) {err}".format(
@@ -274,10 +278,7 @@ class URLDownloaderPython(URLDownloader):
         req = Request(url)
         # the following may be required in some cases:
         # req.add_header('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36')
-        response = urlopen(
-            req,
-            context=self.ssl_context_certifi(),
-        )
+        response = urlopen(req, context=self.ssl_context_certifi(),)
         response_headers = response.info()
 
         self.env["download_changed"] = self.download_changed(response_headers)
@@ -329,7 +330,7 @@ class URLDownloaderPython(URLDownloader):
             ]
             if download_dictionary["http_headers"]["Content-Length"] != size:
                 # should this be a halting error?
-                self.output("WARNING: file size != content-length header")
+                self.output("WARNING: file size != content-length header", 0)
         except (KeyError, TypeError) as err:
             # probably need to handle a missing header better than this
             self.output(
@@ -370,12 +371,12 @@ class URLDownloaderPython(URLDownloader):
         filename = self.get_filename()
         if filename is None:
             return
-        
+
         # in some cases, the filename could have html parameters after:
         if "?" in filename:
-            self.output("Removing ? and following characters from filename", 2)
+            self.output("Removing ? and following characters from filename", 0)
             # this fix should be applied to URLDownloader.prefetch_filename()
-            filename = filename.split("?",1)[0]
+            filename = filename.split("?", 1)[0]
 
         self.env["filename"] = filename
         download_dir = self.get_download_dir()
@@ -396,8 +397,7 @@ class URLDownloaderPython(URLDownloader):
         self.output(
             "download_dictionary: \n{download_dictionary}\n".format(
                 download_dictionary=download_dictionary
-            ),
-            2,
+            )
         )
 
         # clear temp file if 0 size
@@ -409,7 +409,9 @@ class URLDownloaderPython(URLDownloader):
 
             if "http_headers" in download_dictionary:
                 self.env["etag"] = download_dictionary["http_headers"]["ETag"]
-                self.env["last_modified"] = download_dictionary["http_headers"]["Last-Modified"]
+                self.env["last_modified"] = download_dictionary["http_headers"][
+                    "Last-Modified"
+                ]
 
             # Generate output messages and variables
             self.output(f"Downloaded {self.env['pathname']}")
