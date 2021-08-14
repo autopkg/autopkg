@@ -272,7 +272,7 @@ To save the token, paste it to the following prompt."""
             self.http_result_code = int(header["http_result_code"])
 
         try:
-            with open(temp_content) as f:
+            with open(temp_content, errors="ignore") as f:
                 resp_data = json.load(f)
         except json.JSONDecodeError:
             resp_data = None
