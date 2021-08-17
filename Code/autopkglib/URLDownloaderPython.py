@@ -123,6 +123,9 @@ class URLDownloaderPython(URLDownloader):
                 "last time it was downloaded."
             )
         },
+        "download_info": {
+            "description": "Info from previous or current download."
+        },
         "url_downloader_summary_result": {
             "description": "Description of interesting results."
         },
@@ -150,6 +153,9 @@ class URLDownloaderPython(URLDownloader):
         if not previous_download_info:
             # no previous download info to check against
             return True
+
+        # store previous download info in case we don't download again
+        self.env["download_info"] = previous_download_info
 
         self.output(
             "previous_download_info: \n{previous_download_info}\n".format(
@@ -244,6 +250,8 @@ class URLDownloaderPython(URLDownloader):
         """If file is downloaded, store info"""
         pathname = self.env.get("pathname")
         pathname_info_json = pathname + ".info.json"
+        # put new download info into env:
+        self.env["download_info"] = download_dictionary
         # https://stackoverflow.com/questions/16267767/python-writing-json-to-file
         with open(pathname_info_json, "w") as outfile:
             json.dump(download_dictionary, outfile, indent=4)
