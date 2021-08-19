@@ -123,9 +123,7 @@ class URLDownloaderPython(URLDownloader):
                 "last time it was downloaded."
             )
         },
-        "download_info": {
-            "description": "Info from previous or current download."
-        },
+        "download_info": {"description": "Info from previous or current download."},
         "url_downloader_summary_result": {
             "description": "Description of interesting results."
         },
@@ -384,16 +382,19 @@ class URLDownloaderPython(URLDownloader):
         try:
             # save http header info to dict
             download_dictionary["http_headers"] = {}
-            download_dictionary["http_headers"]["Content-Length"] = int(
-                response.headers["content-length"]
-            )
-            download_dictionary["http_headers"]["ETag"] = response.headers["ETag"]
-            download_dictionary["http_headers"]["Last-Modified"] = response.headers[
-                "Last-Modified"
-            ]
-            if download_dictionary["http_headers"]["Content-Length"] != size:
-                # should this be a halting error?
-                self.output("WARNING: file size != content-length header", 0)
+            if "content-length" in response.headers:
+                download_dictionary["http_headers"]["Content-Length"] = int(
+                    response.headers["content-length"]
+                )
+                if download_dictionary["http_headers"]["Content-Length"] != size:
+                    # should this be a halting error?
+                    self.output("WARNING: file size != content-length header", 0)
+            if "ETag" in response.headers:
+                download_dictionary["http_headers"]["ETag"] = response.headers["ETag"]
+            if "Last-Modified" in response.headers:
+                download_dictionary["http_headers"]["Last-Modified"] = response.headers[
+                    "Last-Modified"
+                ]
         except (KeyError, TypeError) as err:
             # probably need to handle a missing header better than this
             self.output(
