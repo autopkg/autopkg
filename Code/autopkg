@@ -58,6 +58,7 @@ from autopkglib import (
     set_pref,
     version_equal_or_greater,
 )
+from autopkglib.autopkgyaml import autopkg_str_representer
 from autopkglib.github import GitHubSession, print_gh_search_results
 
 if sys.platform != "darwin":
@@ -74,6 +75,12 @@ _ = f"""{sys.version_info.major} It looks like you're running the autopkg tool w
 
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
+
+# Override global yaml state with our str representer
+# See https://github.com/autopkg/autopkg/issues/768
+yaml.add_representer(str, autopkg_str_representer)
+# to use with safe_dump:
+yaml.representer.SafeRepresenter.add_representer(str, autopkg_str_representer)
 
 
 def print_version(argv):
