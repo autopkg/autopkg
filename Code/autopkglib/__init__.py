@@ -338,25 +338,29 @@ def recipe_from_file(filename):
     if not os.path.isfile(filename):
         return
 
-    if filename.endswith(".yaml"):
-        try:
-            # try to read it as yaml
-            with open(filename, "rb") as f:
-                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
-            return recipe_dict
-        except Exception as err:
-            log_err(f"WARNING: yaml error for {filename}: {err}")
-            return
+    formats_tried = []
+    sep = " or "
 
-    else:
+    if filename.endswith((".plist", ".recipe")):
         try:
             # try to read it as a plist
             with open(filename, "rb") as f:
                 recipe_dict = plistlib.load(f)
             return recipe_dict
-        except Exception as err:
-            log_err(f"WARNING: plist error for {filename}: {err}")
-            return
+        except Exception:
+            formats_tried.append("plist")
+
+    if filename.endswith((".yaml", ".recipe")):
+        try:
+            # try to read it as yaml
+            with open(filename, "rb") as f:
+                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+            return recipe_dict
+        except Exception:
+            formats_tried.append("yaml")
+
+    log_err(f"WARNING: Unable to read {filename} as {sep.join(formats_tried)}")
+    return
 
 
 def get_identifier(recipe):
