@@ -77,7 +77,7 @@ class TestPreferences(unittest.TestCase):
         test_platforms += self.PRIMARY_NON_MACOS_PLATFORMS
         for platform in test_platforms:
             with self.subTest(platform=platform):
-                self.mock_platform = platform
+                self.mock_platform.return_value = platform
                 fake_prefs = Preferences()
                 self.assertEqual(fake_prefs.file_path, None)
                 self.assertEqual(fake_prefs.type, None)
