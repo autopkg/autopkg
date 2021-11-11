@@ -133,9 +133,9 @@ class TestPreferences(unittest.TestCase):
     @patch_open(TEST_JSON_PREFS)
     def test_init_prefs_files(self, _mock_open):
         """Preferences should load file-backed config on primary platforms."""
-        for platform in self.PRIMARY_NON_MACOS_PLATFORMS:
-            with self.subTest(platform=platform):
-                self.mock_platform.return_value = platform
+        for actual_platform in self.PRIMARY_NON_MACOS_PLATFORMS:
+            with self.subTest(platform=actual_platform):
+                self.mock_platform.return_value = actual_platform
                 prefs = Preferences()
                 self.assertNotEqual(prefs.file_path, None)
                 value = prefs.get_all_prefs()
@@ -146,9 +146,9 @@ class TestPreferences(unittest.TestCase):
     @patch.object(Preferences, "write_file")
     def test_set_pref_files(self, mock_write_file, mock_open):
         """Preferences().set_pref should write file on file-backed config platforms"""
-        for platform in self.PRIMARY_NON_MACOS_PLATFORMS:
-            with self.subTest(platform=platform):
-                self.mock_platform.return_value = platform
+        for actual_platform in self.PRIMARY_NON_MACOS_PLATFORMS:
+            with self.subTest(platform=actual_platform):
+                self.mock_platform.return_value = actual_platform
                 fake_prefs = Preferences()
                 self.assertNotEqual(fake_prefs.file_path, None)
                 fake_prefs.set_pref("TEST_KEY", "fake_value")
@@ -158,11 +158,9 @@ class TestPreferences(unittest.TestCase):
                 mock_write_file.reset_mock()
 
     @patch.object(Preferences, "_set_macos_pref")
-    @patch("autopkglib.is_mac")
-    def test_set_pref_mac(self, mock_ismac, mock_set_macos_pref):
+    def test_set_pref_mac(self, mock_set_macos_pref):
         """Preferences().set_pref should write macOS preference store on macOS."""
-        self.mock_platform.return_value = "darwin"
-        mock_ismac.return_value = True
+        self.mock_platform.lower.return_value = "darwin"
         fake_prefs = Preferences()
         fake_prefs.set_pref("TEST_KEY", "fake_value")
         value = fake_prefs.get_pref("TEST_KEY")
