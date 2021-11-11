@@ -158,9 +158,11 @@ class TestPreferences(unittest.TestCase):
                 mock_write_file.reset_mock()
 
     @patch.object(Preferences, "_set_macos_pref")
-    def test_set_pref_mac(self, mock_set_macos_pref):
+    @patch("autopkglib.is_mac")
+    def test_set_pref_mac(self, mock_ismac, mock_set_macos_pref):
         """Preferences().set_pref should write macOS preference store on macOS."""
-        self.mock_platform.return_value = "Darwin"
+        self.mock_platform.return_value = "darwin"
+        mock_ismac.return_value = True
         fake_prefs = Preferences()
         fake_prefs.set_pref("TEST_KEY", "fake_value")
         value = fake_prefs.get_pref("TEST_KEY")
@@ -172,7 +174,7 @@ class TestPreferences(unittest.TestCase):
     @patch_open(TEST_JSON_PREFS)
     def test_set_pref_mac_files(self, mock_open, mock_write_file, mock_set_macos_pref):
         """Preferences().set_pref should write file on macOS and read_file() used."""
-        self.mock_platform.return_value = "Darwin"
+        self.mock_platform.return_value = "darwin"
         fake_prefs = Preferences()
         fake_prefs.read_file("fake_config_file")
         mock_open.assert_called()

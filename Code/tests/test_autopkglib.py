@@ -230,10 +230,12 @@ class TestAutoPkg(unittest.TestCase):
         read_data=download_recipe.encode("utf-8"),
     )
     @patch("autopkg.plistlib.load")
+    @patch("os.path.isfile")
     def test_get_identifier_from_recipe_file_returns_identifier(
-        self, mock_load, mock_file
+        self, mock_isfile, mock_load, mock_file
     ):
         """get_identifier_from_recipe_file should return identifier."""
+        mock_isfile.return_value = True
         mock_load.return_value = self.download_struct
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertEqual(id, "com.github.autopkg.download.googlechrome")
