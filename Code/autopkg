@@ -40,6 +40,7 @@ from autopkglib import (
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
+    calculate_recipe_map,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
     find_binary,
@@ -52,11 +53,13 @@ from autopkglib import (
     is_mac,
     log,
     log_err,
+    map_identifiers_to_paths,
     processor_names,
     recipe_from_file,
     remove_recipe_extension,
     set_pref,
     version_equal_or_greater,
+    write_recipe_map_to_disk,
 )
 from autopkglib.github import GitHubSession, print_gh_search_results
 
@@ -749,6 +752,7 @@ Example: '%prog repo-add recipes'
 
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
+    recipe_map = {}
     for repo_url in arguments:
         if "file://" in repo_url:
             log_err(
@@ -763,6 +767,9 @@ Example: '%prog repo-add recipes'
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
+        log("Updating recipe map with all new recipes...")
+        recipe_map = map_identifiers_to_paths(new_recipe_repo_dir)
+        write_recipe_map_to_disk(recipe_map)
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
@@ -812,6 +819,9 @@ def repo_delete(argv):
         else:
             # last, remove from RECIPE_REPOS
             del recipe_repos[repo_path]
+    # Recalculate the recipe map
+    log("Recalculating the recipe map...")
+    calculate_recipe_map()
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)

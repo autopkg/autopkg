@@ -70,6 +70,11 @@ def log_err(msg):
     log(msg, error=True)
 
 
+def autopkg_user_folder() -> str:
+    """Return a path string for the AutoPkg user folder"""
+    return os.path.abspath(os.path.expanduser("~/Library/AutoPkg"))
+
+
 try:
     from CoreFoundation import (
         CFPreferencesAppSynchronize,
@@ -397,6 +402,58 @@ def find_recipe_by_identifier(identifier, search_dirs):
                     return match
 
     return None
+
+
+def calculate_recipe_map():
+    """Recalculate the entire recipe map"""
+    recipe_map = {}
+    for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
+        recipe_map.update(map_identifiers_to_paths(search_dir))
+    write_recipe_map_to_disk(recipe_map, read_cache=False)
+
+
+def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
+    """Return a dict of identifiers to absolute recipe paths."""
+    recipe_map = {}
+    normalized_dir = os.path.abspath(os.path.expanduser(repo_dir))
+    patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+    patterns.extend([os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS])
+    for pattern in patterns:
+        matches = glob.glob(pattern)
+        for match in matches:
+            identifier = get_identifier_from_recipe_file(match)
+            # log(f"Mapping identifier {identifier} to path {match}")
+            recipe_map[identifier] = match
+    return recipe_map
+
+
+def write_recipe_map_to_disk(new_recipe_map: Dict[str, str], read_cache: bool = True):
+    """Write the recipe map to disk"""
+    # Get the existing recipe map, update it, and write it back out
+    recipe_map = {}
+    if read_cache:
+        recipe_map = read_recipe_map()
+    recipe_map.update(new_recipe_map)
+    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
+        json.dump(
+            recipe_map,
+            f,
+            ensure_ascii=True,
+            indent=2,
+            sort_keys=True,
+        )
+
+
+def read_recipe_map() -> Dict[str, str]:
+    """Retrieve a dict of the recipe map of identifiers to paths"""
+    recipe_map = {}
+    try:
+        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+            recipe_map = json.load(f)
+    except OSError:
+        # If the file doesn't exist, it's empty anyway
+        pass
+    return recipe_map
 
 
 def get_autopkg_version():
@@ -793,7 +850,7 @@ class AutoPackager:
         identifier = self.get_recipe_identifier(recipe)
         # define a cache/work directory for use by the recipe
         cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
-            "~/Library/AutoPkg/Cache"
+            os.path.join(autopkg_user_folder(), "Cache"),
         )
         self.env["RECIPE_CACHE_DIR"] = os.path.join(cache_dir, identifier)
 
