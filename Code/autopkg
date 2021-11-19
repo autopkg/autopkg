@@ -57,6 +57,7 @@ from autopkglib import (
     is_mac,
     log,
     log_err,
+    map_identifiers_to_paths,
     processor_names,
     read_recipe_map,
     recipe_from_file,
@@ -66,6 +67,7 @@ from autopkglib import (
     valid_recipe_file,
     valid_recipe_dict,
     valid_override_dict,
+    write_recipe_map_to_disk,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
 from autopkglib.github import GitHubSession, print_gh_search_results
@@ -721,6 +723,7 @@ Example: '%prog repo-add recipes'
 
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
+    recipe_map = {}
     for repo_url in arguments:
         if "file://" in repo_url:
             log_err(
@@ -736,8 +739,9 @@ Example: '%prog repo-add recipes'
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
-            log("Updating recipe map...")
-            calculate_recipe_map()
+        log("Updating recipe map with all new recipes...")
+        recipe_map = map_identifiers_to_paths(new_recipe_repo_dir)
+        write_recipe_map_to_disk(recipe_map)
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
