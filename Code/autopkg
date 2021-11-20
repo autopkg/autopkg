@@ -137,6 +137,36 @@ def valid_override_file(filename):
     return valid_override_dict(override_dict)
 
 
+def find_recipe_by_name(name, search_dirs):
+    """Search search_dirs for a recipe by file/directory naming rules"""
+    # drop extension from the end of the name because we're
+    # going to add it back on...
+    name = remove_recipe_extension(name)
+    # search by "Name" in the recipe map
+    for path in read_recipe_map().values():
+        comparison_path =  remove_recipe_extension(os.path.basename(path))
+        if name == comparison_path:
+            log("Found it!")
+            if valid_recipe_file(path):
+                return path
+    # Otherwise, search by "Name", using file/directory hierarchy rules
+    for directory in search_dirs:
+        # TODO: Combine with similar code in get_recipe_list()
+        # and find_recipe_by_identifier()
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
+        )
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                if valid_recipe_file(match):
+                    return match
+
+    return None
+
+
 def find_recipe(id_or_name, search_dirs):
     """find a recipe based on a string that might be an identifier
     or a name"""

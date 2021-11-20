@@ -436,83 +436,21 @@ def get_identifier_from_recipe_file(filename):
     return get_identifier(recipe_dict)
 
 
-def find_recipe_by_identifier(identifier):
-    """Search recipe map for an identifier"""
-    if identifier in globalRecipeMap["identifiers"]:
-        if valid_recipe_file(globalRecipeMap["identifiers"][identifier]):
-            log(f"Found {identifier} in recipe map")
-            return globalRecipeMap["identifiers"][identifier]
-
-
-def find_recipe_by_name(name, skip_overrides=False):
-    """Search recipe map for a shortname"""
-    # Check the overrides first, unless skipping them
-    if not skip_overrides and name in globalRecipeMap["overrides"]:
-        if valid_recipe_file(globalRecipeMap["overrides"][name]):
-            log(f"Found {name} in recipe map overrides")
-            return globalRecipeMap["overrides"][name]
-    # search by "Name" in the recipe map
-    if name in globalRecipeMap["shortnames"]:
-        if valid_recipe_file(globalRecipeMap["shortnames"][name]):
-            log(f"Found {name} in recipe map")
-            return globalRecipeMap["shortnames"][name]
-
-
-def find_name_from_identifier(identifier):
-    """Find a recipe name from its identifier"""
-    recipe_path = globalRecipeMap["identifiers"].get(identifier)
-    for shortname, path in globalRecipeMap["shortnames"].items():
-        if recipe_path == path:
-            return shortname
-    log_err(f"Could not find shortname from {identifier}!")
-
-
-def find_identifier_from_name(name):
-    """Find a recipe identifier from its shortname"""
-    recipe_path = globalRecipeMap["shortnames"].get(name)
-    for id, path in globalRecipeMap["identifiers"].items():
-        if recipe_path == path:
-            return id
-    log_err(f"Could not find identifier from {name}!")
-
-
-def get_search_dirs():
-    """Return search dirs from preferences or default list"""
-    default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
-
-    dirs = get_pref("RECIPE_SEARCH_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
-
-
-def get_override_dirs():
-    """Return override dirs from preferences or default list"""
-    default = ["~/Library/AutoPkg/RecipeOverrides"]
-
-    dirs = get_pref("RECIPE_OVERRIDE_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
-
-
-def calculate_recipe_map(extra_search_dirs=None, extra_override_dirs=None):
-    """Recalculate the entire recipe map"""
-    global globalRecipeMap
-    globalRecipeMap = {"identifiers": {}, "shortnames": {}, "overrides": {}}
-    # If extra search paths were provided as CLI arguments, let's search those too
-    if extra_search_dirs is None:
-        extra_search_dirs = []
-    if extra_override_dirs is None:
-        extra_override_dirs = []
-    for search_dir in get_pref("RECIPE_SEARCH_DIRS") + extra_search_dirs:
-        if search_dir == ".":
-            # skip searching cwd
-            continue
-        globalRecipeMap["identifiers"].update(
-            map_key_to_paths("identifiers", search_dir)
+def find_recipe_by_identifier(identifier, search_dirs):
+    """Search search_dirs for a recipe with the given
+    identifier"""
+    # First, consult the official recipe map
+    recipe_map = read_recipe_map()
+    if identifier in recipe_map:
+        log("Found in recipe map!")
+        return recipe_map[identifier]
+    # If not in the existing map, go to the traditional method
+    for directory in search_dirs:
+        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
         )
         globalRecipeMap["shortnames"].update(map_key_to_paths("shortnames", search_dir))
     # Do overrides separately
