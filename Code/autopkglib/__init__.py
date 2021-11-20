@@ -436,30 +436,21 @@ def get_identifier_from_recipe_file(filename):
     return get_identifier(recipe_dict)
 
 
-def find_recipe_by_identifier(identifier):
-    """Search recipe map for an identifier"""
-    if identifier in globalRecipeMap["identifiers"]:
-        if valid_recipe_file(globalRecipeMap["identifiers"][identifier]):
-            log(f"Found {identifier} in recipe map")
-            return globalRecipeMap["identifiers"][identifier]
-
-
-def write_recipe_map_to_disk():
-    """Write the recipe map to disk"""
-    local_recipe_map = {}
-    try:
-        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-            local_recipe_map = json.load(f)
-    except OSError:
-        pass
-    local_recipe_map.update(globalRecipeMap)
-    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
-        json.dump(
-            local_recipe_map,
-            f,
-            ensure_ascii=True,
-            indent=2,
-            sort_keys=True,
+def find_recipe_by_identifier(identifier, search_dirs):
+    """Search search_dirs for a recipe with the given
+    identifier"""
+    # First, consult the official recipe map
+    recipe_map = read_recipe_map()
+    if identifier in recipe_map:
+        log("Found in recipe map!")
+        return recipe_map[identifier]
+    # If not in the existing map, go to the traditional method
+    for directory in search_dirs:
+        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
         )
 
 
