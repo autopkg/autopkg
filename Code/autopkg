@@ -55,6 +55,7 @@ from autopkglib import (
     log_err,
     map_identifiers_to_paths,
     processor_names,
+    read_recipe_map,
     recipe_from_file,
     remove_recipe_extension,
     set_pref,
@@ -159,7 +160,14 @@ def find_recipe_by_name(name, search_dirs):
     # drop extension from the end of the name because we're
     # going to add it back on...
     name = remove_recipe_extension(name)
-    # search by "Name", using file/directory hierarchy rules
+    # search by "Name" in the recipe map
+    for path in read_recipe_map().values():
+        comparison_path =  remove_recipe_extension(os.path.basename(path))
+        if name == comparison_path:
+            log("Found it!")
+            if valid_recipe_file(path):
+                return path
+    # Otherwise, search by "Name", using file/directory hierarchy rules
     for directory in search_dirs:
         # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_identifier()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))

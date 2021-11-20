@@ -388,6 +388,12 @@ def get_identifier_from_recipe_file(filename):
 def find_recipe_by_identifier(identifier, search_dirs):
     """Search search_dirs for a recipe with the given
     identifier"""
+    # First, consult the official recipe map
+    recipe_map = read_recipe_map()
+    if identifier in recipe_map:
+        log("Found in recipe map!")
+        return recipe_map[identifier]
+    # If not in the existing map, go to the traditional method
     for directory in search_dirs:
         # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
