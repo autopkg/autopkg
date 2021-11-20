@@ -124,8 +124,27 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def find_recipe(id_or_name, skip_overrides=False):
-    """Find a recipe based on a string that might be an identifier
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify):
+    """Attempts to read a dict and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise."""
+    if recipe_dict:
+        for key in keys_to_verify:
+            if key not in recipe_dict:
+                return False
+        # if we get here, we found all the keys
+        return True
+    return False
+
+
+def valid_override_file(filename):
+    """Returns True if filename contains a valid override,
+    otherwise returns False"""
+    override_dict = recipe_from_file(filename)
+    return valid_override_dict(override_dict)
+
+
+def find_recipe(id_or_name, search_dirs):
+    """find a recipe based on a string that might be an identifier
     or a name"""
     # The recipe search should allow searching overrides vs. not
     # (make-overrides shouldn't search overrides first)
@@ -135,7 +154,7 @@ def find_recipe(id_or_name, skip_overrides=False):
     # search in identifiers
     # oh noez we can't find it
     log(f"Looking for {id_or_name}...")
-    return find_recipe_by_name(id_or_name, skip_overrides) or find_recipe_by_identifier(
+    return find_recipe_by_name(id_or_name, search_dirs) or find_recipe_by_identifier(
         id_or_name
     )
 

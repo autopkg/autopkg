@@ -25,7 +25,6 @@ import re
 import subprocess
 import sys
 import traceback
-from collections import namedtuple
 from copy import deepcopy
 from distutils.version import LooseVersion
 from typing import IO, Any, Dict, List, Optional, Union
@@ -345,7 +344,8 @@ def remove_recipe_extension(name):
 def recipe_from_file(filename):
     """Create a recipe dictionary from a file. Handle exceptions and log"""
     if not filename:
-        # If we made GitHub search suggestions but the operator selected no, this will be None
+        # If we made GitHub search suggestions but the operator selected no,
+        # this will be None
         return
     if not os.path.isfile(filename):
         return
@@ -498,7 +498,7 @@ def get_override_dirs():
     return dirs or default
 
 
-def calculate_recipe_map(extra_search_dirs = None, extra_override_dirs = None):
+def calculate_recipe_map(extra_search_dirs=None, extra_override_dirs=None):
     """Recalculate the entire recipe map"""
     global globalRecipeMap
     globalRecipeMap = {"identifiers": {}, "shortnames": {}, "overrides": {}}
@@ -533,7 +533,7 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
         matches = glob.glob(pattern)
         for match in matches:
             if keyname == "identifiers":
-                key = identifier = get_identifier_from_recipe_file(match)
+                key = get_identifier_from_recipe_file(match)
             else:
                 key = remove_recipe_extension(os.path.basename(match))
             # key is the recipe shortname at this point
@@ -550,7 +550,7 @@ def write_recipe_map_to_disk():
     try:
         with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
             local_recipe_map = json.load(f)
-    except (OSError, FileNotFoundError):
+    except OSError:
         pass
     local_recipe_map.update(globalRecipeMap)
     with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
@@ -570,17 +570,9 @@ def read_recipe_map():
     try:
         with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
             recipe_map = json.load(f)
-    except (OSError, FileNotFoundError):
+    except OSError:
         pass
     globalRecipeMap.update(recipe_map)
-
-
-def calculate_recipe_map():
-    """Recalculate the entire recipe map"""
-    recipe_map = {}
-    for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
-        recipe_map.update(map_identifiers_to_paths(search_dir))
-    write_recipe_map_to_disk(recipe_map, read_cache=False)
 
 
 def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
@@ -595,35 +587,6 @@ def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
             identifier = get_identifier_from_recipe_file(match)
             # log(f"Mapping identifier {identifier} to path {match}")
             recipe_map[identifier] = match
-    return recipe_map
-
-
-def write_recipe_map_to_disk(new_recipe_map: Dict[str, str], read_cache: bool = True):
-    """Write the recipe map to disk"""
-    # Get the existing recipe map, update it, and write it back out
-    recipe_map = {}
-    if read_cache:
-        recipe_map = read_recipe_map()
-    recipe_map.update(new_recipe_map)
-    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
-        json.dump(
-            recipe_map,
-            f,
-            ensure_ascii=True,
-            indent=2,
-            sort_keys=True,
-        )
-
-
-def read_recipe_map() -> Dict[str, str]:
-    """Retrieve a dict of the recipe map of identifiers to paths"""
-    recipe_map = {}
-    try:
-        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-            recipe_map = json.load(f)
-    except OSError:
-        # If the file doesn't exist, it's empty anyway
-        pass
     return recipe_map
 
 
