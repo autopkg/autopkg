@@ -570,6 +570,7 @@ def read_recipe_map():
     try:
         with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
             recipe_map = json.load(f)
+        globalRecipeMap.update(recipe_map)
     except OSError:
         pass
     globalRecipeMap.update(recipe_map)
