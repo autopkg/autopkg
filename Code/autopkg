@@ -148,6 +148,7 @@ def find_recipe_by_name(name):
     # going to add it back on...
     name = remove_recipe_extension(name)
     # search by "Name" in the recipe map
+    log(f"Looking for {name} in recipe map")
     for path in read_recipe_map().values():
         comparison_path =  remove_recipe_extension(os.path.basename(path))
         if name == comparison_path:
