@@ -149,10 +149,10 @@ def find_recipe_by_name(name):
     name = remove_recipe_extension(name)
     # search by "Name" in the recipe map
     log(f"Looking for {name} in recipe map")
-    for path in read_recipe_map().values():
-        comparison_path =  remove_recipe_extension(os.path.basename(path))
+    for path in globalRecipeMap.values():
+        comparison_path = remove_recipe_extension(os.path.basename(path))
         if name == comparison_path:
-            log("Found it!")
+            log("Found recipe in map by name!")
             if valid_recipe_file(path):
                 return path
     # Otherwise, search by "Name", using file/directory hierarchy rules
@@ -175,8 +175,8 @@ def find_recipe_by_name(name):
 def find_recipe(id_or_name, skip_overrides=False):
     """Find a recipe based on a string that might be an identifier
     or a name"""
-    # The recipe search should allow searching overrides vs. not (make-overrides shouldn't
-    # search overrides first)
+    # The recipe search should allow searching overrides vs. not
+    # (make-overrides shouldn'tsearch overrides first)
     # When searching:
     # Search for shortname in overrides first, since that's most common
     # search in shortnames
@@ -751,8 +751,9 @@ Example: '%prog repo-add recipes'
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
         log("Updating recipe map with all new recipes...")
-        recipe_map = map_identifiers_to_paths(new_recipe_repo_dir)
-        write_recipe_map_to_disk(recipe_map)
+        global globalRecipeMap
+        globalRecipeMap.update(map_identifiers_to_paths(new_recipe_repo_dir))
+        write_recipe_map_to_disk()
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
