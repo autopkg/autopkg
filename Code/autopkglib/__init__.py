@@ -311,6 +311,9 @@ class Preferences:
 # Set the global preferences object
 globalPreferences = Preferences()
 
+# Set the global recipe map
+globalRecipeMap = {}
+
 
 def get_pref(key):
     """Return a single pref value (or None) for a domain."""
@@ -389,10 +392,9 @@ def find_recipe_by_identifier(identifier, search_dirs):
     """Search search_dirs for a recipe with the given
     identifier"""
     # First, consult the official recipe map
-    recipe_map = read_recipe_map()
-    if identifier in recipe_map:
-        log("Found in recipe map!")
-        return recipe_map[identifier]
+    if identifier in globalRecipeMap:
+        log("Found identifier in recipe map!")
+        return globalRecipeMap[identifier]
     # If not in the existing map, go to the traditional method
     for directory in search_dirs:
         # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
@@ -412,10 +414,9 @@ def find_recipe_by_identifier(identifier, search_dirs):
 
 def calculate_recipe_map():
     """Recalculate the entire recipe map"""
-    recipe_map = {}
     for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
-        recipe_map.update(map_identifiers_to_paths(search_dir))
-    write_recipe_map_to_disk(recipe_map, read_cache=False)
+        globalRecipeMap.update(map_identifiers_to_paths(search_dir))
+    write_recipe_map_to_disk()
 
 
 def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
@@ -433,16 +434,15 @@ def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
     return recipe_map
 
 
-def write_recipe_map_to_disk(new_recipe_map: Dict[str, str], read_cache: bool = True):
+def write_recipe_map_to_disk():
     """Write the recipe map to disk"""
-    # Get the existing recipe map, update it, and write it back out
-    recipe_map = {}
-    if read_cache:
-        recipe_map = read_recipe_map()
-    recipe_map.update(new_recipe_map)
+    local_recipe_map = {}
+    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+        local_recipe_map = json.load(f)
+    local_recipe_map.update(globalRecipeMap)
     with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
         json.dump(
-            recipe_map,
+            local_recipe_map,
             f,
             ensure_ascii=True,
             indent=2,
@@ -450,16 +450,18 @@ def write_recipe_map_to_disk(new_recipe_map: Dict[str, str], read_cache: bool = 
         )
 
 
-def read_recipe_map() -> Dict[str, str]:
+def read_recipe_map():
     """Retrieve a dict of the recipe map of identifiers to paths"""
-    recipe_map = {}
+    global globalRecipeMap
     try:
+        recipe_map = {}
         with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
             recipe_map = json.load(f)
+        globalRecipeMap.update(recipe_map)
     except OSError:
         # If the file doesn't exist, it's empty anyway
         pass
-    return recipe_map
+    # return globalRecipeMap
 
 
 def get_autopkg_version():
