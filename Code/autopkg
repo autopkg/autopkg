@@ -40,6 +40,7 @@ from autopkglib import (
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
+    globalRecipeMap,
     calculate_recipe_map,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
@@ -168,10 +169,10 @@ def find_recipe_by_name(name, search_dirs):
     name = remove_recipe_extension(name)
     # search by "Name" in the recipe map
     log(f"Looking for {name} in recipe map")
-    for path in read_recipe_map().values():
-        comparison_path =  remove_recipe_extension(os.path.basename(path))
+    for path in globalRecipeMap.values():
+        comparison_path = remove_recipe_extension(os.path.basename(path))
         if name == comparison_path:
-            log("Found it!")
+            log("Found recipe in map by name!")
             if valid_recipe_file(path):
                 return path
     # Otherwise, search by "Name", using file/directory hierarchy rules
@@ -195,6 +196,7 @@ def find_recipe_by_name(name, search_dirs):
 def find_recipe(id_or_name, search_dirs):
     """find a recipe based on a string that might be an identifier
     or a name"""
+    read_recipe_map()
     return find_recipe_by_identifier(id_or_name, search_dirs) or find_recipe_by_name(
         id_or_name, search_dirs
     )
@@ -785,8 +787,9 @@ Example: '%prog repo-add recipes'
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
         log("Updating recipe map with all new recipes...")
-        recipe_map = map_identifiers_to_paths(new_recipe_repo_dir)
-        write_recipe_map_to_disk(recipe_map)
+        global globalRecipeMap
+        globalRecipeMap.update(map_identifiers_to_paths(new_recipe_repo_dir))
+        write_recipe_map_to_disk()
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
