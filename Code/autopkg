@@ -167,6 +167,7 @@ def find_recipe_by_name(name, search_dirs):
     # going to add it back on...
     name = remove_recipe_extension(name)
     # search by "Name" in the recipe map
+    log(f"Looking for {name} in recipe map")
     for path in read_recipe_map().values():
         comparison_path =  remove_recipe_extension(os.path.basename(path))
         if name == comparison_path:
@@ -2222,6 +2223,7 @@ def run_recipes(argv):
         # don't make suggestions or search Github if told to be quiet
         make_suggestions = False
     for recipe_path in recipe_paths:
+        start = time.perf_counter()
         recipe = load_recipe(
             recipe_path,
             override_dirs,
@@ -2231,6 +2233,8 @@ def run_recipes(argv):
             make_suggestions=make_suggestions,
             search_github=make_suggestions,
         )
+        end = time.perf_counter()
+        log(f"**load_recipe time: {str(end - start)}")
         if not recipe:
             if not make_suggestions:
                 log_err(f"No valid recipe found for {recipe_path}")
