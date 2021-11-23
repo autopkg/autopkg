@@ -25,6 +25,7 @@ import re
 import subprocess
 import sys
 import traceback
+from collections import namedtuple
 from copy import deepcopy
 from distutils.version import LooseVersion
 from typing import IO, Any, Dict, List, Optional, Union
@@ -40,6 +41,8 @@ FileOrPath = Union[IO, str, bytes, int]
 # Most commonly for `input_variables` and friends. It also applies to virtually all
 # usages of plistlib results as well.
 VarDict = Dict[str, Any]
+
+KnownRecipe = namedtuple("KnownRecipe", ["identifier", "recipepath"])
 
 
 def is_mac():
@@ -388,26 +391,27 @@ def get_identifier_from_recipe_file(filename):
     return get_identifier(recipe_dict)
 
 
-def find_recipe_by_identifier(identifier, search_dirs):
+def find_recipe_by_identifier(identifier):
     """Search search_dirs for a recipe with the given
     identifier"""
     # First, consult the official recipe map
-    if identifier in globalRecipeMap:
-        log("Found identifier in recipe map!")
-        return globalRecipeMap[identifier]
-    # If not in the existing map, go to the traditional method
-    for directory in search_dirs:
-        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
-        patterns.extend(
-            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
-        )
-        for pattern in patterns:
-            matches = glob.glob(pattern)
-            for match in matches:
-                if get_identifier_from_recipe_file(match) == identifier:
-                    return match
+    for _name, recipe_data in globalRecipeMap.items():
+        if identifier == recipe_data.identifier:
+            log(f"Found {identifier} in recipe map")
+            return recipe_data.recipepath
+    # # If not in the existing map, go to the traditional method
+    # for directory in search_dirs:
+    #     # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
+    #     normalized_dir = os.path.abspath(os.path.expanduser(directory))
+    #     patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+    #     patterns.extend(
+    #         [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
+    #     )
+    #     for pattern in patterns:
+    #         matches = glob.glob(pattern)
+    #         for match in matches:
+    #             if get_identifier_from_recipe_file(match) == identifier:
+    #                 return match
 
     return None
 
@@ -429,8 +433,9 @@ def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
         matches = glob.glob(pattern)
         for match in matches:
             identifier = get_identifier_from_recipe_file(match)
-            # log(f"Mapping identifier {identifier} to path {match}")
-            recipe_map[identifier] = match
+            # recipe_map[identifier] = match
+            shortname = remove_recipe_extension(os.path.basename(match))
+            recipe_map[shortname] = KnownRecipe(identifier, match)
     return recipe_map
 
 
@@ -450,18 +455,27 @@ def write_recipe_map_to_disk():
         )
 
 
+def read_recipe_map_file():
+    """More primitive function that de-serializes JSON into correct types"""
+    recipe_map = {}
+    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+        recipe_map = json.load(f)
+    # now to de-serialize JSON into KnownRecipe named tuple types
+    fixed_recipe_map = {}
+    for name, values in recipe_map.items():
+        fixed_recipe_map[name] = KnownRecipe(values[0], values[1])
+    return fixed_recipe_map
+
+
 def read_recipe_map():
     """Retrieve a dict of the recipe map of identifiers to paths"""
     global globalRecipeMap
     try:
-        recipe_map = {}
-        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-            recipe_map = json.load(f)
+        recipe_map = read_recipe_map_file()
         globalRecipeMap.update(recipe_map)
     except OSError:
         # If the file doesn't exist, it's empty anyway
         pass
-    # return globalRecipeMap
 
 
 def get_autopkg_version():
