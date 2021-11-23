@@ -148,26 +148,24 @@ def find_recipe_by_name(name):
     # going to add it back on...
     name = remove_recipe_extension(name)
     # search by "Name" in the recipe map
-    log(f"Looking for {name} in recipe map")
-    for path in globalRecipeMap.values():
-        comparison_path = remove_recipe_extension(os.path.basename(path))
-        if name == comparison_path:
-            log("Found recipe in map by name!")
-            if valid_recipe_file(path):
-                return path
+    if name in globalRecipeMap:
+        if valid_recipe_file(globalRecipeMap[name].recipepath):
+            log(f"Found {name} in recipe map")
+            return globalRecipeMap[name].recipepath
     # Otherwise, search by "Name", using file/directory hierarchy rules
-    for directory in search_dirs:
-        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_identifier()
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
-        patterns.extend(
-            [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
-        )
-        for pattern in patterns:
-            matches = glob.glob(pattern)
-            for match in matches:
-                if valid_recipe_file(match):
-                    return match
+    log("Didn't find in recipe map!")
+    # for directory in search_dirs:
+    #     # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_identifier()
+    #     normalized_dir = os.path.abspath(os.path.expanduser(directory))
+    #     patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
+    #     patterns.extend(
+    #         [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
+    #     )
+    #     for pattern in patterns:
+    #         matches = glob.glob(pattern)
+    #         for match in matches:
+    #             if valid_recipe_file(match):
+    #                 return match
 
     return None
 
@@ -2182,6 +2180,8 @@ def run_recipes(argv):
         make_suggestions = False
 
     # Look for the actual recipes here
+    # First, populate the recipe map
+    read_recipe_map()
     for recipe_path in recipe_paths:
         start = time.perf_counter()
         recipe = load_recipe(
