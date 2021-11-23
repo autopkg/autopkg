@@ -25,6 +25,7 @@ import re
 import subprocess
 import sys
 import traceback
+from collections import namedtuple
 from copy import deepcopy
 from distutils.version import LooseVersion
 from typing import IO, Any, Dict, List, Optional, Union
@@ -40,6 +41,8 @@ FileOrPath = Union[IO, str, bytes, int]
 # Most commonly for `input_variables` and friends. It also applies to virtually all
 # usages of plistlib results as well.
 VarDict = Dict[str, Any]
+
+KnownRecipe = namedtuple("KnownRecipe", ["identifier", "recipepath"])
 
 
 def is_mac():
@@ -561,6 +564,18 @@ def write_recipe_map_to_disk():
             indent=2,
             sort_keys=True,
         )
+
+
+def read_recipe_map_file():
+    """More primitive function that de-serializes JSON into correct types"""
+    recipe_map = {}
+    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+        recipe_map = json.load(f)
+    # now to de-serialize JSON into KnownRecipe named tuple types
+    fixed_recipe_map = {}
+    for name, values in recipe_map.items():
+        fixed_recipe_map[name] = KnownRecipe(values[0], values[1])
+    return fixed_recipe_map
 
 
 def read_recipe_map():
