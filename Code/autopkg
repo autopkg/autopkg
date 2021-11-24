@@ -147,26 +147,17 @@ def find_recipe_by_name(name):
     # drop extension from the end of the name because we're
     # going to add it back on...
     name = remove_recipe_extension(name)
+    # check the overrides first
+    if name in globalRecipeMap["overrides"]:
+        if valid_recipe_file(globalRecipeMap["overrides"][name].recipepath):
+            log(f"Found {name} in recipe map overrides")
+            return globalRecipeMap["overrides"][name].recipepath
     # search by "Name" in the recipe map
     if name in globalRecipeMap:
         if valid_recipe_file(globalRecipeMap[name].recipepath):
             log(f"Found {name} in recipe map")
             return globalRecipeMap[name].recipepath
-    # Otherwise, search by "Name", using file/directory hierarchy rules
     log("Didn't find in recipe map!")
-    # for directory in search_dirs:
-    #     # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_identifier()
-    #     normalized_dir = os.path.abspath(os.path.expanduser(directory))
-    #     patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
-    #     patterns.extend(
-    #         [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
-    #     )
-    #     for pattern in patterns:
-    #         matches = glob.glob(pattern)
-    #         for match in matches:
-    #             if valid_recipe_file(match):
-    #                 return match
-
     return None
 
 
@@ -2180,8 +2171,6 @@ def run_recipes(argv):
         make_suggestions = False
 
     # Look for the actual recipes here
-    # First, populate the recipe map
-    read_recipe_map()
     for recipe_path in recipe_paths:
         start = time.perf_counter()
         recipe = load_recipe(
