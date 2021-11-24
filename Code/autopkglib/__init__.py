@@ -569,8 +569,11 @@ def write_recipe_map_to_disk():
 def read_recipe_map_file():
     """More primitive function that de-serializes JSON into correct types"""
     recipe_map = {}
-    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-        recipe_map = json.load(f)
+    try:
+        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+            recipe_map = json.load(f)
+    except (OSError, FileNotFoundError):
+        pass
     # now to de-serialize JSON into KnownRecipe named tuple types
     fixed_recipe_map = {}
     for name, values in recipe_map.items():
