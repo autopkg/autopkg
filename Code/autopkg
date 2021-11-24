@@ -1969,6 +1969,9 @@ def make_override(argv):
         with open(override_file, "wb") as f:
             plistlib.dump(plist_serializer(override_dict), f)
     log(f"Override file saved to {override_file}")
+    # Recalculate the recipe map
+    log("Recalculating the recipe map...")
+    calculate_recipe_map()
     return 0
 
 
