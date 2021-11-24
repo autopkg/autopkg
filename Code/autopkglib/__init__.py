@@ -442,8 +442,11 @@ def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
 def write_recipe_map_to_disk():
     """Write the recipe map to disk"""
     local_recipe_map = {}
-    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-        local_recipe_map = json.load(f)
+    try:
+        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+            local_recipe_map = json.load(f)
+    except (OSError, FileNotFoundError):
+        pass
     local_recipe_map.update(globalRecipeMap)
     with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
         json.dump(
@@ -458,8 +461,11 @@ def write_recipe_map_to_disk():
 def read_recipe_map_file():
     """More primitive function that de-serializes JSON into correct types"""
     recipe_map = {}
-    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-        recipe_map = json.load(f)
+    try:
+        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+            recipe_map = json.load(f)
+    except (OSError, FileNotFoundError):
+        pass
     # now to de-serialize JSON into KnownRecipe named tuple types
     fixed_recipe_map = {}
     for name, values in recipe_map.items():
@@ -470,12 +476,8 @@ def read_recipe_map_file():
 def read_recipe_map():
     """Retrieve a dict of the recipe map of identifiers to paths"""
     global globalRecipeMap
-    try:
-        recipe_map = read_recipe_map_file()
-        globalRecipeMap.update(recipe_map)
-    except OSError:
-        # If the file doesn't exist, it's empty anyway
-        pass
+    recipe_map = read_recipe_map_file()
+    globalRecipeMap.update(recipe_map)
 
 
 def get_autopkg_version():
