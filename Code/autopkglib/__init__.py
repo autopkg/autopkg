@@ -442,8 +442,14 @@ def get_identifier_from_recipe_file(filename):
 def find_recipe_by_identifier(identifier):
     """Search search_dirs for a recipe with the given
     identifier"""
-    # First, consult the official recipe map
-    for _name, recipe_data in globalRecipeMap.items():
+    # First, consult the overrides
+    for _name, recipe_data in globalRecipeMap["overrides"].items():
+        if identifier == recipe_data.identifier:
+            log(f"Found {identifier} in recipe map overrides")
+            return recipe_data.recipepath
+    for name, recipe_data in globalRecipeMap.items():
+        if name == "overrides":
+            continue
         if identifier == recipe_data.identifier:
             log(f"Found {identifier} in recipe map")
             return recipe_data.recipepath
@@ -508,10 +514,36 @@ def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
     return recipe_map
 
 
+def get_search_dirs():
+    """Return search dirs from preferences or default list"""
+    default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
+
+    dirs = get_pref("RECIPE_SEARCH_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or default
+
+
+def get_override_dirs():
+    """Return override dirs from preferences or default list"""
+    default = ["~/Library/AutoPkg/RecipeOverrides"]
+
+    dirs = get_pref("RECIPE_OVERRIDE_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or default
+
+
 def calculate_recipe_map():
     """Recalculate the entire recipe map"""
     for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
         globalRecipeMap.update(map_identifiers_to_paths(search_dir))
+    # Do overrides separately
+    globalRecipeMap["overrides"] = {}
+    for override in get_override_dirs():
+        globalRecipeMap["overrides"].update(map_identifiers_to_paths(override))
     write_recipe_map_to_disk()
 
 
@@ -559,9 +591,15 @@ def read_recipe_map_file():
     except (OSError, FileNotFoundError):
         pass
     # now to de-serialize JSON into KnownRecipe named tuple types
-    fixed_recipe_map = {}
+    fixed_recipe_map = {"overrides": {}}
     for name, values in recipe_map.items():
+        if name == "overrides":
+            # handle these separately
+            for ovname, ovvalue in values.items():
+                fixed_recipe_map["overrides"][ovname] = KnownRecipe(ovvalue[0], ovvalue[1])
+            continue
         fixed_recipe_map[name] = KnownRecipe(values[0], values[1])
+    # Now handle overrides
     return fixed_recipe_map
 
 
