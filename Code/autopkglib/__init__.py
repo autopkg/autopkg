@@ -572,12 +572,20 @@ def read_recipe_map_file():
     try:
         with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
             recipe_map = json.load(f)
-    except (OSError, FileNotFoundError):
+    except OSError:
         pass
     # now to de-serialize JSON into KnownRecipe named tuple types
-    fixed_recipe_map = {}
+    fixed_recipe_map = {"overrides": {}}
     for name, values in recipe_map.items():
+        if name == "overrides":
+            # handle these separately
+            for ovname, ovvalue in values.items():
+                fixed_recipe_map["overrides"][ovname] = KnownRecipe(
+                    ovvalue[0], ovvalue[1]
+                )
+            continue
         fixed_recipe_map[name] = KnownRecipe(values[0], values[1])
+    # Now handle overrides
     return fixed_recipe_map
 
 
