@@ -736,7 +736,6 @@ Example: '%prog repo-add recipes'
 
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
-    recipe_map = {}
     for repo_url in arguments:
         if "file://" in repo_url:
             log_err(
@@ -752,16 +751,16 @@ Example: '%prog repo-add recipes'
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
-        log("Updating recipe map with all new recipes...")
-        global globalRecipeMap
-        globalRecipeMap.update(map_identifiers_to_paths(new_recipe_repo_dir))
-        write_recipe_map_to_disk()
+            log("Updating recipe map with all new recipes...")
+            global globalRecipeMap
+            globalRecipeMap.update(map_identifiers_to_paths(new_recipe_repo_dir))
+            write_recipe_map_to_disk()
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
     save_pref_or_warn("RECIPE_SEARCH_DIRS", recipe_search_dirs)
 
-    log("Updated search path:")
+    log("Updated search paths:")
     for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
         log(f"  '{search_dir}'")
 
@@ -1367,7 +1366,7 @@ def find_processor_path(processor_name, recipe, env=None):
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
             shared_processor_recipe_path = find_recipe_by_identifier(
-                processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+                processor_recipe_id
             )
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
