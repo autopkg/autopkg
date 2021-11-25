@@ -46,6 +46,7 @@ from autopkglib import (
     extract_processor_name_with_recipe_identifier,
     find_binary,
     find_recipe_by_identifier,
+    find_recipe_by_name,
     get_all_prefs,
     get_autopkg_version,
     get_identifier,
@@ -64,7 +65,9 @@ from autopkglib import (
     remove_recipe_extension,
     set_pref,
     version_equal_or_greater,
-    write_recipe_map_to_disk,
+    valid_recipe_file,
+    valid_recipe_dict,
+    valid_override_dict,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
 from autopkglib.github import GitHubSession, print_gh_search_results
@@ -120,74 +123,20 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify):
-    """Attempts to read a dict and ensures the keys in
-    keys_to_verify exist. Returns False on any failure, True otherwise."""
-    if recipe_dict:
-        for key in keys_to_verify:
-            if key not in recipe_dict:
-                return False
-        # if we get here, we found all the keys
-        return True
-    return False
-
-
-def valid_recipe_dict(recipe_dict):
-    """Returns True if recipe dict is a valid recipe,
-    otherwise returns False"""
-    return (
-        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
-        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
-        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
-    )
-
-
-def valid_recipe_file(filename):
-    """Returns True if filename contains a valid recipe,
-    otherwise returns False"""
-    recipe_dict = recipe_from_file(filename)
-    return valid_recipe_dict(recipe_dict)
-
-
-def valid_override_dict(recipe_dict):
-    """Returns True if the recipe is a valid override,
-    otherwise returns False"""
-    return valid_recipe_dict_with_keys(
-        recipe_dict, ["Input", "ParentRecipe"]
-    ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
-
-
-def valid_override_file(filename):
-    """Returns True if filename contains a valid override,
-    otherwise returns False"""
-    override_dict = recipe_from_file(filename)
-    return valid_override_dict(override_dict)
-
-
-def find_recipe_by_name(name):
-    """Search for a recipe by name in the recipe map"""
-    # drop extension from the end of the name because we're
-    # going to add it back on...
-    name = remove_recipe_extension(name)
-    # check the overrides first
-    if name in globalRecipeMap["overrides"]:
-        if valid_recipe_file(globalRecipeMap["overrides"][name].recipepath):
-            log(f"Found {name} in recipe map overrides")
-            return globalRecipeMap["overrides"][name].recipepath
-    # search by "Name" in the recipe map
-    if name in globalRecipeMap:
-        if valid_recipe_file(globalRecipeMap[name].recipepath):
-            log(f"Found {name} in recipe map")
-            return globalRecipeMap[name].recipepath
-    log("Didn't find in recipe map!")
-    return None
-
-
-def find_recipe(id_or_name):
+def find_recipe(id_or_name, skip_overrides=False):
     """Find a recipe based on a string that might be an identifier
     or a name"""
+    # The recipe search should allow searching overrides vs. not (make-overrides shouldn't
+    # search overrides first)
+    # When searching:
+    # Search for shortname in overrides first, since that's most common
+    # search in shortnames
+    # search in identifiers
+    # oh noez we can't find it
     log(f"Looking for {id_or_name}...")
-    return find_recipe_by_identifier(id_or_name) or find_recipe_by_name(id_or_name)
+    return find_recipe_by_name(id_or_name, skip_overrides) or find_recipe_by_identifier(
+        id_or_name
+    )
 
 
 def get_identifier_from_override(override):
@@ -751,10 +700,8 @@ Example: '%prog repo-add recipes'
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
-            log("Updating recipe map with all new recipes...")
-            global globalRecipeMap
-            globalRecipeMap.update(map_identifiers_to_paths(new_recipe_repo_dir))
-            write_recipe_map_to_disk()
+            log("Updating recipe map...")
+            calculate_recipe_map()
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
@@ -1106,8 +1053,6 @@ def get_recipe_list(
 
     recipes = []
     for directory in search_dirs:
-        # TODO: Combine with similar code in find_recipe_by_name()
-        # and find_recipe_by_identifier()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
             continue
