@@ -504,7 +504,9 @@ def read_recipe_map_file():
         if name == "overrides":
             # handle these separately
             for ovname, ovvalue in values.items():
-                fixed_recipe_map["overrides"][ovname] = KnownRecipe(ovvalue[0], ovvalue[1])
+                fixed_recipe_map["overrides"][ovname] = KnownRecipe(
+                    ovvalue[0], ovvalue[1]
+                )
             continue
         fixed_recipe_map[name] = KnownRecipe(values[0], values[1])
     # Now handle overrides
@@ -1146,7 +1148,7 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
             shared_processor_recipe_path = find_recipe_by_identifier(
-                processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+                processor_recipe_id
             )
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
