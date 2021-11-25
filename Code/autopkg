@@ -63,6 +63,9 @@ from autopkglib import (
     remove_recipe_extension,
     set_pref,
     version_equal_or_greater,
+    valid_recipe_file,
+    valid_recipe_dict,
+    valid_override_dict,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
 from autopkglib.github import GitHubSession, print_gh_search_results
@@ -156,11 +159,20 @@ def find_recipe_by_name(name):
     return None
 
 
-def find_recipe(id_or_name):
+def find_recipe(id_or_name, skip_overrides=False):
     """Find a recipe based on a string that might be an identifier
     or a name"""
+    # The recipe search should allow searching overrides vs. not (make-overrides shouldn't
+    # search overrides first)
+    # When searching:
+    # Search for shortname in overrides first, since that's most common
+    # search in shortnames
+    # search in identifiers
+    # oh noez we can't find it
     log(f"Looking for {id_or_name}...")
-    return find_recipe_by_identifier(id_or_name) or find_recipe_by_name(id_or_name)
+    return find_recipe_by_name(id_or_name, skip_overrides) or find_recipe_by_identifier(
+        id_or_name
+    )
 
 
 def get_identifier_from_override(override):
@@ -725,10 +737,8 @@ Example: '%prog repo-add recipes'
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
-            log("Updating recipe map with all new recipes...")
-            global globalRecipeMap
-            globalRecipeMap.update(map_identifiers_to_paths(new_recipe_repo_dir))
-            write_recipe_map_to_disk()
+            log("Updating recipe map...")
+            calculate_recipe_map()
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
