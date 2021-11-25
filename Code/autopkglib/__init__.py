@@ -707,7 +707,9 @@ def read_recipe_map_file():
         if name == "overrides":
             # handle these separately
             for ovname, ovvalue in values.items():
-                fixed_recipe_map["overrides"][ovname] = KnownRecipe(ovvalue[0], ovvalue[1])
+                fixed_recipe_map["overrides"][ovname] = KnownRecipe(
+                    ovvalue[0], ovvalue[1]
+                )
             continue
         fixed_recipe_map[name] = KnownRecipe(values[0], values[1])
     # Now handle overrides
