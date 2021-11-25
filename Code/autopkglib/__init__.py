@@ -42,8 +42,6 @@ FileOrPath = Union[IO, str, bytes, int]
 # usages of plistlib results as well.
 VarDict = Dict[str, Any]
 
-KnownRecipe = namedtuple("KnownRecipe", ["identifier", "recipepath"])
-
 
 def is_mac():
     """Return True if current OS is macOS."""
@@ -439,59 +437,11 @@ def get_identifier_from_recipe_file(filename):
 
 
 def find_recipe_by_identifier(identifier):
-    """Search search_dirs for a recipe with the given
-    identifier"""
-    # First, consult the overrides
-    for _name, recipe_data in globalRecipeMap["overrides"].items():
-        if identifier == recipe_data.identifier:
-            log(f"Found {identifier} in recipe map overrides")
-            return recipe_data.recipepath
-    for name, recipe_data in globalRecipeMap.items():
-        if name == "overrides":
-            continue
-        if identifier == recipe_data.identifier:
+    """Search recipe map for an identifier"""
+    if identifier in globalRecipeMap["identifiers"]:
+        if valid_recipe_file(globalRecipeMap["identifiers"][identifier]):
             log(f"Found {identifier} in recipe map")
-            return recipe_data.recipepath
-    # # If not in the existing map, go to the traditional method
-    # for directory in search_dirs:
-    #     # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
-    #     normalized_dir = os.path.abspath(os.path.expanduser(directory))
-    #     patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
-    #     patterns.extend(
-    #         [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
-    #     )
-    #     for pattern in patterns:
-    #         matches = glob.glob(pattern)
-    #         for match in matches:
-    #             if get_identifier_from_recipe_file(match) == identifier:
-    #                 return match
-
-
-def read_recipe_map():
-    """Retrieve a dict of the recipe map of identifiers to paths"""
-    global globalRecipeMap
-    recipe_map = {}
-    try:
-        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-            recipe_map = json.load(f)
-    except OSError:
-        pass
-    globalRecipeMap.update(recipe_map)
-
-
-def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
-    """Return a dict of identifiers to absolute recipe paths."""
-    recipe_map = {}
-    normalized_dir = os.path.abspath(os.path.expanduser(repo_dir))
-    patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
-    patterns.extend([os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS])
-    for pattern in patterns:
-        matches = glob.glob(pattern)
-        for match in matches:
-            identifier = get_identifier_from_recipe_file(match)
-            # log(f"Mapping identifier {identifier} to path {match}")
-            recipe_map[identifier] = match
-    return recipe_map
+            return globalRecipeMap["identifiers"][identifier]
 
 
 def find_recipe_by_name(name, skip_overrides=False):
@@ -506,24 +456,6 @@ def find_recipe_by_name(name, skip_overrides=False):
         if valid_recipe_file(globalRecipeMap["shortnames"][name]):
             log(f"Found {name} in recipe map")
             return globalRecipeMap["shortnames"][name]
-
-
-def find_name_from_identifier(identifier):
-    """Find a recipe name from its identifier"""
-    recipe_path = globalRecipeMap["identifiers"].get(identifier)
-    for shortname, path in globalRecipeMap["shortnames"].items():
-        if recipe_path == path:
-            return shortname
-    log_err(f"Could not find shortname from {identifier}!")
-
-
-def find_identifier_from_name(name):
-    """Find a recipe identifier from its shortname"""
-    recipe_path = globalRecipeMap["shortnames"].get(name)
-    for id, path in globalRecipeMap["identifiers"].items():
-        if recipe_path == path:
-            return id
-    log_err(f"Could not find identifier from {name}!")
 
 
 def get_search_dirs():
@@ -548,16 +480,11 @@ def get_override_dirs():
     return dirs or default
 
 
-def calculate_recipe_map(extra_search_dirs = None, extra_override_dirs = None):
+def calculate_recipe_map():
     """Recalculate the entire recipe map"""
     global globalRecipeMap
     globalRecipeMap = {"identifiers": {}, "shortnames": {}, "overrides": {}}
-    # If extra search paths were provided as CLI arguments, let's search those too
-    if extra_search_dirs is None:
-        extra_search_dirs = []
-    if extra_override_dirs is None:
-        extra_override_dirs = []
-    for search_dir in get_pref("RECIPE_SEARCH_DIRS") + extra_search_dirs:
+    for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
         if search_dir == ".":
             # skip searching cwd
             continue
@@ -566,11 +493,9 @@ def calculate_recipe_map(extra_search_dirs = None, extra_override_dirs = None):
         )
         globalRecipeMap["shortnames"].update(map_key_to_paths("shortnames", search_dir))
     # Do overrides separately
-    for override in get_override_dirs() + extra_override_dirs:
+    for override in get_override_dirs():
         globalRecipeMap["overrides"].update(map_key_to_paths("overrides", override))
-    if not extra_search_dirs or not extra_override_dirs:
-        # Don't store the extra stuff in the cache; they're intended to be temporary
-        write_recipe_map_to_disk()
+    write_recipe_map_to_disk()
 
 
 def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
@@ -622,104 +547,6 @@ def read_recipe_map():
             recipe_map = json.load(f)
     except (OSError, FileNotFoundError):
         pass
-    globalRecipeMap.update(recipe_map)
-
-
-def get_search_dirs():
-    """Return search dirs from preferences or default list"""
-    default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
-
-    dirs = get_pref("RECIPE_SEARCH_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
-
-
-def get_override_dirs():
-    """Return override dirs from preferences or default list"""
-    default = ["~/Library/AutoPkg/RecipeOverrides"]
-
-    dirs = get_pref("RECIPE_OVERRIDE_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
-
-
-def calculate_recipe_map():
-    """Recalculate the entire recipe map"""
-    for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
-        globalRecipeMap.update(map_identifiers_to_paths(search_dir))
-    # Do overrides separately
-    globalRecipeMap["overrides"] = {}
-    for override in get_override_dirs():
-        globalRecipeMap["overrides"].update(map_identifiers_to_paths(override))
-    write_recipe_map_to_disk()
-
-
-def map_identifiers_to_paths(repo_dir: str) -> Dict[str, str]:
-    """Return a dict of identifiers to absolute recipe paths."""
-    recipe_map = {}
-    normalized_dir = os.path.abspath(os.path.expanduser(repo_dir))
-    patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
-    patterns.extend([os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS])
-    for pattern in patterns:
-        matches = glob.glob(pattern)
-        for match in matches:
-            identifier = get_identifier_from_recipe_file(match)
-            # recipe_map[identifier] = match
-            shortname = remove_recipe_extension(os.path.basename(match))
-            recipe_map[shortname] = KnownRecipe(identifier, match)
-    return recipe_map
-
-
-def write_recipe_map_to_disk():
-    """Write the recipe map to disk"""
-    local_recipe_map = {}
-    try:
-        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-            local_recipe_map = json.load(f)
-    except (OSError, FileNotFoundError):
-        pass
-    local_recipe_map.update(globalRecipeMap)
-    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
-        json.dump(
-            local_recipe_map,
-            f,
-            ensure_ascii=True,
-            indent=2,
-            sort_keys=True,
-        )
-
-
-def read_recipe_map_file():
-    """More primitive function that de-serializes JSON into correct types"""
-    recipe_map = {}
-    try:
-        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-            recipe_map = json.load(f)
-    except (OSError, FileNotFoundError):
-        pass
-    # now to de-serialize JSON into KnownRecipe named tuple types
-    fixed_recipe_map = {"overrides": {}}
-    for name, values in recipe_map.items():
-        if name == "overrides":
-            # handle these separately
-            for ovname, ovvalue in values.items():
-                fixed_recipe_map["overrides"][ovname] = KnownRecipe(
-                    ovvalue[0], ovvalue[1]
-                )
-            continue
-        fixed_recipe_map[name] = KnownRecipe(values[0], values[1])
-    # Now handle overrides
-    return fixed_recipe_map
-
-
-def read_recipe_map():
-    """Retrieve a dict of the recipe map of identifiers to paths"""
-    global globalRecipeMap
-    recipe_map = read_recipe_map_file()
     globalRecipeMap.update(recipe_map)
 
 
