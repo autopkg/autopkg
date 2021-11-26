@@ -518,7 +518,7 @@ def calculate_recipe_map(extra_search_dirs=None, extra_override_dirs=None):
     # Do overrides separately
     for override in get_override_dirs() + extra_override_dirs:
         globalRecipeMap["overrides"].update(map_key_to_paths("overrides", override))
-    if not extra_search_dirs or not extra_override_dirs:
+    if extra_search_dirs or extra_override_dirs:
         # Don't store the extra stuff in the cache; they're intended to be temporary
         write_recipe_map_to_disk()
 
