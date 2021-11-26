@@ -358,8 +358,7 @@ def load_recipe(
     # identifier.
     if name.startswith("local."):
         log_err(
-            "AutoPkg cannot locate overrides by identifiers. "
-            "Please use the recipe name instead."
+            f"AutoPkg cannot locate overrides by identifiers. Please use the recipe name instead."
         )
         return
     # if recipe_in_override_dir(recipe_file, override_dirs):

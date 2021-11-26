@@ -505,6 +505,24 @@ def find_recipe_by_name(name, skip_overrides=False):
             return globalRecipeMap["shortnames"][name]
 
 
+def find_name_from_identifier(identifier):
+    """Find a recipe name from its identifier"""
+    recipe_path = globalRecipeMap["identifiers"].get(identifier)
+    for shortname, path in globalRecipeMap["shortnames"].items():
+        if recipe_path == path:
+            return shortname
+    log_err(f"Could not find shortname from {identifier}!")
+
+
+def find_identifier_from_name(name):
+    """Find a recipe identifier from its shortname"""
+    recipe_path = globalRecipeMap["shortnames"].get(name)
+    for id, path in globalRecipeMap["identifiers"].items():
+        if recipe_path == path:
+            return id
+    log_err(f"Could not find identifier from {name}!")
+
+
 def get_search_dirs():
     """Return search dirs from preferences or default list"""
     default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
@@ -527,11 +545,16 @@ def get_override_dirs():
     return dirs or default
 
 
-def calculate_recipe_map():
+def calculate_recipe_map(extra_search_dirs = None, extra_override_dirs = None):
     """Recalculate the entire recipe map"""
     global globalRecipeMap
     globalRecipeMap = {"identifiers": {}, "shortnames": {}, "overrides": {}}
-    for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
+    # If extra search paths were provided as CLI arguments, let's search those too
+    if extra_search_dirs is None:
+        extra_search_dirs = []
+    if extra_override_dirs is None:
+        extra_override_dirs = []
+    for search_dir in get_pref("RECIPE_SEARCH_DIRS") + extra_search_dirs:
         if search_dir == ".":
             # skip searching cwd
             continue
@@ -540,9 +563,11 @@ def calculate_recipe_map():
         )
         globalRecipeMap["shortnames"].update(map_key_to_paths("shortnames", search_dir))
     # Do overrides separately
-    for override in get_override_dirs():
+    for override in get_override_dirs() + extra_override_dirs:
         globalRecipeMap["overrides"].update(map_key_to_paths("overrides", override))
-    write_recipe_map_to_disk()
+    if extra_search_dirs or extra_override_dirs:
+        # Don't store the extra stuff in the cache; they're intended to be temporary
+        write_recipe_map_to_disk()
 
 
 def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
