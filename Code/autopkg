@@ -950,7 +950,7 @@ def processor_info(argv):
 
     recipe = None
     if options.recipe:
-        recipe = load_recipe(options.recipe, override_dirs, search_dirs)
+        recipe = load_recipe(options.recipe)
 
     try:
         processor_class = get_processor(processor_name, recipe=recipe)
@@ -1506,8 +1506,6 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
     # verify trust of parent recipes
     parent_recipe = load_recipe(
         recipe["ParentRecipe"],
-        override_dirs,
-        search_dirs,
         make_suggestions=False,
         search_github=False,
     )
@@ -1571,8 +1569,6 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         if expected_hash != actual_hash:
             p_recipe = load_recipe(
                 p_recipe_id,
-                override_dirs,
-                search_dirs,
                 make_suggestions=False,
                 search_github=False,
             )
@@ -1598,8 +1594,6 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
             trust_errors += f"Unexpected parent recipe found: {p_recipe_id}\n"
             p_recipe = load_recipe(
                 p_recipe_id,
-                override_dirs,
-                search_dirs,
                 make_suggestions=False,
                 search_github=False,
             )
@@ -1663,7 +1657,7 @@ def update_trust_info(argv):
                 if not answer.lower().startswith("y"):
                     continue
         # add trust info
-        parent_recipe = load_recipe(recipe["ParentRecipe"], override_dirs, search_dirs)
+        parent_recipe = load_recipe(recipe["ParentRecipe"])
         if parent_recipe:
             recipe["ParentRecipeTrustInfo"] = get_trust_info(
                 parent_recipe, search_dirs=search_dirs
@@ -1726,8 +1720,6 @@ def verify_trust_info(argv):
     for recipe_name in recipe_names:
         recipe = load_recipe(
             recipe_name,
-            override_dirs,
-            search_dirs,
             make_suggestions=True,
             search_github=False,
         )
@@ -2134,10 +2126,8 @@ def run_recipes(argv):
         start = time.perf_counter()
         recipe = load_recipe(
             recipe_path,
-            override_dirs,
-            search_dirs,
-            preprocessors,
-            postprocessors,
+            preprocessors=preprocessors,
+            postprocessors=postprocessors,
             make_suggestions=make_suggestions,
             search_github=make_suggestions,
         )
@@ -2470,10 +2460,6 @@ def audit(argv):
     for recipe_path in recipe_paths:
         recipe = load_recipe(
             recipe_path,
-            override_dirs,
-            search_dirs,
-            None,
-            None,
             make_suggestions=False,
             search_github=False,
         )
