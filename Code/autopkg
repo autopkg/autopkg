@@ -806,6 +806,9 @@ def repo_update(argv):
             log(run_git(["pull"], git_directory=repo_dir))
         except GitError as err:
             log_err(err)
+    # Recalculate the recipe map
+    log("Recalculating the recipe map...")
+    calculate_recipe_map()
 
 
 def do_gh_repo_contents_fetch(
@@ -2610,6 +2613,9 @@ def new_recipe(argv):
         log(f"Saved new recipe to {filename}")
     except Exception as err:
         log_err(f"Failed to write recipe: {err}")
+    # Recalculate the recipe map
+    log("Recalculating the recipe map...")
+    calculate_recipe_map()
 
 
 def main(argv):
