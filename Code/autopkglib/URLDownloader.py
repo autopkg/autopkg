@@ -17,6 +17,7 @@
 """See docstring for URLDownloader class"""
 
 import os.path
+import platform
 import tempfile
 
 from autopkglib import BUNDLE_ID, ProcessorError, xattr
@@ -157,8 +158,12 @@ class URLDownloader(URLGetter):
             del self.env["url_downloader_summary_result"]
 
         # XATTR names for Etag and Last-Modified headers
-        self.xattr_etag = f"{BUNDLE_ID}.etag"
-        self.xattr_last_modified = f"{BUNDLE_ID}.last-modified"
+        if platform.platform().startswith("Linux"):
+            self.xattr_etag = f"user.{BUNDLE_ID}.etag"
+            self.xattr_last_modified = f"user.{BUNDLE_ID}.last-modified"
+        else:
+            self.xattr_etag = f"{BUNDLE_ID}.etag"
+            self.xattr_last_modified = f"{BUNDLE_ID}.last-modified"
 
         self.env["last_modified"] = ""
         self.env["etag"] = ""
