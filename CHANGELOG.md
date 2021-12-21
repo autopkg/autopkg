@@ -40,7 +40,8 @@ Similarly, thanks to @homebysix for doing a similar action for linting, ensuring
 
 **Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7.0...v2.5
 
-### [2.5.0](https://github.com/autopkg/autopkg/compare/v2.3...v2.5.0) (April 08, 2022)
+### [2.3.1](https://github.com/autopkg/autopkg/compare/v2.3...v2.3.1) (March 03, 2021)
+
 FIXES:
 
 - Resolved a bug preventing `autopkg repo-update` and `autopkg repo-delete` operations on local file paths ([#724](https://github.com/autopkg/autopkg/issues/724); fixes [#723](https://github.com/autopkg/autopkg/issues/723) and [lindegroup/autopkgr#666](https://github.com/lindegroup/autopkgr/issues/666))
