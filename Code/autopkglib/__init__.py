@@ -345,8 +345,7 @@ def remove_recipe_extension(name):
 def recipe_from_file(filename):
     """Create a recipe dictionary from a file. Handle exceptions and log"""
     if not filename:
-        # If we made GitHub search suggestions but the operator selected no,
-        # this will be None
+        # If we made GitHub search suggestions but the operator selected no, this will be None
         return
     if not os.path.isfile(filename):
         return
