@@ -44,10 +44,6 @@ Similarly, thanks to @homebysix for doing a similar action for linting, ensuring
 FIXES:
 
 - Resolved a bug preventing `autopkg repo-update` and `autopkg repo-delete` operations on local file paths ([#724](https://github.com/autopkg/autopkg/issues/724); fixes [#723](https://github.com/autopkg/autopkg/issues/723) and [lindegroup/autopkgr#666](https://github.com/lindegroup/autopkgr/issues/666))
-- Unarchiver now explicitly clears out `archive_format` variable when finishing execution [#777](https://github.com/autopkg/autopkg/pull/777)
-- Xattr usage on Linux should no longer throw errors [#778](https://github.com/autopkg/autopkg/pull/778)
-- Add a new `asset_url` output variable to GithubReleasesInfoProvider [#779](https://github.com/autopkg/autopkg/pull/779)
-- Prevent MunkiImporter duplicating imports when multiple architectures. This now lets MunkiImporter correctly support Apple Silicon/Universal versions of existing software in the repo. [#781](https://github.com/autopkg/autopkg/pull/781)
 
 ### [2.3](https://github.com/autopkg/autopkg/compare/v2.2...v2.3) (March 01, 2021)
 
