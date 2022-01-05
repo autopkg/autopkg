@@ -275,7 +275,11 @@ To save the token, paste it to the following prompt."""
             with open(temp_content) as f:
                 resp_data = json.load(f)
         except json.JSONDecodeError:
-            resp_data = None
+            try:
+                with open(temp_content, "rb") as f:
+                    resp_data = json.load(f)
+            except json.JSONDecodeError:
+                resp_data = None
 
         return (resp_data, self.http_result_code)
 
