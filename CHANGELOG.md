@@ -1,14 +1,11 @@
-### [2.5.0](https://github.com/autopkg/autopkg/compare/v2.4.1...HEAD) (Unreleased)
-
-### [2.4.1](https://github.com/autopkg/autopkg/compare/v2.3.2...v2.4.1) (March 15, 2022)
-
-### [2.3.2](https://github.com/autopkg/autopkg/compare/v2.3.1...v2.3.2) (December 20, 2021)
-
-### [2.3.1](https://github.com/autopkg/autopkg/compare/v2.3...v2.3.1) (March 03, 2021)
-
+### [2.5.0](https://github.com/autopkg/autopkg/compare/v2.3...HEAD) (Unreleased)
 FIXES:
 
 - Resolved a bug preventing `autopkg repo-update` and `autopkg repo-delete` operations on local file paths ([#724](https://github.com/autopkg/autopkg/issues/724); fixes [#723](https://github.com/autopkg/autopkg/issues/723) and [lindegroup/autopkgr#666](https://github.com/lindegroup/autopkgr/issues/666))
+- Unarchiver now explicitly clears out `archive_format` variable when finishing execution [#777](https://github.com/autopkg/autopkg/pull/777)
+- Xattr usage on Linux should no longer throw errors [#778](https://github.com/autopkg/autopkg/pull/778)
+- Add a new `asset_url` output variable to GithubReleasesInfoProvider [#779](https://github.com/autopkg/autopkg/pull/779)
+- Prevent MunkiImporter duplicating imports when multiple architectures. This now lets MunkiImporter correctly support Apple Silicon/Universal versions of existing software in the repo. [#781](https://github.com/autopkg/autopkg/pull/781)
 
 ### [2.3](https://github.com/autopkg/autopkg/compare/v2.2...v2.3) (March 01, 2021)
 
