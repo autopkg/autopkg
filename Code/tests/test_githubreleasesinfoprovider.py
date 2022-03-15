@@ -67,6 +67,14 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         self.processor.main()
         self.assertIsNotNone(test_env["url"])
 
+    def test_returns_asset_url(self):
+        """The processor should return an asset URL."""
+        test_env = {"github_repo": "autopkg/autopkg"}
+        test_env.update(self.base_env)
+        self.processor.env = test_env
+        self.processor.main()
+        self.assertIsNotNone(test_env["asset_url"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -750,6 +750,11 @@ Example: '%prog repo-add recipes'
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     for repo_url in arguments:
+        if "file://" in repo_url:
+            log_err(
+                "AutoPkg does not handle file:// URIs; add to your local Recipes folder instead."
+            )
+            continue
         repo_url = expand_repo_url(repo_url)
         new_recipe_repo_dir = get_recipe_repo(repo_url)
         if new_recipe_repo_dir:

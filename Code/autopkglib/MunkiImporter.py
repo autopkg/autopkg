@@ -180,7 +180,10 @@ class MunkiImporter(Processor):
             matchingindexes = pkgdb["hashes"].get(pkginfo["installer_item_hash"])
             if matchingindexes:
                 # we have an item with the exact same checksum hash in the repo
-                return pkgdb["items"][matchingindexes[0]]
+                return [
+                    pkgdb["items"][matchingindex]
+                    for matchingindex in list(matchingindexes)
+                ]
 
         # try to match against installed applications
         applist = [
@@ -212,7 +215,10 @@ class MunkiImporter(Processor):
 
             # did we find any matches?
             if matching_indexes:
-                return pkgdb["items"][list(matching_indexes)[0]]
+                return [
+                    pkgdb["items"][matching_index]
+                    for matching_index in list(matching_indexes)
+                ]
 
         # fall back to matching against receipts
         matching_indexes = []
@@ -236,7 +242,10 @@ class MunkiImporter(Processor):
 
         # did we find any matches?
         if matching_indexes:
-            return pkgdb["items"][list(matching_indexes)[0]]
+            return [
+                pkgdb["items"][matching_index]
+                for matching_index in list(matching_indexes)
+            ]
 
         # try to match against install md5checksums
         filelist = [
@@ -360,15 +369,30 @@ class MunkiImporter(Processor):
 
         # check to see if this item is already in the repo
         if self.env.get("force_munkiimport"):
-            matchingitem = None
+            matchingitems = None
         else:
-            matchingitem = self._find_matching_pkginfo(library, pkginfo)
+            matchingitems = self._find_matching_pkginfo(library, pkginfo)
 
-        if matchingitem and (matchingitem.get("supported_architectures") ==
-                             pkginfo.get("supported_architectures")):
+        archs = []
+        if matchingitems:
+            archs = [
+                matchingitem.get("supported_architectures")
+                for matchingitem in matchingitems
+            ]
+
+        if matchingitems and (pkginfo.get("supported_architectures") in archs):
+            if archs and None not in archs:
+                installer_item_location = [
+                    matchingitem.get("installer_item_location")
+                    for matchingitem in list(matchingitems)
+                    if pkginfo.get("supported_architectures")
+                    == matchingitem.get("supported_architectures")
+                ][0]
+            else:
+                installer_item_location = matchingitems[0]["installer_item_location"]
             self.env["pkginfo_repo_path"] = ""
             self.env["pkg_repo_path"] = os.path.join(
-                self.env["MUNKI_REPO"], "pkgs", matchingitem["installer_item_location"]
+                self.env["MUNKI_REPO"], "pkgs", installer_item_location
             )
             self.env["munki_info"] = {}
             if "munki_repo_changed" not in self.env:
@@ -376,14 +400,16 @@ class MunkiImporter(Processor):
 
             self.output(
                 f"Item {os.path.basename(self.env['pkg_path'])} already exists in the "
-                f"munki repo as pkgs/{matchingitem['installer_item_location']}."
+                f"munki repo as pkgs/{installer_item_location}."
             )
             return
 
         # import pkg
         install_path = library.copy_pkg_to_repo(pkginfo, self.env["pkg_path"])
-        install_prefix = os.path.join(library.munki_repo, 'pkgs')
-        pkginfo["installer_item_location"] = os.path.relpath(install_path, install_prefix)
+        install_prefix = os.path.join(library.munki_repo, "pkgs")
+        pkginfo["installer_item_location"] = os.path.relpath(
+            install_path, install_prefix
+        )
         self.env["pkg_repo_path"] = install_path
 
         if self.env.get("uninstaller_pkg_path"):
@@ -416,7 +442,7 @@ class MunkiImporter(Processor):
 
         if icon_path:
             self.env["icon_repo_path"] = icon_path
-            icon_prefix = os.path.join(library.munki_repo, 'icons')
+            icon_prefix = os.path.join(library.munki_repo, "icons")
             rel_icon_path = os.path.relpath(icon_path, icon_prefix)
         else:
             self.env["icon_repo_path"] = rel_icon_path = ""
@@ -425,8 +451,8 @@ class MunkiImporter(Processor):
         pkginfo_path = library.copy_pkginfo_to_repo(
             pkginfo, self.env.get("MUNKI_PKGINFO_FILE_EXTENSION", "plist")
         )
-        pkginfo_prefix = os.path.join(library.munki_repo, 'pkgsinfo')
-        pkg_prefix = os.path.join(library.munki_repo, 'pkgs')
+        pkginfo_prefix = os.path.join(library.munki_repo, "pkgsinfo")
+        pkg_prefix = os.path.join(library.munki_repo, "pkgs")
 
         self.env["pkginfo_repo_path"] = pkginfo_path
 
@@ -453,7 +479,9 @@ class MunkiImporter(Processor):
                 "name": pkginfo["name"],
                 "version": pkginfo["version"],
                 "catalogs": ",".join(pkginfo["catalogs"]),
-                "pkginfo_path": os.path.relpath(self.env["pkginfo_repo_path"], pkginfo_prefix),
+                "pkginfo_path": os.path.relpath(
+                    self.env["pkginfo_repo_path"], pkginfo_prefix
+                ),
                 "pkg_repo_path": os.path.relpath(self.env["pkg_repo_path"], pkg_prefix),
                 "icon_repo_path": rel_icon_path,  # can be path or ""
             },

@@ -217,6 +217,10 @@ class Unarchiver(Processor):
         self._extract(fmt, archive_path, destination_path)
         self.output(f"Unarchived {archive_path} to {destination_path}")
 
+        # Clear archive_format in case there are subsequent Unarchiver processes
+        if self.env.get("archive_format"):
+            del self.env["archive_format"]
+
 
 if __name__ == "__main__":
     PROCESSOR = Unarchiver()
