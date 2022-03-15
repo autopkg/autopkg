@@ -275,6 +275,7 @@ def main():
             "--report-plist",
             report_plist_path,
             "AutoPkgGitMaster.pkg",
+            "-vvvv",
         ]
     )
     subprocess.run(args=cmd, text=True, check=True)
