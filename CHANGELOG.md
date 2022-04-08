@@ -1,4 +1,4 @@
-### [2.5.0](https://github.com/autopkg/autopkg/compare/v2.3...HEAD) (Unreleased)
+### [2.5.0](https://github.com/autopkg/autopkg/compare/v2.3...v2.5.0) (April 08, 2022)
 FIXES:
 
 - Resolved a bug preventing `autopkg repo-update` and `autopkg repo-delete` operations on local file paths ([#724](https://github.com/autopkg/autopkg/issues/724); fixes [#723](https://github.com/autopkg/autopkg/issues/723) and [lindegroup/autopkgr#666](https://github.com/lindegroup/autopkgr/issues/666))
