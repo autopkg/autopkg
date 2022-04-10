@@ -38,7 +38,7 @@ jobs:
           python-version: 3.8
 
       - name: Install requirements
-        run: pip install --requirement new_requirements.txt
+        run: pip install --requirement requirements.txt
 
       - name: create empty config windows
         # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
