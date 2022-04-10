@@ -22,7 +22,7 @@ jobs:
       matrix:
         # https://ncorti.com/blog/howto-github-actions-build-matrix
         # ubuntu-latest, macos-latest, windows-latest
-        os: [macos-latest]
+        os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       # only needed on self hosted windows runners:
