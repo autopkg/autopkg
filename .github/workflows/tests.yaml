@@ -1,0 +1,56 @@
+---
+name: Test AutoPkg
+
+on:
+  push:
+    paths:
+      - "**.py"
+      - "new_requirements.txt"
+      - ".github/workflows/tests.yaml"
+  pull_request:
+    paths:
+      - "**.py"
+      - "new_requirements.txt"
+      - ".github/workflows/tests.yaml"
+  schedule:
+    # run first day of every month:
+    - cron: "* * 1 * *"
+
+jobs:
+  unittests:
+    strategy:
+      matrix:
+        # https://ncorti.com/blog/howto-github-actions-build-matrix
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # only needed on self hosted windows runners:
+      - name: set powershell execution policy CurrentUser
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: powershell -command "Set-ExecutionPolicy -Force -ExecutionPolicy RemoteSigned -Scope CurrentUser"
+
+      - uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install requirements
+        run: pip install --requirement new_requirements.txt
+
+      - name: create empty config windows
+        # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          if not exist "%USERPROFILE%/AppData/Local/Autopkg" mkdir "%USERPROFILE%/AppData/Local/Autopkg"
+          if not exist "%USERPROFILE%/AppData/Local/Autopkg/config.json" echo {} > "%USERPROFILE%/AppData/Local/Autopkg/config.json"
+      - name: create default autopkg config file Linux
+        if: runner.os == 'Linux'
+        run: |
+          cd ~ && mkdir -p .config/Autopkg
+          cd ~ && echo {} > .config/Autopkg/config.json
+      - name: run unittests
+        run: python Scripts/run_tests.py
