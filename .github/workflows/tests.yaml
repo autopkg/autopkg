@@ -92,11 +92,5 @@ jobs:
           python Code/autopkg update-trust-info Firefox.munki --prefs tests/preferences.plist
           echo "**Version:"
           python Code/autopkg version
-          echo "**Run:"
-          python Code/autopkg run -vv Firefox.munki --prefs tests/preferences.plist
-          echo "**Run many:"
-          python Code/autopkg run -vv Firefox.munki AdobeFlashPlayer.munki MakeCatalogs.munki --prefs tests/preferences.plist
-          echo "**Install:"
-          python Code/autopkg install Firefox -vv --prefs tests/preferences.plist
           echo "**Repo-delete:"
           python Code/autopkg repo-delete recipes --prefs tests/preferences.plist
