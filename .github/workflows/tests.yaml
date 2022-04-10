@@ -84,8 +84,6 @@ jobs:
           python Code/autopkg make-override Firefox.munki --force --prefs tests/preferences.plist
           echo "**New-recipe:"
           python Code/autopkg new-recipe TestRecipe.check --prefs tests/preferences.plist
-          echo "**Search:"
-          python Code/autopkg search Firefox --prefs tests/preferences.plist
           echo "**Verify-trust-info:"
           python Code/autopkg verify-trust-info Firefox.munki --prefs tests/preferences.plist
           echo "**Update-trust-info:"
