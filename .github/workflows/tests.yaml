@@ -60,3 +60,6 @@ jobs:
           cd ~ && echo {} > .config/Autopkg/config.json
       - name: run unittests
         run: python Scripts/run_tests.py
+      - name: run e2e tests
+        shell: bash
+        run: ./Code/tests/e2e_tests.sh
