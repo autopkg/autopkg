@@ -54,6 +54,8 @@ jobs:
           cd ~ && mkdir -p .config/Autopkg
           cd ~ && echo {} > .config/Autopkg/config.json
       - name: Set token
-        run: echo ${{ secrets.GITHUB_TOKEN }} > "~/.autopkg_gh_token"
+        run: |
+          cd ~
+          echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
       - name: run unittests
         run: python Scripts/run_tests.py
