@@ -62,4 +62,6 @@ jobs:
         run: python Scripts/run_tests.py
       - name: run e2e tests
         shell: bash
-        run: ./Code/tests/e2e_tests.sh
+        run: |
+          cd Code/tests
+          ./Code/tests/e2e_tests.sh
