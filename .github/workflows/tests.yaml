@@ -63,4 +63,42 @@ jobs:
       - name: run e2e tests
         if: runner.os != 'Windows'
         shell: bash
-        run: cd Code/tests && ./e2e_tests.sh
+        run: |
+          echo "**Help:"
+          python Code/autopkg help
+          echo "**List-processors:"
+          python Code/autopkg list-processors --prefs tests/preferences.plist
+          echo "**Processor-info:"
+          python Code/autopkg processor-info URLDownloader --prefs tests/preferences.plist
+          echo "**Repo-add:"
+          python Code/autopkg repo-add recipes --prefs tests/preferences.plist
+          echo "**Repo-list:"
+          python Code/autopkg repo-list --prefs tests/preferences.plist
+          echo "**Repo-update:"
+          python Code/autopkg repo-update all --prefs tests/preferences.plist
+          echo "**Audit:"
+          python Code/autopkg audit Firefox.munki --prefs tests/preferences.plist
+          echo "**Info:"
+          python Code/autopkg info Firefox.munki --prefs tests/preferences.plist
+          echo "**List-recipes:"
+          python Code/autopkg list-recipes --prefs tests/preferences.plist
+          echo "**Make-override:"
+          python Code/autopkg make-override Firefox.munki --force --prefs tests/preferences.plist
+          echo "**New-recipe:"
+          python Code/autopkg new-recipe TestRecipe.check --prefs tests/preferences.plist
+          echo "**Search:"
+          python Code/autopkg search Firefox --prefs tests/preferences.plist
+          echo "**Verify-trust-info:"
+          python Code/autopkg verify-trust-info Firefox.munki --prefs tests/preferences.plist
+          echo "**Update-trust-info:"
+          python Code/autopkg update-trust-info Firefox.munki --prefs tests/preferences.plist
+          echo "**Version:"
+          python Code/autopkg version
+          echo "**Run:"
+          python Code/autopkg run -vv Firefox.munki --prefs tests/preferences.plist
+          echo "**Run many:"
+          python Code/autopkg run -vv Firefox.munki AdobeFlashPlayer.munki MakeCatalogs.munki --prefs tests/preferences.plist
+          echo "**Install:"
+          python Code/autopkg install Firefox -vv --prefs tests/preferences.plist
+          echo "**Repo-delete:"
+          python Code/autopkg repo-delete recipes --prefs tests/preferences.plist
