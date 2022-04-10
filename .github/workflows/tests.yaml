@@ -5,12 +5,12 @@ on:
   push:
     paths:
       - "**.py"
-      - "new_requirements.txt"
+      - "requirements.txt"
       - ".github/workflows/tests.yaml"
   pull_request:
     paths:
       - "**.py"
-      - "new_requirements.txt"
+      - "requirements.txt"
       - ".github/workflows/tests.yaml"
   schedule:
     # run first day of every month:
