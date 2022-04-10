@@ -64,4 +64,4 @@ jobs:
         shell: bash
         run: |
           cd Code/tests
-          ./Code/tests/e2e_tests.sh
+          ./e2e_tests.sh
