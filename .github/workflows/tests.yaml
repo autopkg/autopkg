@@ -21,8 +21,8 @@ jobs:
     strategy:
       matrix:
         # https://ncorti.com/blog/howto-github-actions-build-matrix
-        # macos-latest, windows-latest
-        os: [ubuntu-latest]
+        # ubuntu-latest, macos-latest, windows-latest
+        os: [macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       # only needed on self hosted windows runners:
@@ -53,5 +53,7 @@ jobs:
         run: |
           cd ~ && mkdir -p .config/Autopkg
           cd ~ && echo {} > .config/Autopkg/config.json
+      - name: Set token
+        run: echo ${{ secrets.GITHUB_TOKEN }} > "~/.autopkg_gh_token"
       - name: run unittests
         run: python Scripts/run_tests.py
