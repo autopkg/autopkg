@@ -64,8 +64,6 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          echo "**Help:"
-          python Code/autopkg help help
           echo "**List-processors:"
           python Code/autopkg list-processors --prefs tests/preferences.plist
           echo "**Processor-info:"
