@@ -61,7 +61,7 @@ jobs:
       - name: run unittests
         run: python Scripts/run_tests.py
       - name: run e2e tests
-        if: runner.os != 'Windows'
+        # if: runner.os != 'Windows'
         shell: bash
         run: |
           echo "**List-processors:"
