@@ -22,7 +22,11 @@ jobs:
       matrix:
         # https://ncorti.com/blog/howto-github-actions-build-matrix
         # ubuntu-latest, macos-latest, windows-latest
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
+        osshell: bash
+        include:
+          - os: windows-latest
+            osshell: cmd
     runs-on: ${{ matrix.os }}
     steps:
       # only needed on self hosted windows runners:
@@ -62,7 +66,7 @@ jobs:
         run: python Scripts/run_tests.py
       - name: run e2e tests
         # if: runner.os != 'Windows'
-        shell: bash
+        shell: ${{ matrix.osshell }}
         run: |
           echo "**List-processors:"
           python Code/autopkg list-processors --prefs tests/preferences.plist
