@@ -39,6 +39,8 @@ jobs:
           python-version: 3.8
 
       - name: Set token
+        # required for githubreleaseinfoprovider in github actions
+        # without this, API limits will be hit
         run: |
           cd ~
           echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
@@ -61,7 +63,8 @@ jobs:
       - name: run unittests
         run: python Scripts/run_tests.py
       - name: run e2e tests
-        # if: runner.os != 'Windows'
+        # cross platform options from: https://github.com/autopkg/autopkg/blob/master/Code/tests/e2e_tests.sh
+        # e2e tests that hit the github apis will not work due to api limits unless it properly uses ".autopkg_gh_token"
         shell: bash
         run: |
           echo "**List-processors:"
@@ -93,6 +96,7 @@ jobs:
           echo "**Repo-delete:"
           python Code/autopkg repo-delete recipes --prefs tests/preferences.plist
       - name: create integration recipe file
+        # based upon: https://github.com/jgstew/jgstew-recipes/blob/main/Test-Recipes/AutopkgCore.test.recipe.yaml
         shell: bash
         run: |
           cat <<'EOFEOF' > AutopkgCore.test.recipe.yaml
