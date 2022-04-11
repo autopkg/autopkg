@@ -16,11 +16,6 @@ on:
     # run first day of every month:
     - cron: "* * 1 * *"
 
-env:
-  # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/SignToolVerifier.py#L65
-  # https://github.com/Dana-Prajea/code-sign-action/blob/98c79121b376beab8d6a9484f445089db4461bca/index.ts#L11
-  signtool_path: "C:/Program Files (x86)/Windows Kits/10/bin/10.0.17763.0/x86/signtool.exe"
-
 jobs:
   unittests:
     strategy:
