@@ -95,52 +95,52 @@ jobs:
       - name: create recipe for integration test
         # https://github.com/marketplace/actions/create-file
         uses: finnp/create-file-action@1.0.0
-          env:
-            FILE_NAME: "AutopkgCore.test.recipe.yaml"
-            # https://github.com/jgstew/jgstew-recipes/blob/main/Test-Recipes/AutopkgCore.test.recipe.yaml
-            FILE_DATA: |
-              ---
-              Description: Test AutoPkg Core Cross Platform Processors
-              Identifier: com.github.jgstew.test.AutoPkgCore
-              Input:
-                NAME: AutoPkgCoreTest
-              MinimumVersion: "2.3"
-              Process:
-                # TODO: add: PlistEditor, PlistReader, Unarchiver, Versioner
-                - Processor: DeprecationWarning
-                  # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/DeprecationWarning.py
-                  Arguments:
-                    warning_message: "This is just a test, not a real Deprecation Warning"
-                - Processor: FileCreator
-                  # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileCreator.py
-                  Arguments:
-                    file_path: "test_file.txt"
-                    file_content: "Hello World! FileCreator Processor test"
-                - Processor: FileFinder
-                  # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileFinder.py
-                  Arguments:
-                    pattern: "**test_file.txt"
-                - Processor: FileMover
-                  # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileMover.py
-                  Arguments:
-                    source: "test_file.txt"
-                    target: "test_file_moved.txt"
-                - Processor: Copier
-                  # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/Copier.py
-                  Arguments:
-                    source_path: "test_file_moved.txt"
-                    destination_path: "test_file.txt"
-                - Processor: PackageRequired
-                  # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PackageRequired.py
-                  Arguments:
-                    PKG: "test_file.txt"
-                # PathDeleter should have an option to NOT raise an error if file not found
-                # it is a common practice to "delete" before copy or "delete" before move
-                - Processor: PathDeleter
-                  # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PathDeleter.py
-                  Arguments:
-                    path_list: ["test_file.txt", "test_file_moved.txt"]
-                - Processor: EndOfCheckPhase
+        env:
+          FILE_NAME: "AutopkgCore.test.recipe.yaml"
+          # https://github.com/jgstew/jgstew-recipes/blob/main/Test-Recipes/AutopkgCore.test.recipe.yaml
+          FILE_DATA: |
+            ---
+            Description: Test AutoPkg Core Cross Platform Processors
+            Identifier: com.github.jgstew.test.AutoPkgCore
+            Input:
+              NAME: AutoPkgCoreTest
+            MinimumVersion: "2.3"
+            Process:
+              # TODO: add: PlistEditor, PlistReader, Unarchiver, Versioner
+              - Processor: DeprecationWarning
+                # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/DeprecationWarning.py
+                Arguments:
+                  warning_message: "This is just a test, not a real Deprecation Warning"
+              - Processor: FileCreator
+                # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileCreator.py
+                Arguments:
+                  file_path: "test_file.txt"
+                  file_content: "Hello World! FileCreator Processor test"
+              - Processor: FileFinder
+                # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileFinder.py
+                Arguments:
+                  pattern: "**test_file.txt"
+              - Processor: FileMover
+                # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileMover.py
+                Arguments:
+                  source: "test_file.txt"
+                  target: "test_file_moved.txt"
+              - Processor: Copier
+                # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/Copier.py
+                Arguments:
+                  source_path: "test_file_moved.txt"
+                  destination_path: "test_file.txt"
+              - Processor: PackageRequired
+                # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PackageRequired.py
+                Arguments:
+                  PKG: "test_file.txt"
+              # PathDeleter should have an option to NOT raise an error if file not found
+              # it is a common practice to "delete" before copy or "delete" before move
+              - Processor: PathDeleter
+                # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PathDeleter.py
+                Arguments:
+                  path_list: ["test_file.txt", "test_file_moved.txt"]
+              - Processor: EndOfCheckPhase
       - name: get file contents
         shell: bash
         run: cat AutopkgCore.test.recipe.yaml
