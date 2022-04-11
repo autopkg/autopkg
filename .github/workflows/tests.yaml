@@ -93,6 +93,7 @@ jobs:
           echo "**Repo-delete:"
           python Code/autopkg repo-delete recipes --prefs tests/preferences.plist
       - name: create recipe for integration test
+        if: runner.os == 'Linux'
         # https://github.com/marketplace/actions/create-file
         uses: finnp/create-file-action@1.0.0
         env:
@@ -101,7 +102,7 @@ jobs:
           FILE_DATA: |
             ---
             Description: Test AutoPkg Core Cross Platform Processors
-            Identifier: com.github.jgstew.test.AutoPkgCore
+            Identifier: com.github.autopkg.test.AutoPkgCore
             Input:
               NAME: AutoPkgCoreTest
             MinimumVersion: "2.3"
@@ -142,4 +143,5 @@ jobs:
                   path_list: ["test_file.txt", "test_file_moved.txt"]
               - Processor: EndOfCheckPhase
       - name: run integration test recipe
+        if: runner.os == 'Linux'
         run: python Code/autopkg run -vv AutopkgCore.test.recipe.yaml
