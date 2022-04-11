@@ -141,6 +141,5 @@ jobs:
                 Arguments:
                   path_list: ["test_file.txt", "test_file_moved.txt"]
               - Processor: EndOfCheckPhase
-      - name: get file contents
-        shell: bash
-        run: cat AutopkgCore.test.recipe.yaml
+      - name: run integration test recipe
+        run: python Code/autopkg run -vv AutopkgCore.test.recipe.yaml
