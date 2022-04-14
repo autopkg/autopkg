@@ -1,0 +1,43 @@
+---
+Description: Test AutoPkg Core Cross Platform Processors
+# This should only include processors that can run on all platforms for automated tests
+# - See here: .github/workflows/tests.yaml
+Identifier: com.github.autopkg.test.AutoPkgCore
+Input:
+  NAME: AutoPkgCoreTest
+MinimumVersion: "2.3"
+Process:
+  # TODO: add: PlistEditor, PlistReader, Unarchiver, Versioner
+  - Processor: DeprecationWarning
+    # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/DeprecationWarning.py
+    Arguments:
+      warning_message: "This is just a test, not a real Deprecation Warning"
+  - Processor: FileCreator
+    # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileCreator.py
+    Arguments:
+      file_path: "test_file.txt"
+      file_content: "Hello World! FileCreator Processor test"
+  - Processor: FileFinder
+    # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileFinder.py
+    Arguments:
+      pattern: "**test_file.txt"
+  - Processor: FileMover
+    # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileMover.py
+    Arguments:
+      source: "test_file.txt"
+      target: "test_file_moved.txt"
+  - Processor: Copier
+    # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/Copier.py
+    Arguments:
+      source_path: "test_file_moved.txt"
+      destination_path: "test_file.txt"
+  - Processor: PackageRequired
+    # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PackageRequired.py
+    Arguments:
+      PKG: "test_file.txt"
+  # PathDeleter should have an option to NOT raise an error if file not found
+  # it is a common practice to "delete" before copy or "delete" before move
+  - Processor: PathDeleter
+    # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PathDeleter.py
+    Arguments:
+      path_list: ["test_file.txt", "test_file_moved.txt"]
