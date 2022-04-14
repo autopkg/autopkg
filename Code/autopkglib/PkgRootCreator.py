@@ -47,28 +47,28 @@ class PkgRootCreator(Processor):
     }
     output_variables = {}
 
-    def main(self):
+    def Create(self, pkgroot, pkgdirs):
         # Delete pkgroot if it exists.
         try:
-            if os.path.islink(self.env["pkgroot"]) or os.path.isfile(
-                self.env["pkgroot"]
+            if os.path.islink(pkgroot) or os.path.isfile(
+                pkgroot
             ):
-                os.unlink(self.env["pkgroot"])
-            elif os.path.isdir(self.env["pkgroot"]):
-                shutil.rmtree(self.env["pkgroot"])
+                os.unlink(pkgroot)
+            elif os.path.isdir(pkgroot):
+                shutil.rmtree(pkgroot)
         except OSError as err:
-            raise ProcessorError(f"Can't remove {self.env['pkgroot']}: {err.strerror}")
+            raise ProcessorError(f"Can't remove {pkgroot}: {err.strerror}")
 
         # Create pkgroot. autopkghelper sets it to root:admin 01775.
         try:
-            os.makedirs(self.env["pkgroot"])
-            self.output(f"Created {self.env['pkgroot']}")
+            os.makedirs(pkgroot)
+            self.output(f"Created {pkgroot}")
         except OSError as err:
-            raise ProcessorError(f"Can't create {self.env['pkgroot']}: {err.strerror}")
+            raise ProcessorError(f"Can't create {pkgroot}: {err.strerror}")
 
         # Create directories.
-        absroot = os.path.abspath(self.env["pkgroot"])
-        for directory, mode in sorted(self.env["pkgdirs"].items()):
+        absroot = os.path.abspath(pkgroot)
+        for directory, mode in sorted(pkgdirs.items()):
             self.output(f"Creating {directory}", verbose_level=2)
             # Make sure we don't get an absolute path.
             if directory.startswith("/"):
@@ -90,6 +90,8 @@ class PkgRootCreator(Processor):
                     f"Can't create {dirpath} with mode {mode}: {err.strerror}"
                 )
 
+    def main(self):
+        self.Create(self.env['pkgroot'], self.env['pkgdirs'])
 
 if __name__ == "__main__":
     PROCESSOR = PkgRootCreator()
