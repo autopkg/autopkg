@@ -29,13 +29,13 @@ class FolderCreator(PkgRootCreator):
     input_variables = {
         "root": {
             "required": True,
-            "description": "Path to where the package root will be created.",
+            "description": "Path to where the root folder will be created.",
         },
         "subdirs": {
             "required": False,
             "description": (
                 "A dictionary of directories to be created "
-                "inside the pkgroot, with their modes in octal form."
+                "inside the root, with their modes in octal form."
             ),
         },
     }
