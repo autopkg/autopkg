@@ -28,12 +28,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       # only needed on self hosted windows runners:
+      #   This has no effect on GitHub hosted Windows runners
       - name: set powershell execution policy CurrentUser
         if: runner.os == 'Windows'
         shell: cmd
         run: powershell -command "Set-ExecutionPolicy -Force -ExecutionPolicy RemoteSigned -Scope CurrentUser"
 
-      - uses: actions/checkout@v3
+      - name: checkout repo
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -50,14 +52,14 @@ jobs:
       - name: Install requirements
         run: pip install --requirement requirements.txt
 
-      - name: create empty config windows
+      - name: create empty autopkg config file - Windows
         # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
         if: runner.os == 'Windows'
         shell: cmd
         run: |
           if not exist "%USERPROFILE%/AppData/Local/Autopkg" mkdir "%USERPROFILE%/AppData/Local/Autopkg"
           if not exist "%USERPROFILE%/AppData/Local/Autopkg/config.json" echo {} > "%USERPROFILE%/AppData/Local/Autopkg/config.json"
-      - name: create default autopkg config file Linux
+      - name: create empty autopkg config file - Linux
         if: runner.os == 'Linux'
         run: |
           cd ~ && mkdir -p .config/Autopkg
@@ -97,53 +99,6 @@ jobs:
           python Code/autopkg version
           echo "**Repo-delete:"
           python Code/autopkg repo-delete recipes --prefs tests/preferences.plist
-      # - name: create integration recipe file
-      #   # based upon: https://github.com/jgstew/jgstew-recipes/blob/main/Test-Recipes/AutopkgCore.test.recipe.yaml
-      #   shell: bash
-      #   run: |
-      #     cat <<'EOFEOF' > AutopkgCore.test.recipe.yaml
-      #     ---
-      #     Description: Test AutoPkg Core Cross Platform Processors
-      #     Identifier: com.github.autopkg.test.AutoPkgCore
-      #     Input:
-      #       NAME: AutoPkgCoreTest
-      #     MinimumVersion: "2.3"
-      #     Process:
-      #       # TODO: add: PlistEditor, PlistReader, Unarchiver, Versioner
-      #       - Processor: DeprecationWarning
-      #         # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/DeprecationWarning.py
-      #         Arguments:
-      #           warning_message: "This is just a test, not a real Deprecation Warning"
-      #       - Processor: FileCreator
-      #         # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileCreator.py
-      #         Arguments:
-      #           file_path: "test_file.txt"
-      #           file_content: "Hello World! FileCreator Processor test"
-      #       - Processor: FileFinder
-      #         # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileFinder.py
-      #         Arguments:
-      #           pattern: "**test_file.txt"
-      #       - Processor: FileMover
-      #         # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/FileMover.py
-      #         Arguments:
-      #           source: "test_file.txt"
-      #           target: "test_file_moved.txt"
-      #       - Processor: Copier
-      #         # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/Copier.py
-      #         Arguments:
-      #           source_path: "test_file_moved.txt"
-      #           destination_path: "test_file.txt"
-      #       - Processor: PackageRequired
-      #         # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PackageRequired.py
-      #         Arguments:
-      #           PKG: "test_file.txt"
-      #       # PathDeleter should have an option to NOT raise an error if file not found
-      #       # it is a common practice to "delete" before copy or "delete" before move
-      #       - Processor: PathDeleter
-      #         # https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/PathDeleter.py
-      #         Arguments:
-      #           path_list: ["test_file.txt", "test_file_moved.txt"]
-      #     EOFEOF
-      - name: run integration recipe created in action
+      - name: run integration recipe
         # using recipe path to NOT rely on prefs or current working directory
         run: python Code/autopkg run -vv Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml
