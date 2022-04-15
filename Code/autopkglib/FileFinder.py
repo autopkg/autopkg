@@ -98,13 +98,11 @@ class FileFinder(DmgMounter):
                     f"DMG-relative file match: '{self.env['dmg_found_filename']}'"
                 )
 
-            if match.endswith('/'):
+            if match.endswith("/"):
                 self.env["found_basename"] = os.path.basename(match.rstrip("/"))
             else:
                 self.env["found_basename"] = os.path.basename(match)
-            self.output(
-                f"Basename match: '{self.env['found_basename']}'"
-            )
+            self.output(f"Basename match: '{self.env['found_basename']}'")
 
         finally:
             if dmg:

@@ -41,7 +41,9 @@ def signtool_default_path() -> Optional[str]:
         if os.path.exists(candpath):
             return candpath
     # fix for github hosted action runners:
-    candpath = r"C:\Program Files (x86)\Windows Kits\10\App Certification Kit\signtool.exe"
+    candpath = (
+        r"C:\Program Files (x86)\Windows Kits\10\App Certification Kit\signtool.exe"
+    )
     if os.path.exists(candpath):
         return candpath
     return None

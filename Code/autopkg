@@ -1334,7 +1334,7 @@ def getsha256hash(filepath):
     hashfunction = hashlib.sha256()
     fileref = open(filepath, "rb")
     while 1:
-        chunk = fileref.read(2 ** 16)
+        chunk = fileref.read(2**16)
         if not chunk:
             break
         hashfunction.update(chunk)

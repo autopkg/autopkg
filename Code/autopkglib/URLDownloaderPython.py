@@ -156,12 +156,9 @@ class URLDownloaderPython(URLDownloader):
 
         try:
             # check Content-Length:
-            if (
-                "Content-Length" in headers_to_test
-                and (
-                    int(previous_download_info["http_headers"]["Content-Length"])
-                    != int(header.get("Content-Length"))
-                )
+            if "Content-Length" in headers_to_test and (
+                int(previous_download_info["http_headers"]["Content-Length"])
+                != int(header.get("Content-Length"))
             ):
                 self.output("Content-Length is different", 2)
                 return True
@@ -179,9 +176,7 @@ class URLDownloaderPython(URLDownloader):
         for test in headers_to_test:
             if test != "Content-Length":
                 try:
-                    if previous_download_info[
-                        "http_headers"
-                    ][test] != header.get(test):
+                    if previous_download_info["http_headers"][test] != header.get(test):
                         self.output("{test} is different".format(test=test), 2)
                         return True
                     else:
