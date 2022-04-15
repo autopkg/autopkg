@@ -1,0 +1,107 @@
+---
+name: Test AutoPkg
+
+on:
+  push:
+    # https://github.community/t/how-to-trigger-an-action-on-push-or-pull-request-but-not-both/16662
+    branches:
+      - master
+    paths:
+      - "**.py"
+      - "requirements.txt"
+      - ".github/workflows/tests.yaml"
+      - "Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml"
+  pull_request:
+    paths:
+      - "**.py"
+      - "requirements.txt"
+      - ".github/workflows/tests.yaml"
+      - "Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml"
+  schedule:
+    # run first day of every month:
+    - cron: "* * 1 * *"
+
+jobs:
+  unittests:
+    strategy:
+      matrix:
+        # https://ncorti.com/blog/howto-github-actions-build-matrix
+        # ubuntu-latest, macos-latest, windows-latest
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # only needed on self hosted windows runners:
+      #   This has no effect on GitHub hosted Windows runners
+      - name: set powershell execution policy CurrentUser
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: powershell -command "Set-ExecutionPolicy -Force -ExecutionPolicy RemoteSigned -Scope CurrentUser"
+
+      - name: checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.8
+
+      - name: Set token
+        # required for githubreleaseinfoprovider in github actions
+        # without this, API limits will be hit
+        run: |
+          cd ~
+          echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
+
+      - name: Install requirements
+        run: pip install --requirement requirements.txt
+
+      - name: create empty autopkg config file - Windows
+        # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          if not exist "%USERPROFILE%/AppData/Local/Autopkg" mkdir "%USERPROFILE%/AppData/Local/Autopkg"
+          if not exist "%USERPROFILE%/AppData/Local/Autopkg/config.json" echo {} > "%USERPROFILE%/AppData/Local/Autopkg/config.json"
+      - name: create empty autopkg config file - Linux
+        if: runner.os == 'Linux'
+        run: |
+          cd ~ && mkdir -p .config/Autopkg
+          cd ~ && echo {} > .config/Autopkg/config.json
+      - name: run unittests
+        run: python Scripts/run_tests.py
+      - name: run e2e tests
+        # cross platform options from: https://github.com/autopkg/autopkg/blob/master/Code/tests/e2e_tests.sh
+        # e2e tests that hit the github apis will not work due to api limits unless it properly uses ".autopkg_gh_token"
+        shell: bash
+        run: |
+          echo "**List-processors:"
+          python Code/autopkg list-processors --prefs tests/preferences.plist
+          echo "**Processor-info:"
+          python Code/autopkg processor-info URLDownloader --prefs tests/preferences.plist
+          echo "**Repo-add:"
+          python Code/autopkg repo-add recipes --prefs tests/preferences.plist
+          echo "**Repo-list:"
+          python Code/autopkg repo-list --prefs tests/preferences.plist
+          echo "**Repo-update:"
+          python Code/autopkg repo-update all --prefs tests/preferences.plist
+          echo "**Audit:"
+          python Code/autopkg audit Firefox.munki --prefs tests/preferences.plist
+          echo "**Info:"
+          python Code/autopkg info Firefox.munki --prefs tests/preferences.plist
+          echo "**List-recipes:"
+          python Code/autopkg list-recipes --prefs tests/preferences.plist
+          echo "**Make-override:"
+          python Code/autopkg make-override Firefox.munki --force --prefs tests/preferences.plist
+          echo "**New-recipe:"
+          python Code/autopkg new-recipe TestRecipe.check --prefs tests/preferences.plist
+          echo "**Verify-trust-info:"
+          python Code/autopkg verify-trust-info Firefox.munki --prefs tests/preferences.plist
+          echo "**Update-trust-info:"
+          python Code/autopkg update-trust-info Firefox.munki --prefs tests/preferences.plist
+          echo "**Version:"
+          python Code/autopkg version
+          echo "**Repo-delete:"
+          python Code/autopkg repo-delete recipes --prefs tests/preferences.plist
+      - name: run integration recipe
+        # using recipe path to NOT rely on prefs or current working directory
+        run: python Code/autopkg run -vv Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml
