@@ -1,0 +1,23 @@
+name: Linting
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+  push:
+    branches: [main, master, dev]
+  workflow_dispatch:
+
+jobs:
+  linting:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.10"
+
+      - name: Linting
+        run: .github/workflows/linting.sh
