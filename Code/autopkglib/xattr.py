@@ -86,7 +86,7 @@ def getxattr(path: str, attr: str, symlink: bool = False) -> Optional[str]:
     try:
         return _xattr.getxattr(path, attr, symlink)
     except OSError as e:
-        print("WARNING: xattr.getxattr threw OSError")
+        print("WARNING: xattr.getxattr threw OSError.")
         print(e)
         return None
 
@@ -95,7 +95,7 @@ def listxattr(path: str, symlink: bool = False) -> List[str]:
     try:
         return _xattr.listxattr(path, symlink)
     except OSError as e:
-        print("WARNING: xattr.listxattr threw OSError")
+        print("WARNING: xattr.listxattr threw OSError.")
         print(e)
         return []
 
@@ -104,7 +104,7 @@ def removexattr(path: str, attr: str, symlink: bool = False) -> None:
     try:
         return _xattr.removexattr(path, attr, symlink)
     except OSError as e:
-        print("WARNING: xattr.removexattr threw OSError")
+        print("WARNING: xattr.removexattr threw OSError.")
         print(e)
         return None
 
@@ -115,6 +115,6 @@ def setxattr(
     try:
         return _xattr.setxattr(path, attr, value, options, symlink)
     except OSError as e:
-        print("WARNING: xattr.setxattr threw OSError")
+        print("WARNING: xattr.setxattr threw OSError.")
         print(e)
         return None
