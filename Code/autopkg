@@ -2326,7 +2326,7 @@ def run_recipes(argv):
                     if not data:
                         log(
                             'WARNING: Cannot display summary result because "%s" '
-                            'does not have a '
+                            "does not have a "
                             '"data" dictionary. See wiki for more information: '
                             "https://github.com/autopkg/autopkg/wiki/Processor-Summary-Reporting"
                             % key
