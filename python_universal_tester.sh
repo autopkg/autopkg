@@ -1,5 +1,9 @@
 #!/bin/bash
 
+[[ $1 == *"3."* ]] && echo "Using Python $1" || (echo "Invalid Python version" && exit 1)
+
+STATUS=0
+
 # ensure all .so and .dylibs are universal
 LIB_COUNT=$(find "Python.framework" -name "*.so" -or -name "*.dylib" | wc -l)
 UNIVERSAL_COUNT=$(find "Python.framework" -name "*.so" -or -name "*.dylib" | xargs file | grep "2 architectures" | wc -l)
@@ -22,3 +26,5 @@ for TESTFILE in $MORE_FILES ; do
         STATUS=1
     fi
 done
+
+[[ $STATUS == 0 ]] && echo "All files are universal!" || exit $STATUS
