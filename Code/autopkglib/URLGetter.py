@@ -165,7 +165,6 @@ class URLGetter(Processor):
 
     def execute_curl(self, curl_cmd, text=True):
         """Execute curl command. Return stdout, stderr and return code."""
-        errors = "ignore" if text else None
         try:
             result = subprocess.run(
                 curl_cmd,
@@ -173,10 +172,10 @@ class URLGetter(Processor):
                 capture_output=True,
                 check=True,
                 text=text,
-                errors=errors,
             )
         except subprocess.CalledProcessError as e:
-            raise ProcessorError from subprocess.CalledProcessError(e)
+            self.output(f"ERROR: {e.stderr.removeprefix('curl: ')}")
+            raise ProcessorError(e.stderr) from e
         return result.stdout, result.stderr, result.returncode
 
     def download_with_curl(self, curl_cmd, text=True):
