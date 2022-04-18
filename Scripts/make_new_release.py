@@ -87,7 +87,7 @@ def api_call(
             return parsed
         except BaseException as err:
             print(err, file=sys.stderr)
-            raise GitHubAPIError
+            raise GitHubAPIError from err
     return None
 
 
