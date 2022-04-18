@@ -1,3 +1,5 @@
+### [2.7](https://github.com/autopkg/autopkg/compare/v2.6.0...HEAD) (Unreleased)
+
 ### [2.6.0](https://github.com/autopkg/autopkg/compare/v2.5.0...v2.6.0) (April 18, 2022)
 
 ### [2.5.0](https://github.com/autopkg/autopkg/compare/v2.3...v2.5.0) (April 08, 2022)
