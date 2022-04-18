@@ -170,14 +170,13 @@ class URLGetter(Processor):
             result = subprocess.run(
                 curl_cmd,
                 shell=False,
-                bufsize=1,
                 capture_output=True,
                 check=True,
                 text=text,
                 errors=errors,
             )
         except subprocess.CalledProcessError as e:
-            raise ProcessorError(e)
+            raise ProcessorError from subprocess.CalledProcessError(e)
         return result.stdout, result.stderr, result.returncode
 
     def download_with_curl(self, curl_cmd, text=True):

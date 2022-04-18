@@ -55,7 +55,6 @@ class Installer:
             proc = subprocess.Popen(
                 cmd,
                 shell=False,
-                bufsize=-1,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,

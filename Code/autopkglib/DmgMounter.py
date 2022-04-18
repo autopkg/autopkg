@@ -75,7 +75,6 @@ class DmgMounter(Processor):
         has_sla = False
         proc = subprocess.Popen(
             ["/usr/bin/hdiutil", "imageinfo", dmgpath, "-plist"],
-            bufsize=-1,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
