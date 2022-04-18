@@ -7,6 +7,8 @@ AutoPkg
 
 [![Tests passing](https://github.com/autopkg/autopkg/actions/workflows/tests.yaml/badge.svg)](https://github.com/autopkg/autopkg/actions/workflows/tests.yaml)
 
+[![Tests passing](https://github.com/autopkg/autopkg/actions/workflows/tests.yaml/badge.svg)](https://github.com/autopkg/autopkg/actions/workflows/tests.yaml)
+
 Latest release is [here](https://github.com/autopkg/autopkg/releases/latest).
 
 AutoPkg is an automation framework for macOS software packaging and distribution, oriented towards the tasks one would normally perform manually to prepare third-party software for mass deployment to managed clients.
