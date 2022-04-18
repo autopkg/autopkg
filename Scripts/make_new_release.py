@@ -170,7 +170,7 @@ def main():
         print("** Running in 'dry-run' mode..")
     publish_user, publish_repo = opts.user_repo.split("/")
     token = None
-    if (not opts.dry_run):
+    if not opts.dry_run:
         token = opts.token
         # ensure our OAuth token works before we go any further
         print("** Verifying OAuth token")
@@ -288,7 +288,7 @@ def main():
             "-k",
             "REQUIREMENTS_FILENAME=new_requirements.txt",
             "-k",
-            "OS_VERSION=11"
+            "OS_VERSION=11",
         ]
     )
     subprocess.run(args=cmd, text=True, check=True)
