@@ -19,6 +19,7 @@
 import json
 import optparse
 import os
+import pathlib
 import plistlib
 import re
 import ssl
@@ -44,7 +45,7 @@ class GitHubAPIError(BaseException):
 
 def api_call(
     endpoint,
-    token,
+    token=None,
     baseurl="https://api.github.com",
     data=None,
     json_data=True,
@@ -61,8 +62,9 @@ def api_call(
         data = json.dumps(data, ensure_ascii=False).encode()
     headers = {
         "Accept": "application/vnd.github.v3+json",
-        "Authorization": f"token {token}",
     }
+    if token:
+        headers["Authorization"] = f"token {token}"
     if additional_headers:
         for header, value in list(additional_headers.items()):
             headers[header] = value
@@ -145,11 +147,13 @@ def main():
     parser.add_option(
         "-b",
         "--autopkg-branch",
+        default="master",
         help=("A specific branch of AutoPkg repo clone. Otherwise, clone master."),
     )
     parser.add_option(
         "-r",
         "--recipe-branch",
+        default="master",
         help=(
             "A specific branch of autopkg-recipes repo clone. "
             "Otherwise, clone master."
@@ -159,16 +163,18 @@ def main():
     opts = parser.parse_args()[0]
     if not opts.next_version:
         sys.exit("Option --next-version is required!")
-    if not opts.token:
+    if not opts.token and not opts.dry_run:
         sys.exit("Option --token is required!")
     next_version = opts.next_version
     if opts.dry_run:
         print("** Running in 'dry-run' mode..")
     publish_user, publish_repo = opts.user_repo.split("/")
-    token = opts.token
-    # ensure our OAuth token works before we go any further
-    print("** Verifying OAuth token")
-    api_call(f"/users/{publish_user}", token)
+    token = None
+    if (not opts.dry_run):
+        token = opts.token
+        # ensure our OAuth token works before we go any further
+        print("** Verifying OAuth token")
+        api_call(f"/users/{publish_user}", token)
 
     # set up some paths and important variables
     autopkg_root = tempfile.mkdtemp()
@@ -179,8 +185,9 @@ def main():
     if opts.autopkg_branch:
         git_cmd.extend(["--branch", opts.autopkg_branch])
     git_cmd.extend([f"https://github.com/{publish_user}/{publish_repo}", autopkg_root])
-    # clone Git master
-    print("** Clone git master")
+    print((" ").join(git_cmd))
+    # Clone the branch of AutoPkg
+    print(f"** Clone git {opts.autopkg_branch}")
     subprocess.check_call(git_cmd)
     os.chdir(autopkg_root)
 
@@ -235,8 +242,8 @@ def main():
     subprocess.check_call(["git", "tag", tag_name])
     if not opts.dry_run:
         print("** Pushing git release")
-        subprocess.check_call(["git", "push", "origin", "master"])
-        subprocess.check_call(["git", "push", "--tags", "origin", "master"])
+        subprocess.check_call(["git", "push", "origin", opts.autopkg_branch])
+        subprocess.check_call(["git", "push", "--tags", "origin", opts.autopkg_branch])
 
     print("** Gathering release notes")
     # extract release notes for this new version
@@ -248,7 +255,7 @@ def main():
 
     recipes_dir = tempfile.mkdtemp()
     git_cmd = ["git", "clone"]
-    if opts.recipe_branch:
+    if opts.recipe_branch != "master":
         git_cmd.extend(["--branch", opts.recipe_branch])
     git_cmd.extend(["https://github.com/autopkg/recipes", recipes_dir])
     print("** Cloning autopkg-recipes")
@@ -259,14 +266,14 @@ def main():
     # running using the system AutoPkg directory so that we ensure we're at the
     # minimum required version to run the AutoPkg recipe
     report_plist_path = tempfile.mkstemp()[1]
-    parent_path = os.path.join(os.path.abspath(os.path.dirname(__file__)))
+    parent_path = pathlib.Path(__file__).parent.parent
     cmd = [
         os.path.join(parent_path, "Code/autopkg"),
         "run",
         "-k",
         "force_pkg_build=true",
     ]
-    if opts.autopkg_branch:
+    if opts.autopkg_branch != "master":
         cmd.extend(["-k", f"BRANCH={opts.autopkg_branch}"])
     cmd.extend(
         [
@@ -276,6 +283,12 @@ def main():
             report_plist_path,
             "AutoPkgGitMaster.pkg",
             "-vvvv",
+            "-k",
+            "PYTHON_VERSION=3.10.4",
+            "-k",
+            "REQUIREMENTS_FILENAME=new_requirements.txt",
+            "-k",
+            "OS_VERSION=11"
         ]
     )
     subprocess.run(args=cmd, text=True, check=True)
@@ -303,7 +316,7 @@ def main():
     # prepare release metadata
     release_data = dict()
     release_data["tag_name"] = tag_name
-    release_data["target_commitish"] = "master"
+    release_data["target_commitish"] = opts.autopkg_branch
     release_data["name"] = "AutoPkg " + current_version
     release_data["body"] = release_notes
     release_data["draft"] = False
@@ -364,8 +377,8 @@ def main():
         ["git", "commit", "-m", f"Bumping to v{next_version} for development."]
     )
     if not opts.dry_run:
-        print("** Pushing commit to master")
-        subprocess.check_call(["git", "push", "origin", "master"])
+        print(f"** Pushing commit to {opts.autopkg_branch}")
+        subprocess.check_call(["git", "push", "origin", opts.autopkg_branch])
     else:
         print(
             "Ended dry-run mode. Final state of the AutoPkg repo can be "
