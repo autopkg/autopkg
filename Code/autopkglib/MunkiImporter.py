@@ -170,7 +170,7 @@ class MunkiImporter(Processor):
 
     def _find_matching_pkginfo(self, repo_library, pkginfo):
         """Looks through all catalog for items matching the one
-        described by pkginfo. Returns a matching item if found."""
+        described by pkginfo. Returns a list of matching items if found."""
         if not pkginfo.get("installer_item_hash"):
             return None
 
@@ -265,7 +265,7 @@ class MunkiImporter(Processor):
                             # TODO: maybe match pkg name, too?
                             # if matching_pkg['name'] == pkginfo['name']:
 
-                            return matching_pkg
+                            return [matching_pkg]
 
         # Try to match against a simple list of files and paths
         # where our pkginfo version also matches
@@ -287,7 +287,7 @@ class MunkiImporter(Processor):
                             # make sure we do this only for items that also
                             # match our pkginfo version
                             if matching_pkg["version"] == pkginfo["version"]:
-                                return matching_pkg
+                                return [matching_pkg]
 
         # if we get here, we found no matches
         return None
