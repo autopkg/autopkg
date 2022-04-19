@@ -53,7 +53,7 @@ jobs:
           echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
 
       - name: Install requirements
-        run: pip install --requirement new_requirements.txt
+        run: pip install --requirement gh_actions_requirements.txt
 
       - name: create empty autopkg config file - Windows
         # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
