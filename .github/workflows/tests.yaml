@@ -43,7 +43,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v3
         with:
-          python-version: 3.8
+          python-version: 3.10
 
       - name: Set token
         # required for githubreleaseinfoprovider in github actions
@@ -53,7 +53,7 @@ jobs:
           echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
 
       - name: Install requirements
-        run: pip install --requirement requirements.txt
+        run: pip install --requirement new_requirements.txt
 
       - name: create empty autopkg config file - Windows
         # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
