@@ -239,7 +239,7 @@ class Preferences:
             if not CFPreferencesAppSynchronize(BUNDLE_ID):
                 raise PreferenceError(f"Could not synchronize preference {key}")
         except Exception as err:
-            raise PreferenceError(f"Could not set {key} preference: {err}")
+            raise PreferenceError(f"Could not set {key} preference: {err}") from err
 
     def read_file(self, file_path):
         """Read in a file and add the key/value pairs into preferences."""
@@ -565,7 +565,7 @@ class Processor:
         try:
             return (self.description, self.input_variables, self.output_variables)
         except AttributeError as err:
-            raise ProcessorError(f"Missing manifest: {err}")
+            raise ProcessorError(f"Missing manifest: {err}") from err
 
     def read_input_plist(self):
         """Read environment from input plist."""
@@ -577,7 +577,7 @@ class Processor:
             else:
                 self.env = {}
         except BaseException as err:
-            raise ProcessorError(err)
+            raise ProcessorError(err) from err
 
     def write_output_plist(self):
         """Write environment to output as plist."""
@@ -591,7 +591,7 @@ class Processor:
         except TypeError:
             plistlib.dump(self.env, self.outfile.buffer)
         except BaseException as err:
-            raise ProcessorError(err)
+            raise ProcessorError(err) from err
 
     def parse_arguments(self):
         """Parse arguments as key='value'."""
@@ -638,7 +638,7 @@ class Processor:
             raise ProcessorError(
                 f"{command[0]} execution failed with error code "
                 f"{err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(f"{description} failed: {stderr}")
 
@@ -675,7 +675,7 @@ class Processor:
                 fh = plist_file
             return plistlib.load(fh)
         except Exception as err:
-            raise ProcessorError(f"{exception_text}: {err}")
+            raise ProcessorError(f"{exception_text}: {err}") from err
         finally:
             fh.close()
 
@@ -762,20 +762,20 @@ class AutoPackager:
                 processor_class = get_processor(
                     step["Processor"], verbose=self.verbose, recipe=recipe, env=self.env
                 )
-            except (KeyError, AttributeError):
+            except (KeyError, AttributeError) as err:
                 msg = f"Unknown processor '{step['Processor']}'."
                 if "SharedProcessorRepoURL" in step:
                     msg += (
                         " This shared processor can be added via the "
                         f"repo: {step['SharedProcessorRepoURL']}."
                     )
-                raise AutoPackagerError(msg)
-            except AutoPackagerLoadError:
+                raise AutoPackagerError(msg) from err
+            except AutoPackagerLoadError as err:
                 msg = (
                     f"Unable to import '{step['Processor']}', likely due "
                     "to syntax or Python error."
                 )
-                raise AutoPackagerError(msg)
+                raise AutoPackagerError(msg) from err
             # Add arguments to set of variables.
             variables.update(set(step.get("Arguments", {}).keys()))
             # Make sure all required input variables exist.
@@ -810,7 +810,7 @@ class AutoPackager:
                 raise AutoPackagerError(
                     f"Could not create RECIPE_CACHE_DIR {self.env['RECIPE_CACHE_DIR']}:"
                     f" {err}"
-                )
+                ) from err
 
         if self.verbose > 2:
             pprint.pprint(self.env)
@@ -852,7 +852,7 @@ class AutoPackager:
                 raise AutoPackagerError(
                     f"Error in {identifier}: Processor: {step['Processor']}: "
                     f"Error: {err}"
-                )
+                ) from err
 
             output_dict = {}
             for key in list(processor.output_variables.keys()):
@@ -1064,7 +1064,7 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
                         exc_type, exc_value, exc_traceback = sys.exc_info()
                         traceback.print_exc(file=sys.stdout)
                         traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
-                    raise AutoPackagerLoadError(err)
+                    raise AutoPackagerLoadError(err) from err
 
     return globals()[processor_name]
 
