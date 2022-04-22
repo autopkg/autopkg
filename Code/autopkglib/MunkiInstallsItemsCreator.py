@@ -17,9 +17,8 @@
 
 import plistlib
 import subprocess
-from distutils.version import LooseVersion
 
-from autopkglib import Processor, ProcessorError, log
+from autopkglib import APLooseVersion, Processor, ProcessorError, log
 
 try:
     from Foundation import NSDictionary
@@ -116,14 +115,14 @@ class MunkiInstallsItemsCreator(Processor):
                             # Compare any subsequent values of item['minosversion']
                             # against self.env["minimum_os_version"] setting
                             # self.env["minimum_os_version"] to the highest minimum
-                            if (LooseVersion(item['minosversion']) >=
-                                LooseVersion(self.env["minimum_os_version"])):
+                            if (APLooseVersion(item['minosversion']) >=
+                                APLooseVersion(self.env["minimum_os_version"])):
                                 self.output("Setting minimum os version to: "
                                             f"{item['minosversion']}, as greater than prior "
                                             f"value of: {self.env['minimum_os_version']}")
                                 self.env["minimum_os_version"] = item['minosversion']
-                            if (LooseVersion(item['minosversion']) <=
-                                LooseVersion(self.env["minimum_os_version"])):
+                            if (APLooseVersion(item['minosversion']) <=
+                                APLooseVersion(self.env["minimum_os_version"])):
                                 self.output(f"Minimum os version: {item['minosversion']}, "
                                             "is lower than prior value of: "
                                             f"{self.env['minimum_os_version']}... skipping...")
