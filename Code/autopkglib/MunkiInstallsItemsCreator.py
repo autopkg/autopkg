@@ -17,6 +17,7 @@
 
 import plistlib
 import subprocess
+from distutils.version import LooseVersion
 
 from autopkglib import Processor, ProcessorError, log
 
@@ -35,6 +36,13 @@ class MunkiInstallsItemsCreator(Processor):
         "installs_item_paths": {
             "required": True,
             "description": "Array of paths to create installs items for.",
+        },
+        "derive_minimum_os_version": {
+            "required": False,
+            "description": "If minosversion is present in the installs array within "
+                           "additional_pkginfo, then an additional key will be added to "
+                           "additional_pkginfo named minimum_os_version with the value of "
+                           "minosversion.",
         },
         "faux_root": {
             "required": False,
@@ -96,6 +104,30 @@ class MunkiInstallsItemsCreator(Processor):
                     item["path"] = item["path"][len(faux_root) :]
                 self.output(f"Created installs item for {item['path']}")
 
+                # If key derive_minimum_os_version has a value, try to get the minosversion
+                if self.env.get("derive_minimum_os_version"):
+                    if item.get("minosversion"):
+                        # Set self.env["minimum_os_version"] if not set
+                        if "minimum_os_version" not in self.env:
+                            self.env["minimum_os_version"] = item['minosversion']
+                            self.output("Derived minimum os version as: "
+                                        f"{self.env['minimum_os_version']}")
+                        else:
+                            # Compare any subsequent values of item['minosversion']
+                            # against self.env["minimum_os_version"] setting
+                            # self.env["minimum_os_version"] to the highest minimum
+                            if (LooseVersion(item['minosversion']) >=
+                                LooseVersion(self.env["minimum_os_version"])):
+                                self.output("Setting minimum os version to: "
+                                            f"{item['minosversion']}, as greater than prior "
+                                            f"value of: {self.env['minimum_os_version']}")
+                                self.env["minimum_os_version"] = item['minosversion']
+                            if (LooseVersion(item['minosversion']) <=
+                                LooseVersion(self.env["minimum_os_version"])):
+                                self.output(f"Minimum os version: {item['minosversion']}, "
+                                            "is lower than prior value of: "
+                                            f"{self.env['minimum_os_version']}... skipping...")
+
         if "version_comparison_key" in self.env:
             for item in installs_array:
                 cmp_key = None
@@ -118,9 +150,14 @@ class MunkiInstallsItemsCreator(Processor):
                             f"the installs item for path '{item['path']}'"
                         )
 
+
         if "additional_pkginfo" not in self.env:
             self.env["additional_pkginfo"] = {}
         self.env["additional_pkginfo"]["installs"] = installs_array
+
+        # If minimum_os_version has a value, add to additional_pkginfo
+        if self.env.get("minimum_os_version"):
+            self.env["additional_pkginfo"]["minimum_os_version"] = self.env['minimum_os_version']
 
     def main(self):
         self.create_installs_items()
