@@ -89,6 +89,11 @@ class MunkiInstallsItemsCreator(Processor):
         # Get pkginfo from output plist.
         pkginfo = plistlib.loads(out)
         installs_array = pkginfo.get("installs", [])
+        
+        # Raise if installs_array is empty
+        if not installs_array:
+            raise ProcessorError(f"cannot generate installs_array from: faux_root {faux_root}, "
+                                 f"installs_item_paths: {self.env['installs_item_paths']}")
 
         if faux_root:
             for item in installs_array:
