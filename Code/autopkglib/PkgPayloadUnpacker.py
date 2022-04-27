@@ -99,7 +99,6 @@ class PkgPayloadUnpacker(Processor):
                     "-i",
                     self.env["pkg_payload_path"],
                     "-d",
-                    # "/Volumes/NoSuch",
                     self.env["destination_path"],
                 ]
                 proc = subprocess.Popen(
