@@ -102,11 +102,11 @@ class PkgPayloadUnpacker(Processor):
                     raise ProcessorError(
                         f"aa execution failed with error code {err.errno}: {err.strerror}"
                     )
-            if proc.returncode != 0:
-                raise ProcessorError(
-                    f"extraction of {self.env['pkg_payload_path']} with aa failed: "
-                    f"{err_out}"
-                )
+                if proc.returncode != 0:
+                    raise ProcessorError(
+                        f"extraction of {self.env['pkg_payload_path']} with aa failed: "
+                        f"{err_out}"
+                    )
             else:
                 raise ProcessorError(
                     f"ditto execution failed with error code {err.errno}: {err.strerror}"
