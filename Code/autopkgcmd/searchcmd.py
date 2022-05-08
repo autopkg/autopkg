@@ -229,14 +229,15 @@ def new_search_recipes(argv: List[str]):
         result_ids = list(set(result_ids))
 
     # Collect result info into result list
-    header_items = ("Identifier", "Repo", "Path")
+    header_items = ("Name", "Repo", "Path")
     result_items = []
     for result_id in result_ids:
+        name = os.path.split(search_index["identifiers"][result_id]["path"])[-1]
         repo = search_index["identifiers"][result_id]["repo"]
         path = search_index["identifiers"][result_id]["path"]
         if repo.startswith("autopkg/"):
             repo = repo.replace("autopkg/", "")
-        result_items.append((result_id, repo, path))
+        result_items.append((name, repo, path))
     col_widths = [
         max([len(x[i]) for x in result_items] + [len(header_items[i])])
         for i in range(0, len(header_items))
