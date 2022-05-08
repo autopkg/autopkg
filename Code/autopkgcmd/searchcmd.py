@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+import os
+import subprocess
 from typing import List
 from urllib.parse import quote
 
@@ -95,6 +98,163 @@ def search_recipes(argv: List[str]):
         print()
         print(
             "Warning: Search yielded more than 100 results. Please try a "
+            "more specific search term."
+        )
+        return 3
+    return 0
+
+
+def parse_etag_header(raw_headers):
+    """Given raw HTTP headers, parse and return the etag."""
+    for line in raw_headers.splitlines():
+        if line.lower().startswith("etag: "):
+            return line[6:].strip('"')
+    return None
+
+
+def check_search_cache(cache_path):
+    """Update local search index, if it's missing or out of date."""
+
+    cache_url = "https://raw.githubusercontent.com/homebysix/autopkg-recipe-index/main/index.json"
+    gh = GitHubSession()
+    curl_cmd = [
+        gh.curl_binary(),
+        "--location",
+        "--silent",
+        "--show-error",
+        "--fail",
+        "--dump-header",
+        "-",
+        "--header",
+        "User-Agent: AutoPkg",
+    ]
+    if gh.token:
+        curl_cmd.extend(["--header", f"Authorization: token {gh.token}"])
+    gh.add_curl_common_opts(curl_cmd)
+    curl_cmd.extend(["--url", cache_url])
+
+    if os.path.isfile(cache_path) and os.path.isfile(cache_path + ".etag"):
+        with open(cache_path + ".etag", "r", encoding="utf-8") as openfile:
+            local_etag = openfile.read().strip('"')
+        if local_etag:
+            # Check whether local etag matches server
+            head_cmd = curl_cmd + ["--head"]
+            proc = subprocess.run(head_cmd, check=False, capture_output=True, text=True)
+            server_etag = parse_etag_header(proc.stdout)
+            if local_etag == server_etag:
+                return
+
+    curl_cmd.extend(["--output", cache_path])
+    etag = parse_etag_header(gh.download_with_curl(curl_cmd))
+    if etag:
+        with open(cache_path + ".etag", "w", encoding="utf-8") as openfile:
+            openfile.write(etag)
+
+
+def get_table_row(row_items, col_widths, header=False):
+    """This function takes table row content (list of strings) and column
+    widths (list of integers) as input and outputs a string representing a
+    table row in Markdown, with normalized "pretty" spacing that is readable
+    when unrendered."""
+
+    output = ""
+    header_sep = "\n"
+    column_space = 4
+    for idx, cell in enumerate(row_items):
+        padding = col_widths[idx] - len(cell) + column_space
+        header_sep += "-" * len(cell) + " " * padding
+        output += f"{cell}{' ' * padding}"
+
+    if header:
+        return output + header_sep
+
+    return output
+
+
+def normalize_keyword(keyword):
+    """Normalizes capitalization, punctuation, and spacing of search keywords
+    for better matching."""
+    # TODO: Consider implementing fuzzywuzzy or some other fuzzy search method
+    keyword = keyword.lower()
+    replacements = {" ": "", ".": "", ",": "", "-": ""}
+    for old, new in replacements.items():
+        keyword = keyword.replace(old, new)
+
+    return keyword
+
+
+def new_search_recipes(argv: List[str]):
+    """Search recipes in the AutoPkg org on GitHub using a cached index file."""
+    verb = argv[1]
+    parser = gen_common_parser()
+    parser.set_usage(
+        f"Usage: %prog {verb} [options] search_term\n"
+        "Search for recipes on GitHub using a cached index file. The AutoPkg "
+        "organization at github.com/autopkg\nis the canonical 'repository' of "
+        "recipe repos, which is what is searched by\ndefault."
+    )
+
+    # Parse arguments
+    (options, arguments) = common_parse(parser, argv)
+    if len(arguments) < 1:
+        log_err("No search query specified!")
+        return 1
+
+    results_limit = 100
+
+    # Update and load local search index cache
+    cache_path = os.path.expanduser("~/Library/AutoPkg/search_index.json")
+    check_search_cache(cache_path)
+    with open(cache_path, "rb") as openfile:
+        search_index = json.load(openfile)
+
+    # Perform the search against shortnames
+    result_ids = []
+    for candidate, identifiers in search_index["shortnames"].items():
+        if normalize_keyword(arguments[0]) in normalize_keyword(candidate):
+            result_ids.extend(identifiers)
+
+    # Perform the search against other recipe info
+    searchable_keys = ("name", "description", "munki_display_name", "munki_description")
+    for identifier, info in search_index["identifiers"].items():
+        if info.get("deprecated"):
+            continue
+        for key in searchable_keys:
+            if info.get(key):
+                if normalize_keyword(arguments[0]) in normalize_keyword(info[key]):
+                    result_ids.append(identifier)
+    if not result_ids:
+        return 2
+    else:
+        result_ids = list(set(result_ids))
+
+    # Collect result info into result list
+    header_items = ("Identifier", "Repo", "Path")
+    result_items = []
+    for result_id in result_ids:
+        repo = search_index["identifiers"][result_id]["repo"]
+        path = search_index["identifiers"][result_id]["path"]
+        if repo.startswith("autopkg/"):
+            repo = repo.replace("autopkg/", "")
+        result_items.append((result_id, repo, path))
+    col_widths = [
+        max([len(x[i]) for x in result_items] + [len(header_items[i])])
+        for i in range(0, len(header_items))
+    ]
+
+    # Print result table
+    print()
+    print(get_table_row(header_items, col_widths, header=True))
+    for row in result_items:
+        print(get_table_row(row, col_widths))
+    print()
+    print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
+
+    # Warn if more results than the result limit
+    if len(result_items) > results_limit:
+        print()
+        print(
+            f"Warning: Search yielded more than {results_limit} results. Please try a "
             "more specific search term."
         )
         return 3

@@ -34,7 +34,12 @@ from typing import Optional
 from urllib.parse import quote, urlparse
 
 import yaml
-from autopkgcmd import common_parse, gen_common_parser, search_recipes
+from autopkgcmd import (
+    common_parse,
+    gen_common_parser,
+    new_search_recipes,
+    search_recipes,
+)
 from autopkglib import (
     RECIPE_EXTS,
     AutoPackager,
@@ -2735,6 +2740,11 @@ def main(argv):
         },
         "run": {"function": run_recipes, "help": "Run one or more recipes"},
         "search": {"function": search_recipes, "help": "Search for recipes on GitHub."},
+        "new-search": {
+            "function": new_search_recipes,
+            "help": "Search recipes in the AutoPkg org on GitHub using a cached index "
+            "file. (Candidate to replace the `search` verb.)",
+        },
         "update-trust-info": {
             "function": update_trust_info,
             "help": (

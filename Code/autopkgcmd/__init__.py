@@ -13,6 +13,6 @@
 # limitations under the License.
 
 from autopkgcmd.opts import common_parse, gen_common_parser
-from autopkgcmd.searchcmd import search_recipes
+from autopkgcmd.searchcmd import new_search_recipes, search_recipes
 
-__all__ = ["search_recipes", "gen_common_parser", "common_parse"]
+__all__ = ["new_search_recipes", "search_recipes", "gen_common_parser", "common_parse"]
