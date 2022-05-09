@@ -214,7 +214,7 @@ def new_search_recipes(argv: List[str]):
             result_ids.extend(identifiers)
 
     # Perform the search against other recipe info
-    searchable_keys = ("name", "description", "munki_display_name", "munki_description")
+    searchable_keys = ("name", "munki_display_name", "jamf_display_name")
     for identifier, info in search_index["identifiers"].items():
         if info.get("deprecated"):
             continue
