@@ -224,8 +224,7 @@ def new_search_recipes(argv: List[str]):
                     result_ids.append(identifier)
     if not result_ids:
         return 2
-    else:
-        result_ids = list(set(result_ids))
+    result_ids = list(set(result_ids))
 
     # Collect result info into result list
     header_items = ("Name", "Repo", "Path")
