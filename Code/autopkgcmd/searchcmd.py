@@ -127,7 +127,7 @@ def check_search_cache(cache_path):
     if cache_meta[0]["size"] > (90 * 1024 * 1024):
         print(search_index_size_msg % "nearing")
     elif cache_meta[0]["size"] > (100 * 1024 * 1024):
-        print(search_index_size_msg % "greater than")
+        log_err(search_index_size_msg % "greater than")
 
     # If cache exists locally, check whether it's current
     if os.path.isfile(cache_path) and os.path.isfile(cache_path + ".etag"):
@@ -223,6 +223,7 @@ def new_search_recipes(argv: List[str]):
                 if normalize_keyword(arguments[0]) in normalize_keyword(info[key]):
                     result_ids.append(identifier)
     if not result_ids:
+        log_err("Nothing found.")
         return 2
     result_ids = list(set(result_ids))
 
