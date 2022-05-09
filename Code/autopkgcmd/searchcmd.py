@@ -228,25 +228,27 @@ def new_search_recipes(argv: List[str]):
     result_ids = list(set(result_ids))
 
     # Collect result info into result list
-    header_items = ("Name", "Repo", "Path")
     result_items = []
     for result_id in result_ids:
-        name = os.path.split(search_index["identifiers"][result_id]["path"])[-1]
         repo = search_index["identifiers"][result_id]["repo"]
-        path = search_index["identifiers"][result_id]["path"]
         if repo.startswith("autopkg/"):
             repo = repo.replace("autopkg/", "")
-        result_items.append((name, repo, path))
+        result_item = {
+            "Name": os.path.split(search_index["identifiers"][result_id]["path"])[-1],
+            "Repo": repo,
+            "Path": search_index["identifiers"][result_id]["path"],
+        }
+        result_items.append(result_item)
     col_widths = [
-        max([len(x[i]) for x in result_items] + [len(header_items[i])])
-        for i in range(0, len(header_items))
+        max([len(x[k]) for x in result_items] + [len(k)])
+        for k in result_items[0].keys()
     ]
 
     # Print result table, sorted by repo
     print()
-    print(get_table_row(header_items, col_widths, header=True))
-    for row in sorted(result_items, key=lambda x: x[1].lower()):
-        print(get_table_row(row, col_widths))
+    print(get_table_row(result_items[0].keys(), col_widths, header=True))
+    for result_item in sorted(result_items, key=lambda x: x["Repo"].lower()):
+        print(get_table_row(result_item.values(), col_widths))
     print()
     print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
 
