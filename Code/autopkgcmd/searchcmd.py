@@ -14,7 +14,6 @@
 
 import json
 import os
-import subprocess
 from typing import List
 from urllib.parse import quote
 
@@ -104,51 +103,51 @@ def search_recipes(argv: List[str]):
     return 0
 
 
-def parse_etag_header(raw_headers):
-    """Given raw HTTP headers, parse and return the etag."""
-    for line in raw_headers.splitlines():
-        if line.lower().startswith("etag: "):
-            return line[6:].strip('"')
-    return None
-
-
 def check_search_cache(cache_path):
     """Update local search index, if it's missing or out of date."""
 
-    cache_url = "https://raw.githubusercontent.com/homebysix/autopkg-recipe-index/main/index.json"
     gh = GitHubSession()
-    curl_cmd = [
-        gh.curl_binary(),
-        "--location",
-        "--silent",
-        "--show-error",
-        "--fail",
-        "--dump-header",
-        "-",
-        "--header",
-        "User-Agent: AutoPkg",
-    ]
-    if gh.token:
-        curl_cmd.extend(["--header", f"Authorization: token {gh.token}"])
-    gh.add_curl_common_opts(curl_cmd)
-    curl_cmd.extend(["--url", cache_url])
+    cache_endpoint = (
+        "/repos/homebysix/autopkg-recipe-index/contents/index.json?ref=main"
+    )
 
+    # Retrieve metadata about search index file from GitHub API
+    cache_meta = gh.call_api(cache_endpoint, accept="application/vnd.github.v3+json")
+    if cache_meta[1] != 200:
+        print("WARNING: Unable to retrieve search index metadata from GitHub API.")
+        return
+
+    # Warn if search index file is approaching 100 MB
+    # https://docs.github.com/en/rest/repos/contents#size-limits
+    search_index_size_msg = (
+        "WARNING: Search index size is %s GitHub's API limit for raw content "
+        "retrieval (100 MB). Please open an issue here if one was not already "
+        "created: https://github.com/autopkg/autopkg/issues"
+    )
+    if cache_meta[0]["size"] > (90 * 1024 * 1024):
+        print(search_index_size_msg % "nearing")
+    elif cache_meta[0]["size"] > (100 * 1024 * 1024):
+        print(search_index_size_msg % "greater than")
+
+    # If cache exists locally, check whether it's current
     if os.path.isfile(cache_path) and os.path.isfile(cache_path + ".etag"):
         with open(cache_path + ".etag", "r", encoding="utf-8") as openfile:
             local_etag = openfile.read().strip('"')
-        if local_etag:
-            # Check whether local etag matches server
-            head_cmd = curl_cmd + ["--head"]
-            proc = subprocess.run(head_cmd, check=False, capture_output=True, text=True)
-            server_etag = parse_etag_header(proc.stdout)
-            if local_etag == server_etag:
-                return
+        if local_etag == cache_meta[0]["sha"]:
+            # Local cache is already current
+            return
 
-    curl_cmd.extend(["--output", cache_path])
-    etag = parse_etag_header(gh.download_with_curl(curl_cmd))
-    if etag:
-        with open(cache_path + ".etag", "w", encoding="utf-8") as openfile:
-            openfile.write(etag)
+    # Write etag file
+    with open(cache_path + ".etag", "w", encoding="utf-8") as openfile:
+        openfile.write(cache_meta[0]["sha"])
+
+    # Write cache file
+    cache_contents = gh.call_api(cache_endpoint, accept="application/vnd.github.v3.raw")
+    if cache_contents[1] != 200:
+        print("WARNING: Unable to retrieve search index contents from GitHub API.")
+        return
+    with open(cache_path, "w", encoding="utf-8") as openfile:
+        openfile.write(json.dumps(cache_contents[0], indent=2))
 
 
 def get_table_row(row_items, col_widths, header=False):
