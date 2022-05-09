@@ -241,10 +241,10 @@ def new_search_recipes(argv: List[str]):
         for i in range(0, len(header_items))
     ]
 
-    # Print result table
+    # Print result table, sorted by repo
     print()
     print(get_table_row(header_items, col_widths, header=True))
-    for row in result_items:
+    for row in sorted(result_items, key=lambda x: x[1].lower()):
         print(get_table_row(row, col_widths))
     print()
     print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
