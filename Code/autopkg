@@ -209,6 +209,7 @@ def get_identifier_from_override(override):
 
 def get_repository_from_identifier(identifier: str):
     """Get a repository name from a recipe identifier."""
+    # TODO: Switch to new indexed search.
     results = GitHubSession().search_for_name(identifier)
     # so now we have a list of items containing file names and URLs
     # we want to fetch these so we can look inside the contents for a matching
@@ -288,6 +289,7 @@ def locate_recipe(
                 repo_names = [parent_repo] if parent_repo else []
 
             if not repo_names:
+                # TODO: Switch to new indexed search.
                 results_items = GitHubSession().search_for_name(name)
                 print_gh_search_results(results_items)
                 # make a list of unique repo names
