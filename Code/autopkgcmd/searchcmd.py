@@ -107,9 +107,7 @@ def check_search_cache(cache_path):
     """Update local search index, if it's missing or out of date."""
 
     gh = GitHubSession()
-    cache_endpoint = (
-        "/repos/homebysix/autopkg-recipe-index/contents/index.json?ref=main"
-    )
+    cache_endpoint = "/repos/autopkg/index/contents/index.json?ref=main"
 
     # Retrieve metadata about search index file from GitHub API
     cache_meta = gh.call_api(cache_endpoint, accept="application/vnd.github.v3+json")
