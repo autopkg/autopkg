@@ -4,6 +4,7 @@
 # https://github.com/autopkg/keeleysam-recipes/blob/master/GoogleTalkPlugin/MunkiPkginfoReceiptsEditor.py
 # It has been modified and reformatted.
 
+
 import plistlib
 
 from autopkglib import Processor, ProcessorError
