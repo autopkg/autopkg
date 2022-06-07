@@ -52,6 +52,7 @@ from autopkglib import (
     is_mac,
     log,
     log_err,
+    plist_serializer,
     processor_names,
     recipe_from_file,
     remove_recipe_extension,
@@ -2687,25 +2688,6 @@ def new_recipe(argv):
         log(f"Saved new recipe to {filename}")
     except Exception as err:
         log_err(f"Failed to write recipe: {err}")
-
-
-def plist_serializer(obj):
-    """Serialize an object to ensure it can be dumped in plist format.
-
-    Args:
-        obj (dict, list): Object is assumed to be either a dict or list
-            that will be parsed.
-
-    Returns:
-        (any): The received object will be returned, modified if required.
-    """
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            obj[k] = "" if v is None else plist_serializer(v)
-    elif isinstance(obj, list):
-        for item in range(len(obj)):
-            plist_serializer(obj[item])
-    return obj
 
 
 def main(argv):
