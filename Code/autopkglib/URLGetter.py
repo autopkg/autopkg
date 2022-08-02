@@ -51,7 +51,7 @@ class URLGetter(Processor):
 
     def prepare_curl_cmd(self):
         """Assemble basic curl command and return it."""
-        if is_windows() and "windows\\system32" in curl_bin_path.lower():
+        if is_windows() and "windows\\system32" in self.curl_binary().lower():
             # if using windows default curl, --compressed is not supported
             return [self.curl_binary(), "--location"]
         return [self.curl_binary(), "--compressed", "--location"]
