@@ -278,8 +278,8 @@ To save the token, paste it to the following prompt."""
         except UnicodeDecodeError:
             with open(temp_content, "rb") as f:
                 resp_data = json.load(f)
-        except json.JSONDecodeError:
-            pass
+        except json.JSONDecodeError as e:
+            self.output(f"JSONDecodeError: {e}")
 
         return (resp_data, self.http_result_code)
 
