@@ -86,8 +86,7 @@ def getxattr(path: str, attr: str, symlink: bool = False) -> Optional[str]:
     try:
         return _xattr.getxattr(path, attr, symlink)
     except OSError as e:
-        print("WARNING: xattr.getxattr threw OSError.")
-        print(e)
+        print(f"WARNING: xattr.getxattr threw OSError. {e}")
         return None
 
 
