@@ -47,13 +47,12 @@ jobs:
         run: |
           if not exist "%USERPROFILE%/AppData/Local/Autopkg" mkdir "%USERPROFILE%/AppData/Local/Autopkg"
           if not exist "%USERPROFILE%/AppData/Local/Autopkg/config.json" echo {} > "%USERPROFILE%/AppData/Local/Autopkg/config.json"
+
       - name: create default autopkg config file Linux
         if: runner.os == 'Linux'
         run: |
           cd ~ && mkdir -p .config/Autopkg
           cd ~ && echo {} > .config/Autopkg/config.json
-      - name: run recipe autopkg
-        run: python Code/autopkg run -vv Test-Recipes/AutopkgCore.test.recipe.yaml
 
       - name: create file
         shell: bash
