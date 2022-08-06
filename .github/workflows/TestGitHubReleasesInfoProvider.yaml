@@ -4,10 +4,10 @@ name: Test GitHubReleasesInfoProvider Processors
 on:
   pull_request:
     paths:
-      - "Test-Recipes/AutopkgCore.test.recipe.yaml"
       - ".github/workflows/TestGitHubReleasesInfoProvider.yaml"
       - "Code/autopkglib/GitHubReleasesInfoProvider.py"
       - "Code/autopkglib/github/**"
+      - "requirements.txt"
 
 jobs:
   TestGitHubReleasesInfoProvider:
