@@ -1,0 +1,79 @@
+---
+name: Test GitHubReleasesInfoProvider Processors
+
+on:
+  pull_request:
+    paths:
+      - "Test-Recipes/AutopkgCore.test.recipe.yaml"
+      - ".github/workflows/TestGitHubReleasesInfoProvider.yaml"
+      - "Code/autopkglib/GitHubReleasesInfoProvider.py"
+      - "Code/autopkglib/github/**"
+
+jobs:
+  TestGitHubReleasesInfoProvider:
+    strategy:
+      matrix:
+        # https://ncorti.com/blog/howto-github-actions-build-matrix
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # only needed on self hosted windows runners:
+      - name: set powershell execution policy CurrentUser
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: powershell -command "Set-ExecutionPolicy -Force -ExecutionPolicy RemoteSigned -Scope CurrentUser"
+
+      - name: checkout this repo
+        uses: actions/checkout@v3
+
+      - name: checkout autopkg
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.8
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+
+      - name: Install requirements
+        run: pip install --requirement requirements.txt
+
+      - name: create empty config windows
+        # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          if not exist "%USERPROFILE%/AppData/Local/Autopkg" mkdir "%USERPROFILE%/AppData/Local/Autopkg"
+          if not exist "%USERPROFILE%/AppData/Local/Autopkg/config.json" echo {} > "%USERPROFILE%/AppData/Local/Autopkg/config.json"
+      - name: create default autopkg config file Linux
+        if: runner.os == 'Linux'
+        run: |
+          cd ~ && mkdir -p .config/Autopkg
+          cd ~ && echo {} > .config/Autopkg/config.json
+      - name: run recipe autopkg
+        run: python Code/autopkg run -vv Test-Recipes/AutopkgCore.test.recipe.yaml
+
+      - name: create file
+        shell: bash
+        run: |
+          cat <<'EOFEOF' > GitHubReleasesInfoProvider.test.recipe.yaml
+          ---
+          Description: Test GitHubReleasesInfoProvider Processor
+          Identifier: com.github.autopkg.test.GitHubReleasesInfoProvider
+          Input:
+            NAME: GitHubReleasesInfoProviderTest
+          MinimumVersion: "2.3"
+          Process:
+              - Processor: GitHubReleasesInfoProvider
+                Arguments:
+                  github_repo: audacity/audacity
+                  asset_regex: .*64bit\.exe$
+                  include_prereleases: False
+          EOFEOF
+      - name: get file contents
+        shell: bash
+        run: cat GitHubReleasesInfoProvider.test.recipe.yaml
+      - name: run integration recipe created in action
+        run: python Code/autopkg run -vvvv GitHubReleasesInfoProvider.test.recipe.yaml
