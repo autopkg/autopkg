@@ -1,4 +1,6 @@
 #!/bin/bash
+# This applies to macOS only.
+# This is to determine which python packages have binaries that do not work on both x86_64 and ARM64 CPUs.
 
 [[ $1 == *"3."* ]] && echo "Using Python $1" || (echo "Invalid Python version" && exit 1)
 
