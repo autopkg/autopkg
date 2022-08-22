@@ -1,4 +1,4 @@
-### [2.7.0](https://github.com/autopkg/autopkg/compare/v2.6.0...HEAD) (Unreleased)
+### [2.7.0](https://github.com/autopkg/autopkg/compare/v2.6.0...v2.7) (August 22, 2022)
 
 ## Python 3.10.6
 AutoPkg now uses Python 3.10.6, and PyObjc 8.5. Python 3.10 brings several new general improvements and may result in some warnings or errors in processors still using some legacy Python2-conversion-to-3-isms. Please file appropriate issues with recipe authors or bring it to our attention in #autopkg in Slack.
