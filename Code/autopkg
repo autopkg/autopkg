@@ -52,6 +52,7 @@ from autopkglib import (
     is_mac,
     log,
     log_err,
+    plist_serializer,
     processor_names,
     recipe_from_file,
     remove_recipe_extension,
@@ -587,7 +588,7 @@ def write_plist_exit_on_fail(plist_dict, path):
     if the write fails."""
     try:
         with open(path, "wb") as f:
-            plistlib.dump(plist_dict, f)
+            plistlib.dump(plist_serializer(plist_dict), f)
     except (TypeError, OverflowError):
         log_err(f"Failed to save plist to {path}.")
         sys.exit(-1)
@@ -1741,7 +1742,7 @@ def update_trust_info(argv):
                     yaml.dump(recipe, f, encoding="utf-8")
             else:
                 with open(recipe_path, "wb") as f:
-                    plistlib.dump(recipe, f)
+                    plistlib.dump(plist_serializer(recipe), f)
             log(f"Wrote updated {recipe_path}")
         else:
             log_err(
@@ -1971,7 +1972,7 @@ def make_override(argv):
             yaml.dump(override_dict, f, encoding="utf-8")
     else:
         with open(override_file, "wb") as f:
-            plistlib.dump(override_dict, f)
+            plistlib.dump(plist_serializer(override_dict), f)
     log(f"Override file saved to {override_file}")
     return 0
 
@@ -2178,7 +2179,7 @@ def run_recipes(argv):
     run_results = []
     try:
         with open(current_run_results_plist, "wb") as f:
-            plistlib.dump(run_results, f)
+            plistlib.dump(plist_serializer(run_results), f)
     except OSError as err:
         log_err(f"Can't write results to {current_run_results_plist}: {err.strerror}")
 
@@ -2291,7 +2292,7 @@ def run_recipes(argv):
         run_results.append(autopackager.results)
         try:
             with open(current_run_results_plist, "wb") as f:
-                plistlib.dump(run_results, f)
+                plistlib.dump(plist_serializer(run_results), f)
         except OSError as err:
             log_err(
                 f"Can't write results to {current_run_results_plist}: {err.strerror}"
@@ -2354,7 +2355,7 @@ def run_recipes(argv):
             receipt_path = os.path.join(receipt_dir, receipt_name)
             try:
                 with open(receipt_path, "wb") as f:
-                    plistlib.dump(autopackager.results, f)
+                    plistlib.dump(plist_serializer(autopackager.results), f)
                 if options.verbose:
                     log(f"Receipt written to {receipt_path}")
             except OSError as err:
@@ -2683,7 +2684,7 @@ def new_recipe(argv):
                 yaml.dump(recipe, f, encoding="utf-8")
         else:
             with open(filename, "wb") as f:
-                plistlib.dump(recipe, f)
+                plistlib.dump(plist_serializer(recipe), f)
         log(f"Saved new recipe to {filename}")
     except Exception as err:
         log_err(f"Failed to write recipe: {err}")
