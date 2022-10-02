@@ -111,6 +111,7 @@ class GitHubReleasesInfoProvider(Processor):
                 "Version info parsed, naively derived from the release's tag."
             )
         },
+        "asset_created_at": {"description": ("The release time of the asset.")},
     }
 
     __doc__ = description
@@ -199,6 +200,9 @@ class GitHubReleasesInfoProvider(Processor):
 
         # Record the asset url
         self.env["asset_url"] = self.selected_asset["url"]
+
+        # Record the asset created_at time
+        self.env["asset_created_at"] = self.selected_asset["created_at"]
 
         # Get a version string from the tag name
         tag = self.selected_release["tag_name"]

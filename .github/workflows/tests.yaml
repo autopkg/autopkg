@@ -17,9 +17,6 @@ on:
       - "requirements.txt"
       - ".github/workflows/tests.yaml"
       - "Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml"
-  schedule:
-    # run first day of every month:
-    - cron: "* * 1 * *"
 
 jobs:
   unittests:

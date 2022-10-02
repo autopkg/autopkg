@@ -48,7 +48,7 @@ class PkgPayloadUnpacker(Processor):
     description = __doc__
 
     def unpack_pkg_payload(self):
-        """Uses ditto to unpack a package payload into destination_path"""
+        """Uses ditto or aa to unpack a package payload into destination_path"""
         # Create the destination directory if needed.
         if not os.path.exists(self.env["destination_path"]):
             try:
@@ -68,6 +68,8 @@ class PkgPayloadUnpacker(Processor):
                 except OSError as err:
                     raise ProcessorError(f"Can't remove {path}: {err.strerror}")
 
+        # set an error string when ditto or aa fail
+        error = ""
         try:
             dittocmd = [
                 "/usr/bin/ditto",
@@ -81,14 +83,44 @@ class PkgPayloadUnpacker(Processor):
             )
             (_, err_out) = proc.communicate()
         except OSError as err:
-            raise ProcessorError(
+            error = (
                 f"ditto execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
-            raise ProcessorError(
+            error = (
                 f"extraction of {self.env['pkg_payload_path']} with ditto failed: "
                 f"{err_out}"
             )
+        if error and os.path.exists("/usr/bin/aa"):
+            try:
+                unpack_cmd = [
+                    "/usr/bin/aa",
+                    "extract",
+                    "-i",
+                    self.env["pkg_payload_path"],
+                    "-d",
+                    self.env["destination_path"],
+                ]
+                proc = subprocess.Popen(
+                    unpack_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                proc.communicate()
+                # clear the error
+                error = ""
+            except OSError as err:
+                error = (
+                    f"aa execution failed with error code {err.errno}: {err.strerror}"
+                )
+            if proc.returncode != 0:
+                error = f"extraction of {self.env['pkg_payload_path']} with aa failed"
+
+        if error:
+            # show the error string
+            raise ProcessorError(error)
+
         self.output(
             f"Unpacked {self.env['pkg_payload_path']} to {self.env['destination_path']}"
         )
