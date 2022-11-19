@@ -221,11 +221,22 @@ class SparkleUpdateInfoProvider(URLGetter):
             if enclosure is not None:
                 item = {}
                 item["url"] = self.build_url(enclosure)
-                item["version"] = self.determine_version(enclosure, item["url"])
 
-                human_version = enclosure.get(f"{{{self.xmlns}}}shortVersionString")
+                # version and shortVersionString can be either in item or in enclosure
+                # https://sparkle-project.org/documentation/publishing/
+                version = item_elem.find(f"{{{self.xmlns}}}version")
+                if version is not None:
+                    item["version"] = version.text
+                else:
+                    item["version"] = self.determine_version(enclosure, item["url"])
+                human_version = item_elem.find(f"{{{self.xmlns}}}shortVersionString")
                 if human_version is not None:
-                    item["human_version"] = human_version
+                    item["human_version"] = human_version.text
+                else:
+                    human_version = enclosure.get(f"{{{self.xmlns}}}shortVersionString")
+                    if human_version is not None:
+                        item["human_version"] = human_version
+
                 min_version = item_elem.find(f"{{{self.xmlns}}}minimumSystemVersion")
                 if min_version is not None:
                     item["minimum_os_version"] = min_version.text
