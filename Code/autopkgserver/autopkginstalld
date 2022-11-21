@@ -128,7 +128,7 @@ class RunHandler(socketserver.StreamRequestHandler):
                     self.request.send("OK:DONE\n".encode())
                 except InstallerError as err:
                     self.log.error(f"Installing failed: {err}")
-                    self.request.send(f"{err}\n".encode())
+                    self.request.send(f"ERROR:{err}\n".encode())
             elif "mount_point" in plist:
                 self.log.info(
                     "Dispatching ItemCopier worker to process request for "
@@ -140,7 +140,7 @@ class RunHandler(socketserver.StreamRequestHandler):
                     self.request.send("OK:DONE\n".encode())
                 except ItemCopierError as err:
                     self.log.error(f"Copying failed: {err}")
-                    self.request.send(f"{err}\n".encode())
+                    self.request.send(f"ERROR:{err}\n".encode())
             else:
                 self.log.error("Unsupported request format")
                 self.request.send("ERROR:Unsupported request format".encode())
@@ -244,34 +244,16 @@ def main(argv):
     start_time = time.time()
 
     # Get socket file descriptors from launchd.
-    if int(platform.mac_ver()[0].split(".")[1]) >= 10:
-        import launch2
+    import launch2
 
-        try:
-            sockets = launch2.launch_activate_socket("autopkginstalld")
-        except launch2.LaunchDError as err:
-            print(f"launchd check-in failed: {err}", file=sys.stderr)
-            time.sleep(10)
-            return 1
+    try:
+        sockets = launch2.launch_activate_socket("autopkginstalld")
+    except launch2.LaunchDError as err:
+        print(f"launchd check-in failed: {err}", file=sys.stderr)
+        time.sleep(10)
+        return 1
 
-        sock_fd = sockets[0]
-
-    else:
-        import launch
-
-        try:
-            sockets = launch.get_launchd_socket_fds()
-        except launch.LaunchDCheckInError as err:
-            print(f"launchd check-in failed: {err}", file=sys.stderr)
-            time.sleep(10)
-            return 1
-
-        if "autopkginstalld" not in sockets:
-            print("No autopkginstalld in launchd sockets", file=sys.stderr)
-            time.sleep(10)
-            return 1
-
-        sock_fd = sockets["autopkginstalld"][0]
+    sock_fd = sockets[0]
 
     # Create the daemon object.
     daemon = AutoPkgInstallDaemon(sock_fd, RunHandler)
