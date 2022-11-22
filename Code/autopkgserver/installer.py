@@ -64,8 +64,9 @@ class Installer:
                 output = proc.stdout.readline()
                 if not output and (proc.poll() is not None):
                     break
-                self.socket.send(f"STATUS:{output}".encode())
-                self.log.info(output.rstrip())
+                if output:
+                    self.socket.send(f"STATUS:{output}".encode())
+                    self.log.info(output.rstrip())
 
             if proc.returncode != 0:
                 raise InstallerError(f"ERROR:{proc.returncode}\n")
