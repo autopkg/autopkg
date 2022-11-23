@@ -201,7 +201,7 @@ class SparkleUpdateInfoProvider(URLGetter):
 
     def parse_feed_xml(self, data):
         """Parses feed xml to make sure valid xml, and checks each item for it's channel.
-           (if wanted)."""
+        (if wanted)."""
 
         feed_data = []
 
@@ -213,26 +213,28 @@ class SparkleUpdateInfoProvider(URLGetter):
         items = xmldata.findall("channel/item")
         if not items:
             raise ProcessorError("No channel items were found in appcast feed.")
-        
+
         for item_elem in items:
             # if we are to look for a specific channel
             if "update_channel" in self.env:
                 # attempt to get the sparkle:channel element
                 item_channel = item_elem.find(f"{{{self.xmlns}}}channel")
                 # if no sparkle:channel element defined, or doesn't match the wanted channel
-                if item_channel is None or item_channel.text != self.env["update_channel"]:
+                if (
+                    item_channel is None
+                    or item_channel.text != self.env["update_channel"]
+                ):
                     continue
                 else:
                     feed_data = self.parse_feed_data(item_elem)
             # if no update channel
             else:
                 feed_data = self.parse_feed_data(item_elem)
-            
+
         # if we do not have feed_data
         if not feed_data:
             raise ProcessorError("Could not obtain valid data from appcast feed.")
         return feed_data
-
 
     def parse_feed_data(self, item_elem):
         """Returns an array of dicts, one per update item, structured like:
@@ -248,7 +250,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         raw HTML. We store one or the other rather than doing many GETs for
         metadata we're never going to use. If it's a URL, this must be handled
         by whoever calls this function."""
-        
+
         versions = []
 
         enclosure = item_elem.find("enclosure")
