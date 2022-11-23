@@ -90,6 +90,14 @@ class SparkleUpdateInfoProvider(URLGetter):
                 "Defaults to True."
             ),
         },
+        "update_channel": {
+            "required": False,
+            "description": (
+                "Sparkle 2 provides specifying what channel an update is on. "
+                "You can specify which channel to look for via this key. "
+                "If a channel is defined, and exists, then this defined channel will be used."
+            ),
+        },
         "PKG": {
             "required": False,
             "description": (
@@ -191,7 +199,42 @@ class SparkleUpdateInfoProvider(URLGetter):
             raise ProcessorError("Can't extract version info from item in feed!")
         return version
 
-    def parse_feed_data(self, data):
+    def parse_feed_xml(self, data):
+        """Parses feed xml to make sure valid xml, and checks each item for it's channel.
+           (if wanted)."""
+
+        feed_data = []
+
+        try:
+            xmldata = ElementTree.fromstring(data)
+        except Exception:
+            raise ProcessorError("Error parsing XML from appcast feed.")
+
+        items = xmldata.findall("channel/item")
+        if not items:
+            raise ProcessorError("No channel items were found in appcast feed.")
+        
+        for item_elem in items:
+            # if we are to look for a specific channel
+            if "update_channel" in self.env:
+                # attempt to get the sparkle:channel element
+                item_channel = item_elem.find(f"{{{self.xmlns}}}channel")
+                # if no sparkle:channel element defined, or doesn't match the wanted channel
+                if item_channel is None or item_channel.text != self.env["update_channel"]:
+                    continue
+                else:
+                    feed_data = self.parse_feed_data(item_elem)
+            # if no update channel
+            else:
+                feed_data = self.parse_feed_data(item_elem)
+            
+        # if we do not have feed_data
+        if not feed_data:
+            raise ProcessorError("Could not obtain valid data from appcast feed.")
+        return feed_data
+
+
+    def parse_feed_data(self, item_elem):
         """Returns an array of dicts, one per update item, structured like:
         version: 1234
         human_version: 1.2.3.4 (optional)
@@ -205,41 +248,34 @@ class SparkleUpdateInfoProvider(URLGetter):
         raw HTML. We store one or the other rather than doing many GETs for
         metadata we're never going to use. If it's a URL, this must be handled
         by whoever calls this function."""
-
-        try:
-            xmldata = ElementTree.fromstring(data)
-        except Exception:
-            raise ProcessorError("Error parsing XML from appcast feed.")
-
-        items = xmldata.findall("channel/item")
-        if not items:
-            raise ProcessorError("No channel items were found in appcast feed.")
-
+        
         versions = []
-        for item_elem in items:
-            enclosure = item_elem.find("enclosure")
-            if enclosure is not None:
-                item = {}
-                item["url"] = self.build_url(enclosure)
-                item["version"] = self.determine_version(enclosure, item["url"])
 
-                human_version = enclosure.get(f"{{{self.xmlns}}}shortVersionString")
-                if human_version is not None:
-                    item["human_version"] = human_version
-                min_version = item_elem.find(f"{{{self.xmlns}}}minimumSystemVersion")
-                if min_version is not None:
-                    item["minimum_os_version"] = min_version.text
+        enclosure = item_elem.find("enclosure")
 
-                description_elem = item_elem.find(f"{{{self.xmlns}}}releaseNotesLink")
-                # Strip possible surrounding whitespace around description_url
-                # element text as we'll be passing this as an argument to a
-                # curl process
-                if description_elem is not None:
-                    item["description_url"] = description_elem.text.strip()
+        if enclosure is not None:
+            item = {}
 
-                if item_elem.find("description") is not None:
-                    item["description_data"] = item_elem.find("description").text
-                versions.append(item)
+            item["url"] = self.build_url(enclosure)
+            item["version"] = self.determine_version(enclosure, item["url"])
+
+            human_version = enclosure.get(f"{{{self.xmlns}}}shortVersionString")
+            if human_version is not None:
+                item["human_version"] = human_version
+            min_version = item_elem.find(f"{{{self.xmlns}}}minimumSystemVersion")
+            if min_version is not None:
+                item["minimum_os_version"] = min_version.text
+
+            description_elem = item_elem.find(f"{{{self.xmlns}}}releaseNotesLink")
+            # Strip possible surrounding whitespace around description_url
+            # element text as we'll be passing this as an argument to a
+            # curl process
+            if description_elem is not None:
+                item["description_url"] = description_elem.text.strip()
+
+            if item_elem.find("description") is not None:
+                item["description_data"] = item_elem.find("description").text
+            versions.append(item)
 
         return versions
 
@@ -298,7 +334,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         self.xmlns = self.env.get("alternate_xmlns_url", DEFAULT_XMLNS)
 
         data = self.get_feed_data(self.env.get("appcast_url"))
-        items = self.parse_feed_data(data)
+        items = self.parse_feed_xml(data)
 
         sorted_items = sorted(items, key=lambda a: APLooseVersion(a["version"]))
         latest = sorted_items[-1]
