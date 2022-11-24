@@ -50,6 +50,7 @@ from autopkglib import (
     get_pref,
     get_processor,
     is_mac,
+    is_windows,
     log,
     log_err,
     processor_names,
@@ -806,6 +807,9 @@ def repo_delete(argv):
             recipe_search_dirs.remove(repo_path)
         # now remove the repo files
         try:
+            if is_windows():
+                # we need to remove readonly, hidden and system bits
+                os.system("attrib.exe -r -h -s " + repo_path + "\\*.* /S /D")
             shutil.rmtree(repo_path)
         except OSError as err:
             log_err(f"ERROR: Could not remove {repo_path}: {err}")
