@@ -19,7 +19,6 @@
 import logging
 import logging.handlers
 import os
-import platform
 import plistlib
 import socket
 import socketserver
