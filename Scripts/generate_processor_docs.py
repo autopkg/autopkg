@@ -92,7 +92,8 @@ def clone_wiki_dir(clone_dir=None):
         outdir = mkdtemp()
     else:
         outdir = clone_dir
-    run_git(["clone", "https://github.com/autopkg/autopkg.wiki", outdir])
+    if not os.path.isdir(os.path.join(outdir, ".git")):
+        run_git(["clone", "https://github.com/autopkg/autopkg.wiki", outdir])
     return os.path.abspath(outdir)
 
 
