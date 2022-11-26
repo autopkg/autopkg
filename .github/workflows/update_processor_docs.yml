@@ -1,0 +1,37 @@
+name: Update processor docs
+
+on:
+  create:
+    ref_type: tag
+
+jobs:
+  build:
+    if: github.repository_owner == 'autopkg'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone this repository
+        uses: actions/checkout@v2
+        with:
+          path: main
+
+      - name: Clone wiki
+        uses: actions/checkout@v2
+        with:
+          repository: autopkg/autopkg.wiki
+          path: wiki
+
+      - name: Install Python requirements
+        working-directory: main
+        run: python3 -m pip install appdirs
+        continue-on-error: true
+
+      - name: Configure Git
+        working-directory: main
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions@github.com
+
+      - name: Update processor docs
+        working-directory: main/Scripts
+        run: python3 generate_processor_docs.py -d ../../wiki -y "${GITHUB_REF##*/}"
