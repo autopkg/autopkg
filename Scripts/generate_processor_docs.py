@@ -168,6 +168,12 @@ def main(_):
             "This does not update the Sidebar."
         ),
     )
+    parser.add_option(
+        "-y",
+        "--no-prompt",
+        action="store_true",
+        help="Automatically proceed with push without prompting. Use with caution.",
+    )
     options, arguments = parser.parse_args()
     if len(arguments) < 1:
         parser.print_usage()
@@ -251,20 +257,21 @@ def main(_):
 
     # Show the full diff
     print(run_git(["log", "-p", "--color", "-1"]))
-
-    # Do we accept?
     print("-------------------------------------------------------------------")
     print()
-    print(
-        "Shown above is the commit log for the changes to the wiki markdown. \n"
-        "Type 'push' to accept and push the changes to GitHub. The wiki repo \n"
-        "local clone can be also inspected at:\n"
-        f"{output_dir}"
-    )
 
-    push_commit = input()
-    if push_commit == "push":
-        run_git(["push", "origin", "master"])
+    if not options.no_prompt:
+        # Do we accept?
+        print(
+            "Shown above is the commit log for the changes to the wiki markdown. \n"
+            "Type 'push' to accept and push the changes to GitHub. The wiki repo \n"
+            "local clone can be also inspected at:\n"
+            f"{output_dir}"
+        )
+        push_commit = input()
+        if push_commit != "push":
+            sys.exit()
+    run_git(["push", "origin", "master"])
 
 
 if __name__ == "__main__":
