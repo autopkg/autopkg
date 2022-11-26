@@ -30,9 +30,9 @@ try:
     CODE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../Code"))
     sys.path.append(CODE_DIR)
     from autopkglib import get_processor, processor_names
-except ImportError:
+except ImportError as err:
     print("Unable to import code from autopkglib!", file=sys.stderr)
-    sys.exit(1)
+    raise err
 
 # Additional helper function(s) from the CLI tool
 # Don't make an "autopkgc" file
