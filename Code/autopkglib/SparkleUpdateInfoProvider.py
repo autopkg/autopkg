@@ -262,10 +262,15 @@ class SparkleUpdateInfoProvider(URLGetter):
             # element text as we'll be passing this as an argument to a
             # curl process
             if description_elem is not None:
-                item["description_url"] = description_elem.text.strip()
+                item["description_url"] = description_elem.text
 
             if item_elem.find("description") is not None:
                 item["description_data"] = item_elem.find("description").text
+
+            # Strip values
+            for k, v in item.items():
+                if v is not None:
+                    item[k] = v.strip()
 
             versions.append(item)
 
