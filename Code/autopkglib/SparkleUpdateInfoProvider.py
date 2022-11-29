@@ -233,7 +233,6 @@ class SparkleUpdateInfoProvider(URLGetter):
 
             item = {}
             item["url"] = self.build_url(enclosure)
-            item["version"] = self.determine_version(enclosure, item["url"])
 
             # version and shortVersionString can be either in item or in enclosure
             # https://sparkle-project.org/documentation/publishing/#update-your-appcast
