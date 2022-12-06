@@ -1,3 +1,5 @@
+### [2.7.2](https://github.com/autopkg/autopkg/compare/v2.7.1...HEAD) (Unreleased)
+
 ### [2.7.1](https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7.1) (December 06, 2022)
 
 * GitHubReleasesInfoProvider -- add support for a "latest_only" input variable (https://github.com/autopkg/autopkg/pull/846)
