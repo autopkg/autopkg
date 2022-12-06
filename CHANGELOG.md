@@ -1,5 +1,12 @@
 ### [2.7.1](https://github.com/autopkg/autopkg/compare/v2.7.1...HEAD) (Unreleased)
 
+* GitHubReleasesInfoProvider -- add support for a "latest_only" input variable (https://github.com/autopkg/autopkg/pull/846)
+* GitHubReleasesInfoProvider -- add "asset_created_at" output variable
+* PkgPayloadUnpacker -- use "aa" to expand archives if "ditto" fails and "aa" is available (https://github.com/autopkg/autopkg/pull/804)
+* Fix for plist serialization when json input contains null values (https://github.com/autopkg/autopkg/pull/810)
+* SparkleUpdateInfoProvider -- add support for channels (https://github.com/autopkg/autopkg/commit/716dcea47237ec8895617c374bfa67a329a7188c)
+
+**Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7
 
 ### [2.7.0](https://github.com/autopkg/autopkg/compare/v2.6.0...v2.7) (August 22, 2022)
 
