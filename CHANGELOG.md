@@ -7,6 +7,7 @@
 * PkgPayloadUnpacker -- use "aa" to expand archives if "ditto" fails and "aa" is available (https://github.com/autopkg/autopkg/pull/804)
 * Fix for plist serialization when json input contains null values (https://github.com/autopkg/autopkg/pull/810)
 * SparkleUpdateInfoProvider -- add support for channels (https://github.com/autopkg/autopkg/commit/716dcea47237ec8895617c374bfa67a329a7188c)
+* Fix for autopkginstalld on recent versions of macOS. Fixes .install recipes. (https://github.com/autopkg/autopkg/pull/838)
 
 **Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7..v2.7.1
 
