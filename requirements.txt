@@ -6,7 +6,7 @@ appdirs==1.4.3
 aspy.yaml==1.2.0
 attrs==19.1.0
 black==19.10b0
-certifi==2019.9.11
+certifi==2022.12.7
 cffi==1.13.1
 cfgv==2.0.0
 Click==7.0
