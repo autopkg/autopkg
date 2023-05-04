@@ -26,7 +26,6 @@ import subprocess
 import sys
 import traceback
 from copy import deepcopy
-from distutils.version import LooseVersion
 from typing import IO, Any, Dict, List, Optional, Union
 
 import appdirs
@@ -893,11 +892,54 @@ def _cmp(x, y):
     return (x > y) - (x < y)
 
 
-class APLooseVersion(LooseVersion):
-    """Subclass of distutils.version.LooseVersion to fix issues under Python 3"""
+class APLooseVersion():
+    '''Class based on distutils.version.LooseVersion to compare things like
+    "10.6" and "10.6.0" as equal'''
+
+    component_re = re.compile(r'(\d+ | [a-z]+ | \.)', re.VERBOSE)
+
+    def parse(self, vstring):
+        """parse function from distutils.version.LooseVersion"""
+        # I've given up on thinking I can reconstruct the version string
+        # from the parsed tuple -- so I just store the string here for
+        # use by __str__
+        self.vstring = vstring
+        components = [x for x in self.component_re.split(vstring) if x and x != '.']
+        for i, obj in enumerate(components):
+            try:
+                components[i] = int(obj)
+            except ValueError:
+                pass
+
+        self.version = components
+
+    def __str__(self):
+        """__str__ function from distutils.version.LooseVersion"""
+        return self.vstring
+
+    def __repr__(self):
+        """__repr__ function adapted from distutils.version.LooseVersion"""
+        return "APLooseVersion ('%s')" % str(self)
+
+    def __init__(self, vstring=None):
+        """init method"""
+        if vstring is None:
+            # treat None like an empty string
+            self.parse('')
+        if vstring is not None:
+            try:
+                if isinstance(vstring, unicode):
+                    # unicode string! Why? Oh well...
+                    # convert to string so version.LooseVersion doesn't choke
+                    vstring = vstring.encode('UTF-8')
+            except NameError:
+                # python 3
+                pass
+            self.parse(str(vstring))
 
     def _pad(self, version_list, max_length):
-        """Pad a version list by adding extra 0 components to the end if needed."""
+        """Pad a version list by adding extra 0 components to the end
+        if needed"""
         # copy the version_list so we don't modify it
         cmp_list = list(version_list)
         while len(cmp_list) < max_length:
@@ -905,9 +947,10 @@ class APLooseVersion(LooseVersion):
         return cmp_list
 
     def _compare(self, other):
-        """Complete comparison mechanism since LooseVersion's is broken in Python 3."""
-        if not isinstance(other, (LooseVersion, APLooseVersion)):
+        """Compare APLooseVersions"""
+        if not isinstance(other, APLooseVersion):
             other = APLooseVersion(other)
+
         max_length = max(len(self.version), len(other.version))
         self_cmp_version = self._pad(self.version, max_length)
         other_cmp_version = self._pad(other.version, max_length)
@@ -920,37 +963,36 @@ class APLooseVersion(LooseVersion):
                 if isinstance(value, int):
                     return -1
                 return 1
-            else:
-                if cmp_result:
-                    return cmp_result
+            if cmp_result:
+                return cmp_result
         return cmp_result
 
     def __hash__(self):
-        """Hash method."""
+        """Hash method"""
         return hash(self.version)
 
     def __eq__(self, other):
-        """Equals comparison."""
+        """Equals comparison"""
         return self._compare(other) == 0
 
     def __ne__(self, other):
-        """Not-equals comparison."""
+        """Not-equals comparison"""
         return self._compare(other) != 0
 
     def __lt__(self, other):
-        """Less than comparison."""
+        """Less than comparison"""
         return self._compare(other) < 0
 
     def __le__(self, other):
-        """Less than or equals comparison."""
+        """Less than or equals comparison"""
         return self._compare(other) <= 0
 
     def __gt__(self, other):
-        """Greater than comparison."""
+        """Greater than comparison"""
         return self._compare(other) > 0
 
     def __ge__(self, other):
-        """Greater than or equals comparison."""
+        """Greater than or equals comparison"""
         return self._compare(other) >= 0
 
 
