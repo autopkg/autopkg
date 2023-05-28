@@ -75,6 +75,13 @@ yaml.add_representer(str, autopkg_str_representer)
 yaml.representer.SafeRepresenter.add_representer(str, autopkg_str_representer)
 
 
+class AutoPkgDumper(yaml.SafeDumper):
+    """Class used for writing yaml files with adjusted indentation."""
+
+    def increase_indent(self, flow=False, indentless=False):
+        return super(AutoPkgDumper, self).increase_indent(flow, False)
+
+
 def print_version(argv):
     """Prints autopkg version"""
     _ = argv[1]
@@ -1739,7 +1746,7 @@ def update_trust_info(argv):
             )
             if recipe_path.endswith(".recipe.yaml"):
                 with open(recipe_path, "wb") as f:
-                    yaml.dump(recipe, f, encoding="utf-8")
+                    yaml.dump(recipe, f, Dumper=AutoPkgDumper, encoding="utf-8")
             else:
                 with open(recipe_path, "wb") as f:
                     plistlib.dump(plist_serializer(recipe), f)
@@ -1969,7 +1976,7 @@ def make_override(argv):
     # write override to file
     if options.format == "yaml":
         with open(override_file, "wb") as f:
-            yaml.dump(override_dict, f, encoding="utf-8")
+            yaml.dump(override_dict, f, Dumper=AutoPkgDumper, encoding="utf-8")
     else:
         with open(override_file, "wb") as f:
             plistlib.dump(plist_serializer(override_dict), f)
@@ -2681,7 +2688,7 @@ def new_recipe(argv):
             # Yaml recipes require AutoPkg 2.3 or later.
             recipe["MinimumVersion"] = "2.3"
             with open(filename, "wb") as f:
-                yaml.dump(recipe, f, encoding="utf-8")
+                yaml.dump(recipe, f, Dumper=AutoPkgDumper, encoding="utf-8")
         else:
             with open(filename, "wb") as f:
                 plistlib.dump(plist_serializer(recipe), f)
