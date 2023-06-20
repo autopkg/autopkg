@@ -29,9 +29,9 @@ __all__ = ["URLDownloaderPython"]
 
 class URLDownloaderPython(URLDownloader):
     """This is meant to be a pure python replacement for URLDownloader
-    
+
     Prefetch Filename is still using URLDownloader's curl methods, rather than python.
-    
+
     See: https://github.com/autopkg/autopkg/blob/master/Code/autopkglib/URLDownloader.py
     """
 
