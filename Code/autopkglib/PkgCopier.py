@@ -89,7 +89,7 @@ class PkgCopier(Copier):
             pkg_extensions = (".mpkg", ".pkg")
             if os.path.splitext(matched_source_path)[1] not in pkg_extensions:
                 raise ProcessorError(
-                    f"Source does not appear to be a package based on its filename: "
+                    "Source does not appear to be a package based on its filename: "
                     f"'{matched_source_path}'"
                 )
 
