@@ -85,12 +85,13 @@ class PkgCopier(Copier):
                     f"'{source_pkg}'."
                 )
 
-            # Check that the source path ends in 'pkg' (extension of .mpkg or .pkg qualifies)
-            if matched_source_path[-3:] != 'pkg':
+            # Check that the source path ends with supported extension
+            pkg_extensions = (".mpkg", ".pkg")
+            if os.path.splitext(matched_source_path)[1] not in pkg_extensions:
                 raise ProcessorError(
                     f"Source does not appear to be a package based on its filename: "
                     f"'{matched_source_path}'"
-                )				
+                )
 
             # do the copy
             pkg_path = self.env.get("pkg_path") or os.path.join(
