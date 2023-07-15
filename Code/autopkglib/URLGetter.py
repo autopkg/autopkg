@@ -78,10 +78,11 @@ class URLGetter(Processor):
             self.existing_file_size = os.path.getsize(filename)
             etag = self.getxattr(self.xattr_etag)
             last_modified = self.getxattr(self.xattr_last_modified)
-            if etag:
-                headers["If-None-Match"] = etag
-            if last_modified:
-                headers["If-Modified-Since"] = last_modified
+            if not self.env["CHECK_FILESIZE_ONLY"]:
+                if etag:
+                    headers["If-None-Match"] = etag
+                if last_modified:
+                    headers["If-Modified-Since"] = last_modified
         return headers
 
     def clear_header(self, header):
