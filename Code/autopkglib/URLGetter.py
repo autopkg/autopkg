@@ -78,7 +78,7 @@ class URLGetter(Processor):
             self.existing_file_size = os.path.getsize(filename)
             etag = self.getxattr(self.xattr_etag)
             last_modified = self.getxattr(self.xattr_last_modified)
-            if not self.env["CHECK_FILESIZE_ONLY"]:
+            if not self.env.get("CHECK_FILESIZE_ONLY"):
                 if etag:
                     headers["If-None-Match"] = etag
                 if last_modified:
