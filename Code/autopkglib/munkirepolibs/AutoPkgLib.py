@@ -13,10 +13,9 @@ class AutoPkgLib:
     def determine_arch(self, pkginfo) -> str:
         """Determine a supported architecture string"""
         # If there is exactly one supported architecture, return a string with it
-        if len(pkginfo.get('supported_architectures', [])) == 1:
-            return pkginfo['supported_architectures'][0]
+        if len(pkginfo.get("supported_architectures", [])) == 1:
+            return pkginfo["supported_architectures"][0]
         return ""
-
 
     def make_catalog_db(self):
         """Reads the 'all' catalog and returns a dict we can use like a
@@ -207,14 +206,14 @@ class AutoPkgLib:
             file_extension = "." + file_extension.strip(".")
 
         arch = self.determine_arch(pkginfo)
-        pkginfo_name = f"{pkginfo['name']}-{pkginfo['version'].strip()}-{arch}{file_extension}"
+        pkginfo_name = (
+            f"{pkginfo['name']}-{pkginfo['version'].strip()}-{arch}{file_extension}"
+        )
         pkginfo_path = os.path.join(destination_path, pkginfo_name)
         index = 0
         while os.path.exists(pkginfo_path):
             index += 1
-            pkginfo_name = (
-                f"{pkginfo['name']}-{pkginfo['version'].strip()}-{arch}__{index}{file_extension}"
-            )
+            pkginfo_name = f"{pkginfo['name']}-{pkginfo['version'].strip()}-{arch}__{index}{file_extension}"
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
         try:

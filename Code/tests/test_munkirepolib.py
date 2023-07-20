@@ -1,7 +1,7 @@
 #!/usr/local/autopkg/python
 
-import imp
 import copy
+import imp
 import os
 import plistlib
 import unittest
@@ -21,7 +21,7 @@ class TestMunkiRepoLib(unittest.TestCase):
 
     # Some globals for mocking
     sample_pkginfo = dedent(
-    """\
+        """\
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -86,7 +86,7 @@ class TestMunkiRepoLib(unittest.TestCase):
             <string>1.0</string>
         </dict>
         </plist>
-    """    
+    """
     )
     sample_pkginfo_struct = plistlib.loads(sample_pkginfo.encode("utf-8"))
 
@@ -100,7 +100,7 @@ class TestMunkiRepoLib(unittest.TestCase):
         """If supported architectures contains x86_64, return the correct arch."""
         library = AutoPkgLib("/Users/Shared/test_repo", "apps")
         test_pkginfo = copy.deepcopy(self.sample_pkginfo_struct)
-        test_pkginfo['supported_architectures'] = ['x86_64']
+        test_pkginfo["supported_architectures"] = ["x86_64"]
         arch = library.determine_arch(test_pkginfo)
         self.assertEqual(arch, "x86_64")
 
@@ -108,7 +108,7 @@ class TestMunkiRepoLib(unittest.TestCase):
         """If supported architectures contains arm64, return the correct arch."""
         library = AutoPkgLib("/Users/Shared/test_repo", "apps")
         test_pkginfo = copy.deepcopy(self.sample_pkginfo_struct)
-        test_pkginfo['supported_architectures'] = ['arm64']
+        test_pkginfo["supported_architectures"] = ["arm64"]
         arch = library.determine_arch(test_pkginfo)
         self.assertEqual(arch, "arm64")
 
@@ -116,7 +116,7 @@ class TestMunkiRepoLib(unittest.TestCase):
         """If supported architectures contains multiple entries, return empty string."""
         library = AutoPkgLib("/Users/Shared/test_repo", "apps")
         test_pkginfo = copy.deepcopy(self.sample_pkginfo_struct)
-        test_pkginfo['supported_architectures'] = ['x86_64', 'arm64']
+        test_pkginfo["supported_architectures"] = ["x86_64", "arm64"]
         arch = library.determine_arch(test_pkginfo)
         self.assertEqual(arch, "")
 
@@ -124,10 +124,9 @@ class TestMunkiRepoLib(unittest.TestCase):
         """If no supported architectures specified, return empty string."""
         library = AutoPkgLib("/Users/Shared/test_repo", "apps")
         test_pkginfo = copy.deepcopy(self.sample_pkginfo_struct)
-        test_pkginfo['supported_architectures'] = []
+        test_pkginfo["supported_architectures"] = []
         arch = library.determine_arch(test_pkginfo)
         self.assertEqual(arch, "")
-        del test_pkginfo['supported_architectures']
+        del test_pkginfo["supported_architectures"]
         arch = library.determine_arch(test_pkginfo)
         self.assertEqual(arch, "")
-
