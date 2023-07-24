@@ -206,14 +206,16 @@ class AutoPkgLib:
             file_extension = "." + file_extension.strip(".")
 
         arch = self.determine_arch(pkginfo)
+        if arch:
+            arch = f"-{arch}"
         pkginfo_name = (
-            f"{pkginfo['name']}-{pkginfo['version'].strip()}-{arch}{file_extension}"
+            f"{pkginfo['name']}-{pkginfo['version'].strip()}{arch}{file_extension}"
         )
         pkginfo_path = os.path.join(destination_path, pkginfo_name)
         index = 0
         while os.path.exists(pkginfo_path):
             index += 1
-            pkginfo_name = f"{pkginfo['name']}-{pkginfo['version'].strip()}-{arch}__{index}{file_extension}"
+            pkginfo_name = f"{pkginfo['name']}-{pkginfo['version'].strip()}{arch}__{index}{file_extension}"
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
         try:
