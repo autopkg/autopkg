@@ -6,10 +6,8 @@ import os
 import plistlib
 import unittest
 from textwrap import dedent
-from unittest.mock import mock_open, patch
 
 from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
-from autopkglib.munkirepolibs.MunkiLib import MunkiLib
 
 autopkg = imp.load_source(
     "autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg")
