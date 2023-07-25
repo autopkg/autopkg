@@ -498,7 +498,7 @@ def get_override_dirs():
     return dirs or default
 
 
-def calculate_recipe_map(extra_search_dirs = None, extra_override_dirs = None):
+def calculate_recipe_map(extra_search_dirs=None, extra_override_dirs=None):
     """Recalculate the entire recipe map"""
     global globalRecipeMap
     globalRecipeMap = {"identifiers": {}, "shortnames": {}, "overrides": {}}
