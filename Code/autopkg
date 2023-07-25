@@ -58,6 +58,7 @@ from autopkglib import (
     log,
     log_err,
     processor_names,
+    plist_serializer,
     read_recipe_map,
     recipe_from_file,
     remove_recipe_extension,
