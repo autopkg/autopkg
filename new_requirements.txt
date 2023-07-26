@@ -26,7 +26,6 @@ pycparser==2.21
 pyflakes==2.4.0
 PyYAML==6.0
 six==1.16.0
-toml==0.10.2
 tomli==2.0.1
 virtualenv==20.14.0
 #
