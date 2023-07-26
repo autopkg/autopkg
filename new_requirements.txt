@@ -24,7 +24,7 @@ pre-commit==2.17.0
 pycodestyle==2.8.0
 pycparser==2.21
 pyflakes==2.4.0
-PyYAML==6.0
+PyYAML==6.0.1
 six==1.16.0
 tomli==2.0.1
 virtualenv==20.14.0
