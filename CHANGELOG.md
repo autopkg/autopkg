@@ -1,5 +1,16 @@
 ### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...HEAD) (Unreleased)
 
+New features:
+* The recipe map branch has now been merged in. This means that AutoPkg will build a recipe map (JSON on disk) of all repos and recipes when you add or delete repos, and use that for searching for recipes. This drastically speeds up recipe search, especially if you have lots of repos checked out. The old on-disk search method is a fallback, but will be removed in the future.
+* The recipe map feature was merged in after a long hiatus, and I can't currently guarantee everything was merged correctly. Please test this and let us know if there are any problems or bugs.
+* MunkiImporter now creates pkginfo files with a supported architecture in the filename if and only if there is exactly one supported architecture (i.e. "SomePackage-1.0.0-x86_64.pkginfo"). This will make it much easier to distinguish multiple architecture pkginfos for the same package. A similar PR was merged for Munki (https://github.com/munki/munki/pull/1185).
+
+Fixes:
+* Error handling in URLDownloader to address some curl issues (https://github.com/autopkg/autopkg/pull/850)
+* Fixes for URLDownloaderPython (https://github.com/autopkg/autopkg/pull/854)
+* Indenting blocks in YAML to match spec (https://github.com/autopkg/autopkg/pull/861)
+* PkgCopier now only allows copying of .pkg / .mpkg files (https://github.com/autopkg/autopkg/pull/864)
+
 ### [2.7.2](https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7.2) (December 07, 2022)
 
 * Fix for SparkleUpdateInfoProvider. (https://github.com/autopkg/autopkg/pull/845)
