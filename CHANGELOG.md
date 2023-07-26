@@ -1,4 +1,4 @@
-### [2.8.0](https://github.com/autopkg/autopkg/compare/v2.7.2...HEAD) (Unreleased)
+### [2.8.0](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.8.0) (July 26, 2023)
 
 New features:
 * The recipe map branch has now been merged in. This means that AutoPkg will build a recipe map (JSON on disk) of all repos and recipes when you add or delete repos, and use that for searching for recipes. This drastically speeds up recipe search, especially if you have lots of repos checked out. The old on-disk search method is a fallback, but will be removed in the future.
