@@ -35,13 +35,13 @@ xattr==0.9.7; sys_platform == 'darwin' or sys_platform == 'linux'
 #
 # MacOS Requirements
 #
-pyobjc-core==8.5; sys_platform == 'darwin'
-pyobjc-framework-CFNetwork==8.5; sys_platform == 'darwin'
-pyobjc-framework-LaunchServices==8.5; sys_platform == 'darwin'
-pyobjc-framework-OpenDirectory==8.5; sys_platform == 'darwin'
-pyobjc-framework-Quartz==8.5; sys_platform == 'darwin'
-pyobjc-framework-Security==8.5; sys_platform == 'darwin'
-pyobjc-framework-SystemConfiguration==8.5; sys_platform == 'darwin'
+pyobjc-core==9.2; sys_platform == 'darwin'
+pyobjc-framework-CFNetwork==9.2; sys_platform == 'darwin'
+pyobjc-framework-LaunchServices==9.2; sys_platform == 'darwin'
+pyobjc-framework-OpenDirectory==9.2; sys_platform == 'darwin'
+pyobjc-framework-Quartz==9.2; sys_platform == 'darwin'
+pyobjc-framework-Security==9.2; sys_platform == 'darwin'
+pyobjc-framework-SystemConfiguration==9.2; sys_platform == 'darwin'
 #
 # Windows Requirements
 #
