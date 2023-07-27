@@ -357,7 +357,7 @@ def recipe_from_file(filename):
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")
-            return
+            raise
 
     else:
         try:
@@ -367,17 +367,21 @@ def recipe_from_file(filename):
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: plist error for {filename}: {err}")
-            return
+            raise
 
 
-def valid_recipe_file(filename):
+def valid_recipe_file(filename) -> bool:
     """Returns True if filename contains a valid recipe,
     otherwise returns False"""
-    recipe_dict = recipe_from_file(filename)
+    try:
+        recipe_dict = recipe_from_file(filename)
+    except Exception:
+        # If we can't read the file due to a syntax or parsing error, we definitely don't have a valid dict
+        return False
     return valid_recipe_dict(recipe_dict)
 
 
-def valid_recipe_dict(recipe_dict):
+def valid_recipe_dict(recipe_dict) -> bool:
     """Returns True if recipe dict is a valid recipe,
     otherwise returns False"""
     return (
@@ -387,7 +391,7 @@ def valid_recipe_dict(recipe_dict):
     )
 
 
-def valid_override_dict(recipe_dict):
+def valid_override_dict(recipe_dict) -> bool:
     """Returns True if the recipe is a valid override,
     otherwise returns False"""
     return valid_recipe_dict_with_keys(
@@ -395,14 +399,14 @@ def valid_override_dict(recipe_dict):
     ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
 
 
-def valid_override_file(filename):
+def valid_override_file(filename) -> bool:
     """Returns True if filename contains a valid override,
     otherwise returns False"""
     override_dict = recipe_from_file(filename)
     return valid_override_dict(override_dict)
 
 
-def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify):
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
     """Attempts to read a dict and ensures the keys in
     keys_to_verify exist. Returns False on any failure, True otherwise."""
     if recipe_dict:
@@ -428,11 +432,13 @@ def get_identifier(recipe):
         return None
 
 
-def get_identifier_from_recipe_file(filename):
+def get_identifier_from_recipe_file(filename) -> Optional[str]:
     """Attempts to read filename and get the
     identifier. Otherwise, returns None."""
-    recipe_dict = recipe_from_file(filename)
-    return get_identifier(recipe_dict)
+    if valid_recipe_file(filename):
+        recipe_dict = recipe_from_file(filename)
+        return get_identifier(recipe_dict)
+    return None
 
 
 def find_recipe_by_identifier(identifier):
@@ -535,6 +541,13 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
                 key = get_identifier_from_recipe_file(match)
             else:
                 key = remove_recipe_extension(os.path.basename(match))
+            # In case the file was invalid, or missing a key
+            if not key:
+                print(
+                    f"WARNING: {match} is potentially an invalid file, not adding it to the recipe map! "
+                    "Please file a GitHub Issue for this repo."
+                )
+                continue
             # key is the recipe shortname at this point
             if key in recipe_map or key in globalRecipeMap[keyname]:
                 # we already have this recipe, don't update it
