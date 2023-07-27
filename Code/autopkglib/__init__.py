@@ -25,7 +25,6 @@ import re
 import subprocess
 import sys
 import traceback
-from collections import namedtuple
 from copy import deepcopy
 from distutils.version import LooseVersion
 from typing import IO, Any, Dict, List, Optional, Union
@@ -533,7 +532,7 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
         matches = glob.glob(pattern)
         for match in matches:
             if keyname == "identifiers":
-                key = identifier = get_identifier_from_recipe_file(match)
+                key = get_identifier_from_recipe_file(match)
             else:
                 key = remove_recipe_extension(os.path.basename(match))
             # key is the recipe shortname at this point
@@ -550,7 +549,7 @@ def write_recipe_map_to_disk():
     try:
         with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
             local_recipe_map = json.load(f)
-    except (OSError, FileNotFoundError):
+    except (OSError):
         pass
     local_recipe_map.update(globalRecipeMap)
     with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
@@ -570,7 +569,7 @@ def read_recipe_map():
     try:
         with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
             recipe_map = json.load(f)
-    except (OSError, FileNotFoundError):
+    except (OSError):
         pass
     globalRecipeMap.update(recipe_map)
 
