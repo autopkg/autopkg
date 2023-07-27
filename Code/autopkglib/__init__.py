@@ -856,11 +856,14 @@ class Processor:
         If there is an error loading the file, the exception raised will be prefixed
         with `exception_text`.
         """
-        try:
-            if isinstance(plist_file, (str, bytes, int)):
+        if isinstance(plist_file, (str, bytes, int)):
+            try:
                 fh: IO = open(plist_file, "rb")
-            else:
-                fh = plist_file
+            except OSError as err:
+                raise ProcessorError(f"{exception_text}: {err}") from err
+        else:
+            fh = plist_file
+        try:
             return plistlib.load(fh)
         except Exception as err:
             raise ProcessorError(f"{exception_text}: {err}") from err

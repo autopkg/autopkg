@@ -128,7 +128,7 @@ class DmgMounter(Processor):
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(f"mounting {pathname} failed: {stderr}")
 
@@ -136,10 +136,10 @@ class DmgMounter(Processor):
         (pliststr, stdout) = self.get_first_plist(stdout)
         try:
             output = plistlib.loads(pliststr.encode())
-        except Exception:
+        except Exception as err:
             raise ProcessorError(
                 f"mounting {pathname} failed: unexpected output from hdiutil"
-            )
+            ) from err
 
         # Find mount point.
         for part in output.get("system-entities", []):
@@ -171,7 +171,7 @@ class DmgMounter(Processor):
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(f"unmounting {pathname} failed: {stderr}")
 

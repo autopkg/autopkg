@@ -167,7 +167,7 @@ class Versioner(DmgMounter):
             try:
                 return deserializer(input_plist_path)
             except Exception as err:
-                raise ProcessorError(err)
+                raise ProcessorError(err) from err
         finally:
             self.unmount(dmg_path)
         return None
@@ -214,7 +214,7 @@ class Versioner(DmgMounter):
         except ProcessorError:
             raise
         except Exception as ex:
-            raise ProcessorError(ex)
+            raise ProcessorError(ex) from ex
 
 
 if __name__ == "__main__":
