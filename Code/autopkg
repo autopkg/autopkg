@@ -699,8 +699,8 @@ Example: '%prog repo-add recipes'
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
-            log("Updating recipe map...")
-            calculate_recipe_map()
+            log("Updating recipe map with new repo...")
+            calculate_recipe_map(extra_search_dirs=[new_recipe_repo_dir])
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
