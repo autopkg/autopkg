@@ -1,4 +1,4 @@
-### [2.8.1](https://github.com/autopkg/autopkg/compare/v2.8.0...HEAD) (Unreleased)
+### [2.8.1](https://github.com/autopkg/autopkg/compare/v2.8.0...v2.8.1) (July 27, 2023)
 
 Fixes:
 * Recipe map now correctly rebuilds after adding a new repo (https://github.com/autopkg/autopkg/issues/868)
