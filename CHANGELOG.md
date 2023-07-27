@@ -1,3 +1,11 @@
+### [2.8.1](https://github.com/autopkg/autopkg/compare/v2.8.0...HEAD) (Unreleased)
+
+Fixes:
+* Recipe map now correctly rebuilds after adding a new repo (https://github.com/autopkg/autopkg/issues/868)
+* Unit tests now run on the dev branch first
+* Fixed some various lint issues
+
+
 ### [2.8.0](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.8.0) (July 26, 2023)
 
 New features:
