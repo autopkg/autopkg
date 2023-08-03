@@ -133,9 +133,13 @@ def find_recipe(id_or_name, skip_overrides=False):
     # search in identifiers
     # oh noez we can't find it
     log(f"Looking for {id_or_name}...")
-    return find_recipe_by_name(id_or_name, skip_overrides) or find_recipe_by_identifier(
-        id_or_name
-    )
+    recipe = find_recipe_by_name(
+        id_or_name, skip_overrides
+    ) or find_recipe_by_identifier(id_or_name)
+    if not recipe:
+        # We didn't find the recipe in the map
+        log(f"Did not find {id_or_name} in recipe map")
+    return recipe
 
 
 def get_identifier_from_override(override):
@@ -217,7 +221,6 @@ def locate_recipe(
         recipe_file = find_recipe(name, skip_overrides)
 
     if not recipe_file and make_suggestions:
-        print(f"Didn't find a recipe for {name}.")
         make_suggestions_for(name)
 
     if not recipe_file and search_github:
@@ -308,6 +311,17 @@ def load_recipe(
         skip_overrides=skip_overrides,
     )
 
+    if not recipe_file:
+        log(
+            "We are not currently searching on-disk for recipes; if you intended to run a specific file not in the "
+            "recipe map, please pass in an absolute file path instead."
+        )
+        return
+
+    # TODO: This is super dumb. We attempt to read the recipe from the file here,
+    # but then immediately after we open the recipe file again to validate it...
+    # This should be reversed, and we should validate the file in the process of
+    # trying to parse it. ARGH
     recipe = recipe_from_file(recipe_file)
 
     # Validate the recipe first
