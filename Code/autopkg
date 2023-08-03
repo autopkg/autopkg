@@ -312,6 +312,9 @@ def load_recipe(
     )
 
     if not recipe_file:
+        # TODO: This needs to be improved, because otherwise -d is essentially useless.
+        # If we don't find the recipe in the map, we should instead search the provided
+        # search directories, and then add it if we find it.
         log(
             "We are not currently searching on-disk for recipes; if you intended to run a specific file not in the "
             "recipe map, please pass in an absolute file path instead."
