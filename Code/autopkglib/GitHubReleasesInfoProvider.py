@@ -1,6 +1,7 @@
 #!/usr/local/autopkg/python
 #
 # Copyright 2014-2015 Timothy Sutton
+# Updated 2023 Nick McSpadden
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,9 +17,10 @@
 """See docstring for GitHubReleasesInfoProvider class"""
 
 import re
+from typing import Optional
 
 import autopkglib.github
-from autopkglib import APLooseVersion, Processor, ProcessorError
+from autopkglib import Processor, ProcessorError
 
 __all__ = ["GitHubReleasesInfoProvider"]
 
@@ -26,72 +28,31 @@ __all__ = ["GitHubReleasesInfoProvider"]
 class GitHubReleasesInfoProvider(Processor):
     description = (
         "Get metadata from the latest release from a GitHub project"
-        " using the GitHub Releases API."
-        "\nRequires version 0.5.0."
+        " using the GitHub Releases API. You should populate GITHUB_TOKEN_PATH in preferences."
+        "\nRequires version 2.8.1."
     )
     input_variables = {
         "asset_regex": {
             "required": False,
             "description": (
-                "If set, return only a release asset that matches this regex."
+                "If set, return only a release asset whose name matches this regex. "
+                "If this is not set, it will behave identically to 'latest_only' being set."
             ),
         },
         "github_repo": {
             "required": True,
-            "description": ("Name of a GitHub user and repo, ie. 'MagerValp/AutoDMG'"),
+            "description": ("Name of a GitHub user and repo, ie. 'autopkg/autopkg'"),
         },
         "include_prereleases": {
             "required": False,
             "description": (
-                "If set to True or a non-empty value, include prereleases."
+                "If a non-empty value, include prereleases when applying regex."
             ),
         },
         "latest_only": {
             "required": False,
             "description": (
-                "If True or a non-empty value, API call will fetch only the "
-                "release marked as 'latest' in GitHub. May not play well with "
-                "'include_prereleases'."
-            ),
-        },
-        "sort_by_highest_tag_names": {
-            "required": False,
-            "description": (
-                "Set this to have releases sorted by highest "
-                "to lowest tag version. By default, releases "
-                "are sorted descending by date posted. This "
-                "changes this behavior for cases where an 'older' "
-                "release may be posted later."
-            ),
-        },
-        "curl_opts": {
-            "required": False,
-            "description": (
-                "Optional array of curl options to include with "
-                "the download request."
-            ),
-        },
-        "CURL_PATH": {
-            "required": False,
-            "default": "/usr/bin/curl",
-            "description": "Path to curl binary. Defaults to /usr/bin/curl.",
-        },
-        "GITHUB_URL": {
-            "required": False,
-            "default": "https://api.github.com",
-            "description": (
-                "If your organization has an internal GitHub instance "
-                "set this value to your internal GitHub URL "
-                "ie. 'https://git.internal.corp.com/api/v3'"
-            ),
-        },
-        "GITHUB_TOKEN_PATH": {
-            "required": False,
-            "default": "~/.autopkg_gh_token",
-            "description": (
-                "Path to a file containing your GitHub token. "
-                "Can be a relative path or absolute path. "
-                "ie. '~/.custom_gh_token' or '/path/to/token' "
+                "If a non-empty value, apply regex only against latest release's assets."
             ),
         },
     }
@@ -101,7 +62,7 @@ class GitHubReleasesInfoProvider(Processor):
         },
         "url": {
             "description": (
-                "URL for the first asset found for the project's latest release."
+                "URL for the first matching asset found for the project's latest release."
             )
         },
         "asset_url": {
@@ -112,75 +73,49 @@ class GitHubReleasesInfoProvider(Processor):
                 "repositories."
             )
         },
-        "version": {
-            "description": (
-                "Version info parsed, naively derived from the release's tag."
-            )
-        },
+        "version": {"description": ("Version info derived from the release's tag.")},
         "asset_created_at": {"description": ("The release time of the asset.")},
     }
 
     __doc__ = description
 
-    def get_releases(self, repo, latest_only=False):
-        """Return a list of releases dicts for a given GitHub repo. repo must
-        be of the form 'user/repo'"""
-        releases = None
-        curl_opts = self.env.get("curl_opts")
-        github = autopkglib.github.GitHubSession(
-            self.env["CURL_PATH"],
-            curl_opts,
-            self.env["GITHUB_URL"],
-            self.env["GITHUB_TOKEN_PATH"],
-        )
-        releases_uri = f"/repos/{repo}/releases"
-        if latest_only:
-            releases_uri += "/latest"
-        (releases, status) = github.call_api(releases_uri)
-        if latest_only:
-            # turn single item into a list of one item
-            releases = [releases]
-        if status != 200:
-            raise ProcessorError(f"Unexpected GitHub API status code {status}.")
-
-        if not releases:
-            raise ProcessorError(f"No releases found for repo '{repo}'")
-
-        return releases
-
-    def select_asset(self, releases, regex):
-        """Iterates through the releases in order and determines the first
-        eligible asset that matches the criteria. Sets the selected release
-        and asset data in class variables.
-        - Release 'type' depending on whether 'include_prereleases' is set
-        - If 'asset_regex' is set, whether the asset's 'name' (the filename)
-          matches the regex. If not, then the first asset will be
-          returned."""
-        selected = None
-        for rel in releases:
+    def select_asset(self, releases: autopkglib.github.GithubReleasesDict, regex: str) -> None:
+        """Iterates through the a list of asset filenames in order and determines the first
+        eligible asset that matches the regex. Sets the selected release
+        and asset data in class variables."""
+        # selected is going to be a tuple of the release title, asset filename, and asset url
+        selected: Optional[tuple[str, str, str]] = None
+        for rel, assets in releases.items():
+            # rel is a release name, such as:
+            # 'AutoPkg 2.7.2'
+            # assets is a list of dictionaries of filenames: URLs
             if selected:
                 break
-            if rel["prerelease"] and not self.env.get("include_prereleases"):
-                continue
 
-            assets = rel.get("assets")
-            if not assets:
-                continue
+            if not regex:
+                # If there's no regex to match against, attempt to return the first asset we find
+                try:
 
-            for asset in assets:
-                if not regex:
-                    selected = (rel, asset)
+                    selected = (rel, next(iter(assets[0])), list(assets[0].values())[0])
                     break
-                else:
+                except KeyError:
+                    # If there are no assets, we just throw the processor error below
+                    pass
+            for asset in assets:
+                # asset is a Dictionary with filename: URL
+                # Example:
+                # {'autopkg-2.7.2.pkg':
+                #   'https://github.com/autopkg/autopkg/releases/download/v2.7.2/autopkg-2.7.2.pkg'}
+                for asset_filename in asset:
                     try:
-                        if re.match(regex, asset["name"]):
+                        if re.match(regex, asset_filename):
                             self.output(
-                                f"Matched regex '{regex}' among asset(s): "
-                                f"{', '.join([x['name'] for x in assets])}"
+                                f"Matched regex '{regex}' among asset(s): {asset_filename}"
                             )
-                            selected = (rel, asset)
+                            selected = (rel, asset_filename, asset[asset_filename])
                             break
                     except re.error as e:
+                        raise ProcessorError(f"Invalid regex: {e}") from e
                         raise ProcessorError(f"Invalid regex: {e}") from e
         if not selected:
             raise ProcessorError(
@@ -190,26 +125,50 @@ class GitHubReleasesInfoProvider(Processor):
         # We set these in the class to avoid passing more objects around
         self.selected_release = selected[0]
         self.selected_asset = selected[1]
+        self.selected_asset_url = selected[2]
         self.output(
-            f"Selected asset '{self.selected_asset['name']}' from release "
-            f"'{self.selected_release['name']}'"
+            f"Selected asset '{self.selected_asset}' from release "
+            f"'{self.selected_release}' with url {self.selected_asset_url}"
         )
 
     def main(self):
-        # Get our list of releases
-        releases = self.get_releases(
-            self.env["github_repo"], latest_only=self.env.get("latest_only")
+        """Execute Github-related searches for releases."""
+        # Start a new session
+        new_session = autopkglib.github.GitHubSession()
+        # We're just going to use the built-in function from autopkglib.github to get a dictionary
+        # of releases to asset names and URLs, and regex against that.
+        # The idea is that other processors don't need to learn PyGithub and can just get straight
+        # into business logic
+        # This is a dictionary of release titles : [{ asset_name: asset_url }]
+        # Example from autopkg/autopkg:
+        # {
+        # 'AutoPkg 2.8.1 Beta': [{'autopkg-2.8.1.pkg':
+        #   'https://github.com/autopkg/autopkg/releases/download/v2.8.1RC2/autopkg-2.8.1.pkg'}],
+        # 'AutoPkg 2.8.0 Beta': [{'autopkg-2.8.0.pkg':
+        #   'https://github.com/autopkg/autopkg/releases/download/v2.8.0RC1/autopkg-2.8.0.pkg'}],
+        # 'AutoPkg 2.7.2': [{'autopkg-2.7.2.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.7.2/autopkg-2.7.2.pkg'}],
+        #  }
+        releases_dict: autopkglib.github.GithubReleasesDict = new_session.get_repo_asset_dict(
+            self.env["github_repo"], self.env.get("include_preleases", False)
         )
-        if self.env.get("sort_by_highest_tag_names"):
-            releases = sorted(
-                releases, key=lambda a: APLooseVersion(a["tag_name"]), reverse=True
-            )
-
-        # Store the first eligible asset
+        # If we're looking for the latest one, we look at the first dictionary entry
+        releases: autopkglib.github.GithubReleasesDict = {}
+        if self.env.get("latest_only") or not self.env.get("regex"):
+            releases = releases[next(iter(releases_dict))]
+            # Releases will only contain the dictionary of assets from the latest release
+        else:
+            # If not the latest, just send in the whole thing
+            releases = releases_dict
+        # Find the first eligible asset based on the regex
         self.select_asset(releases, self.env.get("asset_regex"))
 
-        # Record the url
-        self.env["url"] = self.selected_asset["browser_download_url"]
+        # TODO: Here's how this needs to work
+        # We need to get a list of all asset filenames for a repo, and regex against them
+        # We need the release ID from that matching asset filename
+        # Once we have the release ID, we can fetch the release directly and all associated information about it
+
+        # Record the download url
+        self.env["url"] = self.selected_asset_url
 
         # Record the asset url
         self.env["asset_url"] = self.selected_asset["url"]
