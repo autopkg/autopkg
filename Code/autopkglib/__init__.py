@@ -140,7 +140,11 @@ class Preferences:
 
     def __init__(self):
         """Init."""
-        self.prefs: VarDict = {}
+        self.prefs: VarDict = {
+            "RECIPE_SEARCH_DIRS": ["..", "/Library/Recipes", "~/Library/Recipes"],
+            "RECIPE_OVERRIDE_DIRS": ["~/Library/AutoPkg/RecipeOverrides"],
+            "GITHUB_TOKEN_PATH": "~/Library/AutoPkg/gh_token",
+        }
         # What type of preferences input are we using?
         self.type: Optional[str] = None
         # Path to the preferences file we were given
@@ -151,7 +155,7 @@ class Preferences:
         else:
             self.prefs = self._get_file_prefs()
         if not self.prefs:
-            log_err("WARNING: Did not load any default preferences.")
+            log_err("Preferences domain com.github.autopkg looks empty, using default preferences or file.")
 
     def _parse_json_or_plist_file(self, file_path):
         """Parse the file. Start with plist, then JSON."""
