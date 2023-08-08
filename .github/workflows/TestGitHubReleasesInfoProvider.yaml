@@ -28,7 +28,7 @@ jobs:
         # without this, API limits will be hit
         run: |
           cd ~
-          echo ${{ secrets.GITHUB_TOKEN_PATH }} > ".autopkg_gh_token"
+          echo ${{ secrets.GITHUB_TOKEN_PATH }} > "~/Library/AutoPkg/gh_token"
 
       - name: checkout this repo
         uses: actions/checkout@v3

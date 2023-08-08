@@ -16,7 +16,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         self.base_env = {
             "CURL_PATH": "/usr/bin/curl",
             "GITHUB_URL": "https://api.github.com",
-            "GITHUB_TOKEN_PATH": "~/.autopkg_gh_token",
+            "GITHUB_TOKEN_PATH": "~/Library/AutoPkg/gh_token",
         }
         self.processor = GitHubReleasesInfoProvider()
 
