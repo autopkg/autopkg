@@ -26,6 +26,19 @@ import github
 from autopkglib import get_pref, log, log_err
 from urllib3.util import Retry
 
+# Custom type to express the format of GitHub releases for AutoPkg
+# This is a dictionary of release titles: [ {asset_name: asset_url} ]
+# Example from autopkg/autopkg:
+# {
+# 'AutoPkg 2.8.1 Beta':
+#   [{'autopkg-2.8.1.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.8.1RC2/autopkg-2.8.1.pkg'}],
+# 'AutoPkg 2.8.0 Beta':
+#   [{'autopkg-2.8.0.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.8.0RC1/autopkg-2.8.0.pkg'}],
+# 'AutoPkg 2.7.2':
+#   [{'autopkg-2.7.2.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.7.2/autopkg-2.7.2.pkg'}],
+#  }
+GithubReleasesDict = Dict[str, List[Dict[str, str]]]
+
 BASE_URL = "https://api.github.com"
 DEFAULT_SEARCH_USER = "autopkg"
 
@@ -49,6 +62,8 @@ class GitHubSession:
         self.autopkg_org: github.Organization.Organization = None
         self.autopkg_repos: github.Repository.Repository = None
         self.autopkg_main: github.Repository.Repository = None
+        # This is always the last repo fetched, for caching
+        self.current_repo: github.Repository.Repository = None
         self._token_str = self._get_token(token_path)
         if self._token_str:
             # If we don't have an auth token, some GitHub API options will be unavailable or barely functional
@@ -122,7 +137,8 @@ class GitHubSession:
 
     def get_repo(self, name_or_id: str) -> github.Repository.Repository:
         """Get a specific repository object"""
-        return self.session.get_repo(name_or_id)
+        self.current_repo = self.session.get_repo(name_or_id)
+        return self.current_repo
 
     def get_repo_releases(self, name_or_id: str) -> List[github.GitRelease.GitRelease]:
         """Get a list of GitRelease objects for a repo"""
@@ -132,7 +148,7 @@ class GitHubSession:
 
     def get_repo_asset_dict(
         self, name_or_id: str, prereleases: bool = False
-    ) -> Dict[str, List[Dict[str, str]]]:
+    ) -> GithubReleasesDict:
         """Get a dict of Release title: [ {asset name: asset url} ] only for all releases for a repo"""
         releases: List[github.GitRelease.GitRelease] = self.get_repo_releases(
             name_or_id
@@ -147,16 +163,6 @@ class GitHubSession:
             for asset in release.assets:
                 release_assets.append({asset.name: asset.browser_download_url})
             repo_asset_dict[release.title] = release_assets
-        # This is a dictionary of release titles: [ {asset_name: asset_url} ]
-        # Example from autopkg/autopkg:
-        # {
-        # 'AutoPkg 2.8.1 Beta':
-        #   [{'autopkg-2.8.1.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.8.1RC2/autopkg-2.8.1.pkg'}],
-        # 'AutoPkg 2.8.0 Beta':
-        #   [{'autopkg-2.8.0.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.8.0RC1/autopkg-2.8.0.pkg'}],
-        # 'AutoPkg 2.7.2':
-        #   [{'autopkg-2.7.2.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.7.2/autopkg-2.7.2.pkg'}],
-        #  }
         return repo_asset_dict
 
     def search_for_name(
