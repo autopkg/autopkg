@@ -18,11 +18,10 @@
 
 import os
 from textwrap import dedent
-from typing import List, Optional, Union, Dict
+from typing import Dict, List, Optional, Union
 
 import github
-
-# THIS IS A CIRCULAR DEPENDENCY GODDAMMIT
+# THIS IS A CIRCULAR DEPENDENCY AND NEEDS TO BE FIXED
 from autopkglib import get_pref, log, log_err
 from urllib3.util import Retry
 
