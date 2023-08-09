@@ -155,7 +155,9 @@ class Preferences:
         else:
             self.prefs = self._get_file_prefs()
         if not self.prefs:
-            log_err("Preferences domain com.github.autopkg looks empty, using default preferences or file.")
+            log_err(
+                "Preferences domain com.github.autopkg looks empty, using default preferences or file."
+            )
 
     def _parse_json_or_plist_file(self, file_path):
         """Parse the file. Start with plist, then JSON."""
