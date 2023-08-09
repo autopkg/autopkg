@@ -122,6 +122,7 @@ except ImportError:
 
 APP_NAME = "Autopkg"
 BUNDLE_ID = "com.github.autopkg"
+DEFAULT_SEARCH_DIRS = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
 
 RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 
@@ -141,7 +142,7 @@ class Preferences:
     def __init__(self):
         """Init."""
         self.prefs: VarDict = {
-            "RECIPE_SEARCH_DIRS": ["..", "/Library/Recipes", "~/Library/Recipes"],
+            "RECIPE_SEARCH_DIRS": DEFAULT_SEARCH_DIRS,
             "RECIPE_OVERRIDE_DIRS": ["~/Library/AutoPkg/RecipeOverrides"],
             "GITHUB_TOKEN_PATH": "~/Library/AutoPkg/gh_token",
         }
@@ -516,7 +517,8 @@ def calculate_recipe_map(extra_search_dirs=None, extra_override_dirs=None):
         extra_search_dirs = []
     if extra_override_dirs is None:
         extra_override_dirs = []
-    for search_dir in get_pref("RECIPE_SEARCH_DIRS") + extra_search_dirs:
+    search_dirs = get_pref("RECIPE_SEARCH_DIRS") or DEFAULT_SEARCH_DIRS
+    for search_dir in search_dirs + extra_search_dirs:
         if search_dir == ".":
             # skip searching cwd
             continue
