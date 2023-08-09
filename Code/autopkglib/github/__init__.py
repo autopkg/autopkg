@@ -27,16 +27,17 @@ from autopkglib import get_pref, log, log_err
 from urllib3.util import Retry
 
 # Custom type to express the format of GitHub releases for AutoPkg
-# This is a dictionary of release titles: [ {asset_name: asset_url} ]
+# This is a dictionary of release_tag: [ {asset_name: asset_url} ]
 # Example from autopkg/autopkg:
 # {
-# 'AutoPkg 2.8.1 Beta':
+# {
+# 'v2.8.1RC2':
 #   [{'autopkg-2.8.1.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.8.1RC2/autopkg-2.8.1.pkg'}],
-# 'AutoPkg 2.8.0 Beta':
+# 'v2.8.0RC1':
 #   [{'autopkg-2.8.0.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.8.0RC1/autopkg-2.8.0.pkg'}],
-# 'AutoPkg 2.7.2':
+# 'v2.7.2':
 #   [{'autopkg-2.7.2.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.7.2/autopkg-2.7.2.pkg'}],
-#  }
+# }
 GithubReleasesDict = Dict[str, List[Dict[str, str]]]
 
 BASE_URL = "https://api.github.com"
@@ -149,7 +150,7 @@ class GitHubSession:
     def get_repo_asset_dict(
         self, name_or_id: str, prereleases: bool = False
     ) -> GithubReleasesDict:
-        """Get a dict of Release title: [ {asset name: asset url} ] only for all releases for a repo"""
+        """Get a dict of Release title: [ {asset name: asset id} ] only for all releases for a repo"""
         releases: List[github.GitRelease.GitRelease] = self.get_repo_releases(
             name_or_id
         )
@@ -162,7 +163,7 @@ class GitHubSession:
             release_assets = []
             for asset in release.assets:
                 release_assets.append({asset.name: asset.browser_download_url})
-            repo_asset_dict[release.title] = release_assets
+            repo_asset_dict[release.tag_name] = release_assets
         return repo_asset_dict
 
     def search_for_name(
@@ -175,7 +176,9 @@ class GitHubSession:
     ):
         """Search GitHub for results for a given name."""
         log(
-            "autopkg search is temporarily disabled; we are migrating to a new strategy in the next release"
+            "autopkg search is temporarily disabled; we are migrating to a new strategy in the next release."
+            "\nIn the meantime, please see https://github.com/autopkg/autopkg/wiki/Finding-Recipes for tips "
+            "on searching GitHub.com directly."
         )
         return []
         # # Include all supported recipe extensions in search.
@@ -213,7 +216,9 @@ class GitHubSession:
     def code_search(self, query: str, use_token: bool = False):
         """Search GitHub code repos"""
         log(
-            "autopkg search is temporarily disabled; we are migrating to a new strategy in the next release"
+            "autopkg search is temporarily disabled; we are migrating to a new strategy in the next release."
+            "\nIn the meantime, please see https://github.com/autopkg/autopkg/wiki/Finding-Recipes for tips "
+            "on searching GitHub.com directly."
         )
         return
         # if use_token:
@@ -273,4 +278,4 @@ def print_gh_search_results(results_items):
 # import sys
 # sys.path.append('autopkglib')
 # import autopkglib.github
-# new_session = autopkglib.github.GitHubSession('~/Library/AutoPkg/gh_token')
+# new_session = autopkglib.github.GitHubSession()
