@@ -474,7 +474,7 @@ def find_recipe_by_name(name: str, skip_overrides: bool = False) -> str:
             return globalRecipeMap["shortnames"][name]
 
 
-def find_name_from_identifier(identifier):
+def find_name_from_identifier(identifier: str) -> Optional[str]:
     """Find a recipe name from its identifier"""
     recipe_path = globalRecipeMap["identifiers"].get(identifier)
     for shortname, path in globalRecipeMap["shortnames"].items():
@@ -483,7 +483,7 @@ def find_name_from_identifier(identifier):
     log_err(f"Could not find shortname from {identifier}!")
 
 
-def find_identifier_from_name(name):
+def find_identifier_from_name(name: str) -> Optional[str]:
     """Find a recipe identifier from its shortname"""
     recipe_path = globalRecipeMap["shortnames"].get(name)
     for id, path in globalRecipeMap["identifiers"].items():
@@ -492,29 +492,32 @@ def find_identifier_from_name(name):
     log_err(f"Could not find identifier from {name}!")
 
 
-def get_search_dirs():
+def get_search_dirs() -> List[str]:
     """Return search dirs from preferences or default list"""
     default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
 
-    dirs = get_pref("RECIPE_SEARCH_DIRS")
+    dirs: List[str] = get_pref("RECIPE_SEARCH_DIRS")
     if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
     return dirs or default
 
 
-def get_override_dirs():
+def get_override_dirs() -> List[str]:
     """Return override dirs from preferences or default list"""
     default = ["~/Library/AutoPkg/RecipeOverrides"]
 
-    dirs = get_pref("RECIPE_OVERRIDE_DIRS")
+    dirs: List[str] = get_pref("RECIPE_OVERRIDE_DIRS")
     if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
     return dirs or default
 
 
-def calculate_recipe_map(extra_search_dirs=None, extra_override_dirs=None):
+def calculate_recipe_map(
+    extra_search_dirs: Optional[List[str]] = None,
+    extra_override_dirs: Optional[List[str]] = None,
+):
     """Recalculate the entire recipe map"""
     global globalRecipeMap
     globalRecipeMap = {
