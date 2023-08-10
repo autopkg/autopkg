@@ -76,7 +76,7 @@ def autopkg_user_folder() -> str:
 
 
 try:
-    from CoreFoundation import (
+    from CoreFoundation import (  # type: ignore
         CFPreferencesAppSynchronize,
         CFPreferencesCopyAppValue,
         CFPreferencesCopyKeyList,
@@ -86,7 +86,7 @@ try:
         kCFPreferencesCurrentHost,
         kCFPreferencesCurrentUser,
     )
-    from Foundation import NSArray, NSDictionary, NSNumber
+    from Foundation import NSArray, NSDictionary, NSNumber  # type: ignore
 except ImportError:
     if is_mac():
         print(
