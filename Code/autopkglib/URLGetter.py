@@ -50,9 +50,7 @@ class URLGetter(Processor):
 
         raise ProcessorError("Unable to locate or execute any curl binary")
 
-    def prepare_curl_cmd(
-        self, method, accept, headers, data, temp_content
-    ) -> List[str]:
+    def prepare_curl_cmd(self) -> List[str]:
         """Assemble basic curl command and return it."""
         if is_windows() and "windows\\system32" in self.curl_binary().lower():
             # if using windows default curl, --compressed is not supported
