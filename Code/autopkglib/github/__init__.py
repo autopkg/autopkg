@@ -104,7 +104,7 @@ To save the token, paste it to the following prompt."""
         self.token = token
         return token
 
-    # This function violates mypy standards: 
+    # This function violates mypy standards:
     # https://mypy.readthedocs.io/en/stable/common_issues.html?highlight=signature%20#incompatible-overrides
     # However, it's being entirely replaced in the new dev_newghapi branch, so it will not get fixed
     def prepare_curl_cmd(
