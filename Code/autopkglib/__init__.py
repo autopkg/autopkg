@@ -448,15 +448,19 @@ def get_identifier_from_recipe_file(filename) -> Optional[str]:
     return None
 
 
-def find_recipe_by_identifier(identifier):
+def find_recipe_by_identifier(identifier: str, skip_overrides: bool = False) -> str:
     """Search recipe map for an identifier"""
-    if identifier in globalRecipeMap["identifiers"]:
+    if not skip_overrides and identifier in globalRecipeMap["overrides-identifiers"]:
+        if valid_recipe_file(globalRecipeMap["overrides-identifiers"][identifier]):
+            log(f"Found {identifier} in recipe map overrides")
+            return globalRecipeMap["overrides-identifiers"][identifier]
+    if not skip_overrides and identifier in globalRecipeMap["identifiers"]:
         if valid_recipe_file(globalRecipeMap["identifiers"][identifier]):
             log(f"Found {identifier} in recipe map")
             return globalRecipeMap["identifiers"][identifier]
 
 
-def find_recipe_by_name(name, skip_overrides=False):
+def find_recipe_by_name(name: str, skip_overrides: bool = False) -> str:
     """Search recipe map for a shortname"""
     # Check the overrides first, unless skipping them
     if not skip_overrides and name in globalRecipeMap["overrides"]:
@@ -513,7 +517,12 @@ def get_override_dirs():
 def calculate_recipe_map(extra_search_dirs=None, extra_override_dirs=None):
     """Recalculate the entire recipe map"""
     global globalRecipeMap
-    globalRecipeMap = {"identifiers": {}, "shortnames": {}, "overrides": {}}
+    globalRecipeMap = {
+        "identifiers": {},
+        "shortnames": {},
+        "overrides": {},
+        "overrides-identifiers": {},
+    }
     # If extra search paths were provided as CLI arguments, let's search those too
     if extra_search_dirs is None:
         extra_search_dirs = []
@@ -531,6 +540,9 @@ def calculate_recipe_map(extra_search_dirs=None, extra_override_dirs=None):
     # Do overrides separately
     for override in get_override_dirs() + extra_override_dirs:
         globalRecipeMap["overrides"].update(map_key_to_paths("overrides", override))
+        globalRecipeMap["overrides-identifiers"].update(
+            map_key_to_paths("overrides-identifiers", override)
+        )
     if not extra_search_dirs or not extra_override_dirs:
         # Don't store the extra stuff in the cache; they're intended to be temporary
         write_recipe_map_to_disk()
@@ -545,7 +557,7 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
     for pattern in patterns:
         matches = glob.glob(pattern)
         for match in matches:
-            if keyname == "identifiers":
+            if "identifiers" in keyname:
                 key = get_identifier_from_recipe_file(match)
             else:
                 key = remove_recipe_extension(os.path.basename(match))

@@ -122,20 +122,21 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def find_recipe(id_or_name, skip_overrides=False):
+def find_recipe(id_or_name: str, skip_overrides: bool = False):
     """Find a recipe based on a string that might be an identifier
     or a name"""
     # The recipe search should allow searching overrides vs. not (make-overrides shouldn't
     # search overrides first)
     # When searching:
     # Search for shortname in overrides first, since that's most common
+    # Search for an override identifier
     # search in shortnames
     # search in identifiers
     # oh noez we can't find it
     log(f"Looking for {id_or_name}...")
     recipe = find_recipe_by_name(
         id_or_name, skip_overrides
-    ) or find_recipe_by_identifier(id_or_name)
+    ) or find_recipe_by_identifier(id_or_name, skip_overrides)
     if not recipe:
         # We didn't find the recipe in the map
         log(f"Did not find {id_or_name} in recipe map")
@@ -332,17 +333,8 @@ def load_recipe(
         log_err(f"Invalid recipe: {name}")
         return
 
-    # If we got an identifier starting with "local", we don't store identifiers
-    # # for overrides...
-    # We must make the explicit rule that you cannot run a recipe by override
-    # identifier.
-    if name.startswith("local."):
-        log_err(
-            "AutoPkg cannot locate overrides by identifiers. Please use the recipe name instead."
-        )
-        return
     # if recipe_in_override_dir(recipe_file, override_dirs):
-    if name in globalRecipeMap["overrides"]:
+    if name in globalRecipeMap["overrides"] or name in globalRecipeMap["overrides-identifiers"]:
         parent_trust_info = recipe.get("ParentRecipeTrustInfo")
         override_parent = recipe.get("ParentRecipe") or recipe.get("Recipe")
     else:
