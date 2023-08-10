@@ -456,7 +456,7 @@ def find_recipe_by_identifier(
     identifier: str, skip_overrides: bool = False
 ) -> Optional[str]:
     """Search recipe map for an identifier"""
-    if not skip_overrides and identifier in globalRecipeMap["overrides-identifiers"]:
+    if not skip_overrides and identifier in globalRecipeMap.get("overrides-identifiers", {}):
         if valid_recipe_file(globalRecipeMap["overrides-identifiers"][identifier]):
             log(f"Found {identifier} in recipe map overrides")
             return globalRecipeMap["overrides-identifiers"][identifier]
@@ -592,11 +592,11 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
 def write_recipe_map_to_disk():
     """Write the recipe map to disk"""
     local_recipe_map = {}
-    try:
-        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
-            local_recipe_map = json.load(f)
-    except (OSError):
-        pass
+    # try:
+    #     with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+    #         local_recipe_map = json.load(f)
+    # except (OSError):
+    #     pass
     local_recipe_map.update(globalRecipeMap)
     with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
         json.dump(
@@ -608,16 +608,25 @@ def write_recipe_map_to_disk():
         )
 
 
-def read_recipe_map():
+def read_recipe_map(rebuild: bool = True) -> None:
     """Retrieve a dict of the recipe map of identifiers to paths"""
     global globalRecipeMap
     recipe_map = {}
     try:
         with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
             recipe_map = json.load(f)
-    except (OSError):
-        pass
-    globalRecipeMap.update(recipe_map)
+        # Let's do some validation first
+        expected_keys = ["identifiers", "overrides", "overrides-identifiers", "shortnames"]
+        if not set(expected_keys).issubset(recipe_map.keys()):
+            raise OSError
+        globalRecipeMap.update(recipe_map)
+    except (OSError, json.decoder.JSONDecodeError):
+        if rebuild:
+            log("Cannot find or read the recipe map! Creating it now...")
+            calculate_recipe_map()
+        else:
+            log("Cannot parse the recipe map - it's either missing or invalid!")
+            raise
 
 
 def get_autopkg_version():

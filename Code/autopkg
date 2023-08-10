@@ -91,9 +91,8 @@ class AutoPkgDumper(yaml.SafeDumper):
         return super(AutoPkgDumper, self).increase_indent(flow, False)
 
 
-def print_version(argv):
+def print_version() -> None:
     """Prints autopkg version"""
-    _ = argv[1]
     print(get_autopkg_version())
 
 
@@ -334,9 +333,8 @@ def load_recipe(
         return
 
     # if recipe_in_override_dir(recipe_file, override_dirs):
-    if (
-        name in globalRecipeMap["overrides"]
-        or name in globalRecipeMap["overrides-identifiers"]
+    if name in globalRecipeMap["overrides"] or name in globalRecipeMap.get(
+        "overrides-identifiers", {}
     ):
         parent_trust_info = recipe.get("ParentRecipeTrustInfo")
         override_parent = recipe.get("ParentRecipe") or recipe.get("Recipe")
@@ -2704,8 +2702,6 @@ def main(argv):
         )
         log_err("WARNING! " * 8 + "\n")
 
-    # First, populate the recipe map
-    read_recipe_map()
     try:
         verb = argv[1]
     except IndexError:
@@ -2716,6 +2712,12 @@ def main(argv):
     if verb == "help" or verb not in subcommands:
         display_help(argv, subcommands)
         return 1
+    if verb == "version":
+        print_version()
+        return 0
+    
+    # First, populate the recipe map
+    read_recipe_map()
 
     # Call the command function and pass it the argument list.
     # We leave the verb in the list in case one function can handle
