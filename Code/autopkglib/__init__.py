@@ -319,7 +319,11 @@ class Preferences:
 globalPreferences = Preferences()
 
 # Set the global recipe map
-globalRecipeMap: Dict[str, Dict[str, str]] = {"identifiers": {}, "shortnames": {}, "overrides": {}}
+globalRecipeMap: Dict[str, Dict[str, str]] = {
+    "identifiers": {},
+    "shortnames": {},
+    "overrides": {},
+}
 
 
 def get_pref(key):
@@ -448,7 +452,9 @@ def get_identifier_from_recipe_file(filename) -> Optional[str]:
     return None
 
 
-def find_recipe_by_identifier(identifier: str, skip_overrides: bool = False) -> Optional[str]:
+def find_recipe_by_identifier(
+    identifier: str, skip_overrides: bool = False
+) -> Optional[str]:
     """Search recipe map for an identifier"""
     if not skip_overrides and identifier in globalRecipeMap["overrides-identifiers"]:
         if valid_recipe_file(globalRecipeMap["overrides-identifiers"][identifier]):
