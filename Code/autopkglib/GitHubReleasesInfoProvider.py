@@ -183,7 +183,7 @@ class GitHubReleasesInfoProvider(Processor):
                             selected = (rel, asset)
                             break
                     except re.error as e:
-                        raise ProcessorError(f"Invalid regex: {e}")
+                        raise ProcessorError(f"Invalid regex: {e}") from e
         if not selected:
             raise ProcessorError(
                 "No release assets were found that satisfy the criteria."
