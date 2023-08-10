@@ -139,7 +139,7 @@ class PreferenceError(Exception):
 class Preferences:
     """An abstraction to hold all preferences."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Init."""
         self.prefs: VarDict = {
             "RECIPE_SEARCH_DIRS": DEFAULT_SEARCH_DIRS,
@@ -160,7 +160,7 @@ class Preferences:
                 "Preferences domain com.github.autopkg looks empty, using default preferences or file."
             )
 
-    def _parse_json_or_plist_file(self, file_path):
+    def _parse_json_or_plist_file(self, file_path) -> VarDict:
         """Parse the file. Start with plist, then JSON."""
         try:
             with open(file_path, "rb") as f:
@@ -319,7 +319,7 @@ class Preferences:
 globalPreferences = Preferences()
 
 # Set the global recipe map
-globalRecipeMap = {"identifiers": {}, "shortnames": {}, "overrides": {}}
+globalRecipeMap: Dict[str, Dict[str, str]] = {"identifiers": {}, "shortnames": {}, "overrides": {}}
 
 
 def get_pref(key):
@@ -448,7 +448,7 @@ def get_identifier_from_recipe_file(filename) -> Optional[str]:
     return None
 
 
-def find_recipe_by_identifier(identifier: str, skip_overrides: bool = False) -> str:
+def find_recipe_by_identifier(identifier: str, skip_overrides: bool = False) -> Optional[str]:
     """Search recipe map for an identifier"""
     if not skip_overrides and identifier in globalRecipeMap["overrides-identifiers"]:
         if valid_recipe_file(globalRecipeMap["overrides-identifiers"][identifier]):
@@ -458,9 +458,10 @@ def find_recipe_by_identifier(identifier: str, skip_overrides: bool = False) -> 
         if valid_recipe_file(globalRecipeMap["identifiers"][identifier]):
             log(f"Found {identifier} in recipe map")
             return globalRecipeMap["identifiers"][identifier]
+    return None
 
 
-def find_recipe_by_name(name: str, skip_overrides: bool = False) -> str:
+def find_recipe_by_name(name: str, skip_overrides: bool = False) -> Optional[str]:
     """Search recipe map for a shortname"""
     # Check the overrides first, unless skipping them
     if not skip_overrides and name in globalRecipeMap["overrides"]:
@@ -472,6 +473,7 @@ def find_recipe_by_name(name: str, skip_overrides: bool = False) -> str:
         if valid_recipe_file(globalRecipeMap["shortnames"][name]):
             log(f"Found {name} in recipe map")
             return globalRecipeMap["shortnames"][name]
+    return None
 
 
 def find_name_from_identifier(identifier: str) -> Optional[str]:
@@ -481,6 +483,7 @@ def find_name_from_identifier(identifier: str) -> Optional[str]:
         if recipe_path == path:
             return shortname
     log_err(f"Could not find shortname from {identifier}!")
+    return None
 
 
 def find_identifier_from_name(name: str) -> Optional[str]:
@@ -490,6 +493,7 @@ def find_identifier_from_name(name: str) -> Optional[str]:
         if recipe_path == path:
             return id
     log_err(f"Could not find identifier from {name}!")
+    return None
 
 
 def get_search_dirs() -> List[str]:
@@ -1172,7 +1176,7 @@ _CORE_PROCESSOR_NAMES = []
 _PROCESSOR_NAMES = []
 
 
-def import_processors():
+def import_processors() -> None:
     processor_files: List[str] = [
         os.path.splitext(name)[0]
         for name in pkg_resources.resource_listdir(__name__, "")
