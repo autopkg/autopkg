@@ -610,7 +610,7 @@ def write_recipe_map_to_disk():
         )
 
 
-def read_recipe_map(rebuild: bool = True) -> None:
+def read_recipe_map(rebuild: bool = False) -> None:
     """Retrieve a dict of the recipe map of identifiers to paths"""
     global globalRecipeMap
     recipe_map = {}
@@ -632,7 +632,10 @@ def read_recipe_map(rebuild: bool = True) -> None:
             log("Cannot find or read the recipe map! Creating it now...")
             calculate_recipe_map()
         else:
-            log("Cannot parse the recipe map - it's either missing or invalid!")
+            log(
+                "Cannot parse the recipe map - it's either missing or invalid!"
+                "\nTry adding or removing a repo to rebuild it."
+            )
             raise
 
 
