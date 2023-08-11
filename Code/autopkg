@@ -2715,7 +2715,7 @@ def main(argv):
     if verb == "version":
         print_version()
         return 0
-    
+
     # First, populate the recipe map
     read_recipe_map()
 

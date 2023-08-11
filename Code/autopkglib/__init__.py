@@ -456,7 +456,9 @@ def find_recipe_by_identifier(
     identifier: str, skip_overrides: bool = False
 ) -> Optional[str]:
     """Search recipe map for an identifier"""
-    if not skip_overrides and identifier in globalRecipeMap.get("overrides-identifiers", {}):
+    if not skip_overrides and identifier in globalRecipeMap.get(
+        "overrides-identifiers", {}
+    ):
         if valid_recipe_file(globalRecipeMap["overrides-identifiers"][identifier]):
             log(f"Found {identifier} in recipe map overrides")
             return globalRecipeMap["overrides-identifiers"][identifier]
@@ -616,7 +618,12 @@ def read_recipe_map(rebuild: bool = True) -> None:
         with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
             recipe_map = json.load(f)
         # Let's do some validation first
-        expected_keys = ["identifiers", "overrides", "overrides-identifiers", "shortnames"]
+        expected_keys = [
+            "identifiers",
+            "overrides",
+            "overrides-identifiers",
+            "shortnames",
+        ]
         if not set(expected_keys).issubset(recipe_map.keys()):
             raise OSError
         globalRecipeMap.update(recipe_map)
