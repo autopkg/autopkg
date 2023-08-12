@@ -17,7 +17,20 @@ jobs:
     runs-on: macos-13
 
     steps:
-      - name: Checkout
+      - name: Checkout relocatable-python
+        uses: actions/checkout@v3
+        with:
+          repository: 'gregneagle/relocatable-python'
+
+      - name: Build installer package
+        run: |
+          "$GITHUB_WORKSPACE/make_relocatable_python_framework.py" \
+            --python-version 3.7.5 \
+            --pip-requirements requirements.txt \
+            --os-version 10.9 \
+            --destination "/tmp/Python.framework"
+
+      - name: Checkout autopkg
         uses: actions/checkout@v3
 
       - name: Set environment variables
@@ -29,10 +42,13 @@ jobs:
         run: |
           PKGROOT=$(mktemp -d /tmp/AutoPkg-build-root-XXXXXXXXXXX)
           mkdir -p "$PKGROOT/Library"
+          rm -rf "$GITHUB_WORKSPACE/Code/tests"
           cp -R "$GITHUB_WORKSPACE/Code/" "$PKGROOT/Library/AutoPkg"
           mkdir -p "$PKGROOT/Library/LaunchDaemons"
           mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkgserver.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkgserver.plist"
           mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkginstalld.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkginstalld.plist"
+          mkdir -p "$PKGROOT/Library/AutoPkg/Python3"
+          mv "/tmp/Python.framework" "$PKGROOT/Library/AutoPkg/Python3/"
           mkdir -p "$PKGROOT/usr/local/autopkg"
           ln -s "$PKGROOT/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3" "$PKGROOT/usr/local/autopkg/python"
           mkdir -p "$PKGROOT/usr/local/bin"
