@@ -1,0 +1,53 @@
+name: Package merges to main
+
+on:
+  push:
+    branches:
+    - main
+    - gh-actions-build
+    paths-ignore:
+    - '**/*.md'
+    - '.github/**'
+    - 'Code/tests/**'
+
+jobs:
+  build:
+    name: Build
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set environment variables
+        id: set_env_var
+        run: |
+          echo "VERSION=$(/usr/libexec/PlistBuddy -c "Print:Version" "Code/autopkglib/version.plist")" >> $GITHUB_ENV
+
+      - name: Build installer package
+        run: |
+          PKGROOT=$(mktemp -d /tmp/AutoPkg-build-root-XXXXXXXXXXX)
+          mkdir -p "$PKGROOT/Library/AutoPkg"
+          cp -R "Code/*" "$PKGROOT/Library/AutoPkg/"
+          mkdir -p "$PKGROOT/Library/LaunchDaemons"
+          mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkgserver.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkgserver.plist"
+          mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkginstalld.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkginstalld.plist"
+          mkdir -p "$PKGROOT/usr/local/autopkg"
+          ln -s "$PKGROOT/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3" "$PKGROOT/usr/local/autopkg/python"
+          mkdir -p "$PKGROOT/usr/local/bin"
+          ln -s "$PKGROOT/Library/AutoPkg/autopkg" "$PKGROOT/usr/local/bin/autopkg"
+          mkdir -p pkg-scripts
+          # TODO: Move postinstall script into AutoPkg repo
+          curl -sL "https://raw.githubusercontent.com/autopkg/recipes/master/AutoPkg/Scripts/postinstall" -o pkg-scripts/postinstall
+          mkdir -p artifacts
+          pkgbuild --root "$PKGROOT" \
+            --identifier com.github.autopkg.autopkg \
+            --version "${{ env.VERSION }}" \
+            --scripts scripts/pkg \
+            "artifacts/AutoPkg-${{ env.VERSION }}.pkg"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        with:
+          name: artifacts
+          path: artifacts/
