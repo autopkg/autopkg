@@ -27,7 +27,6 @@ jobs:
 
       - name: Build installer package
         run: |
-          TEMPDIR=$(mktemp -d /tmp/AutoPkg-temp-XXXXXXXXXXX)
           PKGROOT=$(mktemp -d /tmp/AutoPkg-build-root-XXXXXXXXXXX)
           mkdir -p "$PKGROOT/Library"
           cp -R "$GITHUB_WORKSPACE/Code/" "$PKGROOT/Library/AutoPkg"
@@ -38,18 +37,18 @@ jobs:
           ln -s "$PKGROOT/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3" "$PKGROOT/usr/local/autopkg/python"
           mkdir -p "$PKGROOT/usr/local/bin"
           ln -s "$PKGROOT/Library/AutoPkg/autopkg" "$PKGROOT/usr/local/bin/autopkg"
-          mkdir -p "$TEMPDIR/pkg-scripts"
+          mkdir -p "pkg-scripts"
           # TODO: Move postinstall script into AutoPkg repo
-          curl -sL "https://raw.githubusercontent.com/autopkg/recipes/master/AutoPkg/Scripts/postinstall" -o "$TEMPDIR/pkg-scripts/postinstall"
-          mkdir -p "$TEMPDIR/artifacts"
+          curl -sL "https://raw.githubusercontent.com/autopkg/recipes/master/AutoPkg/Scripts/postinstall" -o "pkg-scripts/postinstall"
+          mkdir -p "artifacts"
           pkgbuild --root "$PKGROOT" \
             --identifier com.github.autopkg.autopkg \
             --version "${{ env.VERSION }}" \
-            --scripts "$TEMPDIR/pkg-scripts" \
-            "$TEMPDIR/artifacts/AutoPkg-${{ env.VERSION }}.pkg"
+            --scripts "pkg-scripts" \
+            "artifacts/AutoPkg-${{ env.VERSION }}.pkg"
 
       - name: Upload packages
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: artifacts
-          path: "$TEMPDIR/artifacts/"
+          path: artifacts/
