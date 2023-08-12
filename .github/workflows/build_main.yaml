@@ -23,13 +23,14 @@ jobs:
       - name: Set environment variables
         id: set_env_var
         run: |
-          echo "VERSION=$(/usr/libexec/PlistBuddy -c "Print:Version" "autopkg/Code/autopkglib/version.plist")" >> $GITHUB_ENV
+          echo "VERSION=$(/usr/libexec/PlistBuddy -c "Print:Version" "$GITHUB_WORKSPACE/Code/autopkglib/version.plist")" >> $GITHUB_ENV
 
       - name: Build installer package
         run: |
+          TEMPDIR=$(mktemp -d /tmp/AutoPkg-outputs-XXXXXXXXXXX)
           PKGROOT=$(mktemp -d /tmp/AutoPkg-build-root-XXXXXXXXXXX)
           mkdir -p "$PKGROOT/Library/AutoPkg"
-          cp -R "autopkg/Code/*" "$PKGROOT/Library/AutoPkg/"
+          cp -R "$GITHUB_WORKSPACE/Code/*" "$PKGROOT/Library/AutoPkg/"
           mkdir -p "$PKGROOT/Library/LaunchDaemons"
           mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkgserver.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkgserver.plist"
           mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkginstalld.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkginstalld.plist"
@@ -37,18 +38,18 @@ jobs:
           ln -s "$PKGROOT/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3" "$PKGROOT/usr/local/autopkg/python"
           mkdir -p "$PKGROOT/usr/local/bin"
           ln -s "$PKGROOT/Library/AutoPkg/autopkg" "$PKGROOT/usr/local/bin/autopkg"
-          mkdir -p pkg-scripts
+          mkdir -p "$TEMPDIR/pkg-scripts"
           # TODO: Move postinstall script into AutoPkg repo
-          curl -sL "https://raw.githubusercontent.com/autopkg/recipes/master/AutoPkg/Scripts/postinstall" -o pkg-scripts/postinstall
-          mkdir -p artifacts
+          curl -sL "https://raw.githubusercontent.com/autopkg/recipes/master/AutoPkg/Scripts/postinstall" -o "$TEMPDIR/pkg-scripts/postinstall"
+          mkdir -p "$TEMPDIR/artifacts"
           pkgbuild --root "$PKGROOT" \
             --identifier com.github.autopkg.autopkg \
             --version "${{ env.VERSION }}" \
-            --scripts scripts/pkg \
-            "artifacts/AutoPkg-${{ env.VERSION }}.pkg"
+            --scripts "$TEMPDIR/pkg-scripts" \
+            "$TEMPDIR/artifacts/AutoPkg-${{ env.VERSION }}.pkg"
 
       - name: Upload packages
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
         with:
           name: artifacts
-          path: artifacts/
+          path: "$TEMPDIR/artifacts/"
