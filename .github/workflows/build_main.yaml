@@ -22,8 +22,10 @@ jobs:
         with:
           repository: 'gregneagle/relocatable-python'
 
-      - name: Build installer package
+      - name: Build relocatable python
         run: |
+          # TODO: Use main upstream branch
+          curl -sLO "https://raw.githubusercontent.com/homebysix/autopkg/dev/requirements.txt"
           "$GITHUB_WORKSPACE/make_relocatable_python_framework.py" \
             --python-version 3.7.5 \
             --pip-requirements requirements.txt \
