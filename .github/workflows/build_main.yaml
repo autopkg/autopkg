@@ -7,7 +7,7 @@ on:
     - gh-actions-build
     paths-ignore:
     - '**/*.md'
-    - '.github/**'
+    # - '.github/**'
     - 'Code/tests/**'
   workflow_dispatch:
 
