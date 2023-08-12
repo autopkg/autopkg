@@ -52,9 +52,9 @@ jobs:
           mkdir -p "$PKGROOT/Library/AutoPkg/Python3"
           mv "/tmp/Python.framework" "$PKGROOT/Library/AutoPkg/Python3/"
           mkdir -p "$PKGROOT/usr/local/autopkg"
-          ln -s "$PKGROOT/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3" "$PKGROOT/usr/local/autopkg/python"
+          ln -s "/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3" "$PKGROOT/usr/local/autopkg/python"
           mkdir -p "$PKGROOT/usr/local/bin"
-          ln -s "$PKGROOT/Library/AutoPkg/autopkg" "$PKGROOT/usr/local/bin/autopkg"
+          ln -s "/Library/AutoPkg/autopkg" "$PKGROOT/usr/local/bin/autopkg"
           mkdir -p "pkg-scripts"
           # TODO: Move postinstall script into AutoPkg repo
           curl -sL "https://raw.githubusercontent.com/autopkg/recipes/master/AutoPkg/Scripts/postinstall" -o "pkg-scripts/postinstall"
