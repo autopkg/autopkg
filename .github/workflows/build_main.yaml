@@ -58,6 +58,7 @@ jobs:
           mkdir -p "pkg-scripts"
           # TODO: Move postinstall script into AutoPkg repo
           curl -sL "https://raw.githubusercontent.com/autopkg/recipes/master/AutoPkg/Scripts/postinstall" -o "pkg-scripts/postinstall"
+          chmod +x pkg-scripts/*
           mkdir -p "artifacts"
           pkgbuild --root "$PKGROOT" \
             --identifier com.github.autopkg.autopkg \
