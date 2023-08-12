@@ -29,8 +29,8 @@ jobs:
         run: |
           TEMPDIR=$(mktemp -d /tmp/AutoPkg-temp-XXXXXXXXXXX)
           PKGROOT=$(mktemp -d /tmp/AutoPkg-build-root-XXXXXXXXXXX)
-          mkdir -p "$PKGROOT/Library/AutoPkg"
-          cp -R "$GITHUB_WORKSPACE/Code" "$PKGROOT/Library/AutoPkg"
+          mkdir -p "$PKGROOT/Library"
+          cp -R "$GITHUB_WORKSPACE/Code/" "$PKGROOT/Library/AutoPkg"
           mkdir -p "$PKGROOT/Library/LaunchDaemons"
           mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkgserver.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkgserver.plist"
           mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkginstalld.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkginstalld.plist"
