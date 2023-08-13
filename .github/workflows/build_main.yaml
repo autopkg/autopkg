@@ -13,7 +13,7 @@ on:
 
 jobs:
   build:
-    name: Build
+    name: Build AutoPkg installer
     runs-on: macos-13
 
     steps:
@@ -30,7 +30,7 @@ jobs:
             --upgrade-pip \
             --os-version 11 \
             --python-version 3.10.11 \
-            --pip-requirements requirements.txt \
+            --pip-requirements new_requirements.txt \
             --destination "/tmp/Python.framework"
 
       - name: Checkout autopkg
