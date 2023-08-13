@@ -29,7 +29,7 @@ jobs:
           python3 "$GITHUB_WORKSPACE/make_relocatable_python_framework.py" \
             --upgrade-pip \
             --os-version 11 \
-            --python-version 3.10.11 \
+            --python-version 3.10.4 \
             --pip-requirements new_requirements.txt \
             --destination "/tmp/Python.framework"
 
