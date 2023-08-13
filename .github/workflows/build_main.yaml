@@ -24,8 +24,8 @@ jobs:
 
       - name: Build relocatable python
         run: |
-          # TODO: Use main upstream branch
-          curl -sLO "https://raw.githubusercontent.com/homebysix/autopkg/dev/requirements.txt"
+          # TODO: Use main branch
+          curl -sLO "https://raw.githubusercontent.com/autopkg/autopkg/dev/new_requirements.txt"
           python3 "$GITHUB_WORKSPACE/make_relocatable_python_framework.py" \
             --upgrade-pip \
             --os-version 11 \
