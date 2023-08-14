@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Union
 
 import github
 from autopkglib.common import log, log_err
-from autopkglib.prefs import get_pref
+from autopkglib import get_pref
 from urllib3.util import Retry
 
 # Custom type to express the format of GitHub releases for AutoPkg
