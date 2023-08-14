@@ -99,6 +99,7 @@ globalRecipeMap: Dict[str, Dict[str, str]] = {
     "identifiers": {},
     "shortnames": {},
     "overrides": {},
+    "overrides-identifiers": {},
 }
 
 
@@ -282,18 +283,16 @@ def find_identifier_from_name(name: str) -> Optional[str]:
 
 def get_search_dirs() -> List[str]:
     """Return search dirs from preferences or default list"""
-    default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
-
     dirs: List[str] = get_pref("RECIPE_SEARCH_DIRS")
     if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
-    return dirs or default
+    return dirs or DEFAULT_SEARCH_DIRS
 
 
 def get_override_dirs() -> List[str]:
     """Return override dirs from preferences or default list"""
-    default = ["~/Library/AutoPkg/RecipeOverrides"]
+    default = [DEFAULT_USER_OVERRIDES_DIR]
 
     dirs: List[str] = get_pref("RECIPE_OVERRIDE_DIRS")
     if isinstance(dirs, str):
@@ -376,7 +375,7 @@ def write_recipe_map_to_disk():
     # except (OSError):
     #     pass
     local_recipe_map.update(globalRecipeMap)
-    with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "w") as f:
+    with open(DEFAULT_RECIPE_MAP, "w") as f:
         json.dump(
             local_recipe_map,
             f,
@@ -391,7 +390,7 @@ def read_recipe_map(rebuild: bool = False) -> None:
     global globalRecipeMap
     recipe_map = {}
     try:
-        with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+        with open(DEFAULT_RECIPE_MAP, "r") as f:
             recipe_map = json.load(f)
         # Let's do some validation first
         expected_keys = [
@@ -993,7 +992,7 @@ def import_processors() -> None:
     #
     #    from Bar.Foo import Foo
     #
-    for name in filter(lambda f: f not in ("__init__", "xattr"), processor_files):
+    for name in filter(lambda f: f not in ("__init__", "xattr", "prefs", "common"), processor_files):
         globals()[name] = getattr(
             __import__(__name__ + "." + name, fromlist=[name]), name
         )
