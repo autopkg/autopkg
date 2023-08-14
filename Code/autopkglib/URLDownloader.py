@@ -20,8 +20,8 @@ import os.path
 import platform
 import tempfile
 
-from autopkglib.common import BUNDLE_ID
 from autopkglib import ProcessorError, xattr
+from autopkglib.common import BUNDLE_ID
 from autopkglib.URLGetter import URLGetter
 
 __all__ = ["URLDownloader"]

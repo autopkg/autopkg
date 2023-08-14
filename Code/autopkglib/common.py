@@ -19,17 +19,28 @@ import re
 import sys
 from typing import IO, Any, Dict, Union
 
-
 APP_NAME = "Autopkg"
 BUNDLE_ID = "com.github.autopkg"
 DEFAULT_USER_LIBRARY_DIR = "~/Library/AutoPkg"
 DEFAULT_LIBRARY_DIR = "/Library/AutoPkg"
-DEFAULT_USER_OVERRIDES_DIR = os.path.expanduser(os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeOverrides"))
-DEFAULT_USER_RECIPES_DIR = os.path.expanduser(os.path.join(DEFAULT_USER_LIBRARY_DIR, "Recipes"))
-DEFAULT_USER_CACHE_DIR = os.path.expanduser(os.path.join(DEFAULT_USER_LIBRARY_DIR, "Cache"))
-DEFAULT_USER_REPOS_DIR = os.path.expanduser(os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeRepos"))
-DEFAULT_RECIPE_MAP = os.path.expanduser(os.path.join(DEFAULT_USER_LIBRARY_DIR, "recipe_map.json"))
-DEFAULT_GH_TOKEN = os.path.expanduser(os.path.join(DEFAULT_USER_LIBRARY_DIR, "gh_token"))
+DEFAULT_USER_OVERRIDES_DIR = os.path.expanduser(
+    os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeOverrides")
+)
+DEFAULT_USER_RECIPES_DIR = os.path.expanduser(
+    os.path.join(DEFAULT_USER_LIBRARY_DIR, "Recipes")
+)
+DEFAULT_USER_CACHE_DIR = os.path.expanduser(
+    os.path.join(DEFAULT_USER_LIBRARY_DIR, "Cache")
+)
+DEFAULT_USER_REPOS_DIR = os.path.expanduser(
+    os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeRepos")
+)
+DEFAULT_RECIPE_MAP = os.path.expanduser(
+    os.path.join(DEFAULT_USER_LIBRARY_DIR, "recipe_map.json")
+)
+DEFAULT_GH_TOKEN = os.path.expanduser(
+    os.path.join(DEFAULT_USER_LIBRARY_DIR, "gh_token")
+)
 DEFAULT_SEARCH_DIRS = [".", DEFAULT_USER_LIBRARY_DIR, DEFAULT_LIBRARY_DIR]
 
 RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
