@@ -19,7 +19,8 @@ import plistlib
 import subprocess
 import sys
 
-from autopkglib import Processor, ProcessorError, log, log_err
+from autopkglib import Processor, ProcessorError
+from autopkglib.common import log, log_err
 
 __all__ = ["DmgMounter"]
 
