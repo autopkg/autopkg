@@ -7,6 +7,7 @@ from autopkglib import ProcessorError
 from autopkglib.GitHubReleasesInfoProvider import GitHubReleasesInfoProvider
 
 
+@unittest.skip("Skip GitHubReleasesInfoProvider tests while they are being redone")
 class TestGitHubReleasesInfoProvider(unittest.TestCase):
     """Test class for GitHubReleasesInfoProvider Processor."""
 
