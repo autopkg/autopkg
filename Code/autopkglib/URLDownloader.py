@@ -232,7 +232,9 @@ class URLDownloader(URLGetter):
             try:
                 os.makedirs(download_dir)
             except OSError as err:
-                raise ProcessorError(f"Can't create {download_dir}: {err.strerror}") from err
+                raise ProcessorError(
+                    f"Can't create {download_dir}: {err.strerror}"
+                ) from err
         return download_dir
 
     def create_temp_file(self, download_dir):
