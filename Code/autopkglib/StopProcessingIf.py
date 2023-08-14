@@ -51,7 +51,7 @@ class StopProcessingIf(Processor):
         try:
             predicate = NSPredicate.predicateWithFormat_(predicate_string)
         except Exception as err:
-            raise ProcessorError(f"Predicate error for '{predicate_string}': {err}")
+            raise ProcessorError(f"Predicate error for '{predicate_string}': {err}") from err
 
         result = predicate.evaluateWithObject_(self.env)
         self.output(f"({predicate_string}) is {result}")

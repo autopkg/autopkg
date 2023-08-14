@@ -232,7 +232,7 @@ class URLDownloader(URLGetter):
             try:
                 os.makedirs(download_dir)
             except OSError as err:
-                raise ProcessorError(f"Can't create {download_dir}: {err.strerror}")
+                raise ProcessorError(f"Can't create {download_dir}: {err.strerror}") from err
         return download_dir
 
     def create_temp_file(self, download_dir):
@@ -289,7 +289,7 @@ class URLDownloader(URLGetter):
         except OSError:
             raise ProcessorError(
                 f"Can't move {pathname_temporary} to {self.env['pathname']}"
-            )
+            ) from None
 
     def store_headers(self, header):
         """Store last-modified and etag headers in pathname xattr."""
