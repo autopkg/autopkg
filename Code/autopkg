@@ -39,7 +39,6 @@ from autopkglib import (
     RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
-    PreferenceError,
     calculate_recipe_map,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
