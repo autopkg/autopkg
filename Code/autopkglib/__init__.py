@@ -30,9 +30,9 @@ from typing import IO, Dict, List, Optional
 import pkg_resources
 import yaml
 from autopkglib.common import (
+    DEFAULT_RECIPE_MAP,
     DEFAULT_SEARCH_DIRS,
     DEFAULT_USER_OVERRIDES_DIR,
-    DEFAULT_RECIPE_MAP,
     RE_KEYREF,
     RECIPE_EXTS,
     FileOrPath,
@@ -1007,7 +1007,9 @@ def import_processors() -> None:
     #
     #    from Bar.Foo import Foo
     #
-    for name in filter(lambda f: f not in ("__init__", "xattr", "prefs", "common"), processor_files):
+    for name in filter(
+        lambda f: f not in ("__init__", "xattr", "prefs", "common"), processor_files
+    ):
         globals()[name] = getattr(
             __import__(__name__ + "." + name, fromlist=[name]), name
         )
