@@ -70,6 +70,7 @@ from autopkglib import (
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
 from autopkglib.github import GitHubSession, print_gh_search_results
+from autopkglib.prefs import PreferenceError
 
 # Catch Python 2 wrappers with an early f-string. Message must be on a single line.
 _ = f"""{sys.version_info.major} It looks like you're running the autopkg tool with an incompatible version of Python. Please update your script to use autopkg's included Python (/usr/local/autopkg/python). AutoPkgr users please note that AutoPkgr 1.5.1 and earlier is NOT compatible with autopkg 2. """  # noqa
