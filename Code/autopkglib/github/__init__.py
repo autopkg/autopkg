@@ -60,14 +60,18 @@ class GitHubSession(URLGetter):
         Defaults to TOKEN_LOCATION for the token path.
         Otherwise returns None.
         """
-        token = get_pref("GITHUB_TOKEN")
-        if not token and os.path.exists(token_path):
-            try:
-                with open(token_path, "r") as tokenf:
-                    token = tokenf.read().strip()
-            except OSError as err:
-                log_err(f"Couldn't read token file at {token_path}! Error: {err}")
-                token = None
+        pref_token_path = get_pref("GITHUB_TOKEN_PATH")
+        if not os.path.exists(pref_token_path) and os.path.exists(token_path):
+            pref_token_path = token_path
+        elif not os.path.exists(pref_token_path) and not os.path.exists(token_path):
+            log_err(f"No token file exists at {pref_token_path} or {token_path}!")
+            token = None
+        try:
+            with open(pref_token_path, "r") as tokenf:
+                token = tokenf.read().strip()
+        except OSError as err:
+            log_err(f"Couldn't read token file at {pref_token_path}! Error: {err}")
+            token = None
         # TODO: validate token given we found one but haven't checked its
         # auth status
         return token
