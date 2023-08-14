@@ -26,7 +26,7 @@ jobs:
         run: |
           # TODO: Use main branch
           curl -sLO "https://raw.githubusercontent.com/autopkg/autopkg/dev/new_requirements.txt"
-          python3 "$GITHUB_WORKSPACE/make_relocatable_python_framework.py" \
+          python3.10 "$GITHUB_WORKSPACE/make_relocatable_python_framework.py" \
             --upgrade-pip \
             --os-version 11 \
             --python-version 3.10.4 \
