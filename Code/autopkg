@@ -692,6 +692,9 @@ Example: '%prog repo-add recipes'
         log_err("Need at least one recipe repo URL!")
         return -1
 
+    # First, populate the recipe map
+    read_recipe_map(allow_continuing=True)
+
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     for repo_url in arguments:
@@ -737,6 +740,9 @@ def repo_delete(argv):
         log_err("Need at least one recipe repo path or URL!")
         return -1
 
+    # First, populate the recipe map
+    read_recipe_map(allow_continuing=True)
+
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     recipe_search_dirs = get_search_dirs()
 
@@ -775,6 +781,10 @@ def repo_list(argv):
     parser = gen_common_parser()
     parser.set_usage(f"Usage: %prog {verb}\n" "List all installed recipe repos.")
     _options, _arguments = common_parse(parser, argv)
+
+    # First, populate the recipe map
+    read_recipe_map()
+
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     if recipe_repos:
         for key in sorted(recipe_repos.keys()):
@@ -800,6 +810,9 @@ def repo_update(argv):
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
+
+    # First, populate the recipe map
+    read_recipe_map()
 
     if "all" in arguments:
         # just get all repos
@@ -907,6 +920,7 @@ def get_info(argv):
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
+
     # Calculate recipe map if we got this
     calculate_recipe_map(
         extra_search_dirs=search_dirs, extra_override_dirs=override_dirs
@@ -964,6 +978,9 @@ def processor_info(argv):
         return -1
 
     processor_name = arguments[0]
+
+    # First, populate the recipe map
+    read_recipe_map()
 
     recipe = None
     if options.recipe:
@@ -1188,6 +1205,9 @@ def list_recipes(argv):
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
+
+    # First, populate the recipe map
+    read_recipe_map()
 
     recipes = get_recipe_list(
         override_dirs=override_dirs,
@@ -1644,6 +1664,9 @@ def update_trust_info(argv):
         log_err(parser.get_usage())
         return -1
 
+    # First, populate the recipe map
+    read_recipe_map()
+
     for recipe_name in recipe_names:
         recipe_path = locate_recipe(
             recipe_name,
@@ -1724,6 +1747,9 @@ def verify_trust_info(argv):
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
     return_code = 0
+
+    # First, populate the recipe map
+    read_recipe_map()
 
     if options.recipe_list:
         recipe_list = parse_recipe_list(options.recipe_list)
@@ -1820,6 +1846,9 @@ def make_override(argv):
             "for 'name' that would be searched in recipe directories."
         )
         return -1
+
+    # First, populate the recipe map
+    read_recipe_map()
 
     recipe = load_recipe(
         recipe_name,
@@ -2039,6 +2068,9 @@ def run_recipes(argv):
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
+
+    # First, populate the recipe map
+    read_recipe_map()
 
     # initialize some variables
     summary_results = {}
@@ -2456,6 +2488,9 @@ def audit(argv):
         "Symlinker",
     ]
 
+    # First, populate the recipe map
+    read_recipe_map()
+
     recipe_paths = []
     recipe_paths.extend(arguments)
     if options.recipe_list:
@@ -2715,9 +2750,6 @@ def main(argv):
     if verb == "version":
         print_version()
         return 0
-
-    # First, populate the recipe map
-    read_recipe_map()
 
     # Call the command function and pass it the argument list.
     # We leave the verb in the list in case one function can handle

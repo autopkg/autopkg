@@ -385,33 +385,48 @@ def write_recipe_map_to_disk():
         )
 
 
-def read_recipe_map(rebuild: bool = False) -> None:
-    """Retrieve a dict of the recipe map of identifiers to paths"""
-    global globalRecipeMap
-    recipe_map = {}
+def handle_reading_recipe_map_file() -> Dict[str, Dict[str, str]]:
+    """Read the recipe map file, handle exceptions"""
     try:
         with open(DEFAULT_RECIPE_MAP, "r") as f:
             recipe_map = json.load(f)
-        # Let's do some validation first
-        expected_keys = [
-            "identifiers",
-            "overrides",
-            "overrides-identifiers",
-            "shortnames",
-        ]
-        if not set(expected_keys).issubset(recipe_map.keys()):
-            raise OSError
-        globalRecipeMap.update(recipe_map)
     except (OSError, json.decoder.JSONDecodeError):
+        log_err("Cannot read the recipe map file!")
+        return {}
+    return recipe_map
+
+
+def validate_recipe_map(recipe_map: Dict[str, Dict[str, str]]) -> bool:
+    """Return True if the recipe map has the correct set of keys"""
+    expected_keys = [
+        "identifiers",
+        "overrides",
+        "overrides-identifiers",
+        "shortnames",
+    ]
+    if set(expected_keys).issubset(recipe_map.keys()):
+        return True
+    return False
+
+
+def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> None:
+    """Parse the recipe map JSON file and update the global Recipe Map object.
+    If rebuild is True, rebuild the map. If allow_continuing is True, don't exit"""
+    global globalRecipeMap
+    recipe_map = handle_reading_recipe_map_file()
+    if validate_recipe_map(recipe_map):
+        globalRecipeMap.update(recipe_map)
+    else:
         if rebuild:
             log("Cannot find or read the recipe map! Creating it now...")
             calculate_recipe_map()
-        else:
+        elif not rebuild and not allow_continuing:
             log(
                 "Cannot parse the recipe map - it's either missing or invalid!"
                 "\nTry adding or removing a repo to rebuild it."
             )
-            raise
+            sys.exit(1)
+        # If rebuild is False and we are allowing to continue, just return
 
 
 def get_autopkg_version():
