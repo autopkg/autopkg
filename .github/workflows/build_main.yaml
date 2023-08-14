@@ -22,15 +22,10 @@ jobs:
         with:
           repository: 'gregneagle/relocatable-python'
 
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '14.3.1'
-
       - name: Build relocatable python
         run: |
           # TODO: Use main branch
-          curl -sLO "https://raw.githubusercontent.com/autopkg/autopkg/dev/new_requirements.txt"
+          curl -sLO "https://raw.githubusercontent.com/homebysix/autopkg/gh-actions-build/new_requirements.txt"
           python3.10 "$GITHUB_WORKSPACE/make_relocatable_python_framework.py" \
             --upgrade-pip \
             --os-version 11 \
