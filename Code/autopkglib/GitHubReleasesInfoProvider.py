@@ -95,6 +95,9 @@ class GitHubReleasesInfoProvider(Processor):
                 break
 
             if not regex:
+                # If there are no assets, do nothing
+                if not assets:
+                    continue
                 # If there's no regex to match against, attempt to return the first asset we find
                 try:
                     selected = (rel, next(iter(assets[0])), list(assets[0].values())[0])
@@ -118,9 +121,7 @@ class GitHubReleasesInfoProvider(Processor):
                         raise ProcessorError(f"Invalid regex: {e}") from e
                         raise ProcessorError(f"Invalid regex: {e}") from e
         if not selected:
-            raise ProcessorError(
-                "No release assets were found that satisfy the criteria."
-            )
+            return
 
         # We set these in the class to avoid passing more objects around
         self.selected_release_tag = selected[0]
@@ -133,6 +134,10 @@ class GitHubReleasesInfoProvider(Processor):
 
     def main(self):
         """Execute Github-related searches for releases."""
+        self.selected_release_tag = None
+        self.selected_asset = None
+        self.selected_asset_url = None
+
         # Start a new session
         new_session = autopkglib.github.GitHubSession()
         # We're just going to use the built-in function from autopkglib.github to get a dictionary
@@ -171,11 +176,22 @@ class GitHubReleasesInfoProvider(Processor):
             releases = releases_dict
         # Find the first eligible asset based on the regex
         self.select_asset(releases, self.env.get("asset_regex"))
+        if not (
+            self.selected_release_tag
+            and self.selected_asset
+            and self.selected_asset_url
+        ):
+            raise ProcessorError(
+                "No release assets were found that satisfy the criteria."
+            )
+
         # The asset id is now in self.selected_asset_id
         self.output("Fetching release data from GitHub...", 3)
         this_release = new_session.current_repo.get_release(self.selected_release_tag)
         # Get all the asset data about this particular release's asset
-        this_asset = [x for x in this_release.assets if x.name == self.selected_asset][0]
+        this_asset = [x for x in this_release.assets if x.name == self.selected_asset][
+            0
+        ]
 
         # Record the browser download url
         self.env["url"] = self.selected_asset_url
