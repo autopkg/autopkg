@@ -92,8 +92,6 @@ class GitHubReleasesInfoProvider(Processor):
                 "Path to a file containing your GitHub token. "
                 "Can be a relative path or absolute path. "
                 "ie. '~/.custom_gh_token' or '/path/to/token' "
-                "NOTE: the AutoPkg preference 'GITHUB_TOKEN' "
-                "takes precedence over this value."
             ),
         },
     }
