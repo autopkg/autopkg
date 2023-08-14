@@ -21,8 +21,8 @@ from textwrap import dedent
 from typing import Dict, List, Optional, Union
 
 import github
-# THIS IS A CIRCULAR DEPENDENCY AND NEEDS TO BE FIXED
-from autopkglib import get_pref, log, log_err
+from autopkglib.common import log, log_err
+from autopkglib.prefs import get_pref
 from urllib3.util import Retry
 
 # Custom type to express the format of GitHub releases for AutoPkg
@@ -120,11 +120,14 @@ class GitHubSession:
         If prereleases is True, return latest prerelease."""
         if not prereleases:
             # There's an EZ button for this in the API
-            return self.get_repo(name_or_id).get_latest_release().assets[0].browser_download_url
+            return (
+                self.get_repo(name_or_id)
+                .get_latest_release()
+                .assets[0]
+                .browser_download_url
+            )
         releases_paginated = self.get_repo(name_or_id).get_releases()
-        releases = [
-            rel for rel in releases_paginated if rel.prerelease is True
-        ]
+        releases = [rel for rel in releases_paginated if rel.prerelease is True]
         # This somewhat naively assumes the order of releases from the API remains consistent.
         # https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#list-releases
         # Docs do not seem to promise that this order is based on most recent, descending, but for now
