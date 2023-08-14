@@ -66,7 +66,9 @@ class PkgPayloadUnpacker(Processor):
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError(f"Can't remove {path}: {err.strerror}") from err
+                    raise ProcessorError(
+                        f"Can't remove {path}: {err.strerror}"
+                    ) from err
 
         # set an error string when ditto or aa fail
         error = ""

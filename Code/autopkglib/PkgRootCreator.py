@@ -57,14 +57,18 @@ class PkgRootCreator(Processor):
             elif os.path.isdir(self.env["pkgroot"]):
                 shutil.rmtree(self.env["pkgroot"])
         except OSError as err:
-            raise ProcessorError(f"Can't remove {self.env['pkgroot']}: {err.strerror}") from err
+            raise ProcessorError(
+                f"Can't remove {self.env['pkgroot']}: {err.strerror}"
+            ) from err
 
         # Create pkgroot. autopkghelper sets it to root:admin 01775.
         try:
             os.makedirs(self.env["pkgroot"])
             self.output(f"Created {self.env['pkgroot']}")
         except OSError as err:
-            raise ProcessorError(f"Can't create {self.env['pkgroot']}: {err.strerror}") from err
+            raise ProcessorError(
+                f"Can't create {self.env['pkgroot']}: {err.strerror}"
+            ) from err
 
         # Create directories.
         absroot = os.path.abspath(self.env["pkgroot"])
