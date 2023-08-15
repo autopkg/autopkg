@@ -17,12 +17,15 @@
 """Routines for working with the GitHub API"""
 
 import os
+import plistlib
+from base64 import b64decode
 from textwrap import dedent
 from typing import Dict, List, Optional, Union
+from urllib.parse import quote
 
 import github
-from autopkglib.common import log, log_err
 from autopkglib import get_pref
+from autopkglib.common import log, log_err
 from urllib3.util import Retry
 
 # Custom type to express the format of GitHub releases for AutoPkg
@@ -274,6 +277,67 @@ def print_gh_search_results(results_items):
         else:
             repo_name = repo["full_name"]
         print(format_str % (name, repo_name, path))
+
+
+def do_gh_repo_contents_fetch(
+    repo: str, path: str, use_token=False, decode=True
+) -> Optional[bytes]:
+    """Fetch file contents from GitHub and return as a string."""
+    gh_session = GitHubSession()
+    if use_token:
+        gh_session.setup_token()
+    # Do the search, including text match metadata
+    (results, code) = gh_session.call_api(
+        f"/repos/autopkg/{repo}/contents/{quote(path)}"
+    )
+
+    if code == 403:
+        log_err(
+            "You've probably hit the GitHub's search rate limit, officially 5 "
+            "requests per minute.\n"
+        )
+        if results:
+            log_err("Server response follows:\n")
+            log_err(results.get("message", None))
+            log_err(results.get("documentation_url", None))
+
+        return None
+    if results is None or code is None:
+        log_err("A GitHub API error occurred!")
+        return None
+    if decode:
+        return b64decode(results["content"])
+    return results["content"]
+
+
+def get_repository_from_identifier(identifier: str):
+    """Get a repository name from a recipe identifier."""
+    # TODO: This should be moved to autopkglib.github
+    # and also mostly rewritten
+    results = GitHubSession().search_for_name(identifier)
+    # so now we have a list of items containing file names and URLs
+    # we want to fetch these so we can look inside the contents for a matching
+    # identifier
+    # We just want to fetch the repos that contain these
+    # Is the name an identifier?
+    identifier_fragments = identifier.split(".")
+    if identifier_fragments[0] != "com":
+        # This is not an identifier
+        return
+    correct_item = None
+    for item in results:
+        file_contents_raw = do_gh_repo_contents_fetch(
+            item["repository"]["name"], item.get("path")
+        )
+        file_contents_data = plistlib.loads(file_contents_raw)
+        if file_contents_data.get("Identifier") == identifier:
+            correct_item = item
+            break
+    # Did we get correct item?
+    if not correct_item:
+        return
+    print(f"Found this recipe in repository: {correct_item['repository']['name']}")
+    return correct_item["repository"]["name"]
 
 
 # Testing this out on the interpreter:
