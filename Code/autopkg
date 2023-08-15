@@ -166,6 +166,8 @@ def get_identifier_from_override(override):
 
 def get_repository_from_identifier(identifier: str):
     """Get a repository name from a recipe identifier."""
+    # TODO: This should be moved to autopkglib.github
+    # and also mostly rewritten
     results = GitHubSession().search_for_name(identifier)
     # so now we have a list of items containing file names and URLs
     # we want to fetch these so we can look inside the contents for a matching
