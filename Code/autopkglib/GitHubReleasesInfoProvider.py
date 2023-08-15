@@ -119,7 +119,6 @@ class GitHubReleasesInfoProvider(Processor):
                             break
                     except re.error as e:
                         raise ProcessorError(f"Invalid regex: {e}") from e
-                        raise ProcessorError(f"Invalid regex: {e}") from e
         if not selected:
             return
 
@@ -157,13 +156,13 @@ class GitHubReleasesInfoProvider(Processor):
         self.output(f"Creating GitHub session for {self.env['github_repo']}", 3)
         releases_dict: autopkglib.github.GithubReleasesDict = (
             new_session.get_repo_asset_dict(
-                self.env["github_repo"], self.env.get("include_preleases", False)
+                self.env["github_repo"], self.env.get("include_prereleases", False)
             )
         )
         # self.output(releases_dict, 4)
         # If we're looking for the latest one, we look at the first dictionary entry
         releases: autopkglib.github.GithubReleasesDict = {}
-        if self.env.get("latest_only") or not self.env.get("regex"):
+        if self.env.get("latest_only"):
             self.output("Considering latest release only")
             # Use a dictionary comprehension to create a new dictionary that contains only the latest key
             releases = {
@@ -174,6 +173,7 @@ class GitHubReleasesInfoProvider(Processor):
         else:
             # If not the latest, just send in the whole thing
             releases = releases_dict
+        self.output(f"All releases available: {releases}", 4)
         # Find the first eligible asset based on the regex
         self.select_asset(releases, self.env.get("asset_regex"))
         if not (
