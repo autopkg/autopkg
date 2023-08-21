@@ -66,7 +66,11 @@ from autopkglib import (
     version_equal_or_greater,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
-from autopkglib.github import GitHubSession, print_gh_search_results, get_repository_from_identifier
+from autopkglib.github import (
+    GitHubSession,
+    get_repository_from_identifier,
+    print_gh_search_results,
+)
 from autopkglib.prefs import PreferenceError
 
 # Catch Python 2 wrappers with an early f-string. Message must be on a single line.
