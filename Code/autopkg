@@ -29,9 +29,7 @@ import subprocess
 import sys
 import time
 import traceback
-from base64 import b64decode
-from typing import Optional
-from urllib.parse import quote, urlparse
+from urllib.parse import urlparse
 
 import yaml
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
@@ -68,7 +66,7 @@ from autopkglib import (
     version_equal_or_greater,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
-from autopkglib.github import GitHubSession, print_gh_search_results
+from autopkglib.github import GitHubSession, print_gh_search_results, get_repository_from_identifier
 from autopkglib.prefs import PreferenceError
 
 # Catch Python 2 wrappers with an early f-string. Message must be on a single line.
@@ -162,34 +160,6 @@ def get_identifier_from_override(override):
             "recipe is always used for this override."
         )
     return name
-
-
-def get_repository_from_identifier(identifier: str):
-    """Get a repository name from a recipe identifier."""
-    results = GitHubSession().search_for_name(identifier)
-    # so now we have a list of items containing file names and URLs
-    # we want to fetch these so we can look inside the contents for a matching
-    # identifier
-    # We just want to fetch the repos that contain these
-    # Is the name an identifier?
-    identifier_fragments = identifier.split(".")
-    if identifier_fragments[0] != "com":
-        # This is not an identifier
-        return
-    correct_item = None
-    for item in results:
-        file_contents_raw = do_gh_repo_contents_fetch(
-            item["repository"]["name"], item.get("path")
-        )
-        file_contents_data = plistlib.loads(file_contents_raw)
-        if file_contents_data.get("Identifier") == identifier:
-            correct_item = item
-            break
-    # Did we get correct item?
-    if not correct_item:
-        return
-    print(f"Found this recipe in repository: {correct_item['repository']['name']}")
-    return correct_item["repository"]["name"]
 
 
 def locate_recipe(
@@ -839,37 +809,6 @@ def repo_update(argv):
     # Recalculate the recipe map
     log("Recalculating the recipe map...")
     calculate_recipe_map()
-
-
-def do_gh_repo_contents_fetch(
-    repo: str, path: str, use_token=False, decode=True
-) -> Optional[bytes]:
-    """Fetch file contents from GitHub and return as a string."""
-    gh_session = GitHubSession()
-    if use_token:
-        gh_session.setup_token()
-    # Do the search, including text match metadata
-    (results, code) = gh_session.call_api(
-        f"/repos/autopkg/{repo}/contents/{quote(path)}"
-    )
-
-    if code == 403:
-        log_err(
-            "You've probably hit the GitHub's search rate limit, officially 5 "
-            "requests per minute.\n"
-        )
-        if results:
-            log_err("Server response follows:\n")
-            log_err(results.get("message", None))
-            log_err(results.get("documentation_url", None))
-
-        return None
-    if results is None or code is None:
-        log_err("A GitHub API error occurred!")
-        return None
-    if decode:
-        return b64decode(results["content"])
-    return results["content"]
 
 
 def display_help(argv, subcommands):

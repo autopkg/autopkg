@@ -23,6 +23,7 @@ platformdirs==2.5.1
 pre-commit==2.17.0
 pycodestyle==2.8.0
 pycparser==2.21
+PyGithub==1.59.0
 pyflakes==2.4.0
 PyYAML==6.0.1
 six==1.16.0
