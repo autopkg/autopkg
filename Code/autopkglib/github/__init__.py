@@ -98,10 +98,13 @@ class GitHubSession:
 
     def _get_token(self, token_path: str) -> Optional[str]:
         """Reads token from GITHUB_TOKEN_PATH pref or provided token path."""
+        default_token_path = "~/.autopkg_gh_token"
         if os.path.exists(token_path):
             expanded_token_path = os.path.expanduser(token_path)
         else:
-            expanded_token_path = os.path.expanduser(get_pref("GITHUB_TOKEN_PATH"))
+            expanded_token_path = os.path.expanduser(
+                get_pref("GITHUB_TOKEN_PATH") or default_token_path
+            )
         token = None
         if os.path.exists(expanded_token_path):
             try:
