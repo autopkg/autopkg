@@ -1,4 +1,4 @@
-### [2.8.1](https://github.com/autopkg/autopkg/compare/v2.8.1...HEAD) (Unreleased)
+### [2.8.1](https://github.com/autopkg/autopkg/compare/v2.8.1...v2.8.1) (August 21, 2023)
 
 
 ### [2.8.1](https://github.com/autopkg/autopkg/compare/v2.8.0...v2.8.1) (July 27, 2023)
