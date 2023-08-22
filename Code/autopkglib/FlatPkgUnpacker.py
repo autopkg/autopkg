@@ -91,7 +91,9 @@ class FlatPkgUnpacker(DmgMounter):
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError(f"Can't remove {path}: {err.strerror}") from err
+                    raise ProcessorError(
+                        f"Can't remove {path}: {err.strerror}"
+                    ) from err
 
         if self.env.get("skip_payload"):
             self.xar_expand()
