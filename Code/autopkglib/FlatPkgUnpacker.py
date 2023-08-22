@@ -81,7 +81,7 @@ class FlatPkgUnpacker(DmgMounter):
             except OSError as err:
                 raise ProcessorError(
                     f"Can't create {self.env['destination_path']}: {err.strerror}"
-                )
+                ) from err
         elif self.env.get("purge_destination"):
             for entry in os.listdir(self.env["destination_path"]):
                 path = os.path.join(self.env["destination_path"], entry)
@@ -91,7 +91,7 @@ class FlatPkgUnpacker(DmgMounter):
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError(f"Can't remove {path}: {err.strerror}")
+                    raise ProcessorError(f"Can't remove {path}: {err.strerror}") from err
 
         if self.env.get("skip_payload"):
             self.xar_expand()
@@ -118,7 +118,7 @@ class FlatPkgUnpacker(DmgMounter):
         except OSError as err:
             raise ProcessorError(
                 f"xar execution failed with error code {err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(
                 f"extraction of {self.env['flat_pkg_path']} with xar failed: {stderr}"
@@ -133,7 +133,7 @@ class FlatPkgUnpacker(DmgMounter):
             except OSError as err:
                 raise ProcessorError(
                     f"Can't remove {self.env['destination_path']}: {err.strerror}"
-                )
+                ) from err
 
         try:
             pkgutilcmd = [
@@ -149,7 +149,7 @@ class FlatPkgUnpacker(DmgMounter):
         except OSError as err:
             raise ProcessorError(
                 f"pkgutil execution failed with error code {err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(
                 f"extraction of {self.env['flat_pkg_path']} with pkgutil failed: "

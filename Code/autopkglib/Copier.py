@@ -63,7 +63,7 @@ class Copier(DmgMounter):
                 else:
                     os.unlink(dest_item)
             except OSError as err:
-                raise ProcessorError(f"Can't remove {dest_item}: {err.strerror}")
+                raise ProcessorError(f"Can't remove {dest_item}: {err.strerror}") from err
 
         # Copy file or directory.
         try:
@@ -75,7 +75,7 @@ class Copier(DmgMounter):
                 shutil.copy(source_item, dest_item)
             self.output(f"Copied {source_item} to {dest_item}")
         except BaseException as err:
-            raise ProcessorError(f"Can't copy {source_item} to {dest_item}: {err}")
+            raise ProcessorError(f"Can't copy {source_item} to {dest_item}: {err}") from err
 
     def main(self):
         source_path = self.env["source_path"]

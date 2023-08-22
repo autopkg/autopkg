@@ -124,7 +124,7 @@ class Unarchiver(Processor):
         except Exception as ex:
             raise ProcessorError(
                 f"Unarchiving {archive_path} with <native extractor> failed: {ex}"
-            )
+            ) from ex
 
     def _extract_utility(
         self, format: str, archive_path: str, destination_path: str
@@ -158,7 +158,7 @@ class Unarchiver(Processor):
             raise ProcessorError(
                 f"{os.path.basename(cmd[0])} execution failed with error code "
                 f"{err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(
                 f"Unarchiving {archive_path} with {os.path.basename(cmd[0])} failed: "
@@ -183,7 +183,7 @@ class Unarchiver(Processor):
             try:
                 os.makedirs(destination_path)
             except OSError as err:
-                raise ProcessorError(f"Can't create {destination_path}: {err.strerror}")
+                raise ProcessorError(f"Can't create {destination_path}: {err.strerror}") from err
         elif self.env.get("purge_destination"):
             for entry in os.listdir(destination_path):
                 path = os.path.join(destination_path, entry)
@@ -193,7 +193,7 @@ class Unarchiver(Processor):
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError(f"Can't remove {path}: {err.strerror}")
+                    raise ProcessorError(f"Can't remove {path}: {err.strerror}") from err
 
         fmt = self.env.get("archive_format")
         if fmt is None:
