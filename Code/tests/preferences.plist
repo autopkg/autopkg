@@ -7,7 +7,7 @@
 	<key>FAIL_RECIPES_WITHOUT_TRUST_INFO</key>
 	<false/>
 	<key>GITHUB_TOKEN_PATH</key>
-	<string>/Users/nmcspadden/Library/AutoPkg/gh_token</string>
+	<string>gh_token</string>
 	<key>MUNKI_REPO</key>
 	<string>/Users/Shared/munki_repo</string>
 	<key>RECIPE_OVERRIDE_DIRS</key>
