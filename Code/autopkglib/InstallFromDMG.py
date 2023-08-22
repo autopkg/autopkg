@@ -115,7 +115,9 @@ class InstallFromDMG(DmgMounter):
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.socket.connect(AUTOPKGINSTALLD_SOCKET)
         except OSError as err:
-            raise ProcessorError(f"Couldn't connect to autopkginstalld: {err.strerror}") from err
+            raise ProcessorError(
+                f"Couldn't connect to autopkginstalld: {err.strerror}"
+            ) from err
 
     def send_request(self, request):
         """Send an install request to autopkginstalld"""

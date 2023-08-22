@@ -183,7 +183,9 @@ class Unarchiver(Processor):
             try:
                 os.makedirs(destination_path)
             except OSError as err:
-                raise ProcessorError(f"Can't create {destination_path}: {err.strerror}") from err
+                raise ProcessorError(
+                    f"Can't create {destination_path}: {err.strerror}"
+                ) from err
         elif self.env.get("purge_destination"):
             for entry in os.listdir(destination_path):
                 path = os.path.join(destination_path, entry)
@@ -193,7 +195,9 @@ class Unarchiver(Processor):
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError(f"Can't remove {path}: {err.strerror}") from err
+                    raise ProcessorError(
+                        f"Can't remove {path}: {err.strerror}"
+                    ) from err
 
         fmt = self.env.get("archive_format")
         if fmt is None:
