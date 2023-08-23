@@ -10,9 +10,9 @@ mkdir -p "$PKGROOT/Library/LaunchDaemons"
 mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkgserver.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkgserver.plist"
 mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkginstalld.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkginstalld.plist"
 mkdir -p "$PKGROOT/usr/local/autopkg"
-ln -s "$PKGROOT/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3" "$PKGROOT/usr/local/autopkg/python"
+ln -sf "/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3" "$PKGROOT/usr/local/autopkg/python"
 mkdir -p "$PKGROOT/usr/local/bin"
-ln -s "$PKGROOT/Library/AutoPkg/autopkg" "$PKGROOT/usr/local/bin/autopkg"
+ln -sf "//Library/AutoPkg/autopkg" "$PKGROOT/usr/local/bin/autopkg"
 mkdir -p pkg-scripts
 cp postinstall pkg-scripts/postinstall
 mkdir -p artifacts
@@ -20,4 +20,4 @@ pkgbuild --root "$PKGROOT" \
 --identifier com.github.autopkg.autopkg \
 --version "$VERSION" \
 --scripts pkg-scripts \
-"artifacts/AutoPkg-$VERSION.pkg"
+"artifacts/AutoPkg-only-$VERSION.pkg"
