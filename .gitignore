@@ -11,3 +11,4 @@ autopkg.code-workspace
 
 # don't track package builds
 Scripts/artifacts/*
+Scripts/pkg-scripts/*
