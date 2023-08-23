@@ -1,0 +1,11 @@
+          Description: Test GitHubReleasesInfoProvider Processor
+          Identifier: com.github.autopkg.test.GitHubReleasesInfoProvider
+          Input:
+            NAME: GitHubReleasesInfoProviderTest
+          MinimumVersion: "2.8"
+          Process:
+              - Processor: GitHubReleasesInfoProvider
+                Arguments:
+                  github_repo: "Velocidex/velociraptor"
+                  asset_regex: "^.*(darwin-amd64)(?!.sig)"
+                  include_prereleases: False

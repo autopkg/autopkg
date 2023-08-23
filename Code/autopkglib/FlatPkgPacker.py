@@ -50,7 +50,7 @@ class FlatPkgPacker(Processor):
                 ["/usr/sbin/pkgutil", "--flatten", source_dir, dest_pkg]
             )
         except subprocess.CalledProcessError as err:
-            raise ProcessorError(f"{err} flattening {source_dir}")
+            raise ProcessorError(f"{err} flattening {source_dir}") from err
 
     def main(self):
         source_dir = self.env.get("source_flatpkg_dir")

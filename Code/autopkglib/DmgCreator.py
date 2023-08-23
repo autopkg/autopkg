@@ -150,7 +150,7 @@ class DmgCreator(Processor):
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(f"creation of {self.env['dmg_path']} failed: {stderr}")
 

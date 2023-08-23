@@ -1,6 +1,6 @@
 [flake8]
 select = B,C,E,F,P,W,B9
-max-line-length = 80
+max-line-length = 120
 ### DEFAULT IGNORES FOR 4-space INDENTED PROJECTS ###
 # E127, E128 are hard to silence in certain nested formatting situations.
 # E203 doesn't work for slicing

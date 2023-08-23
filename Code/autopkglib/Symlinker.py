@@ -51,7 +51,7 @@ class Symlinker(Processor):
                 except OSError as err:
                     raise ProcessorError(
                         f"Can't remove {destination_path}: {err.strerror}"
-                    )
+                    ) from err
 
         # Make symlink.
         try:
@@ -60,7 +60,7 @@ class Symlinker(Processor):
         except BaseException as err:
             raise ProcessorError(
                 f"Can't symlink {source_path} to {destination_path}: {err}"
-            )
+            ) from err
 
 
 if __name__ == "__main__":

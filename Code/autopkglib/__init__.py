@@ -21,57 +21,33 @@ import json
 import os
 import plistlib
 import pprint
-import re
 import subprocess
 import sys
 import traceback
-from copy import deepcopy
 from distutils.version import LooseVersion
-from typing import IO, Any, Dict, List, Optional, Union
+from typing import IO, Dict, List, Optional
 
-import appdirs
 import pkg_resources
 import yaml
-
-# Type for methods that accept either a filesystem path or a file-like object.
-FileOrPath = Union[IO, str, bytes, int]
-
-# Type for ubiquitous dictionary type used throughout autopkg.
-# Most commonly for `input_variables` and friends. It also applies to virtually all
-# usages of plistlib results as well.
-VarDict = Dict[str, Any]
-
-
-def is_mac():
-    """Return True if current OS is macOS."""
-    return "darwin" in sys.platform.lower()
-
-
-def is_windows():
-    """Return True if current OS is Windows."""
-    return "win32" in sys.platform.lower()
-
-
-def is_linux():
-    """Return True if current OS is Linux."""
-    return "linux" in sys.platform.lower()
-
-
-def log(msg, error=False):
-    """Message logger, prints to stdout/stderr."""
-    if error:
-        print(msg, file=sys.stderr)
-    else:
-        print(msg)
-
-
-def log_err(msg):
-    """Message logger for errors."""
-    log(msg, error=True)
-
+from autopkglib.common import (
+    DEFAULT_RECIPE_MAP,
+    DEFAULT_SEARCH_DIRS,
+    DEFAULT_USER_OVERRIDES_DIR,
+    RE_KEYREF,
+    RECIPE_EXTS,
+    FileOrPath,
+    VarDict,
+    autopkg_user_folder,
+    is_linux,
+    is_mac,
+    is_windows,
+    log,
+    log_err,
+)
+from autopkglib.prefs import Preferences
 
 try:
-    from CoreFoundation import (
+    from CoreFoundation import (  # type: ignore
         CFPreferencesAppSynchronize,
         CFPreferencesCopyAppValue,
         CFPreferencesCopyKeyList,
@@ -81,7 +57,7 @@ try:
         kCFPreferencesCurrentHost,
         kCFPreferencesCurrentUser,
     )
-    from Foundation import NSArray, NSDictionary, NSNumber
+    from Foundation import NSArray, NSDictionary, NSNumber  # type: ignore
 except ImportError:
     if is_mac():
         print(
@@ -115,196 +91,16 @@ except ImportError:
     kCFPreferencesCurrentUser = None
     kCFPreferencesCurrentHost = None
 
-APP_NAME = "Autopkg"
-BUNDLE_ID = "com.github.autopkg"
-
-RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
-
-# Supported recipe extensions
-RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
-
-
-class PreferenceError(Exception):
-    """Preference exception"""
-
-    pass
-
-
-class Preferences:
-    """An abstraction to hold all preferences."""
-
-    def __init__(self):
-        """Init."""
-        self.prefs: VarDict = {}
-        # What type of preferences input are we using?
-        self.type: Optional[str] = None
-        # Path to the preferences file we were given
-        self.file_path: Optional[str] = None
-        # If we're on macOS, read in the preference domain first.
-        if is_mac():
-            self.prefs = self._get_macos_prefs()
-        else:
-            self.prefs = self._get_file_prefs()
-        if not self.prefs:
-            log_err("WARNING: Did not load any default preferences.")
-
-    def _parse_json_or_plist_file(self, file_path):
-        """Parse the file. Start with plist, then JSON."""
-        try:
-            with open(file_path, "rb") as f:
-                data = plistlib.load(f)
-            self.type = "plist"
-            self.file_path = file_path
-            return data
-        except Exception:
-            pass
-        try:
-            with open(file_path, "rb") as f:
-                data = json.load(f)
-                self.type = "json"
-                self.file_path = file_path
-                return data
-        except Exception:
-            pass
-        return {}
-
-    def __deepconvert_objc(self, object):
-        """Convert all contents of an ObjC object to Python primitives."""
-        value = object
-        if isinstance(object, NSNumber):
-            value = int(object)
-        elif isinstance(object, NSArray) or isinstance(object, list):
-            value = [self.__deepconvert_objc(x) for x in object]
-        elif isinstance(object, NSDictionary):
-            value = dict(object)
-            # RECIPE_REPOS is a dict of dicts
-            for k, v in value.items():
-                if isinstance(v, NSDictionary):
-                    value[k] = dict(v)
-        else:
-            return object
-        return value
-
-    def _get_macos_pref(self, key):
-        """Get a specific macOS preference key."""
-        value = self.__deepconvert_objc(CFPreferencesCopyAppValue(key, BUNDLE_ID))
-        return value
-
-    def _get_macos_prefs(self):
-        """Return a dict (or an empty dict) with the contents of all
-        preferences in the domain."""
-        prefs = {}
-
-        # get keys stored via 'defaults write [domain]'
-        user_keylist = CFPreferencesCopyKeyList(
-            BUNDLE_ID, kCFPreferencesCurrentUser, kCFPreferencesAnyHost
-        )
-
-        # get keys stored via 'defaults write /Library/Preferences/[domain]'
-        system_keylist = CFPreferencesCopyKeyList(
-            BUNDLE_ID, kCFPreferencesAnyUser, kCFPreferencesCurrentHost
-        )
-
-        # CFPreferencesCopyAppValue() in get_macos_pref() will handle returning the
-        # appropriate value using the search order, so merging prefs in order
-        # here isn't necessary
-        for keylist in [system_keylist, user_keylist]:
-            if keylist:
-                for key in keylist:
-                    prefs[key] = self._get_macos_pref(key)
-        return prefs
-
-    def _get_file_prefs(self):
-        r"""Lookup preferences for Windows in a standardized path, such as:
-        * `C:\\Users\username\AppData\Local\Autopkg\config.{plist,json}`
-        * `/home/username/.config/Autopkg/config.{plist,json}`
-        Tries to find `config.plist`, then `config.json`."""
-
-        config_dir = appdirs.user_config_dir(APP_NAME, appauthor=False)
-
-        # Try a plist config, then a json config.
-        data = self._parse_json_or_plist_file(os.path.join(config_dir, "config.plist"))
-        if data:
-            return data
-        data = self._parse_json_or_plist_file(os.path.join(config_dir, "config.json"))
-        if data:
-            return data
-
-        return {}
-
-    def _set_macos_pref(self, key, value):
-        """Sets a preference for domain"""
-        try:
-            CFPreferencesSetAppValue(key, value, BUNDLE_ID)
-            if not CFPreferencesAppSynchronize(BUNDLE_ID):
-                raise PreferenceError(f"Could not synchronize preference {key}")
-        except Exception as err:
-            raise PreferenceError(f"Could not set {key} preference: {err}") from err
-
-    def read_file(self, file_path):
-        """Read in a file and add the key/value pairs into preferences."""
-        # Determine type or file: plist or json
-        data = self._parse_json_or_plist_file(file_path)
-        for k in data:
-            self.prefs[k] = data[k]
-
-    def _write_json_file(self):
-        """Write out the prefs into JSON."""
-        try:
-            assert self.file_path is not None
-            with open(self.file_path, "w") as f:
-                json.dump(
-                    self.prefs,
-                    f,
-                    skipkeys=True,
-                    ensure_ascii=True,
-                    indent=2,
-                    sort_keys=True,
-                )
-        except Exception as e:
-            log_err(f"Unable to write out JSON: {e}")
-
-    def _write_plist_file(self):
-        """Write out the prefs into a Plist."""
-        try:
-            assert self.file_path is not None
-            with open(self.file_path, "wb") as f:
-                plistlib.dump(self.prefs, f)
-        except Exception as e:
-            log_err(f"Unable to write out plist: {e}")
-
-    def write_file(self):
-        """Write preferences back out to file."""
-        if not self.file_path:
-            # Nothing to do if we weren't given a file
-            return
-        if self.type == "json":
-            self._write_json_file()
-        elif self.type == "plist":
-            self._write_plist_file()
-
-    def get_pref(self, key):
-        """Retrieve a preference value."""
-        return deepcopy(self.prefs.get(key))
-
-    def get_all_prefs(self):
-        """Retrieve a dict of all preferences."""
-        return self.prefs
-
-    def set_pref(self, key, value):
-        """Set a preference value."""
-        self.prefs[key] = value
-        # On macOS, write it back to preferences domain if we didn't use a file
-        if is_mac() and self.type is None:
-            self._set_macos_pref(key, value)
-        elif self.file_path is not None:
-            self.write_file()
-        else:
-            log_err(f"WARNING: Preference change {key}=''{value}'' was not saved.")
-
-
 # Set the global preferences object
 globalPreferences = Preferences()
+
+# Set the global recipe map
+globalRecipeMap: Dict[str, Dict[str, str]] = {
+    "identifiers": {},
+    "shortnames": {},
+    "overrides": {},
+    "overrides-identifiers": {},
+}
 
 
 def get_pref(key):
@@ -335,6 +131,9 @@ def remove_recipe_extension(name):
 
 def recipe_from_file(filename):
     """Create a recipe dictionary from a file. Handle exceptions and log"""
+    if not filename:
+        # If we made GitHub search suggestions but the operator selected no, this will be None
+        return
     if not os.path.isfile(filename):
         return
 
@@ -346,7 +145,7 @@ def recipe_from_file(filename):
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")
-            return
+            raise
 
     else:
         try:
@@ -356,7 +155,55 @@ def recipe_from_file(filename):
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: plist error for {filename}: {err}")
-            return
+            raise
+
+
+def valid_recipe_file(filename) -> bool:
+    """Returns True if filename contains a valid recipe,
+    otherwise returns False"""
+    try:
+        recipe_dict = recipe_from_file(filename)
+    except Exception:
+        # If we can't read the file due to a syntax or parsing error, we definitely don't have a valid dict
+        return False
+    return valid_recipe_dict(recipe_dict)
+
+
+def valid_recipe_dict(recipe_dict) -> bool:
+    """Returns True if recipe dict is a valid recipe,
+    otherwise returns False"""
+    return (
+        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
+    )
+
+
+def valid_override_dict(recipe_dict) -> bool:
+    """Returns True if the recipe is a valid override,
+    otherwise returns False"""
+    return valid_recipe_dict_with_keys(
+        recipe_dict, ["Input", "ParentRecipe"]
+    ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+
+
+def valid_override_file(filename) -> bool:
+    """Returns True if filename contains a valid override,
+    otherwise returns False"""
+    override_dict = recipe_from_file(filename)
+    return valid_override_dict(override_dict)
+
+
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
+    """Attempts to read a dict and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise."""
+    if recipe_dict:
+        for key in keys_to_verify:
+            if key not in recipe_dict:
+                return False
+        # if we get here, we found all the keys
+        return True
+    return False
 
 
 def get_identifier(recipe):
@@ -373,30 +220,213 @@ def get_identifier(recipe):
         return None
 
 
-def get_identifier_from_recipe_file(filename):
+def get_identifier_from_recipe_file(filename) -> Optional[str]:
     """Attempts to read filename and get the
     identifier. Otherwise, returns None."""
-    recipe_dict = recipe_from_file(filename)
-    return get_identifier(recipe_dict)
-
-
-def find_recipe_by_identifier(identifier, search_dirs):
-    """Search search_dirs for a recipe with the given
-    identifier"""
-    for directory in search_dirs:
-        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
-        patterns.extend(
-            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
-        )
-        for pattern in patterns:
-            matches = glob.glob(pattern)
-            for match in matches:
-                if get_identifier_from_recipe_file(match) == identifier:
-                    return match
-
+    if valid_recipe_file(filename):
+        recipe_dict = recipe_from_file(filename)
+        return get_identifier(recipe_dict)
     return None
+
+
+def find_recipe_by_identifier(
+    identifier: str, skip_overrides: bool = False
+) -> Optional[str]:
+    """Search recipe map for an identifier"""
+    if not skip_overrides and identifier in globalRecipeMap.get(
+        "overrides-identifiers", {}
+    ):
+        if valid_recipe_file(globalRecipeMap["overrides-identifiers"][identifier]):
+            log(f"Found {identifier} in recipe map overrides")
+            return globalRecipeMap["overrides-identifiers"][identifier]
+    if not skip_overrides and identifier in globalRecipeMap["identifiers"]:
+        if valid_recipe_file(globalRecipeMap["identifiers"][identifier]):
+            log(f"Found {identifier} in recipe map")
+            return globalRecipeMap["identifiers"][identifier]
+    return None
+
+
+def find_recipe_by_name(name: str, skip_overrides: bool = False) -> Optional[str]:
+    """Search recipe map for a shortname"""
+    # Check the overrides first, unless skipping them
+    if not skip_overrides and name in globalRecipeMap["overrides"]:
+        if valid_recipe_file(globalRecipeMap["overrides"][name]):
+            log(f"Found {name} in recipe map overrides")
+            return globalRecipeMap["overrides"][name]
+    # search by "Name" in the recipe map
+    if name in globalRecipeMap["shortnames"]:
+        if valid_recipe_file(globalRecipeMap["shortnames"][name]):
+            log(f"Found {name} in recipe map")
+            return globalRecipeMap["shortnames"][name]
+    return None
+
+
+def find_name_from_identifier(identifier: str) -> Optional[str]:
+    """Find a recipe name from its identifier"""
+    recipe_path = globalRecipeMap["identifiers"].get(identifier)
+    for shortname, path in globalRecipeMap["shortnames"].items():
+        if recipe_path == path:
+            return shortname
+    log_err(f"Could not find shortname from {identifier}!")
+    return None
+
+
+def find_identifier_from_name(name: str) -> Optional[str]:
+    """Find a recipe identifier from its shortname"""
+    recipe_path = globalRecipeMap["shortnames"].get(name)
+    for id, path in globalRecipeMap["identifiers"].items():
+        if recipe_path == path:
+            return id
+    log_err(f"Could not find identifier from {name}!")
+    return None
+
+
+def get_search_dirs() -> List[str]:
+    """Return search dirs from preferences or default list"""
+    dirs: List[str] = get_pref("RECIPE_SEARCH_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or DEFAULT_SEARCH_DIRS
+
+
+def get_override_dirs() -> List[str]:
+    """Return override dirs from preferences or default list"""
+    default = [DEFAULT_USER_OVERRIDES_DIR]
+
+    dirs: List[str] = get_pref("RECIPE_OVERRIDE_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or default
+
+
+def calculate_recipe_map(
+    extra_search_dirs: Optional[List[str]] = None,
+    extra_override_dirs: Optional[List[str]] = None,
+):
+    """Recalculate the entire recipe map"""
+    global globalRecipeMap
+    globalRecipeMap = {
+        "identifiers": {},
+        "shortnames": {},
+        "overrides": {},
+        "overrides-identifiers": {},
+    }
+    # If extra search paths were provided as CLI arguments, let's search those too
+    if extra_search_dirs is None:
+        extra_search_dirs = []
+    if extra_override_dirs is None:
+        extra_override_dirs = []
+    search_dirs = get_pref("RECIPE_SEARCH_DIRS") or DEFAULT_SEARCH_DIRS
+    for search_dir in search_dirs + extra_search_dirs:
+        if search_dir == ".":
+            # skip searching cwd
+            continue
+        globalRecipeMap["identifiers"].update(
+            map_key_to_paths("identifiers", search_dir)
+        )
+        globalRecipeMap["shortnames"].update(map_key_to_paths("shortnames", search_dir))
+    # Do overrides separately
+    for override in get_override_dirs() + extra_override_dirs:
+        globalRecipeMap["overrides"].update(map_key_to_paths("overrides", override))
+        globalRecipeMap["overrides-identifiers"].update(
+            map_key_to_paths("overrides-identifiers", override)
+        )
+    if not extra_search_dirs or not extra_override_dirs:
+        # Don't store the extra stuff in the cache; they're intended to be temporary
+        write_recipe_map_to_disk()
+
+
+def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
+    """Return a dict of keyname to absolute recipe paths"""
+    recipe_map = {}
+    normalized_dir = os.path.abspath(os.path.expanduser(repo_dir))
+    patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+    patterns.extend([os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS])
+    for pattern in patterns:
+        matches = glob.glob(pattern)
+        for match in matches:
+            if "identifiers" in keyname:
+                key = get_identifier_from_recipe_file(match)
+            else:
+                key = remove_recipe_extension(os.path.basename(match))
+            # In case the file was invalid, or missing a key
+            if not key:
+                print(
+                    f"WARNING: {match} is potentially an invalid file, not adding it to the recipe map! "
+                    "Please file a GitHub Issue for this repo."
+                )
+                continue
+            # key is the recipe shortname at this point
+            if key in recipe_map or key in globalRecipeMap[keyname]:
+                # we already have this recipe, don't update it
+                continue
+            recipe_map[key] = match
+    return recipe_map
+
+
+def write_recipe_map_to_disk():
+    """Write the recipe map to disk"""
+    local_recipe_map = {}
+    # try:
+    #     with open(os.path.join(autopkg_user_folder(), "recipe_map.json"), "r") as f:
+    #         local_recipe_map = json.load(f)
+    # except (OSError):
+    #     pass
+    local_recipe_map.update(globalRecipeMap)
+    with open(DEFAULT_RECIPE_MAP, "w") as f:
+        json.dump(
+            local_recipe_map,
+            f,
+            ensure_ascii=True,
+            indent=2,
+            sort_keys=True,
+        )
+
+
+def handle_reading_recipe_map_file() -> Dict[str, Dict[str, str]]:
+    """Read the recipe map file, handle exceptions"""
+    try:
+        with open(DEFAULT_RECIPE_MAP, "r") as f:
+            recipe_map = json.load(f)
+    except (OSError, json.decoder.JSONDecodeError):
+        log_err("Cannot read the recipe map file!")
+        return {}
+    return recipe_map
+
+
+def validate_recipe_map(recipe_map: Dict[str, Dict[str, str]]) -> bool:
+    """Return True if the recipe map has the correct set of keys"""
+    expected_keys = [
+        "identifiers",
+        "overrides",
+        "overrides-identifiers",
+        "shortnames",
+    ]
+    if set(expected_keys).issubset(recipe_map.keys()):
+        return True
+    return False
+
+
+def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> None:
+    """Parse the recipe map JSON file and update the global Recipe Map object.
+    If rebuild is True, rebuild the map. If allow_continuing is True, don't exit"""
+    global globalRecipeMap
+    recipe_map = handle_reading_recipe_map_file()
+    if validate_recipe_map(recipe_map):
+        globalRecipeMap.update(recipe_map)
+    else:
+        if rebuild:
+            log("Cannot find or read the recipe map! Creating it now...")
+            calculate_recipe_map()
+        elif not rebuild and not allow_continuing:
+            log(
+                "Cannot parse the recipe map - it's either missing or invalid!"
+                "\nTry adding or removing a repo to rebuild it."
+            )
+            sys.exit(1)
+        # If rebuild is False and we are allowing to continue, just return
 
 
 def get_autopkg_version():
@@ -668,11 +698,14 @@ class Processor:
         If there is an error loading the file, the exception raised will be prefixed
         with `exception_text`.
         """
-        try:
-            if isinstance(plist_file, (str, bytes, int)):
+        if isinstance(plist_file, (str, bytes, int)):
+            try:
                 fh: IO = open(plist_file, "rb")
-            else:
-                fh = plist_file
+            except OSError as err:
+                raise ProcessorError(f"{exception_text}: {err}") from err
+        else:
+            fh = plist_file
+        try:
             return plistlib.load(fh)
         except Exception as err:
             raise ProcessorError(f"{exception_text}: {err}") from err
@@ -793,7 +826,7 @@ class AutoPackager:
         identifier = self.get_recipe_identifier(recipe)
         # define a cache/work directory for use by the recipe
         cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
-            "~/Library/AutoPkg/Cache"
+            os.path.join(autopkg_user_folder(), "Cache"),
         )
         self.env["RECIPE_CACHE_DIR"] = os.path.join(cache_dir, identifier)
 
@@ -958,7 +991,7 @@ _CORE_PROCESSOR_NAMES = []
 _PROCESSOR_NAMES = []
 
 
-def import_processors():
+def import_processors() -> None:
     processor_files: List[str] = [
         os.path.splitext(name)[0]
         for name in pkg_resources.resource_listdir(__name__, "")
@@ -974,7 +1007,9 @@ def import_processors():
     #
     #    from Bar.Foo import Foo
     #
-    for name in filter(lambda f: f not in ("__init__", "xattr"), processor_files):
+    for name in filter(
+        lambda f: f not in ("__init__", "xattr", "prefs", "common"), processor_files
+    ):
         globals()[name] = getattr(
             __import__(__name__ + "." + name, fromlist=[name]), name
         )
@@ -1027,7 +1062,7 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
             shared_processor_recipe_path = find_recipe_by_identifier(
-                processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+                processor_recipe_id
             )
             if shared_processor_recipe_path:
                 processor_search_dirs.append(

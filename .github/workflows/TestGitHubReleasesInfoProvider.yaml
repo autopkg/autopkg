@@ -28,7 +28,7 @@ jobs:
         # without this, API limits will be hit
         run: |
           cd ~
-          echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
+          echo ${{ secrets.GITHUB_TOKEN_PATH }} > "~/Library/AutoPkg/gh_token"
 
       - name: checkout this repo
         uses: actions/checkout@v3
@@ -70,12 +70,12 @@ jobs:
           Identifier: com.github.autopkg.test.GitHubReleasesInfoProvider
           Input:
             NAME: GitHubReleasesInfoProviderTest
-          MinimumVersion: "2.3"
+          MinimumVersion: "2.8"
           Process:
               - Processor: GitHubReleasesInfoProvider
                 Arguments:
-                  github_repo: audacity/audacity
-                  asset_regex: .*64bit\.exe$
+                  github_repo: "Velocidex/velociraptor"
+                  asset_regex: "^.*(darwin-amd64)(?!.sig)"
                   include_prereleases: False
           EOFEOF
       - name: get file contents

@@ -91,7 +91,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             with open(plistpath, "rb") as f:
                 plist = plistlib.load(f)
         except Exception as err:
-            raise ProcessorError(f"Can't read {plistpath}: {err}")
+            raise ProcessorError(f"Can't read {plistpath}: {err}") from err
         return plist
 
     def package_app(self, app_path):
@@ -116,16 +116,16 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                     f"The key '{version_key}' does not exist in the App "
                     f"Bundle's Info.plist! ({app_path}/Contents/Info.plist) "
                     f"Please check the recipe and try again."
-                )
+                ) from None
             # Trap all other errors.
             except BaseException as err:
-                raise ProcessorError(err)
+                raise ProcessorError(err) from err
         if not self.env.get("bundleid"):
             try:
                 self.env["bundleid"] = infoplist["CFBundleIdentifier"]
                 self.output(f"BundleID: {self.env['bundleid']}")
             except BaseException as err:
-                raise ProcessorError(err)
+                raise ProcessorError(err) from err
 
         # get pkgdir and pkgname
         if self.env.get("pkg_path"):
@@ -160,11 +160,11 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                 else:
                     os.unlink(pkgroot)
             except OSError as err:
-                raise ProcessorError(f"Can't remove {pkgroot}: {err.strerror}")
+                raise ProcessorError(f"Can't remove {pkgroot}: {err.strerror}") from err
         try:
             os.makedirs(os.path.join(pkgroot, "Applications"), 0o775)
         except OSError as err:
-            raise ProcessorError(f"Could not create pkgroot: {err.strerror}")
+            raise ProcessorError(f"Could not create pkgroot: {err.strerror}") from err
 
         app_name = os.path.basename(app_path)
         source_item = app_path
@@ -180,7 +180,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         except OSError as err:
             raise ProcessorError(
                 f"Can't copy {source_item} to {dest_item}: {err.strerror}"
-            )
+            ) from err
 
         # build a package request
         request = {

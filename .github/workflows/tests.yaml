@@ -12,6 +12,8 @@ on:
       - ".github/workflows/tests.yaml"
       - "Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml"
   pull_request:
+    branches:
+      - dev
     paths:
       - "**.py"
       - "requirements.txt"
@@ -24,7 +26,7 @@ jobs:
       matrix:
         # https://ncorti.com/blog/howto-github-actions-build-matrix
         # ubuntu-latest, macos-latest, windows-latest
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       # only needed on self hosted windows runners:
@@ -47,7 +49,7 @@ jobs:
         # without this, API limits will be hit
         run: |
           cd ~
-          echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
+          echo ${{ secrets.GITHUB_TOKEN_PATH }} > "gh_token"
 
       - name: Install requirements
         run: pip install --requirement gh_actions_requirements.txt

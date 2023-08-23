@@ -1,4 +1,32 @@
-### [2.7.2](https://github.com/autopkg/autopkg/compare/v2.7.1...HEAD) (Unreleased)
+### [2.8.1](https://github.com/autopkg/autopkg/compare/v2.8.1...HEAD) (Unreleased)
+
+
+### [2.8.1](https://github.com/autopkg/autopkg/compare/v2.8.0...v2.8.1) (July 27, 2023)
+
+Fixes:
+* Recipe map now correctly rebuilds after adding a new repo (https://github.com/autopkg/autopkg/issues/868)
+* Unit tests now run on the dev branch first
+* Fixed some various lint issues
+
+
+### [2.8.0](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.8.0) (July 26, 2023)
+
+New features:
+* The recipe map branch has now been merged in. This means that AutoPkg will build a recipe map (JSON on disk) of all repos and recipes when you add or delete repos, and use that for searching for recipes. This drastically speeds up recipe search, especially if you have lots of repos checked out. The old on-disk search method is a fallback, but will be removed in the future.
+* The recipe map feature was merged in after a long hiatus, and I can't currently guarantee everything was merged correctly. Please test this and let us know if there are any problems or bugs.
+* MunkiImporter now creates pkginfo files with a supported architecture in the filename if and only if there is exactly one supported architecture (i.e. "SomePackage-1.0.0-x86_64.pkginfo"). This will make it much easier to distinguish multiple architecture pkginfos for the same package. A similar PR was merged for Munki (https://github.com/munki/munki/pull/1185).
+
+Fixes:
+* Error handling in URLDownloader to address some curl issues (https://github.com/autopkg/autopkg/pull/850)
+* Fixes for URLDownloaderPython (https://github.com/autopkg/autopkg/pull/854)
+* Indenting blocks in YAML to match spec (https://github.com/autopkg/autopkg/pull/861)
+* PkgCopier now only allows copying of .pkg / .mpkg files (https://github.com/autopkg/autopkg/pull/864)
+
+### [2.7.2](https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7.2) (December 07, 2022)
+
+* Fix for SparkleUpdateInfoProvider. (https://github.com/autopkg/autopkg/pull/845)
+
+**Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.71..v2.7.2
 
 ### [2.7.1](https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7.1) (December 06, 2022)
 
@@ -34,14 +62,11 @@ Similarly, thanks to @homebysix for doing a similar action for linting, ensuring
 
 **Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7.0...v2.5
 
-### [2.5.0](https://github.com/autopkg/autopkg/compare/v2.3...v2.5.0) (April 08, 2022)
+### [2.3.1](https://github.com/autopkg/autopkg/compare/v2.3...v2.3.1) (March 03, 2021)
+
 FIXES:
 
 - Resolved a bug preventing `autopkg repo-update` and `autopkg repo-delete` operations on local file paths ([#724](https://github.com/autopkg/autopkg/issues/724); fixes [#723](https://github.com/autopkg/autopkg/issues/723) and [lindegroup/autopkgr#666](https://github.com/lindegroup/autopkgr/issues/666))
-- Unarchiver now explicitly clears out `archive_format` variable when finishing execution [#777](https://github.com/autopkg/autopkg/pull/777)
-- Xattr usage on Linux should no longer throw errors [#778](https://github.com/autopkg/autopkg/pull/778)
-- Add a new `asset_url` output variable to GithubReleasesInfoProvider [#779](https://github.com/autopkg/autopkg/pull/779)
-- Prevent MunkiImporter duplicating imports when multiple architectures. This now lets MunkiImporter correctly support Apple Silicon/Universal versions of existing software in the repo. [#781](https://github.com/autopkg/autopkg/pull/781)
 
 ### [2.3](https://github.com/autopkg/autopkg/compare/v2.2...v2.3) (March 01, 2021)
 
