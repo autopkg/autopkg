@@ -865,7 +865,7 @@ def get_info(argv):
     # search_dirs = options.search_dirs or get_search_dirs()
 
     # Calculate recipe map if we got this
-    read_recipe_map(allow_continuing=False)
+    read_recipe_map(rebuild=True)
 
     make_suggestions = True
     if options.quiet:
