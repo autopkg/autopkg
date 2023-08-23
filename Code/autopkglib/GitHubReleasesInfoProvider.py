@@ -19,7 +19,7 @@
 import re
 from typing import Optional
 
-import autopkglib.github
+import autopkglib.apgithub
 from autopkglib import Processor, ProcessorError
 
 __all__ = ["GitHubReleasesInfoProvider"]
@@ -80,7 +80,7 @@ class GitHubReleasesInfoProvider(Processor):
     __doc__ = description
 
     def select_asset(
-        self, releases: autopkglib.github.GithubReleasesDict, regex: str
+        self, releases: autopkglib.apgithub.GithubReleasesDict, regex: str
     ) -> None:
         """Iterates through the a list of asset filenames in order and determines the first
         eligible asset that matches the regex. Sets the selected release
@@ -138,8 +138,8 @@ class GitHubReleasesInfoProvider(Processor):
         self.selected_asset_url = None
 
         # Start a new session
-        new_session = autopkglib.github.GitHubSession()
-        # We're just going to use the built-in function from autopkglib.github to get a dictionary
+        new_session = autopkglib.apgithub.GitHubSession()
+        # We're just going to use the built-in function from autopkglib.apgithub to get a dictionary
         # of releases to asset names and URLs, and regex against that.
         # The idea is that other processors don't need to learn PyGithub and can just get straight
         # into business logic
@@ -154,14 +154,14 @@ class GitHubReleasesInfoProvider(Processor):
         #   [{'autopkg-2.7.2.pkg': 'https://github.com/autopkg/autopkg/releases/download/v2.7.2/autopkg-2.7.2.pkg'}],
         # }
         self.output(f"Creating GitHub session for {self.env['github_repo']}", 3)
-        releases_dict: autopkglib.github.GithubReleasesDict = (
+        releases_dict: autopkglib.apgithub.GithubReleasesDict = (
             new_session.get_repo_asset_dict(
                 self.env["github_repo"], self.env.get("include_prereleases", False)
             )
         )
         # self.output(releases_dict, 4)
         # If we're looking for the latest one, we look at the first dictionary entry
-        releases: autopkglib.github.GithubReleasesDict = {}
+        releases: autopkglib.apgithub.GithubReleasesDict = {}
         if self.env.get("latest_only"):
             self.output("Considering latest release only")
             # Use a dictionary comprehension to create a new dictionary that contains only the latest key

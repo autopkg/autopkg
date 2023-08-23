@@ -17,7 +17,7 @@ from urllib.parse import quote
 
 from autopkgcmd.opts import common_parse, gen_common_parser
 from autopkglib.common import log_err
-from autopkglib.github import (
+from autopkglib.apgithub import (
     DEFAULT_SEARCH_USER,
     GitHubSession,
     print_gh_search_results,

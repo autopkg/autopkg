@@ -315,7 +315,7 @@ def do_gh_repo_contents_fetch(
 
 def get_repository_from_identifier(identifier: str):
     """Get a repository name from a recipe identifier."""
-    # TODO: This should be moved to autopkglib.github
+    # TODO: This should be moved to autopkglib.apgithub
     # and also mostly rewritten
     results = GitHubSession().search_for_name(identifier)
     # so now we have a list of items containing file names and URLs
@@ -346,5 +346,5 @@ def get_repository_from_identifier(identifier: str):
 # Testing this out on the interpreter:
 # import sys
 # sys.path.append('autopkglib')
-# import autopkglib.github
-# new_session = autopkglib.github.GitHubSession()
+# import autopkglib.apgithub
+# new_session = autopkglib.apgithub.GitHubSession()
