@@ -15,5 +15,6 @@ mkdir -p "$PKGROOT"
 
 pkgbuild --root "$PKGROOT" \
 --identifier com.github.autopkg.python \
+--install-location "/Library/AutoPkg/Python3" \
 --version "$PYVERSION" \
 "artifacts/AutoPkg-Python-$PYVERSION.pkg"
