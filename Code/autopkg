@@ -65,12 +65,12 @@ from autopkglib import (
     valid_recipe_file,
     version_equal_or_greater,
 )
-from autopkglib.autopkgyaml import autopkg_str_representer
 from autopkglib.apgithub import (
     GitHubSession,
     get_repository_from_identifier,
     print_gh_search_results,
 )
+from autopkglib.autopkgyaml import autopkg_str_representer
 from autopkglib.prefs import PreferenceError
 
 # Catch Python 2 wrappers with an early f-string. Message must be on a single line.
