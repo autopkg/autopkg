@@ -269,6 +269,7 @@ def load_recipe(
     updated recipe repos, the override still applies to the recipe from
     which it was derived."""
 
+    # Pre AutoPkg 3.0.0:
     # Here's how this should work, ideally:
     # 1. Search for the recipe based on path, then override, shortname, identifier
     # 2. If it's an override, load up the trust info
@@ -277,6 +278,24 @@ def load_recipe(
     # where child recipe values always take precedence
     # 5. Keep doing this until no more ParentRecipes
     # 6. Return the entire recipe as one single big dictionary
+
+    # Post Autopkg 3.0.0:
+    # Rethinking of recipe location logic:
+    # 1. Look for a path to a file first, return path to file
+    # 2. If not a path, look for it in recipe map, return path to file
+    # 3. If not in recipe map, search for it in the search directories, return path to file
+    # 4. If not in search directories, return none
+    # 5. If no path to file, error and fail
+
+    # Once we have a path to a file:
+    # 1. Load the file, attempt to parse into recipe object
+    # 2. Is it a valid recipe? (Need to document valid recipe expectations)
+    # 3. if not, return None for a recipe object
+    # 4. If no valid recipe object, error and fail
+    # 5. With a valid recipe object, check for a ParentRecipe
+    # 6. Rerun recipe location logic for ParentRecipe
+    # 7. When parsing recipe object, prepend Process with processors from each parent, in order
+    # 8. Add input variables from parents only if they don't already exist in the child (later recipes always win)
     recipe_file = locate_recipe(
         name,
         make_suggestions=make_suggestions,
