@@ -239,7 +239,7 @@ def find_recipe_by_identifier(
         if valid_recipe_file(globalRecipeMap["overrides-identifiers"][identifier]):
             log(f"Found {identifier} in recipe map overrides")
             return globalRecipeMap["overrides-identifiers"][identifier]
-    if not skip_overrides and identifier in globalRecipeMap["identifiers"]:
+    if identifier in globalRecipeMap["identifiers"]:
         if valid_recipe_file(globalRecipeMap["identifiers"][identifier]):
             log(f"Found {identifier} in recipe map")
             return globalRecipeMap["identifiers"][identifier]
