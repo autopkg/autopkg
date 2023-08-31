@@ -90,7 +90,9 @@ class GitHubSession:
         try:
             self.autopkg_org = self.session.get_organization("autopkg")
         except github.GithubException as err:
-            log_err(f"Your GitHub token exists but is invalid, please re-issue a new personal access token: {err}")
+            log_err(
+                f"Your GitHub token exists but is invalid, please re-issue a new personal access token: {err}"
+            )
             sys.exit(-1)
         self.autopkg_repos = self.autopkg_org.get_repos(
             type="public", sort="full_name", direction="asc"
