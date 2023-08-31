@@ -86,7 +86,17 @@ class GitHubSession:
             log(
                 "WARNING: This is an unathenticated Github session, some API features may not work"
             )
-            self.session = github.Github()
+            # Create the same session as above, but with no auth
+            # This will likely completely break any GitHub Enterprise users
+            self.session = github.Github(
+                base_url=base_url,
+                timeout=timeout,
+                user_agent=user_agent,
+                per_page=per_page,
+                verify=verify,
+                retry=retry,
+                pool_size=pool_size,
+            )
         try:
             self.autopkg_org = self.session.get_organization("autopkg")
         except github.GithubException as err:
