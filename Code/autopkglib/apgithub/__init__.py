@@ -18,6 +18,7 @@
 
 import os
 import plistlib
+import sys
 from base64 import b64decode
 from textwrap import dedent
 from typing import Dict, List, Optional, Union
@@ -86,7 +87,11 @@ class GitHubSession:
                 "WARNING: This is an unathenticated Github session, some API features may not work"
             )
             self.session = github.Github()
-        self.autopkg_org = self.session.get_organization("autopkg")
+        try:
+            self.autopkg_org = self.session.get_organization("autopkg")
+        except github.GithubException as err:
+            log_err(f"Your GitHub token exists but is invalid, please re-issue a new personal access token: {err}")
+            sys.exit(-1)
         self.autopkg_repos = self.autopkg_org.get_repos(
             type="public", sort="full_name", direction="asc"
         )
