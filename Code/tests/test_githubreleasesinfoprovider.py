@@ -16,7 +16,7 @@ import re
 import unittest
 
 from autopkglib import ProcessorError
-from autopkglib.apgithubReleasesInfoProvider import GitHubReleasesInfoProvider
+from autopkglib.GitHubReleasesInfoProvider import GitHubReleasesInfoProvider
 
 
 @unittest.skip("Skip GitHubReleasesInfoProvider tests while they are being redone")
