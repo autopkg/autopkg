@@ -162,7 +162,9 @@ class TestAutoPkg(unittest.TestCase):
         # This forces autopkglib to accept our patching of memoize
         imp.reload(autopkglib)
         autopkglib.globalPreferences
-        self.mock_recipemap = patch.object(autopkglib, "globalRecipeMap", self.recipe_file_struct)
+        self.mock_recipemap = patch.object(
+            autopkglib, "globalRecipeMap", self.recipe_file_struct
+        )
 
     def tearDown(self):
         pass
@@ -245,16 +247,26 @@ class TestAutoPkg(unittest.TestCase):
         """find_recipe_by_name_in_map should return identifier from overrides in map"""
         mock_valid.return_value = True
         with self.mock_recipemap:
-            id = autopkglib.find_recipe_by_name_in_map("GoogleChrome.download", skip_overrides=False)
-            self.assertEqual(id, '/Users/test/Library/AutoPkg/RecipeOverrides/GoogleChrome.download.recipe')
+            id = autopkglib.find_recipe_by_name_in_map(
+                "GoogleChrome.download", skip_overrides=False
+            )
+            self.assertEqual(
+                id,
+                "/Users/test/Library/AutoPkg/RecipeOverrides/GoogleChrome.download.recipe",
+            )
 
     @patch("autopkglib.valid_recipe_file")
     def test_find_recipe_by_name_in_map_no_override(self, mock_valid):
         """find_recipe_by_name_in_map should return identifier from recipe repos in map."""
         mock_valid.return_value = True
         with self.mock_recipemap:
-            id = autopkglib.find_recipe_by_name_in_map("GoogleChrome.download", skip_overrides=True)
-            self.assertEqual(id, "/Users/test/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.download.recipe")
+            id = autopkglib.find_recipe_by_name_in_map(
+                "GoogleChrome.download", skip_overrides=True
+            )
+            self.assertEqual(
+                id,
+                "/Users/test/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.download.recipe",
+            )
 
     @patch("autopkglib.valid_recipe_file")
     def test_find_recipe_by_name_in_map_returns_none_if_missing(self, mock_valid):
@@ -271,16 +283,26 @@ class TestAutoPkg(unittest.TestCase):
         """find_recipe_by_id_in_map should return identifier from overrides in map."""
         mock_valid.return_value = True
         with self.mock_recipemap:
-            id = autopkglib.find_recipe_by_id_in_map("local.download.GoogleChrome", skip_overrides=False)
-            self.assertEqual(id, '/Users/test/Library/AutoPkg/RecipeOverrides/GoogleChrome.download.recipe')
+            id = autopkglib.find_recipe_by_id_in_map(
+                "local.download.GoogleChrome", skip_overrides=False
+            )
+            self.assertEqual(
+                id,
+                "/Users/test/Library/AutoPkg/RecipeOverrides/GoogleChrome.download.recipe",
+            )
 
     @patch("autopkglib.valid_recipe_file")
     def test_find_recipe_by_id_in_map_no_override(self, mock_valid):
         """find_recipe_by_id_in_map should return identifier from recipe repos in map."""
         mock_valid.return_value = True
         with self.mock_recipemap:
-            id = autopkglib.find_recipe_by_id_in_map("com.github.autopkg.download.googlechrome", skip_overrides=True)
-            self.assertEqual(id, "/Users/test/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.download.recipe")
+            id = autopkglib.find_recipe_by_id_in_map(
+                "com.github.autopkg.download.googlechrome", skip_overrides=True
+            )
+            self.assertEqual(
+                id,
+                "/Users/test/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.download.recipe",
+            )
 
     @patch("autopkglib.valid_recipe_file")
     def test_find_recipe_by_id_in_map_returns_none_if_missing(self, mock_valid):
