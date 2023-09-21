@@ -138,11 +138,11 @@ def find_recipe(id_or_name: str, skip_overrides: bool = False):
     recipe = find_recipe_by_name_in_map(
         id_or_name, skip_overrides
     ) or find_recipe_by_id_in_map(id_or_name, skip_overrides)
-    if not recipe:
-        # We didn't find the recipe in the map
-        log(f"Did not find {id_or_name} in recipe map")
-        # Look in the repo search directories
-    return recipe
+    if recipe:
+        return recipe
+    # At this point, we didn't find the recipe in the map
+    log(f"Did not find {id_or_name} in recipe map")
+    return None
 
 
 def get_identifier_from_override(override):
@@ -194,6 +194,11 @@ def locate_recipe(
     if not recipe_file:
         # name wasn't a filename. Let's search our map for names and/or identifiers.
         recipe_file = find_recipe(name, skip_overrides)
+        if not recipe_file:
+            # If we still didn't find it in the map, try rebuilding the map with current dirs
+            log("Rebuilding recipe map with cur dirs")
+            calculate_recipe_map(skip_cwd=False)
+            recipe_file = find_recipe(name, skip_overrides)
 
     if not recipe_file and make_suggestions:
         make_suggestions_for(name)
