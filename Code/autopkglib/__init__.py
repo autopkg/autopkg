@@ -329,7 +329,6 @@ def calculate_recipe_map(
         elif search_dir == ".":
             # if we're not skipping cwd, we want to add it to the map
             search_dir = os.path.abspath(".")
-            log("Using . in the map temporarily")
         globalRecipeMap["identifiers"].update(
             map_key_to_paths("identifiers", search_dir)
         )
@@ -340,7 +339,7 @@ def calculate_recipe_map(
         globalRecipeMap["overrides-identifiers"].update(
             map_key_to_paths("overrides-identifiers", override)
         )
-    if not extra_search_dirs or not extra_override_dirs or not skip_cwd:
+    if skip_cwd and (not extra_search_dirs or not extra_override_dirs):
         # Don't store the extra stuff in the cache; they're intended to be temporary
         write_recipe_map_to_disk()
 

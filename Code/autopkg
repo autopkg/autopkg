@@ -196,7 +196,7 @@ def locate_recipe(
         recipe_file = find_recipe(name, skip_overrides)
         if not recipe_file:
             # If we still didn't find it in the map, try rebuilding the map with current dirs
-            log("Rebuilding recipe map with cur dirs")
+            log("Rebuilding recipe map with current working directories...")
             calculate_recipe_map(skip_cwd=False)
             recipe_file = find_recipe(name, skip_overrides)
 
