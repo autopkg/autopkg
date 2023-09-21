@@ -1307,9 +1307,7 @@ def find_processor_path(processor_name, recipe, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            shared_processor_recipe_path = find_recipe_by_id_in_map(
-                processor_recipe_id
-            )
+            shared_processor_recipe_path = find_recipe_by_id_in_map(processor_recipe_id)
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
                     os.path.dirname(shared_processor_recipe_path)
