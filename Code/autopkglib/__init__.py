@@ -229,7 +229,7 @@ def get_identifier_from_recipe_file(filename) -> Optional[str]:
     return None
 
 
-def find_recipe_by_identifier(
+def find_recipe_by_id_in_map(
     identifier: str, skip_overrides: bool = False
 ) -> Optional[str]:
     """Search recipe map for an identifier"""
@@ -246,7 +246,7 @@ def find_recipe_by_identifier(
     return None
 
 
-def find_recipe_by_name(name: str, skip_overrides: bool = False) -> Optional[str]:
+def find_recipe_by_name_in_map(name: str, skip_overrides: bool = False) -> Optional[str]:
     """Search recipe map for a shortname"""
     # Check the overrides first, unless skipping them
     if not skip_overrides and name in globalRecipeMap["overrides"]:
@@ -1061,7 +1061,7 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            shared_processor_recipe_path = find_recipe_by_identifier(
+            shared_processor_recipe_path = find_recipe_by_id_in_map(
                 processor_recipe_id
             )
             if shared_processor_recipe_path:

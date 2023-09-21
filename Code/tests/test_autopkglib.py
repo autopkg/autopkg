@@ -143,11 +143,26 @@ class TestAutoPkg(unittest.TestCase):
         """
     )
     munki_struct = plistlib.loads(munki_recipe.encode("utf-8"))
+    recipe_file_struct = {
+        "identifiers": {
+            "com.github.autopkg.download.googlechrome": "/Users/test/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.download.recipe",
+        },
+        "overrides": {
+            "GoogleChrome.download": "/Users/test/Library/AutoPkg/RecipeOverrides/GoogleChrome.download.recipe",
+        },
+        "overrides-identifiers": {
+            "local.download.GoogleChrome": "/Users/test/Library/AutoPkg/RecipeOverrides/GoogleChrome.download.recipe",
+        },
+        "shortnames": {
+            "GoogleChrome.download": "/Users/test/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.download.recipe",
+        },
+    }
 
     def setUp(self):
         # This forces autopkglib to accept our patching of memoize
         imp.reload(autopkglib)
         autopkglib.globalPreferences
+        self.mock_recipemap = patch.object(autopkglib, "globalRecipeMap", self.recipe_file_struct)
 
     def tearDown(self):
         pass
@@ -224,6 +239,58 @@ class TestAutoPkg(unittest.TestCase):
         del mock_read.return_value["Identifier"]
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertIsNone(id)
+
+    @patch("autopkglib.valid_recipe_file")
+    def test_find_recipe_by_name_in_map_override(self, mock_valid):
+        """find_recipe_by_name_in_map should return identifier from overrides in map"""
+        mock_valid.return_value = True
+        with self.mock_recipemap:
+            id = autopkglib.find_recipe_by_name_in_map("GoogleChrome.download", skip_overrides=False)
+            self.assertEqual(id, '/Users/test/Library/AutoPkg/RecipeOverrides/GoogleChrome.download.recipe')
+
+    @patch("autopkglib.valid_recipe_file")
+    def test_find_recipe_by_name_in_map_no_override(self, mock_valid):
+        """find_recipe_by_name_in_map should return identifier from recipe repos in map."""
+        mock_valid.return_value = True
+        with self.mock_recipemap:
+            id = autopkglib.find_recipe_by_name_in_map("GoogleChrome.download", skip_overrides=True)
+            self.assertEqual(id, "/Users/test/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.download.recipe")
+
+    @patch("autopkglib.valid_recipe_file")
+    def test_find_recipe_by_name_in_map_returns_none_if_missing(self, mock_valid):
+        """find_recipe_by_name_in_map should return None if an id not in the map is given."""
+        mock_valid.return_value = True
+        with self.mock_recipemap:
+            id = autopkglib.find_recipe_by_name_in_map("fake_id", skip_overrides=True)
+            self.assertIsNone(id)
+            id = autopkglib.find_recipe_by_name_in_map("fake_id", skip_overrides=False)
+            self.assertIsNone(id)
+
+    @patch("autopkglib.valid_recipe_file")
+    def test_find_recipe_by_id_in_map_override(self, mock_valid):
+        """find_recipe_by_id_in_map should return identifier from overrides in map."""
+        mock_valid.return_value = True
+        with self.mock_recipemap:
+            id = autopkglib.find_recipe_by_id_in_map("local.download.GoogleChrome", skip_overrides=False)
+            self.assertEqual(id, '/Users/test/Library/AutoPkg/RecipeOverrides/GoogleChrome.download.recipe')
+
+    @patch("autopkglib.valid_recipe_file")
+    def test_find_recipe_by_id_in_map_no_override(self, mock_valid):
+        """find_recipe_by_id_in_map should return identifier from recipe repos in map."""
+        mock_valid.return_value = True
+        with self.mock_recipemap:
+            id = autopkglib.find_recipe_by_id_in_map("com.github.autopkg.download.googlechrome", skip_overrides=True)
+            self.assertEqual(id, "/Users/test/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChrome.download.recipe")
+
+    @patch("autopkglib.valid_recipe_file")
+    def test_find_recipe_by_id_in_map_returns_none_if_missing(self, mock_valid):
+        """find_recipe_by_id_in_map should return None if an id not in the map is given."""
+        mock_valid.return_value = True
+        with self.mock_recipemap:
+            id = autopkglib.find_recipe_by_id_in_map("fake_id", skip_overrides=True)
+            self.assertIsNone(id)
+            id = autopkglib.find_recipe_by_id_in_map("fake_id", skip_overrides=False)
+            self.assertIsNone(id)
 
 
 if __name__ == "__main__":

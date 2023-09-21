@@ -41,8 +41,8 @@ from autopkglib import (
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
     find_binary,
-    find_recipe_by_identifier,
-    find_recipe_by_name,
+    find_recipe_by_id_in_map,
+    find_recipe_by_name_in_map,
     get_all_prefs,
     get_autopkg_version,
     get_identifier,
@@ -135,12 +135,13 @@ def find_recipe(id_or_name: str, skip_overrides: bool = False):
     # search in identifiers
     # oh noez we can't find it
     log(f"Looking for {id_or_name}...")
-    recipe = find_recipe_by_name(
+    recipe = find_recipe_by_name_in_map(
         id_or_name, skip_overrides
-    ) or find_recipe_by_identifier(id_or_name, skip_overrides)
+    ) or find_recipe_by_id_in_map(id_or_name, skip_overrides)
     if not recipe:
         # We didn't find the recipe in the map
         log(f"Did not find {id_or_name} in recipe map")
+        # Look in the repo search directories
     return recipe
 
 
@@ -1301,7 +1302,7 @@ def find_processor_path(processor_name, recipe, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            shared_processor_recipe_path = find_recipe_by_identifier(
+            shared_processor_recipe_path = find_recipe_by_id_in_map(
                 processor_recipe_id
             )
             if shared_processor_recipe_path:
