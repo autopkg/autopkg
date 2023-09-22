@@ -432,7 +432,6 @@ def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> No
                 "\nTry adding or removing a repo to rebuild it."
             )
             sys.exit(1)
-        # If rebuild is False and we are allowing to continue, just return
 
 
 def get_autopkg_version():

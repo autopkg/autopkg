@@ -2025,7 +2025,7 @@ def run_recipes(argv):
         "-q",
         "--quiet",
         action="store_true",
-        help=("Don't offer to search Github if a recipe can't " "be found."),
+        help=("Don't offer to search Github if a recipe can't be found."),
     )
     add_search_and_override_dir_options(parser)
     (options, arguments) = common_parse(parser, argv)
@@ -2034,7 +2034,7 @@ def run_recipes(argv):
     search_dirs = options.search_dirs or get_search_dirs()
 
     # First, populate the recipe map
-    read_recipe_map()
+    read_recipe_map(rebuild=True)
 
     # initialize some variables
     summary_results = {}
