@@ -119,6 +119,8 @@ class GitHubReleasesInfoProvider(Processor):
                             break
                     except re.error as e:
                         raise ProcessorError(f"Invalid regex: {e}") from e
+                if selected:
+                    break
         if not selected:
             return
 
