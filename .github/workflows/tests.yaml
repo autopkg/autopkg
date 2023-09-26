@@ -66,6 +66,8 @@ jobs:
         run: |
           cd ~ && mkdir -p .config/Autopkg
           cd ~ && echo {} > .config/Autopkg/config.json
+      - name: run autopkg info to get it to generate recipe map
+        run: python Code/autopkg info
       - name: run unittests
         run: python Scripts/run_tests.py
       - name: run e2e tests
