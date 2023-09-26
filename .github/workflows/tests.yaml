@@ -60,11 +60,13 @@ jobs:
         shell: cmd
         run: |
           if not exist "%USERPROFILE%/AppData/Local/Autopkg" mkdir "%USERPROFILE%/AppData/Local/Autopkg"
+          if not exist "%USERPROFILE%/Library/AutoPkg" mkdir "%USERPROFILE%/Library/AutoPkg"
           if not exist "%USERPROFILE%/AppData/Local/Autopkg/config.json" echo {} > "%USERPROFILE%/AppData/Local/Autopkg/config.json"
       - name: create empty autopkg config file - Linux
         if: runner.os == 'Linux'
         run: |
           cd ~ && mkdir -p .config/Autopkg
+          cd ~ && mkdir -p Library/AutoPkg
           cd ~ && echo {} > .config/Autopkg/config.json
       - name: run autopkg info to get it to generate recipe map
         run: python Code/autopkg info
