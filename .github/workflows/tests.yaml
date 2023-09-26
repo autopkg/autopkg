@@ -44,13 +44,6 @@ jobs:
         with:
           python-version: 3.10.4
 
-      - name: Set token
-        # required for githubreleaseinfoprovider in github actions
-        # without this, API limits will be hit
-        run: |
-          cd ~
-          echo ${{ secrets.GITHUB_TOKEN_PATH }} > "gh_token"
-
       - name: Install requirements
         run: pip install --requirement gh_actions_requirements.txt
 
@@ -72,6 +65,12 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           cd ~ && mkdir -p Library/AutoPkg
+      - name: Set token
+        # required for githubreleaseinfoprovider in github actions
+        # without this, API limits will be hit
+        run: |
+          cd ~
+          echo ${{ secrets.GITHUB_TOKEN }} > "Library/AutoPkg/gh_token"
       - name: run autopkg info to get it to generate recipe map
         run: python Code/autopkg info
       - name: run unittests
