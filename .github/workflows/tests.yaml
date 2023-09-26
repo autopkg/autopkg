@@ -68,6 +68,10 @@ jobs:
           cd ~ && mkdir -p .config/Autopkg
           cd ~ && mkdir -p Library/AutoPkg
           cd ~ && echo {} > .config/Autopkg/config.json
+      - name: create folder for recipe map - macOS
+        if: runner.os == 'macOS'
+        run: |
+          cd ~ && mkdir -p Library/AutoPkg
       - name: run autopkg info to get it to generate recipe map
         run: python Code/autopkg info
       - name: run unittests
