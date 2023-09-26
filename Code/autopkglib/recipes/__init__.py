@@ -14,12 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import glob
 import os
 import plistlib
+import sys
 from typing import Any, Dict, List, Optional
 
 import yaml
-# from autopkglib import log_err
+
+sys.path.append("/Users/nmcspadden/Documents/GitHub/autopkg/Code")
+from autopkglib import globalRecipeMap
+from autopkglib.common import (
+    RECIPE_EXTS,
+    log_err,
+)
 
 
 class RecipeError(Exception):
@@ -40,15 +48,34 @@ class RecipeChain:
         # List of recipe objects that made up this chain
         self.recipes = []
 
-    def add_recipe(self, id: str):
-        """Add a recipe by identifier into the chain"""
+    def add_recipe(self, path: str) -> None:
+        """Add a recipe by path into the chain"""
         try:
-            recipe = Recipe(id)
+            recipe = Recipe(path)
         except RecipeError as err:
-            print(f"Unable to read recipe at {id}, aborting: {err}")
-        self.recipes.append(recipe)
-        self.ordered_list_of_recipe_ids.append(id)
-        self.process.extend(recipe.process)
+            print(f"Unable to read recipe at {path}, aborting: {err}")
+        # First, do we have any parents?
+        # if recipe.parent_recipe:
+        #     # We need to add the parent recipe first
+        #     self.add_recipe(recipe.parent_recipe)
+        # In order to do this part, we need to be able to resolve identifier -> filepath
+        # which means we need the recipe location logic written first
+        # For resolving parentage, we prepend everything
+        self.recipes.insert(0, recipe)
+        self.ordered_list_of_recipe_ids.insert(0, recipe.identifier)
+        self.process = recipe.process + self.process
+
+    def display_chain(self) -> None:
+        """Print out the whole chain"""
+        print("Identifier chain:")
+        for id in self.ordered_list_of_recipe_ids:
+            print(f"  {id}")
+        print("Recipe Chain:")
+        for recipe in self.recipes:
+            print(f"  {recipe.identifier}")
+        print("Processors:")
+        for processor in self.process:
+            print(f"  {processor}")
 
 
 class Recipe:
@@ -56,6 +83,8 @@ class Recipe:
 
     def __init__(self, filename: Optional[str] = None) -> None:
         """All recipes have a generally specific format"""
+        self.shortname: str = "Recipe.nothing"
+        self.path: str = "nowhere"
         # We initialize with empty values, but a successful recipe
         # cannot have these values as empty to execute
         self.description: str = "Base recipe object"
@@ -77,17 +106,18 @@ class Recipe:
             "Process",
         ]
         if filename:
-            self.recipe_from_file(filename)
+            self.from_file(filename)
 
     def __repr__(self) -> str:
         """String representation of this object"""
         return (
             f'Recipe(Identifier: "{self.identifier}", Description: "{self.description}", '
             f'MinimumVersion: "{self.minimum_version}", ParentRecipe: "{self.parent_recipe}", '
-            f'Process: "{self.process}", Input: "{self.input}")'
+            f'Process: "{self.process}", Input: "{self.input}", '
+            f'Shortname: "{self.shortname}", Full path: "{self.path}"'
         )
 
-    def recipe_from_file(self, filename: str) -> None:
+    def from_file(self, filename: str) -> None:
         """Read in a recipe from a file path as a str"""
         if not os.path.isfile(filename):
             raise RecipeError(
@@ -112,6 +142,8 @@ class Recipe:
         self.process = recipe_dict["Process"]
         # This is already validated that it must be a string if it exists
         self.parent_recipe = recipe_dict.get("ParentRecipe", None)
+        self.path = filename
+        self.shortname = self._generate_shortname()
 
     def _recipe_dict_from_yaml(self, filename: str) -> Dict[str, Any]:
         """Read in a dictionary from a YAML file"""
@@ -153,13 +185,60 @@ class Recipe:
             return True
         return False
 
+    def _generate_shortname(self) -> str:
+        """Removes supported recipe extensions from a filename or path.
+        If the filename or path does not end with any known recipe extension,
+        the name is returned as is."""
+        name = os.path.basename(self.path)
+        for ext in RECIPE_EXTS:
+            if name.endswith(ext):
+                return name[: -len(ext)]
+        return name
+
+
+def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
+    """Return a dict of keyname to absolute recipe paths"""
+    recipe_map = {}
+    normalized_dir = os.path.abspath(os.path.expanduser(repo_dir))
+    patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+    patterns.extend([os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS])
+    for pattern in patterns:
+        matches = glob.glob(pattern)
+        for match in matches:
+            try:
+                recipe = Recipe(match)
+            except RecipeError as err:
+                print(
+                    f"WARNING: {match} is potentially an invalid file, not adding it to the recipe map! "
+                    "Please file a GitHub Issue for this repo."
+                    f"Original error: {err}"
+                )
+                continue
+            key = recipe.shortname
+            if "identifiers" in keyname:
+                key = recipe.identifier
+            if key in recipe_map or key in globalRecipeMap[keyname]:
+                # we already have this recipe, don't update it
+                continue
+            recipe_map[key] = match
+    return recipe_map
+
 
 if __name__ == "__main__":
-    recipe = Recipe("/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.download.recipe")
+    recipe = Recipe(
+        "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.download.recipe"
+    )
     print(recipe)
     recipe = Recipe()
-    recipe.recipe_from_file("/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe")
+    recipe.from_file(
+        "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe"
+    )
     print(recipe)
     recipe = Recipe()
-    recipe.recipe_from_file("/Users/nmcspadden/Documents/GitHub/autopkg/Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml")
+    recipe.from_file(
+        "/Users/nmcspadden/Documents/GitHub/autopkg/Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml"
+    )
     print(recipe)
+    # chain = RecipeChain()
+    # chain.add_recipe("/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe")
+    # chain.display_chain()
