@@ -17,6 +17,7 @@
 import glob
 import json
 import os
+import pathlib
 import plistlib
 import sys
 from typing import Any, Dict, List, Optional
@@ -117,16 +118,25 @@ class Recipe:
         # For now, this is a list of dictionaries parsed from the recipe file
         # Should this be converted to an actual list of Processor objects? I don't think
         # we are currently structured in a way to make that reasonable
-        self.process: List[Dict[str, Any]] = []
+        self.process: List[Optional[Dict[str, Any]]] = []
         self.input: Dict[str, str] = {}
+        self.is_override: bool = False
         # Defined list of keys that are considered inviolate requirements of a recipe
-        self.valid_keys: List[str] = [
-            "Description",
+        self.recipe_required_keys: List[str] = [
             "Identifier",
+        ]
+        self.recipe_optional_keys: List[str] = [
+            "Description",
             "Input",
             "MinimumVersion",
-            # "ParentRecipe",  # ParentRecipe is optional, so we'll validate that later
+            "ParentRecipe",
             "Process",
+        ]
+        self.override_required_keys: List[str] = [
+            "Identifier",
+            "Input",
+            "ParentRecipe",
+            "ParentRecipeTrustInfo",
         ]
         if filename:
             self.from_file(filename)
@@ -134,10 +144,11 @@ class Recipe:
     def __repr__(self) -> str:
         """String representation of this object"""
         return (
-            f'Recipe(Identifier: "{self.identifier}", Description: "{self.description}", '
+            f'Recipe(Identifier: "{self.identifier}", IsOverride: "{self.is_override}", '
+            f'Description: "{self.description}", '
             f'MinimumVersion: "{self.minimum_version}", ParentRecipe: "{self.parent_recipe}", '
             f'Process: "{self.process}", Input: "{self.input}", '
-            f'Shortname: "{self.shortname}", Full path: "{self.path}"'
+            f'Shortname: "{self.shortname}", Full path: "{self.path}")'
         )
 
     def from_file(self, filename: str) -> None:
@@ -157,16 +168,27 @@ class Recipe:
 
         # This will throw an exception if the recipe is invalid
         self.validate(recipe_dict)
-        # Assign the values, we'll force some of the variables to become strings
-        self.description = str(recipe_dict["Description"])
-        self.identifier = str(recipe_dict["Identifier"])
-        self.input = recipe_dict["Input"]
-        self.minimum_version = str(recipe_dict["MinimumVersion"])
-        self.process = recipe_dict["Process"]
-        # This is already validated that it must be a string if it exists
-        self.parent_recipe = recipe_dict.get("ParentRecipe", None)
         self.path = filename
         self.shortname = self._generate_shortname()
+        self.is_override = self.check_is_override()
+        # Assign the values, we'll force some of the variables to become strings
+        self.description = str(recipe_dict.get("Description", ""))
+        # The identifier is the only field we cannot live without
+        self.identifier = str(recipe_dict["Identifier"])
+        self.input = recipe_dict.get("Input", {"NAME": self.shortname})
+        self.minimum_version = str(recipe_dict.get("MinimumVersion", "1.0.0"))
+        self.process = recipe_dict.get("Process", [])
+        # This is already validated that it must be a string if it exists
+        self.parent_recipe = recipe_dict.get("ParentRecipe", None)
+
+    def check_is_override(self) -> bool:
+        """Return True if this recipe is an override"""
+        # Recipe overrides must be stored in the Overrides directories
+        path = pathlib.PurePath(self.path)
+        for override_dir in get_override_dirs():
+            if path.is_relative_to(override_dir):
+                return True
+        return False
 
     def _recipe_dict_from_yaml(self, filename: str) -> Dict[str, Any]:
         """Read in a dictionary from a YAML file"""
@@ -190,23 +212,29 @@ class Recipe:
 
     def validate(self, recipe_dict: Dict[str, Any]) -> None:
         """Validate that the recipe dictionary contains reasonable and safe values"""
-        if not self._valid_recipe_dict_with_keys(recipe_dict):
+        required_keys = self.recipe_required_keys
+        if self.is_override:
+            required_keys = self.override_required_keys
+        if not self._valid_recipe_dict_with_keys(recipe_dict, required_keys):
             raise RecipeError("Recipe did not contain all the required keys!")
         if "ParentRecipe" in recipe_dict and not isinstance(
             recipe_dict["ParentRecipe"], str
         ):
             raise RecipeError("ParentRecipe must be a string")
 
-    def _valid_recipe_dict_with_keys(self, recipe_dict) -> bool:
+    def _valid_recipe_dict_with_keys(self, recipe_dict: Dict[str, Any], keys_to_verify: List[str]) -> bool:
         """Attempts to read a dict and ensures the keys in
         keys_to_verify exist. Returns False on any failure, True otherwise."""
+        missing_keys = []
         if recipe_dict:
-            for key in self.valid_keys:
+            for key in keys_to_verify:
                 if key not in recipe_dict:
-                    return False
-            # if we get here, we found all the keys
-            return True
-        return False
+                    missing_keys.append(key)
+        if missing_keys:
+            log_err(f"Recipe is missing some keys: {', '.join(missing_keys)}")
+            return False
+        # if we get here, we found all the keys
+        return True
 
     def _generate_shortname(self) -> str:
         """Removes supported recipe extensions from a filename or path.
@@ -275,7 +303,7 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
             except RecipeError as err:
                 print(
                     f"WARNING: {match} is potentially an invalid file, not adding it to the recipe map! "
-                    "Please file a GitHub Issue for this repo."
+                    "Please file a GitHub Issue for this repo. "
                     f"Original error: {err}"
                 )
                 continue
