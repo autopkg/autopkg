@@ -512,6 +512,7 @@ def find_identifier_from_name(name: str) -> Optional[str]:
 
 
 if __name__ == "__main__":
+    read_recipe_map()
     # recipe = Recipe(
     #     "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.download.recipe"
     # )
