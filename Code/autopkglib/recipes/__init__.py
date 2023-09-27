@@ -75,10 +75,6 @@ class RecipeChain:
         # First, do we have any parents?
         if recipe.parent_recipe:
             try:
-                # TODO: Right now, this returns a Recipe object instead of a path
-                # which means we have a mismatch in the behavior here
-                # Rethink this and also add a way to track existing recipes so that
-                # we don't allow circular recipes
                 parent_recipe = fetch_recipe(recipe.parent_recipe)
             except RecipeError as err:
                 print(
