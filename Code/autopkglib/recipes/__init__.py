@@ -520,15 +520,6 @@ def find_identifier_from_name(name: str) -> Optional[str]:
 
 if __name__ == "__main__":
     read_recipe_map()
-    # recipe = fetch_recipe("GoogleChromePkg.download")
-    # print(recipe)
-    # recipe = fetch_recipe("GoogleChromePkg.pkg")
-    # print(recipe)
-    # recipe = fetch_recipe("AutopkgCore.test")
-    # print(recipe)
-    # recipe = fetch_recipe("/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe")
-    # print(recipe)
-
     chain = RecipeChain()
     chain.add_recipe(
         "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe"
