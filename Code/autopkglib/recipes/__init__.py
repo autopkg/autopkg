@@ -61,11 +61,11 @@ class RecipeChain:
     def __init__(self) -> None:
         """Init"""
         # List of all recipe identifiers that make up this chain
-        self.ordered_list_of_recipe_ids = []
+        self.ordered_list_of_recipe_ids: List[str] = []
         # Final constructed list of all processors
-        self.process = []
+        self.process: Dict[str, Any] = []
         # List of recipe objects that made up this chain
-        self.recipes = []
+        self.recipes: List[Recipe] = []
 
     def add_recipe(self, path: str) -> None:
         """Add a recipe by path into the chain"""
@@ -73,8 +73,15 @@ class RecipeChain:
             recipe = Recipe(path)
         except RecipeError as err:
             print(f"Unable to read recipe at {path}, aborting: {err}")
-        # First, do we have any parents?
+        # Add to the recipe parent list
+        self.ordered_list_of_recipe_ids.append(recipe.identifier)
+        # Add to the recipe object list
+        self.recipes.append(recipe)
+        # Look for parents and add them to the chain
         if recipe.parent_recipe:
+            if recipe.parent_recipe in self.ordered_list_of_recipe_ids:
+                log_err("WARNING! You have a circular parental reference! This identifier has already been processed!")
+                return
             try:
                 parent_recipe = fetch_recipe(recipe.parent_recipe)
             except RecipeError as err:
@@ -82,18 +89,18 @@ class RecipeChain:
                     f"Unable to find parent recipe {recipe.parent_recipe}, aborting: {err}"
                 )
             self.add_recipe(parent_recipe.path)
-        # In order to do this part, we need to be able to resolve identifier -> filepath
-        # which means we need the recipe location logic written first
-        # For resolving parentage, we prepend everything
-        self.recipes.insert(0, recipe)
-        self.ordered_list_of_recipe_ids.insert(0, recipe.identifier)
-        self.process = recipe.process + self.process
+
+    def build(self) -> None:
+        """Compile and build the whole recipe chain"""
+        # Essentially, we are reversing the order of the ids and recipes, and then build the process list
+        self.ordered_list_of_recipe_ids.reverse()
+        self.recipes.reverse()
+        for recipe in self.recipes:
+            self.process.extend(recipe.process)
 
     def display_chain(self) -> None:
         """Print out the whole chain"""
         print("Identifier chain:")
-        for id in self.ordered_list_of_recipe_ids:
-            print(f"  {id}")
         print("Recipe Chain:")
         for recipe in self.recipes:
             print(f"  {recipe.identifier}")
@@ -513,31 +520,18 @@ def find_identifier_from_name(name: str) -> Optional[str]:
 
 if __name__ == "__main__":
     read_recipe_map()
-    # recipe = Recipe(
-    #     "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.download.recipe"
-    # )
+    # recipe = fetch_recipe("GoogleChromePkg.download")
     # print(recipe)
-    # recipe = Recipe()
-    # recipe.from_file(
-    #     "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe"
-    # )
+    # recipe = fetch_recipe("GoogleChromePkg.pkg")
     # print(recipe)
-    # recipe = Recipe()
-    # recipe.from_file(
-    #     "/Users/nmcspadden/Documents/GitHub/autopkg/Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml"
-    # )
+    # recipe = fetch_recipe("AutopkgCore.test")
     # print(recipe)
-    recipe = fetch_recipe("GoogleChromePkg.download")
-    print(recipe)
-    recipe = fetch_recipe("GoogleChromePkg.pkg")
-    print(recipe)
-    recipe = fetch_recipe("AutopkgCore.test")
-    print(recipe)
-    recipe = fetch_recipe("/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe")
-    print(recipe)
+    # recipe = fetch_recipe("/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe")
+    # print(recipe)
 
     chain = RecipeChain()
     chain.add_recipe(
         "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe"
     )
+    chain.build()
     chain.display_chain()
