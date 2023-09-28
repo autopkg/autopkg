@@ -73,6 +73,7 @@ class RecipeChain:
             recipe = Recipe(path)
         except RecipeError as err:
             print(f"Unable to read recipe at {path}, aborting: {err}")
+            raise
         # Add to the recipe parent list
         self.ordered_list_of_recipe_ids.append(recipe.identifier)
         # Add to the recipe object list
@@ -80,14 +81,17 @@ class RecipeChain:
         # Look for parents and add them to the chain
         if recipe.parent_recipe:
             if recipe.parent_recipe in self.ordered_list_of_recipe_ids:
-                log_err("WARNING! You have a circular parental reference! This identifier has already been processed!")
-                return
+                log_err(
+                    "WARNING! You have a circular parental reference! This identifier has already been processed!"
+                )
+                raise RecipeError("Circular dependency")
             try:
                 parent_recipe = fetch_recipe(recipe.parent_recipe)
             except RecipeError as err:
                 print(
                     f"Unable to find parent recipe {recipe.parent_recipe}, aborting: {err}"
                 )
+                raise
             self.add_recipe(parent_recipe.path)
 
     def build(self) -> None:
@@ -98,6 +102,23 @@ class RecipeChain:
         for recipe in self.recipes:
             self.process.extend(recipe.process)
 
+    def add_preprocessor(self, processor: Dict[str, Any]) -> None:
+        """Add a preprocessor to the beginning of the process list of a chain."""
+        self.process.insert(0, processor)
+
+    def add_postprocessor(self, processor: Dict[str, Any]) -> None:
+        """Add a postrocessor to the end of the process list of a chain."""
+        self.process.append(processor)
+
+    def get_check_only_processors(self) -> List[Dict[str, Any]]:
+        """Return a list of processors up until EndOfCheckPhase"""
+        list_of_processors = [x["Processor"] for x in self.process]
+        check_index = list_of_processors.index("EndOfCheckPhase")
+        return self.process[0 : check_index + 1]
+
+    def is_processor_in_chain(self, processor_name: str) -> bool:
+        """Return true if a given Processor name is in the chain"""
+
     def display_chain(self) -> None:
         """Print out the whole chain"""
         print("Identifier chain:")
@@ -107,6 +128,8 @@ class RecipeChain:
         print("Processors:")
         for processor in self.process:
             print(f"  {processor}")
+    
+    # TODO: This needs a dict representation
 
 
 class Recipe:
@@ -229,7 +252,9 @@ class Recipe:
         ):
             raise RecipeError("ParentRecipe must be a string")
 
-    def _valid_recipe_dict_with_keys(self, recipe_dict: Dict[str, Any], keys_to_verify: List[str]) -> bool:
+    def _valid_recipe_dict_with_keys(
+        self, recipe_dict: Dict[str, Any], keys_to_verify: List[str]
+    ) -> bool:
         """Attempts to read a dict and ensures the keys in
         keys_to_verify exist. Returns False on any failure, True otherwise."""
         missing_keys = []
@@ -421,6 +446,21 @@ def find_recipe_path(
     raise RecipeNotFoundError(input)
 
 
+def fetch_recipe_chain(
+    input: str,
+    make_suggestions: bool = True,
+    search_github: bool = True,
+    auto_pull: bool = False,
+    skip_overrides: bool = False,
+) -> RecipeChain:
+    """Obtain a RecipeChain object from an input string. Does not handle exceptions."""
+    recipe_path = find_recipe_path(input)
+    chain = RecipeChain()
+    chain.add_recipe(recipe_path)
+    chain.build()
+    return chain
+
+
 def fetch_recipe(
     input: str,
     make_suggestions: bool = True,
@@ -428,20 +468,12 @@ def fetch_recipe(
     auto_pull: bool = False,
     skip_overrides: bool = False,
 ) -> Recipe:
-    """Obtain a Recipe object from an input string. Exits if it can't be resolved."""
-    try:
-        # Look in the map, rebuild if necessary
-        recipe_path = find_recipe_path(
-            input, make_suggestions, search_github, auto_pull, skip_overrides
-        )
-        recipe = Recipe(recipe_path)
-    except RecipeNotFoundError:
-        log_err("ERROR: We didn't find the recipe in any of the search directories!")
-        sys.exit(1)
-    except RecipeError:
-        log_err("ERROR: We couldn't read the recipe!")
-        sys.exit(1)
-    return recipe
+    """Obtain a Recipe object from an input string. Does not handle exceptions."""
+    # Look in the map, rebuild if necessary
+    recipe_path = find_recipe_path(
+        input, make_suggestions, search_github, auto_pull, skip_overrides
+    )
+    return Recipe(recipe_path)
 
 
 def find_recipe_in_map(id_or_name: str, skip_overrides: bool = False) -> Optional[str]:
@@ -526,3 +558,4 @@ if __name__ == "__main__":
     )
     chain.build()
     chain.display_chain()
+    print(chain.get_check_only_processors())
