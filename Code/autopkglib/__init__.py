@@ -285,7 +285,7 @@ def find_identifier_from_name(name: str) -> Optional[str]:
 
 def get_recipe_map_path() -> str:
     """Return recipe map file path from preferences or default"""
-    get_pref("DEFAULT_RECIPE_MAP") or DEFAULT_RECIPE_MAP
+    return get_pref("DEFAULT_RECIPE_MAP") or DEFAULT_RECIPE_MAP
 
 
 def get_search_dirs() -> List[str]:
