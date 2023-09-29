@@ -40,6 +40,12 @@ class GitHubReleasesInfoProvider(Processor):
             "required": True,
             "description": ("Name of a GitHub user and repo, ie. 'MagerValp/AutoDMG'"),
         },
+        "include_drafts": {
+            "required": False,
+            "description": (
+                "If set to True or a non-empty value, include drafts."
+            ),
+        },        
         "include_prereleases": {
             "required": False,
             "description": (
@@ -164,6 +170,8 @@ class GitHubReleasesInfoProvider(Processor):
                 break
             if rel["prerelease"] and not self.env.get("include_prereleases"):
                 continue
+            if rel["draft"] and not self.env.get("include_drafts"):
+                continue                
 
             assets = rel.get("assets")
             if not assets:
