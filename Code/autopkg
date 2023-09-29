@@ -333,9 +333,9 @@ def load_recipe(
         return
 
     if (
-        recipe_in_override_dir(recipe_file, override_dirs)
-        or name in globalRecipeMap["overrides"]
+        name in globalRecipeMap["overrides"]
         or name in globalRecipeMap.get("overrides-identifiers", {})
+        or recipe_in_override_dir(recipe_file, override_dirs)
     ):
         parent_trust_info = recipe.get("ParentRecipeTrustInfo")
         override_parent = recipe.get("ParentRecipe") or recipe.get("Recipe")
