@@ -29,6 +29,8 @@ import subprocess
 import sys
 import time
 import traceback
+from optparse import OptionParser
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 import yaml
@@ -1936,8 +1938,8 @@ def parse_recipe_list(filename):
 def run_recipes(argv):
     """Run one or more recipes. If called with 'install' verb, run .install
     recipe"""
-    verb = argv[1]
-    parser = gen_common_parser()
+    verb: str = argv[1]
+    parser: OptionParser = gen_common_parser()
     if verb == "install":
         parser.set_usage(
             f"Usage: %prog {verb} [options] [itemname ...]\n"
@@ -2030,21 +2032,21 @@ def run_recipes(argv):
     add_search_and_override_dir_options(parser)
     (options, arguments) = common_parse(parser, argv)
 
-    override_dirs = options.override_dirs or get_override_dirs()
-    search_dirs = options.search_dirs or get_search_dirs()
+    override_dirs: List[str] = options.override_dirs or get_override_dirs()
+    search_dirs: List[str] = options.search_dirs or get_search_dirs()
 
     # First, populate the recipe map
     read_recipe_map(rebuild=True)
 
     # initialize some variables
-    summary_results = {}
-    failures = []
-    error_count = 0
-    preprocessors = []
-    postprocessors = []
+    summary_results: Dict[str, Any] = {}
+    failures: List[Any] = []
+    error_count: int = 0
+    preprocessors: List[str] = []
+    postprocessors: List[str] = []
 
     # get our list of recipes
-    recipe_paths = []
+    recipe_paths: List[str] = []
     if verb == "install":
         # hold on for syntactic sugar!
         for index, item in enumerate(arguments):
@@ -2057,7 +2059,7 @@ def run_recipes(argv):
                 del arguments[index]
 
     recipe_paths.extend(arguments)
-    recipe_list = {}
+    recipe_list: Dict[str, Any] = {}
     if options.recipe_list:
         recipe_list = parse_recipe_list(options.recipe_list)
         recipe_paths.extend(recipe_list.get("recipes", []))
@@ -2075,12 +2077,12 @@ def run_recipes(argv):
         postprocessors = options.postprocessors
 
     # Add variables from environment
-    cli_values = {}
+    cli_values: Dict[str, Any] = {}
     for key, value in list(os.environ.items()):
         if key.startswith("AUTOPKG_"):
             if options.verbose > 1:
                 log(f"Using environment var {key}={value}")
-            local_key = key[8:]
+            local_key: str = key[8:]
             cli_values[local_key] = value
 
     # Add variables from recipe list. These might override those from
@@ -2107,13 +2109,13 @@ def run_recipes(argv):
         log_err("-p/--pkg option can't be used with multiple recipes!")
         return -1
 
-    cache_dir = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
-    cache_dir = os.path.expanduser(cache_dir)
+    cache_dir: str = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
+    cache_dir: str = os.path.expanduser(cache_dir)
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0o755)
-    current_run_results_plist = os.path.join(cache_dir, "autopkg_results.plist")
+    current_run_results_plist: str = os.path.join(cache_dir, "autopkg_results.plist")
 
-    run_results = []
+    run_results: List[str] = []
     try:
         with open(current_run_results_plist, "wb") as f:
             plistlib.dump(plist_serializer(run_results), f)
@@ -2121,10 +2123,10 @@ def run_recipes(argv):
         log_err(f"Can't write results to {current_run_results_plist}: {err.strerror}")
 
     if options.report_plist:
-        results_report = dict()
+        results_report: Dict[str, str] = {}
         write_plist_exit_on_fail(results_report, options.report_plist)
 
-    make_suggestions = True
+    make_suggestions: bool = True
     if len(recipe_paths) > 1:
         # don't make suggestions or offer to search GitHub
         # if we have a list of recipes
@@ -2171,7 +2173,7 @@ def run_recipes(argv):
         log(f"Processing {recipe_path}...")
 
         # Create a local copy of preferences
-        prefs = copy.deepcopy(dict(get_all_prefs()))
+        prefs: VarDict = copy.deepcopy(dict(get_all_prefs()))
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
         prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])
@@ -2184,9 +2186,9 @@ def run_recipes(argv):
         # Add our verbosity level
         prefs["verbose"] = options.verbose
 
-        autopackager = AutoPackager(options, prefs)
+        autopackager: AutoPackager = AutoPackager(options, prefs)
 
-        fail_recipes_without_trust_info = bool(
+        fail_recipes_without_trust_info: bool = bool(
             cli_values.get(
                 "FAIL_RECIPES_WITHOUT_TRUST_INFO",
                 prefs.get("FAIL_RECIPES_WITHOUT_TRUST_INFO"),
@@ -2205,7 +2207,7 @@ def run_recipes(argv):
 
         # we should also skip trust verification if we've been told to ignore
         # verification errors
-        skip_trust_verification = options.ignore_parent_trust_verification_errors or (
+        skip_trust_verification: bool = options.ignore_parent_trust_verification_errors or (
             "ParentRecipeTrustInfo" not in recipe
             and not fail_recipes_without_trust_info
         )
