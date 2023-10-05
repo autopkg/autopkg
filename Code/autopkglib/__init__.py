@@ -38,6 +38,7 @@ from autopkglib.common import (
     FileOrPath,
     VarDict,
     autopkg_user_folder,
+    get_autopkg_version,
     is_linux,
     is_mac,
     is_windows,
@@ -433,21 +434,6 @@ def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> No
                 "\nTry adding or removing a repo to rebuild it."
             )
             sys.exit(1)
-
-
-def get_autopkg_version():
-    """Gets the version number of autopkg"""
-    try:
-        version_plist = plistlib.load(
-            pkg_resources.resource_stream(__name__, "version.plist")
-        )
-    except Exception as ex:
-        log_err(f"Unable to get autopkg version: {ex}")
-        return "UNKNOWN"
-    try:
-        return version_plist["Version"]
-    except (AttributeError, TypeError):
-        return "UNKNOWN"
 
 
 def update_data(a_dict, key, value):

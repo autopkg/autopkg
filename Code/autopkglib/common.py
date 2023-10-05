@@ -15,10 +15,13 @@
 # limitations under the License.
 
 import os.path
+import plistlib
 import re
 import sys
 from distutils.version import LooseVersion
 from typing import IO, Any, Dict, Union
+
+import pkg_resources
 
 APP_NAME = "Autopkg"
 BUNDLE_ID = "com.github.autopkg"
@@ -166,3 +169,18 @@ def version_equal_or_greater(this, that):
     """Compares two LooseVersion objects. Returns True if this is
     equal to or greater than that"""
     return LooseVersion(this) >= LooseVersion(that)
+
+
+def get_autopkg_version():
+    """Gets the version number of autopkg"""
+    try:
+        version_plist = plistlib.load(
+            pkg_resources.resource_stream(__name__, "version.plist")
+        )
+    except Exception as ex:
+        log_err(f"Unable to get autopkg version: {ex}")
+        return "UNKNOWN"
+    try:
+        return version_plist["Version"]
+    except (AttributeError, TypeError):
+        return "UNKNOWN"
