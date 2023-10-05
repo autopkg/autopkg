@@ -165,13 +165,13 @@ class APLooseVersion(LooseVersion):
         return self._compare(other) >= 0
 
 
-def version_equal_or_greater(this, that):
+def version_equal_or_greater(this: LooseVersion, that: LooseVersion) -> bool:
     """Compares two LooseVersion objects. Returns True if this is
     equal to or greater than that"""
     return LooseVersion(this) >= LooseVersion(that)
 
 
-def get_autopkg_version():
+def get_autopkg_version() -> str:
     """Gets the version number of autopkg"""
     try:
         version_plist = plistlib.load(
