@@ -24,8 +24,9 @@ import pprint
 import subprocess
 import sys
 import traceback
+from optparse import Values
 from distutils.version import LooseVersion
-from typing import IO, Dict, List, Optional
+from typing import IO, Dict, List, Optional, Any
 
 import pkg_resources
 import yaml
@@ -736,7 +737,7 @@ class AutoPackagerLoadError(Exception):
 class AutoPackager:
     """Instantiate and execute processors from a recipe."""
 
-    def __init__(self, options, env):
+    def __init__(self, options: Values, env: Dict[str, Any]):
         self.verbose = options.verbose
         self.env = env
         self.results = []
@@ -760,7 +761,7 @@ class AutoPackager:
             identifier = "-".join(path_parts)
         return identifier
 
-    def process_cli_overrides(self, recipe, cli_values):
+    def process_cli_overrides(self, recipe_inputs: Dict[str, str], cli_values: Dict[str, Any]):
         """Override env with input values from the CLI:
         Start with items in recipe's 'Input' dict, merge and
         overwrite any key-value pairs appended to the
@@ -769,7 +770,7 @@ class AutoPackager:
 
         # Set up empty container for final output
         inputs = {}
-        inputs.update(recipe["Input"])
+        inputs.update(recipe_inputs)
         inputs.update(cli_values)
         self.env.update(inputs)
         # do any internal string substitutions
