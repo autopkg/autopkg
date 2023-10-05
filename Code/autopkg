@@ -39,7 +39,6 @@ from autopkglib import (
     RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
-    calculate_recipe_map,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
     find_binary,
@@ -58,7 +57,6 @@ from autopkglib import (
     log_err,
     plist_serializer,
     processor_names,
-    read_recipe_map,
     recipe_from_file,
     remove_recipe_extension,
     set_pref,
@@ -73,7 +71,15 @@ from autopkglib.apgithub import (
     print_gh_search_results,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
+from autopkglib.common import VarDict
 from autopkglib.prefs import PreferenceError
+from autopkglib.recipes import (
+    RecipeChain,
+    RecipeError,
+    calculate_recipe_map,
+    fetch_recipe_chain,
+    read_recipe_map,
+)
 
 # Catch Python 2 wrappers with an early f-string. Message must be on a single line.
 _ = f"""{sys.version_info.major} It looks like you're running the autopkg tool with an incompatible version of Python. Please update your script to use autopkg's included Python (/usr/local/autopkg/python). AutoPkgr users please note that AutoPkgr 1.5.1 and earlier is NOT compatible with autopkg 2. """  # noqa
