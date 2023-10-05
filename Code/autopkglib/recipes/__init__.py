@@ -63,9 +63,11 @@ class RecipeChain:
         # List of all recipe identifiers that make up this chain
         self.ordered_list_of_recipe_ids: List[str] = []
         # Final constructed list of all processors
-        self.process: Dict[str, Any] = []
+        self.process: List[Dict[str, Any]] = []
         # List of recipe objects that made up this chain
         self.recipes: List[Recipe] = []
+        # The amalgamated inputs
+        self.input: Dict[str, str] = {}
 
     def add_recipe(self, path: str) -> None:
         """Add a recipe by path into the chain"""
@@ -94,13 +96,16 @@ class RecipeChain:
                 raise
             self.add_recipe(parent_recipe.path)
 
-    def build(self) -> None:
+    def build(self, check_only: bool = False) -> None:
         """Compile and build the whole recipe chain"""
-        # Essentially, we are reversing the order of the ids and recipes, and then build the process list
+        # Reverse the order of the ids and recipes, and then build the process list
         self.ordered_list_of_recipe_ids.reverse()
         self.recipes.reverse()
         for recipe in self.recipes:
+            self.input.update(recipe.input)
             self.process.extend(recipe.process)
+        if check_only:
+            self.process = self.get_check_only_processors()
 
     def add_preprocessor(self, processor: Dict[str, Any]) -> None:
         """Add a preprocessor to the beginning of the process list of a chain."""
@@ -452,12 +457,13 @@ def fetch_recipe_chain(
     search_github: bool = True,
     auto_pull: bool = False,
     skip_overrides: bool = False,
+    check_only: bool = False,
 ) -> RecipeChain:
     """Obtain a RecipeChain object from an input string. Does not handle exceptions."""
     recipe_path = find_recipe_path(input)
     chain = RecipeChain()
     chain.add_recipe(recipe_path)
-    chain.build()
+    chain.build(check_only)
     return chain
 
 
