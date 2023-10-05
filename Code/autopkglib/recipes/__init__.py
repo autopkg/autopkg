@@ -19,6 +19,7 @@ import json
 import os
 import pathlib
 import plistlib
+import pprint
 import sys
 from typing import Any, Dict, List, Optional
 
@@ -130,11 +131,21 @@ class RecipeChain:
         print("Recipe Chain:")
         for recipe in self.recipes:
             print(f"  {recipe.identifier}")
+        print("Inputs:")
+        pprint.pprint(self.input, indent=2, width=1)
         print("Processors:")
         for processor in self.process:
             print(f"  {processor}")
-    
-    # TODO: This needs a dict representation
+
+    def to_dict(self, check_only: bool = False) -> Dict[str, Any]:
+        """Return a dictionary representation of the chain"""
+        process = self.process
+        if check_only:
+            process = self.get_check_only_processors()
+        return {
+            "Input": self.input,
+            "Process": process,
+        }
 
 
 class Recipe:
@@ -558,10 +569,19 @@ def find_identifier_from_name(name: str) -> Optional[str]:
 
 if __name__ == "__main__":
     read_recipe_map()
-    chain = RecipeChain()
-    chain.add_recipe(
-        "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe"
-    )
-    chain.build()
-    chain.display_chain()
-    print(chain.get_check_only_processors())
+    print("** Building chain for GoogleChromePkg.pkg")
+    # chain = RecipeChain()
+    # chain.add_recipe(
+    #     "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe"
+    # )
+    # chain.build()
+    # chain.display_chain()
+    # print("** Check-only processors:")
+    # print(chain.get_check_only_processors())
+    recipe = fetch_recipe_chain("GoogleChromePkg.pkg", check_only=True)
+    recipe.display_chain()
+    recipe = fetch_recipe_chain("GoogleChromePkg.pkg", check_only=False)
+    recipe.display_chain()
+    print("** Dictionary version")
+    rdict = recipe.to_dict()
+    pprint.pprint(rdict, width=1)
