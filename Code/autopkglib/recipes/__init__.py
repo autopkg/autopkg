@@ -31,8 +31,10 @@ from autopkglib.common import (
     DEFAULT_RECIPE_MAP,
     DEFAULT_SEARCH_DIRS,
     RECIPE_EXTS,
+    get_autopkg_version,
     log,
     log_err,
+    version_equal_or_greater,
 )
 
 # Set the global recipe map
@@ -56,6 +58,12 @@ class RecipeNotFoundError(RecipeError):
     pass
 
 
+class RecipeMinimumVersionNotMetError(RecipeError):
+    """Recipe requires a newer version than we are running"""
+
+    pass
+
+
 class RecipeChain:
     """Full construction of a recipe chain"""
 
@@ -69,6 +77,8 @@ class RecipeChain:
         self.recipes: List[Recipe] = []
         # The amalgamated inputs
         self.input: Dict[str, str] = {}
+        # Minimum version by default starts at our version
+        self.minimum_version: str = get_autopkg_version()
 
     def add_recipe(self, path: str) -> None:
         """Add a recipe by path into the chain"""
@@ -108,6 +118,9 @@ class RecipeChain:
         for recipe in self.recipes:
             self.input.update(recipe.input)
             self.process.extend(recipe.process)
+            # Set our minimum version to the highest we see
+            if version_equal_or_greater(self.minimum_version, recipe.minimum_version):
+                self.minimum_version = recipe.minimum_version
         if check_only:
             self.process = self.get_check_only_processors()
 
@@ -127,6 +140,8 @@ class RecipeChain:
 
     def display_chain(self) -> None:
         """Print out the whole chain"""
+        print("Minimum version:")
+        print(f"  {self.minimum_version}")
         print("Recipe Chain:")
         for recipe in self.recipes:
             print(f"  {recipe.identifier}")
@@ -143,6 +158,7 @@ class RecipeChain:
             process = self.get_check_only_processors()
         return {
             "Input": self.input,
+            "MinimumVersion": self.minimum_version,
             "Process": process,
         }
 
@@ -255,6 +271,12 @@ class Recipe:
         except Exception as err:
             raise RecipeError from err
 
+    def _minimum_version_met(self) -> bool:
+        """Returns True if the version provided meets the minimum version requirement"""
+        return version_equal_or_greater(
+            get_autopkg_version(), self.minimum_version
+        )
+
     def validate(self, recipe_dict: Dict[str, Any]) -> None:
         """Validate that the recipe dictionary contains reasonable and safe values"""
         required_keys = self.recipe_required_keys
@@ -266,6 +288,14 @@ class Recipe:
             recipe_dict["ParentRecipe"], str
         ):
             raise RecipeError("ParentRecipe must be a string")
+        recipe_mininum_vers = str(recipe_dict.get("MinimumVersion", "1.0.0"))
+        self.minimum_version = recipe_mininum_vers
+        # Check our minimum version
+        if not self._minimum_version_met():
+            raise RecipeMinimumVersionNotMetError(
+                f"Recipe requires a minimum version of {recipe_dict['MinimumVersion']}, "
+                f"but we are running {get_autopkg_version()}"
+            )
 
     def _valid_recipe_dict_with_keys(
         self, recipe_dict: Dict[str, Any], keys_to_verify: List[str]
@@ -577,8 +607,8 @@ if __name__ == "__main__":
     # chain.display_chain()
     # print("** Check-only processors:")
     # print(chain.get_check_only_processors())
-    recipe = fetch_recipe_chain("GoogleChromePkg.pkg", check_only=True)
-    recipe.display_chain()
+    # recipe = fetch_recipe_chain("GoogleChromePkg.pkg", check_only=True)
+    # recipe.display_chain()
     recipe = fetch_recipe_chain("GoogleChromePkg.pkg", check_only=False)
     recipe.display_chain()
     print("** Dictionary version")
