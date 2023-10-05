@@ -89,13 +89,16 @@ class RecipeChain:
                 )
                 raise RecipeError("Circular dependency")
             try:
-                parent_recipe = fetch_recipe(recipe.parent_recipe)
+                # parent_recipe = fetch_recipe(recipe.parent_recipe)
+                parent_recipe_path = find_recipe_path(
+                    recipe.parent_recipe, make_suggestions=False, search_github=False, auto_pull=False, skip_overrides=True
+                )
             except RecipeError as err:
                 print(
                     f"Unable to find parent recipe {recipe.parent_recipe}, aborting: {err}"
                 )
                 raise
-            self.add_recipe(parent_recipe.path)
+            self.add_recipe(parent_recipe_path)
 
     def build(self, check_only: bool = False) -> None:
         """Compile and build the whole recipe chain"""
