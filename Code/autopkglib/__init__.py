@@ -25,7 +25,7 @@ import subprocess
 import sys
 import traceback
 from optparse import Values
-from typing import IO, Dict, List, Optional, Any
+from typing import IO, Any, Dict, List, Optional
 
 import pkg_resources
 import yaml
@@ -44,7 +44,7 @@ from autopkglib.common import (
     is_windows,
     log,
     log_err,
-    version_equal_or_greater
+    version_equal_or_greater,
 )
 from autopkglib.prefs import Preferences
 
