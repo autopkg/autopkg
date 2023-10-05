@@ -122,12 +122,8 @@ class RecipeChain:
         check_index = list_of_processors.index("EndOfCheckPhase")
         return self.process[0 : check_index + 1]
 
-    def is_processor_in_chain(self, processor_name: str) -> bool:
-        """Return true if a given Processor name is in the chain"""
-
     def display_chain(self) -> None:
         """Print out the whole chain"""
-        print("Identifier chain:")
         print("Recipe Chain:")
         for recipe in self.recipes:
             print(f"  {recipe.identifier}")
