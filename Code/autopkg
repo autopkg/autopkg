@@ -123,7 +123,7 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def find_recipe(id_or_name: str, skip_overrides: bool = False):
+def old_find_recipe(id_or_name: str, skip_overrides: bool = False):
     """Find a recipe based on a string that might be an identifier
     or a name"""
     # The recipe search should allow searching overrides vs. not (make-overrides shouldn't
@@ -167,7 +167,7 @@ def get_identifier_from_override(override):
     return name
 
 
-def locate_recipe(
+def old_locate_recipe(
     name,
     make_suggestions=True,
     search_github=True,
@@ -193,12 +193,12 @@ def locate_recipe(
 
     if not recipe_file:
         # name wasn't a filename. Let's search our map for names and/or identifiers.
-        recipe_file = find_recipe(name, skip_overrides)
+        recipe_file = old_find_recipe(name, skip_overrides)
         if not recipe_file:
             # If we still didn't find it in the map, try rebuilding the map with current dirs
             log("Rebuilding recipe map with current working directories...")
             calculate_recipe_map(skip_cwd=False)
-            recipe_file = find_recipe(name, skip_overrides)
+            recipe_file = old_find_recipe(name, skip_overrides)
 
     if not recipe_file and make_suggestions:
         make_suggestions_for(name)
@@ -245,7 +245,7 @@ def locate_recipe(
                     # try once again to locate the recipe, but don't
                     # search GitHub again!
                     print()
-                    recipe_file = locate_recipe(
+                    recipe_file = old_locate_recipe(
                         name,
                         make_suggestions=True,
                         search_github=False,
@@ -259,7 +259,7 @@ def locate_recipe(
     return recipe_file
 
 
-def load_recipe(
+def old_load_recipe(
     name,
     preprocessors=None,
     postprocessors=None,
@@ -302,7 +302,7 @@ def load_recipe(
     # 6. Rerun recipe location logic for ParentRecipe
     # 7. When parsing recipe object, prepend Process with processors from each parent, in order
     # 8. Add input variables from parents only if they don't already exist in the child (later recipes always win)
-    recipe_file = locate_recipe(
+    recipe_file = old_locate_recipe(
         name,
         make_suggestions=make_suggestions,
         search_github=search_github,
@@ -346,7 +346,7 @@ def load_recipe(
         child_recipe = recipe
         parent_id = get_identifier_from_override(recipe)
         # load its parent by identifier
-        recipe = load_recipe(
+        recipe = old_load_recipe(
             parent_id,
             make_suggestions=make_suggestions,
             search_github=search_github,
@@ -423,7 +423,7 @@ def get_recipe_info(
     auto_pull=False,
 ):
     """Loads a recipe, then prints some information about it. Override aware."""
-    recipe = load_recipe(
+    recipe = old_load_recipe(
         recipe_name,
         make_suggestions=make_suggestions,
         search_github=search_github,
@@ -950,7 +950,7 @@ def processor_info(argv):
 
     recipe = None
     if options.recipe:
-        recipe = load_recipe(options.recipe)
+        recipe = old_load_recipe(options.recipe)
 
     try:
         processor_class = get_processor(processor_name, recipe=recipe)
@@ -1349,7 +1349,7 @@ def get_trust_info(recipe, search_dirs=None):
     for p_recipe_path in parent_recipe_paths:
         p_recipe_hash = getsha256hash(p_recipe_path)
         git_hash = get_git_commit_hash(p_recipe_path)
-        p_recipe = load_recipe(p_recipe_path)
+        p_recipe = old_load_recipe(p_recipe_path)
         identifier = get_identifier(p_recipe)
         parent_recipe_hashes[identifier] = {
             "path": os_path_compressuser(p_recipe_path),
@@ -1505,7 +1505,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         )
 
     # verify trust of parent recipes
-    parent_recipe = load_recipe(
+    parent_recipe = old_load_recipe(
         recipe["ParentRecipe"],
         make_suggestions=False,
         search_github=False,
@@ -1568,7 +1568,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
             actual_trust_info["parent_recipes"].get(p_recipe_id, {}).get("sha256_hash")
         )
         if expected_hash != actual_hash:
-            p_recipe = load_recipe(
+            p_recipe = old_load_recipe(
                 p_recipe_id,
                 make_suggestions=False,
                 search_github=False,
@@ -1593,7 +1593,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
     for p_recipe_id in actual_parent_recipes:
         if p_recipe_id not in expected_parent_recipes:
             trust_errors += f"Unexpected parent recipe found: {p_recipe_id}\n"
-            p_recipe = load_recipe(
+            p_recipe = old_load_recipe(
                 p_recipe_id,
                 make_suggestions=False,
                 search_github=False,
@@ -1632,7 +1632,7 @@ def update_trust_info(argv):
     read_recipe_map()
 
     for recipe_name in recipe_names:
-        recipe_path = locate_recipe(
+        recipe_path = old_locate_recipe(
             recipe_name,
             make_suggestions=True,
             search_github=False,
@@ -1661,7 +1661,7 @@ def update_trust_info(argv):
                 if not answer.lower().startswith("y"):
                     continue
         # add trust info
-        parent_recipe = load_recipe(recipe["ParentRecipe"])
+        parent_recipe = old_load_recipe(recipe["ParentRecipe"])
         if parent_recipe:
             recipe["ParentRecipeTrustInfo"] = get_trust_info(
                 parent_recipe, search_dirs=search_dirs
@@ -1725,7 +1725,7 @@ def verify_trust_info(argv):
         return -1
 
     for recipe_name in recipe_names:
-        recipe = load_recipe(
+        recipe = old_load_recipe(
             recipe_name,
             make_suggestions=True,
             search_github=False,
@@ -1814,7 +1814,7 @@ def make_override(argv):
     # First, populate the recipe map
     read_recipe_map()
 
-    recipe = load_recipe(
+    recipe = old_load_recipe(
         recipe_name,
         make_suggestions=True,
         search_github=options.pull,
@@ -2137,7 +2137,7 @@ def run_recipes(argv):
     # Look for the actual recipes here
     for recipe_path in recipe_paths:
         start = time.perf_counter()
-        recipe = load_recipe(
+        recipe = old_load_recipe(
             recipe_path,
             preprocessors=preprocessors,
             postprocessors=postprocessors,
@@ -2469,7 +2469,7 @@ def audit(argv):
     recipe_issue_count = 0
     recipe_no_issue_count = 0
     for recipe_path in recipe_paths:
-        recipe = load_recipe(
+        recipe = old_load_recipe(
             recipe_path,
             make_suggestions=False,
             search_github=False,
