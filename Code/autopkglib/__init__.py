@@ -1086,6 +1086,48 @@ def run_git(git_options_and_arguments, git_directory=None):
     else:
         return cmd_out
 
+
+def get_git_commit_hash(filepath):
+    """Get the current git commit hash if possible"""
+    try:
+        git_toplevel_dir = run_git(
+            ["rev-parse", "--show-toplevel"], git_directory=os.path.dirname(filepath)
+        ).rstrip("\n")
+    except GitError:
+        return None
+    try:
+        relative_path = os.path.relpath(filepath, git_toplevel_dir)
+        # this was the _wrong_ implementation and essentially is the same
+        # as `git hash-object filepath`. It gives us the object hash for the
+        # file. Fine for later getting diff info but no good for finding the
+        # the commits since the hash was recorded
+        #
+        # git_hash = run_git(
+        #    ['rev-parse', ':' + relative_path],
+        #    git_directory=git_toplevel_dir).rstrip('\n')
+        #
+        # instead, we need to use `rev-list` to find the most recent commit
+        # hash for the file in question.
+        git_hash = run_git(
+            ["rev-list", "-1", "HEAD", "--", relative_path],
+            git_directory=git_toplevel_dir,
+        ).rstrip("\n")
+    except GitError:
+        return None
+    # make sure the file hasn't been changed locally since the last git pull
+    # if git diff produces output, it's been changed, and therefore storing
+    # the hash is pointless
+    try:
+        diff_output = run_git(
+            ["diff", git_hash, relative_path], git_directory=git_toplevel_dir
+        ).rstrip("\n")
+    except GitError:
+        return None
+    if diff_output:
+        return None
+    return git_hash
+
+
 # when importing autopkglib, need to also import all the processors
 # in this same directory
 

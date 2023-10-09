@@ -40,16 +40,17 @@ from autopkglib import (
     GitError,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
-    git_cmd,
     find_recipe_by_id_in_map,
     find_recipe_by_name_in_map,
     get_all_prefs,
     get_autopkg_version,
+    get_git_commit_hash,
     get_identifier,
     get_override_dirs,
     get_pref,
     get_processor,
     get_search_dirs,
+    git_cmd,
     globalRecipeMap,
     is_mac,
     log,
@@ -1195,47 +1196,6 @@ def list_recipes(argv):
                 output.append(out_string)
 
         print("\n".join(output))
-
-
-def get_git_commit_hash(filepath):
-    """Get the current git commit hash if possible"""
-    try:
-        git_toplevel_dir = run_git(
-            ["rev-parse", "--show-toplevel"], git_directory=os.path.dirname(filepath)
-        ).rstrip("\n")
-    except GitError:
-        return None
-    try:
-        relative_path = os.path.relpath(filepath, git_toplevel_dir)
-        # this was the _wrong_ implementation and essentially is the same
-        # as `git hash-object filepath`. It gives us the object hash for the
-        # file. Fine for later getting diff info but no good for finding the
-        # the commits since the hash was recorded
-        #
-        # git_hash = run_git(
-        #    ['rev-parse', ':' + relative_path],
-        #    git_directory=git_toplevel_dir).rstrip('\n')
-        #
-        # instead, we need to use `rev-list` to find the most recent commit
-        # hash for the file in question.
-        git_hash = run_git(
-            ["rev-list", "-1", "HEAD", "--", relative_path],
-            git_directory=git_toplevel_dir,
-        ).rstrip("\n")
-    except GitError:
-        return None
-    # make sure the file hasn't been changed locally since the last git pull
-    # if git diff produces output, it's been changed, and therefore storing
-    # the hash is pointless
-    try:
-        diff_output = run_git(
-            ["diff", git_hash, relative_path], git_directory=git_toplevel_dir
-        ).rstrip("\n")
-    except GitError:
-        return None
-    if diff_output:
-        return None
-    return git_hash
 
 
 def find_processor_path(processor_name, recipe, env=None):
