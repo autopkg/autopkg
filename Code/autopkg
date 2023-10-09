@@ -20,7 +20,6 @@ related tasks"""
 import copy
 import difflib
 import glob
-import hashlib
 import os
 import plistlib
 import pprint
@@ -1280,21 +1279,6 @@ def get_git_commit_hash(filepath):
     if diff_output:
         return None
     return git_hash
-
-
-def getsha256hash(filepath):
-    """Generate a sha256 hash for the file at filepath"""
-    if not os.path.isfile(filepath):
-        return "NOT A FILE"
-    hashfunction = hashlib.sha256()
-    fileref = open(filepath, "rb")
-    while 1:
-        chunk = fileref.read(2**16)
-        if not chunk:
-            break
-        hashfunction.update(chunk)
-    fileref.close()
-    return hashfunction.hexdigest()
 
 
 def find_processor_path(processor_name, recipe, env=None):

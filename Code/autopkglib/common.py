@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import hashlib
 import os.path
 import plistlib
 import re
@@ -184,3 +185,16 @@ def get_autopkg_version() -> str:
         return version_plist["Version"]
     except (AttributeError, TypeError):
         return "UNKNOWN"
+
+
+def getsha256hash(filepath: str) -> str:
+    """Generate a sha256 hash for the file at filepath"""
+    hashfunction = hashlib.sha256()
+    fileref = open(filepath, "rb")
+    while 1:
+        chunk = fileref.read(2**16)
+        if not chunk:
+            break
+        hashfunction.update(chunk)
+    fileref.close()
+    return hashfunction.hexdigest()
