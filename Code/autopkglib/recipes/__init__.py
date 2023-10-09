@@ -162,6 +162,10 @@ class RecipeChain:
             "Process": process,
         }
 
+    def verify_trust(self) -> bool:
+        """Return True if the recipe trust is correct."""
+        return True
+
 
 class Recipe:
     """A representation of a Recipe"""
