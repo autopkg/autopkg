@@ -70,7 +70,7 @@ from autopkglib.apgithub import (
     print_gh_search_results,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
-from autopkglib.common import VarDict
+from autopkglib.common import VarDict, getsha256hash
 from autopkglib.prefs import PreferenceError
 from autopkglib.recipes import (
     RecipeChain,
