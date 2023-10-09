@@ -189,7 +189,7 @@ def get_autopkg_version() -> str:
         return "UNKNOWN"
 
 
-def getsha256hash(filepath: str) -> str:
+def get_sha256_hash(filepath: str) -> str:
     """Generate a sha256 hash for the file at filepath"""
     hashfunction = hashlib.sha256()
     fileref = open(filepath, "rb")

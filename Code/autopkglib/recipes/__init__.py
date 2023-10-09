@@ -27,13 +27,13 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 sys.path.append("/Users/nmcspadden/Documents/GitHub/autopkg/Code")
-from autopkglib import get_override_dirs, get_pref
+from autopkglib import get_git_commit_hash, get_override_dirs, get_pref
 from autopkglib.common import (
     DEFAULT_RECIPE_MAP,
     DEFAULT_SEARCH_DIRS,
     RECIPE_EXTS,
     get_autopkg_version,
-    getsha256hash,
+    get_sha256_hash,
     log,
     log_err,
     version_equal_or_greater,
@@ -297,7 +297,8 @@ class Recipe:
         if self.is_override:
             self._parse_trust_info(recipe_dict)
         # Assign the values, we'll force some of the variables to become strings
-        self.sha256_hash = getsha256hash(self.path)
+        self.sha256_hash = get_sha256_hash(self.path)
+        self.git_hash = get_git_commit_hash(self.path)
         self.description = str(recipe_dict.get("Description", ""))
         # The identifier is the only field we cannot live without
         self.identifier = str(recipe_dict["Identifier"])
