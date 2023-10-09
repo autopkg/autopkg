@@ -22,6 +22,7 @@ import plistlib
 import pprint
 import sys
 from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
 
 import yaml
 
@@ -32,6 +33,7 @@ from autopkglib.common import (
     DEFAULT_SEARCH_DIRS,
     RECIPE_EXTS,
     get_autopkg_version,
+    getsha256hash,
     log,
     log_err,
     version_equal_or_greater,
@@ -44,6 +46,28 @@ globalRecipeMap: Dict[str, Dict[str, str]] = {
     "overrides": {},
     "overrides-identifiers": {},
 }
+
+# Historically, recipes were treated as simple Python dictionaries. This made sense because Pyobjc gave us a natural
+# toll-free bridge to convert between Plists and Python dictionaries. Recipes were essentially parsed into dictionaries
+# and everything was treated as functionally strings.
+#
+# However, there are many problems with this approach. For one thing, plists can nest dicts and that makes type checking
+# in particular rather challenging and unwieldy. It's flexible, but the lack of type safety is one of the big design
+# limitations in AutoPkg's error-handling. AutoPkg basically can't produce meaningful error messages at runtime because
+# it can't realistically predict what types of data it's getting from a plist.
+#
+# To address this general problem and allow AutoPkg to more safely handle different scenarios, we're going to reduce
+# the flexibility a bit by instead converting Recipes and their contents into actual objects.
+#
+# Generally speaking, all Recipes follow a specific structure and have generally immutable top level keys. By
+# turning this into classes, we can guarantee the keys we care about exist, and we can type-check the values to
+# validate a recipe will be safe to run before we even do anything about it. This will allow AutoPkg to expose much
+# more meaningful error modes to the operator rather than just Python stacketraces.
+#
+# Recipe Trust info, a unique feature of overrides, is now using Python 3.7's dataclasses feature. Dataclasses
+# are mutable namedtuples, which themselves are like mini-objects that have named attributes. Since we're never going
+# to add arbitrary keys to these objects, they're a perfect fit for this use case. Parent Trust always has a fixed
+# representation.
 
 
 class RecipeError(Exception):
@@ -62,6 +86,34 @@ class RecipeMinimumVersionNotMetError(RecipeError):
     """Recipe requires a newer version than we are running"""
 
     pass
+
+
+# Use Dataclasses to represent Trust content because they are always fixed structures
+@dataclass
+class TrustBlob:
+    """Represent the parent trust information of a recipe aspect.
+
+    In plists, this is represented as:
+    <dict>
+        <key>git_hash</key>
+        <string>a28e56e90ebc52512a4b7ec8fe1981bf02e92bc5</string>
+        <key>path</key>
+        <string>~/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/Mozilla/MozillaURLProvider.py</string>
+        <key>sha256_hash</key>
+        <string>c4ce035b1a629c4925a80003899fcf39480e5224b3015613440f07ab96211f17</string>
+    </dict>
+    """
+    git_hash: str
+    path: str
+    sha256_hash: str
+
+
+# Similarly, the entire ParentRecipeTrustInfo dictionary is always fixed
+@dataclass
+class ParentRecipeTrustInfo:
+    """Represent the parent trust information of a recipe"""
+    non_core_recipes: Dict[str, TrustBlob]
+    parent_recipes: Dict[str, TrustBlob]
 
 
 class RecipeChain:
@@ -185,7 +237,12 @@ class Recipe:
         # we are currently structured in a way to make that reasonable
         self.process: List[Optional[Dict[str, Any]]] = []
         self.input: Dict[str, str] = {}
+        # Trust-specific values
+        self.sha256_hash: str = "abc123"
+        self.git_hash: Optional[str] = None
+        # Override-specific functionality
         self.is_override: bool = False
+        self.trust_info: Optional[ParentRecipeTrustInfo] = None
         # Defined list of keys that are considered inviolate requirements of a recipe
         self.recipe_required_keys: List[str] = [
             "Identifier",
@@ -231,12 +288,16 @@ class Recipe:
             # log_err(f"Unable to read in plist or yaml recipe from {filename}")
             print(f"Unable to read in plist or yaml recipe from {filename}")
 
+        # Is this an override?
+        self.is_override = self.check_is_override()
         # This will throw an exception if the recipe is invalid
         self.validate(recipe_dict)
         self.path = filename
         self.shortname = self._generate_shortname()
-        self.is_override = self.check_is_override()
+        if self.is_override:
+            self._parse_trust_info(recipe_dict)
         # Assign the values, we'll force some of the variables to become strings
+        self.sha256_hash = getsha256hash(self.path)
         self.description = str(recipe_dict.get("Description", ""))
         # The identifier is the only field we cannot live without
         self.identifier = str(recipe_dict["Identifier"])
@@ -245,6 +306,17 @@ class Recipe:
         self.process = recipe_dict.get("Process", [])
         # This is already validated that it must be a string if it exists
         self.parent_recipe = recipe_dict.get("ParentRecipe", None)
+
+    def _parse_trust_info(self, recipe_dict: [Dict[str, Any]]) -> None:
+        """Parse the trust info from a recipe dictionary"""
+        # Trust info is only present in overrides
+        # For every recipe in the chain, we need:
+        # git hash
+        # sha256 hash
+        # file path
+        # TODO: Finish implementing this after fixing git_hash collection
+        # non_core_recipes = recipe_dict["ParentRecipeTrustInfo"].get("non_core_processors", {})
+        pass
 
     def check_is_override(self) -> bool:
         """Return True if this recipe is an override"""
@@ -285,6 +357,8 @@ class Recipe:
         """Validate that the recipe dictionary contains reasonable and safe values"""
         required_keys = self.recipe_required_keys
         if self.is_override:
+            # We only validate that the required keys for overrides are present
+            # We aren't verifying trust at this point
             required_keys = self.override_required_keys
         if not self._valid_recipe_dict_with_keys(recipe_dict, required_keys):
             raise RecipeError("Recipe did not contain all the required keys!")
