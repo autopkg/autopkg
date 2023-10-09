@@ -39,6 +39,7 @@ from autopkglib.common import (
     VarDict,
     autopkg_user_folder,
     get_autopkg_version,
+    is_executable,
     is_linux,
     is_mac,
     is_windows,
@@ -467,11 +468,6 @@ def update_data(a_dict, key, value):
         return item
 
     a_dict[key] = do_variable_substitution(value)
-
-
-def is_executable(exe_path):
-    """Is exe_path executable?"""
-    return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
 
 
 def find_binary(binary: str, env: Optional[Dict] = None) -> Optional[str]:
@@ -1045,6 +1041,50 @@ def plist_serializer(obj):
             plist_serializer(obj[item])
     return obj
 
+
+# git functions
+def git_cmd():
+    """Returns a path to a git binary, priority in the order below.
+    Returns None if none found.
+    1. app pref 'GIT_PATH'
+    2. a 'git' binary that can be found in the PATH environment variable
+    3. '/usr/bin/git'
+    """
+    return find_binary("git")
+
+
+class GitError(Exception):
+    """Exception to throw if git fails"""
+
+    pass
+
+
+def run_git(git_options_and_arguments, git_directory=None):
+    """Run a git command and return its output if successful;
+    raise GitError if unsuccessful."""
+    gitcmd = git_cmd()
+    if not gitcmd:
+        raise GitError("ERROR: git is not installed!")
+    cmd = [gitcmd]
+    cmd.extend(git_options_and_arguments)
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            cwd=git_directory,
+            text=True,
+        )
+        (cmd_out, cmd_err) = proc.communicate()
+    except OSError as err:
+        raise GitError from OSError(
+            f"ERROR: git execution failed with error code {err.errno}: "
+            f"{err.strerror}"
+        )
+    if proc.returncode != 0:
+        raise GitError(f"ERROR: {cmd_err}")
+    else:
+        return cmd_out
 
 # when importing autopkglib, need to also import all the processors
 # in this same directory

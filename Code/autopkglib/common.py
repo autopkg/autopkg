@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Common functions and constants used by autopkglib modules."""
+
 import hashlib
 import os.path
 import plistlib
@@ -198,3 +200,8 @@ def getsha256hash(filepath: str) -> str:
         hashfunction.update(chunk)
     fileref.close()
     return hashfunction.hexdigest()
+
+
+def is_executable(exe_path):
+    """Is exe_path executable?"""
+    return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
