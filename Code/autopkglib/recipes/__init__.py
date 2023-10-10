@@ -243,6 +243,11 @@ class RecipeChain:
     def verify_trust(self) -> bool:
         """Return True if the recipe trust is correct."""
         return True
+        # TODO: Implement this
+        # We need to determine if a recipe in the chain is an override and thus contains trust
+        # if it contains trust, we then go validate that the trust is correct
+        # if there are no overrides, this always returns True (but maybe we print out that we did nothing)
+        # for recipe in self.recipes:
 
 
 class Recipe:
