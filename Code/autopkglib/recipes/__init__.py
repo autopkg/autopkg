@@ -21,7 +21,7 @@ import pathlib
 import plistlib
 import pprint
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import yaml
@@ -102,7 +102,15 @@ class TrustBlob:
         <key>sha256_hash</key>
         <string>c4ce035b1a629c4925a80003899fcf39480e5224b3015613440f07ab96211f17</string>
     </dict>
+
+    This cannot be initialized with no arguments, and must be filled on instantiation:
+    non_core_processor = TrustBlob(
+        git_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][some_key]["git_hash"],
+        path=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][some_key]["path"],
+        sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][some_key]["sha256_hash"],
+    )
     """
+
     git_hash: str
     path: str
     sha256_hash: str
@@ -111,9 +119,19 @@ class TrustBlob:
 # Similarly, the entire ParentRecipeTrustInfo dictionary is always fixed
 @dataclass
 class ParentRecipeTrustInfo:
-    """Represent the parent trust information of a recipe"""
-    non_core_recipes: Dict[str, TrustBlob]
-    parent_recipes: Dict[str, TrustBlob]
+    """Represent the parent trust information of a recipe
+    This can be instantiated with no arguments and filled later:
+        trust = ParentRecipeTrustInfo()
+        trust.update(
+            {"non_core_processors": {"ProcessorName": TrustBlob(...)},
+            "parent_recipes": {"RecipeName": TrustBlob(...)}}
+        )
+    However, this does not validate that the trust has been filled correctly. Using unfilled trust info will 
+    fail trust validation.
+    """
+
+    non_core_processors: Dict[str, TrustBlob] = field(default_factory=dict)
+    parent_recipes: Dict[str, TrustBlob] = field(default_factory=dict)
 
 
 class RecipeChain:
@@ -153,7 +171,11 @@ class RecipeChain:
             try:
                 # parent_recipe = fetch_recipe(recipe.parent_recipe)
                 parent_recipe_path = find_recipe_path(
-                    recipe.parent_recipe, make_suggestions=False, search_github=False, auto_pull=False, skip_overrides=True
+                    recipe.parent_recipe,
+                    make_suggestions=False,
+                    search_github=False,
+                    auto_pull=False,
+                    skip_overrides=True,
                 )
             except RecipeError as err:
                 print(
@@ -196,7 +218,11 @@ class RecipeChain:
         print(f"  {self.minimum_version}")
         print("Recipe Chain:")
         for recipe in self.recipes:
-            print(f"  {recipe.identifier}")
+            print(
+                f"\t{recipe.identifier}:\n"
+                f"\t\tSHA256: {recipe.sha256_hash}\n"
+                f"\t\tGit Hash: {recipe.git_hash}"
+            )
         print("Inputs:")
         pprint.pprint(self.input, indent=2, width=1)
         print("Processors:")
@@ -288,13 +314,14 @@ class Recipe:
             # log_err(f"Unable to read in plist or yaml recipe from {filename}")
             print(f"Unable to read in plist or yaml recipe from {filename}")
 
+        self.path = filename
         # Is this an override?
         self.is_override = self.check_is_override()
         # This will throw an exception if the recipe is invalid
         self.validate(recipe_dict)
-        self.path = filename
         self.shortname = self._generate_shortname()
         if self.is_override:
+            # Trust info is only present in overrides
             self._parse_trust_info(recipe_dict)
         # Assign the values, we'll force some of the variables to become strings
         self.sha256_hash = get_sha256_hash(self.path)
@@ -310,14 +337,22 @@ class Recipe:
 
     def _parse_trust_info(self, recipe_dict: [Dict[str, Any]]) -> None:
         """Parse the trust info from a recipe dictionary"""
-        # Trust info is only present in overrides
-        # For every recipe in the chain, we need:
-        # git hash
-        # sha256 hash
-        # file path
-        # TODO: Finish implementing this after fixing git_hash collection
-        # non_core_recipes = recipe_dict["ParentRecipeTrustInfo"].get("non_core_processors", {})
-        pass
+        trust = ParentRecipeTrustInfo()
+        for proc in recipe_dict["ParentRecipeTrustInfo"].get("non_core_processors", {}).keys():
+            proc_trust = TrustBlob(
+                git_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc]["git_hash"],
+                path=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc]["path"],
+                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc]["sha256_hash"],
+            )
+            trust.non_core_processors.update({str(proc): proc_trust})
+        for parent_recipe in recipe_dict["ParentRecipeTrustInfo"].get("parent_recipes", {}).keys():
+            rec_trust = TrustBlob(
+                git_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][parent_recipe]["git_hash"],
+                path=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][parent_recipe]["path"],
+                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][parent_recipe]["sha256_hash"],
+            )
+            trust.parent_recipes.update({str(parent_recipe): rec_trust})
+        self.trust_info = trust
 
     def check_is_override(self) -> bool:
         """Return True if this recipe is an override"""
@@ -350,9 +385,7 @@ class Recipe:
 
     def _minimum_version_met(self) -> bool:
         """Returns True if the version provided meets the minimum version requirement"""
-        return version_equal_or_greater(
-            get_autopkg_version(), self.minimum_version
-        )
+        return version_equal_or_greater(get_autopkg_version(), self.minimum_version)
 
     def validate(self, recipe_dict: Dict[str, Any]) -> None:
         """Validate that the recipe dictionary contains reasonable and safe values"""
@@ -688,8 +721,13 @@ if __name__ == "__main__":
     # print(chain.get_check_only_processors())
     # recipe = fetch_recipe_chain("GoogleChromePkg.pkg", check_only=True)
     # recipe.display_chain()
-    recipe = fetch_recipe_chain("GoogleChromePkg.pkg", check_only=False)
+    recipe = fetch_recipe_chain("Firefox.munki", check_only=False)
     recipe.display_chain()
-    print("** Dictionary version")
-    rdict = recipe.to_dict()
-    pprint.pprint(rdict, width=1)
+    # print("** Dictionary version")
+    # rdict = recipe.to_dict()
+    # pprint.pprint(rdict, width=1)
+    # print("** Checking non-git recipe")
+    # non_git_recipe = "/Users/nmcspadden/Library/AutoPkg/Recipes/AutoPkg-Test.download.recipe"
+    # hash = get_git_commit_hash(non_git_recipe)
+    # print(f"Git hash: {hash}")
+
