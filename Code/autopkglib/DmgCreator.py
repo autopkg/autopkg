@@ -23,7 +23,7 @@ from autopkglib import Processor, ProcessorError
 __all__ = ["DmgCreator"]
 
 DEFAULT_DMG_FORMAT = "ULFO"
-DEFAULT_DMG_FILESYSTEM = "HFS+"
+DEFAULT_DMG_FILESYSTEM = "APFS"
 DEFAULT_ZLIB_LEVEL = 5
 
 
