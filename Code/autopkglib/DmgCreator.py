@@ -22,7 +22,7 @@ from autopkglib import Processor, ProcessorError
 
 __all__ = ["DmgCreator"]
 
-DEFAULT_DMG_FORMAT = "UDZO"
+DEFAULT_DMG_FORMAT = "ULFO"
 DEFAULT_DMG_FILESYSTEM = "HFS+"
 DEFAULT_ZLIB_LEVEL = 5
 
@@ -89,6 +89,8 @@ class DmgCreator(Processor):
             "UDxx",
             "UDSP",
             "UDSB",
+            "ULFO",
+            "ULMO",
         ]
 
         dmg_format = self.env.get("dmg_format", DEFAULT_DMG_FORMAT)
