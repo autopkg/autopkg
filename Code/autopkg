@@ -253,7 +253,7 @@ def locate_recipe(
                     )
             elif len(repo_names) > 1:
                 print()
-                print("To add a new recipe repo, use 'autopkg repo-add " "<repo name>'")
+                print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
                 return None
 
     return recipe_file
