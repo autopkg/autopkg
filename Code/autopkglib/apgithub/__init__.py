@@ -272,31 +272,36 @@ class GitHubSession:
         # return results
 
 
-def print_gh_search_results(results_items):
-    """Pretty print our GitHub search results"""
-    if not results_items:
-        return
-    column_spacer = 4
-    max_name_length = max([len(r["name"]) for r in results_items]) + column_spacer
-    max_repo_length = (
-        max([len(r["repository"]["name"]) for r in results_items]) + column_spacer
-    )
-    spacers = (max_name_length, max_repo_length)
+def get_table_row(row_items, col_widths, header=False):
+    """This function takes table row content (list of strings) and column
+    widths (list of integers) as input and outputs a string representing a
+    table row in Markdown, with normalized "pretty" spacing that is readable
+    when unrendered."""
+    output = ""
+    header_sep = "\n"
+    column_space = 4
+    for idx, cell in enumerate(row_items):
+        padding = col_widths[idx] - len(cell) + column_space
+        header_sep += "-" * len(cell) + " " * padding
+        output += f"{cell}{' ' * padding}"
+    if header:
+        return output + header_sep
 
+    return output
+
+
+def print_gh_search_results(results: List):
+    """Pretty print our GitHub search results"""
+    if not results:
+        return
+    col_widths = [
+        max([len(x[k]) for x in results] + [len(k)]) for k in results[0].keys()
+    ]
     print()
-    format_str = "%-{}s %-{}s %-40s".format(*spacers)
-    print(format_str % ("Name", "Repo", "Path"))
-    print(format_str % ("----", "----", "----"))
-    results_items.sort(key=lambda x: x["repository"]["name"])
-    for result in results_items:
-        repo = result["repository"]
-        name = result["name"]
-        path = result["path"]
-        if repo["full_name"].startswith("autopkg"):
-            repo_name = repo["name"]
-        else:
-            repo_name = repo["full_name"]
-        print(format_str % (name, repo_name, path))
+    print(get_table_row(results[0].keys(), col_widths, header=True))
+    for result_item in sorted(results, key=lambda x: x["Repo"].lower()):
+        print(get_table_row(result_item.values(), col_widths))
+    print()
 
 
 def do_gh_repo_contents_fetch(
