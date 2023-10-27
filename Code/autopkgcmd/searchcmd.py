@@ -45,7 +45,7 @@ def check_search_cache(cache_path):
     curl_cmd.extend(["--url", f"https://api.github.com/{cache_endpoint}"])
     stdout, _, returncode = api.execute_curl(curl_cmd)
     if returncode != 0:
-        print("WARNING: Unable to retrieve search index metadata from GitHub API.")
+        log_err("WARNING: Unable to retrieve search index metadata from GitHub API.")
         return
     cache_meta = json.loads(stdout)
 
@@ -57,7 +57,7 @@ def check_search_cache(cache_path):
         "created: https://github.com/autopkg/autopkg/issues"
     )
     if cache_meta["size"] > (90 * 1024 * 1024):
-        print(search_index_size_msg % "nearing")
+        log_err(search_index_size_msg % "nearing")
     elif cache_meta["size"] > (100 * 1024 * 1024):
         log_err(search_index_size_msg % "greater than")
 
@@ -86,7 +86,7 @@ def check_search_cache(cache_path):
     )
     stdout, _, returncode = api.execute_curl(curl_cmd)
     if returncode != 0:
-        print("WARNING: Unable to retrieve search index contents from GitHub API.")
+        log_err("WARNING: Unable to retrieve search index contents from GitHub API.")
         return
 
 
@@ -196,7 +196,7 @@ def search_recipes(argv: List[str]):
         return 1
 
     if options.use_token:
-        log("WARNING: Deprecated option '--use-token' provided, ignoring.")
+        log_err("WARNING: Deprecated option '--use-token' provided, ignoring.")
 
     if options.user:
         # https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/managing-iam-for-your-enterprise/username-considerations-for-external-authentication#about-username-normalization
@@ -226,7 +226,7 @@ def search_recipes(argv: List[str]):
     results_limit = 100
     if len(results) > results_limit:
         print()
-        print(
+        log_err(
             f"WARNING: Search yielded more than {results_limit} results. Please try a "
             "more specific search term."
         )

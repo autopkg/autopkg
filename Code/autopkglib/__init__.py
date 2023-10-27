@@ -359,7 +359,7 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
                 key = remove_recipe_extension(os.path.basename(match))
             # In case the file was invalid, or missing a key
             if not key:
-                print(
+                log_err(
                     f"WARNING: {match} is potentially an invalid file, not adding it to the recipe map! "
                     "Please file a GitHub Issue for this repo."
                 )
