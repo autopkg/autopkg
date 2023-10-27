@@ -176,11 +176,26 @@ def search_recipes(argv: List[str]):
             f"Defaults to '{DEFAULT_SEARCH_USER}'."
         ),
     )
+    parser.add_option(
+        "-t",
+        "--use-token",
+        action="store_true",
+        default=False,
+        help=(
+            "Used a public-scope GitHub token for a higher "
+            "rate limit. This option is deprecated and no longer "
+            "needed since AutoPkg 3.0+ uses a cached search index."
+        ),
+    )
+
     # Parse arguments
     (options, arguments) = common_parse(parser, argv)
     if len(arguments) < 1:
         log_err("No search query specified!")
         return 1
+
+    if options.use_token:
+        log("WARNING: Deprecated option '--use-token' provided, ignoring.")
 
     if options.user:
         keyword = quote_plus(arguments[0]).lower()
