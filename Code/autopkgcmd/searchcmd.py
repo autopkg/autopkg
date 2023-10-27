@@ -14,6 +14,7 @@
 
 import json
 import os
+import re
 from typing import List
 from urllib.parse import quote_plus
 
@@ -198,8 +199,17 @@ def search_recipes(argv: List[str]):
         log("WARNING: Deprecated option '--use-token' provided, ignoring.")
 
     if options.user:
+        # https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/managing-iam-for-your-enterprise/username-considerations-for-external-authentication#about-username-normalization
+        if not re.match(r"^[A-Za-z0-9\-]+$", options.user):
+            log_err(
+                "WARNING: GitHub user/org names contain only alphanumeric characters and dashes."
+            )
+        options.user = re.sub(r"[^A-Za-z0-9\-]", "", options.user)
         keyword = quote_plus(arguments[0]).lower()
-        url = f"https://github.com/search?q={keyword}+org%3A{options.user}+lang%3Axml+OR+lang%3Ayaml&type=code"
+        url = (
+            f"https://github.com/search?q={keyword}+org%3A"
+            f"{options.user}+lang%3Axml+OR+lang%3Ayaml&type=code"
+        )
         log(
             "'autopkg search' is no longer able to search GitHub users or orgs "
             "other than autopkg.\nHowever, this page may provide some useful results:\n"
