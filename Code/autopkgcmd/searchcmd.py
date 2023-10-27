@@ -74,7 +74,7 @@ def check_search_cache(cache_path):
         openfile.write(cache_meta["sha"])
 
     # Write cache file
-    print("Refreshing local search index...")
+    log("Refreshing local search index...")
     headers = {
         "Authentication": f"Bearer {token}",
         "Accept": "application/vnd.github.v3.raw",
@@ -220,7 +220,7 @@ def search_recipes(argv: List[str]):
     # Retrieve search results and print them, sorted by repo
     results = get_search_results(arguments[0])
     print_gh_search_results(results)
-    print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
+    log("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
 
     # Warn if more results than the result limit
     results_limit = 100
