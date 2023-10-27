@@ -15,10 +15,15 @@
 import json
 import os
 from typing import List
+from urllib.parse import quote_plus
 
 from autopkgcmd.opts import common_parse, gen_common_parser
-from autopkglib.apgithub import GitHubSession, print_gh_search_results
-from autopkglib.common import log_err
+from autopkglib.apgithub import (
+    DEFAULT_SEARCH_USER,
+    GitHubSession,
+    print_gh_search_results,
+)
+from autopkglib.common import log, log_err
 from autopkglib.URLGetter import URLGetter
 
 
@@ -162,12 +167,30 @@ def search_recipes(argv: List[str]):
             "returned."
         ),
     )
-
+    parser.add_option(
+        "-u",
+        "--user",
+        default=DEFAULT_SEARCH_USER,
+        help=(
+            "Alternate GitHub user or organization whose repos to search. "
+            f"Defaults to '{DEFAULT_SEARCH_USER}'."
+        ),
+    )
     # Parse arguments
     (options, arguments) = common_parse(parser, argv)
     if len(arguments) < 1:
         log_err("No search query specified!")
         return 1
+
+    if options.user:
+        keyword = quote_plus(arguments[0]).lower()
+        url = f"https://github.com/search?q={keyword}+org%3A{options.user}+lang%3Axml+OR+lang%3Ayaml&type=code"
+        log(
+            "'autopkg search' is no longer able to search GitHub users or orgs "
+            "other than autopkg.\nHowever, this page may provide some useful results:\n"
+            f"{url}"
+        )
+        return 0
 
     # Retrieve search results and print them, sorted by repo
     results = get_search_results(arguments[0])
