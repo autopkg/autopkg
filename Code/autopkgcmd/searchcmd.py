@@ -211,9 +211,9 @@ def search_recipes(argv: List[str]):
             f"{options.user}+lang%3Axml+OR+lang%3Ayaml&type=code"
         )
         log(
-            "'autopkg search' is no longer able to search GitHub users or orgs "
-            "other than autopkg.\nHowever, this page may provide some useful results:\n"
-            f"{url}"
+            "'autopkg search' no longer directly searches GitHub users or orgs "
+            "other than the autopkg org.\nHowever, this page may provide some "
+            f"useful results:\n{url}"
         )
         return 0
 
