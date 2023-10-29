@@ -28,7 +28,7 @@ from autopkglib.common import log, log_err
 from autopkglib.URLGetter import URLGetter
 
 
-def check_search_cache(cache_path):
+def check_search_cache(cache_path: str):
     """Update local search index, if it's missing or out of date."""
 
     token = GitHubSession().auth_token.token
@@ -90,7 +90,7 @@ def check_search_cache(cache_path):
         return
 
 
-def normalize_keyword(keyword):
+def normalize_keyword(keyword: str):
     """Normalizes capitalization, punctuation, and spacing of search keywords
     for better matching."""
     # TODO: Consider implementing fuzzywuzzy or some other fuzzy search method
