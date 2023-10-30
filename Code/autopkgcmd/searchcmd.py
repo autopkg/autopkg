@@ -198,7 +198,7 @@ def search_recipes(argv: List[str]):
     if options.use_token:
         log_err("WARNING: Deprecated option '--use-token' provided, ignoring.")
 
-    if options.user:
+    if options.user != "autopkg":
         # https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/managing-iam-for-your-enterprise/username-considerations-for-external-authentication#about-username-normalization
         if not re.match(r"^[A-Za-z0-9\-]+$", options.user):
             log_err(
