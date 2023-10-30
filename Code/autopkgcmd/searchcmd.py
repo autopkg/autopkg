@@ -31,15 +31,19 @@ from autopkglib.URLGetter import URLGetter
 def check_search_cache(cache_path: str):
     """Update local search index, if it's missing or out of date."""
 
-    token = GitHubSession().auth_token.token
+    # Use URLGetter to interact with GitHub API
     api = URLGetter()
+
+    # Use GitHub token if one exists
+    gh = GitHubSession()
+    if gh.auth_token:
+        headers = {"Authentication": f"Bearer {gh.auth_token.token}"}
+    else:
+        headers = {}
 
     # Retrieve metadata about search index file from GitHub API
     cache_endpoint = "repos/autopkg/index/contents/index.json?ref=main"
-    headers = {
-        "Authentication": f"Bearer {token}",
-        "Accept": "application/vnd.github.v3+json",
-    }
+    headers["Accept"] = "application/vnd.github.v3+json"
     curl_cmd = api.prepare_curl_cmd()
     api.add_curl_headers(curl_cmd, headers)
     curl_cmd.extend(["--url", f"https://api.github.com/{cache_endpoint}"])
@@ -75,10 +79,7 @@ def check_search_cache(cache_path: str):
 
     # Write cache file
     log("Refreshing local search index...")
-    headers = {
-        "Authentication": f"Bearer {token}",
-        "Accept": "application/vnd.github.v3.raw",
-    }
+    headers["Accept"] = "application/vnd.github.v3.raw"
     curl_cmd = api.prepare_curl_cmd()
     api.add_curl_headers(curl_cmd, headers)
     curl_cmd.extend(
