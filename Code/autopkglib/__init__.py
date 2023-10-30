@@ -141,7 +141,7 @@ def recipe_from_file(filename):
         try:
             # try to read it as yaml
             with open(filename, "rb") as f:
-                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+                recipe_dict = yaml.load(f, Loader=yaml.BaseLoader)
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")
