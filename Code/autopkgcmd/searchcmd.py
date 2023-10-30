@@ -102,7 +102,7 @@ def normalize_keyword(keyword: str):
     return keyword
 
 
-def get_search_results(keyword: str):
+def get_search_results(keyword: str, path_only: bool = False):
     """Return an array of recipe search results."""
     # Update and load local search index cache
     cache_path = os.path.expanduser("~/Library/AutoPkg/search_index.json")
@@ -117,7 +117,10 @@ def get_search_results(keyword: str):
             result_ids.extend(identifiers)
 
     # Perform the search against other recipe info
-    searchable_keys = ("name", "munki_display_name", "jamf_display_name")
+    if path_only:
+        searchable_keys = ("path",)
+    else:
+        searchable_keys = ("name", "munki_display_name", "jamf_display_name")
     for identifier, info in search_index["identifiers"].items():
         if info.get("deprecated"):
             continue
@@ -218,7 +221,7 @@ def search_recipes(argv: List[str]):
         return 0
 
     # Retrieve search results and print them, sorted by repo
-    results = get_search_results(arguments[0])
+    results = get_search_results(arguments[0], path_only=options.path_only)
     print_gh_search_results(results)
     log("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
 
