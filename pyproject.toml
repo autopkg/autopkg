@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "autopkg"
+version = "2.7.2"
+description = "Automating packaging and software distribution on macOS"
+authors = ["Your Name <you@example.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+appdirs = "^1.4.4"
+attrs = "^23.1.0"
+certifi = "^2023.7.22"
+cffi = "^1.16.0"
+cfgv = "^3.4.0"
+click = "^8.1.7"
+distlib = "^0.3.7"
+filelock = "^3.13.1"
+identify = "^2.5.31"
+mccabe = "^0.7.0"
+mypy-extensions = "^1.0.0"
+nodeenv = "^1.8.0"
+pathspec = "^0.11.2"
+platformdirs = "^3.11.0"
+pycparser = "^2.21"
+pyflakes = "^3.1.0"
+pyyaml = "^6.0.1"
+six = "^1.16.0"
+tomli = "^2.0.1"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.11.0"
+flake8 = "^6.1.0"
+flake8-bugbear = "^23.9.16"
+pycodestyle = "^2.11.1"
+isort = "^5.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
