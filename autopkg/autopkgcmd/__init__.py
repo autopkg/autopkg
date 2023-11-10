@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from autopkgcmd.opts import common_parse, gen_common_parser
-from autopkgcmd.searchcmd import search_recipes
+from autopkg.autopkgcmd.opts import common_parse, gen_common_parser
+from autopkg.autopkgcmd.searchcmd import search_recipes
 
 __all__ = ["search_recipes", "gen_common_parser", "common_parse"]

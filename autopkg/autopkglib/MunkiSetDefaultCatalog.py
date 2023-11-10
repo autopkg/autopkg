@@ -16,7 +16,7 @@
 # limitations under the License.
 """See docstring for MunkiSetDefaultCatalog class"""
 
-from autopkglib import Processor, log
+from autopkg.autopkglib import Processor, log
 
 try:
     from Foundation import CFPreferencesCopyAppValue

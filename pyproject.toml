@@ -38,6 +38,10 @@ pyobjc-framework-opendirectory = {version = "9.2", platform = "darwin"}
 pyobjc-framework-quartz = {version = "9.2", platform = "darwin"}
 pyobjc-framework-security = {version = "9.2", platform = "darwin"}
 pyobjc-framework-systemconfiguration = {version = "9.2", platform = "darwin"}
+xattr = [
+    {version = "^0.10.1", platform = "linux"},
+    {version = "^0.10.1", platform = "darwin"},
+]
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.11.0"

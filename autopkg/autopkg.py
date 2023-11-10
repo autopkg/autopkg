@@ -34,8 +34,8 @@ from typing import Optional
 from urllib.parse import quote, urlparse
 
 import yaml
-from autopkgcmd import common_parse, gen_common_parser, search_recipes
-from autopkglib import (
+from autopkg.autopkgcmd import common_parse, gen_common_parser, search_recipes
+from autopkg.autopkglib import (
     RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
@@ -59,8 +59,8 @@ from autopkglib import (
     set_pref,
     version_equal_or_greater,
 )
-from autopkglib.autopkgyaml import autopkg_str_representer
-from autopkglib.github import GitHubSession, print_gh_search_results
+from autopkg.autopkglib.autopkgyaml import autopkg_str_representer
+from autopkg.autopkglib.github import GitHubSession, print_gh_search_results
 
 # Catch Python 2 wrappers with an early f-string. Message must be on a single line.
 _ = f"""{sys.version_info.major} It looks like you're running the autopkg tool with an incompatible version of Python. Please update your script to use autopkg's included Python (/usr/local/autopkg/python). AutoPkgr users please note that AutoPkgr 1.5.1 and earlier is NOT compatible with autopkg 2. """  # noqa
@@ -2690,8 +2690,9 @@ def new_recipe(argv):
         log_err(f"Failed to write recipe: {err}")
 
 
-def main(argv):
+def main():
     """Main routine"""
+    argv = sys.argv
     # define our subcommands ('verbs')
     subcommands = {
         "help": {"function": display_help, "help": "Display this help"},
@@ -2783,4 +2784,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())

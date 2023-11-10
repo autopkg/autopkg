@@ -21,8 +21,8 @@ import glob
 import os.path
 import plistlib
 
-from autopkglib import ProcessorError
-from autopkglib.DmgMounter import DmgMounter
+from autopkg.autopkglib import ProcessorError
+from autopkg.autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["PlistReader"]
 

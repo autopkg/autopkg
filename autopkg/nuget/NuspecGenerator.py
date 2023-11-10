@@ -15,7 +15,7 @@
 from io import StringIO
 from typing import Optional, Sequence, TextIO
 
-from nuget.generated._nuspec import (
+from autopkg.nuget.generated._nuspec import (
     GdsCollector_,
     contentFilesType,
     dependenciesType,

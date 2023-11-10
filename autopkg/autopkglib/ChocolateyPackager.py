@@ -19,8 +19,8 @@ from shutil import copy2, rmtree
 from tempfile import mkdtemp
 from typing import Any, Dict, List, Optional, Union
 
-from autopkglib import Processor, ProcessorError
-from nuget import (
+from autopkg.autopkglib import Processor, ProcessorError
+from autopkg.nuget import (
     CHOCO_CHECKSUM_TYPES,
     CHOCO_FILE_TYPES,
     ChocolateyInstallGenerator,

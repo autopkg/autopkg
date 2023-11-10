@@ -20,9 +20,9 @@ import plistlib
 import shutil
 from glob import glob
 
-from autopkglib import ProcessorError
-from autopkglib.DmgMounter import DmgMounter
-from autopkglib.PkgCreator import PkgCreator
+from autopkg.autopkglib import ProcessorError
+from autopkg.autopkglib.DmgMounter import DmgMounter
+from autopkg.autopkglib.PkgCreator import PkgCreator
 
 __all__ = ["AppPkgCreator"]
 

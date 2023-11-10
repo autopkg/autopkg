@@ -15,7 +15,7 @@
 import optparse
 from typing import List, Tuple
 
-from autopkglib import globalPreferences
+from autopkg.autopkglib import globalPreferences
 
 
 def gen_common_parser() -> optparse.OptionParser:

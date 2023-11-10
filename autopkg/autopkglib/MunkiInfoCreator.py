@@ -21,7 +21,7 @@ import shutil
 import subprocess
 import tempfile
 
-from autopkglib import Processor, ProcessorError
+from autopkg.autopkglib import Processor, ProcessorError
 
 __all__ = ["MunkiInfoCreator"]
 

@@ -15,7 +15,7 @@
 # limitations under the License.
 """See docstring for StopProcessingIf class"""
 
-from autopkglib import Processor, ProcessorError, log
+from autopkg.autopkglib import Processor, ProcessorError, log
 
 try:
     from Foundation import NSPredicate

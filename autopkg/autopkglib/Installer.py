@@ -20,8 +20,8 @@ import plistlib
 import socket
 from glob import glob
 
-from autopkglib import ProcessorError
-from autopkglib.DmgMounter import DmgMounter
+from autopkg.autopkglib import ProcessorError
+from autopkg.autopkglib.DmgMounter import DmgMounter
 
 AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
 
@@ -167,11 +167,11 @@ class Installer(DmgMounter):
 
         errors = data.rstrip().split("\n")
         if not errors:
-            errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
+            errors = ["ERROR:No reply from autopkg.autopkginstalld (crash?), check system logs"]
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
     def disconnect(self):
-        """Disconnect from autopkginstalld"""
+        """Disconnect from autopkg.autopkginstalld"""
         self.socket.close()
 
     def main(self):

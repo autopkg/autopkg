@@ -17,8 +17,8 @@
 
 import re
 
-import autopkglib.github
-from autopkglib import APLooseVersion, Processor, ProcessorError
+import autopkg.autopkglib.github
+from autopkg.autopkglib import APLooseVersion, Processor, ProcessorError
 
 __all__ = ["GitHubReleasesInfoProvider"]
 
@@ -129,7 +129,7 @@ class GitHubReleasesInfoProvider(Processor):
         be of the form 'user/repo'"""
         releases = None
         curl_opts = self.env.get("curl_opts")
-        github = autopkglib.github.GitHubSession(
+        github = autopkg.autopkglib.github.GitHubSession(
             self.env["CURL_PATH"],
             curl_opts,
             self.env["GITHUB_URL"],

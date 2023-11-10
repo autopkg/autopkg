@@ -2,7 +2,7 @@ import os
 import plistlib
 import shutil
 
-from autopkglib import ProcessorError
+from autopkg.autopkglib import ProcessorError
 
 
 class AutoPkgLib:

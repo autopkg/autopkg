@@ -17,7 +17,7 @@
 
 from os import rename
 
-from autopkglib import Processor
+from autopkg.autopkglib import Processor
 
 __all__ = ["FileMover"]
 

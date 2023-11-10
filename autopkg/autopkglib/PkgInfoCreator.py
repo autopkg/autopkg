@@ -20,7 +20,7 @@ import os
 import plistlib
 from xml.etree import ElementTree
 
-from autopkglib import Processor, ProcessorError
+from autopkg.autopkglib import Processor, ProcessorError
 
 __all__ = ["PkgInfoCreator"]
 

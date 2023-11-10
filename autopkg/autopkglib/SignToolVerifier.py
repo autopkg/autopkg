@@ -18,7 +18,7 @@ import os.path
 import subprocess
 from typing import Any, Dict, List, Optional
 
-from autopkglib import Processor, ProcessorError
+from autopkg.autopkglib import Processor, ProcessorError
 
 __all__ = ["SignToolVerifier"]
 

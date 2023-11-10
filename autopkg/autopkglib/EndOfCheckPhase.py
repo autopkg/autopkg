@@ -16,7 +16,7 @@
 """Place-holder processor that autopkg uses to mark the end of the check
 phase."""
 
-from autopkglib import Processor
+from autopkg.autopkglib import Processor
 
 __all__ = ["EndOfCheckPhase"]
 

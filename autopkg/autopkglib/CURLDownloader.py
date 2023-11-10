@@ -16,7 +16,7 @@
 """Stub that allows URLDownloader to be called as 'CURLDownloader' during the
 deprecation period."""
 
-from autopkglib.URLDownloader import URLDownloader
+from autopkg.autopkglib.URLDownloader import URLDownloader
 
 __all__ = ["CURLDownloader"]
 

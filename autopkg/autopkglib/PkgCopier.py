@@ -18,7 +18,7 @@
 import glob
 import os.path
 
-from autopkglib.Copier import Copier
+from autopkg.autopkglib.Copier import Copier
 
 __all__ = ["PkgCopier"]
 

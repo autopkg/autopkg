@@ -17,7 +17,7 @@
 
 import plistlib
 
-from autopkglib import Processor, ProcessorError
+from autopkg.autopkglib import Processor, ProcessorError
 
 __all__ = ["PlistEditor"]
 

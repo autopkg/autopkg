@@ -19,8 +19,8 @@
 
 import re
 
-from autopkglib import ProcessorError
-from autopkglib.URLGetter import URLGetter
+from autopkg.autopkglib import ProcessorError
+from autopkg.autopkglib.URLGetter import URLGetter
 
 MATCH_MESSAGE = "Found matching text"
 NO_MATCH_MESSAGE = "No match found on URL"

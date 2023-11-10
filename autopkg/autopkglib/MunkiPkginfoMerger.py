@@ -15,7 +15,7 @@
 # limitations under the License.
 """See docstring for MunkiPkginfoMerger class"""
 
-from autopkglib import Processor
+from autopkg.autopkglib import Processor
 
 __all__ = ["MunkiPkginfoMerger"]
 

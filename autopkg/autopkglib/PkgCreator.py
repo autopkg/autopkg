@@ -21,7 +21,7 @@ import socket
 import subprocess
 from xml.etree import ElementTree as ET
 
-from autopkglib import Processor, ProcessorError
+from autopkg.autopkglib import Processor, ProcessorError
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
 

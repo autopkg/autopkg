@@ -15,9 +15,9 @@
 from typing import List
 from urllib.parse import quote
 
-from autopkgcmd.opts import common_parse, gen_common_parser
-from autopkglib import log_err
-from autopkglib.github import (
+from autopkg.autopkgcmd.opts import common_parse, gen_common_parser
+from autopkg.autopkglib import log_err
+from autopkg.autopkglib.github import (
     DEFAULT_SEARCH_USER,
     GitHubSession,
     print_gh_search_results,

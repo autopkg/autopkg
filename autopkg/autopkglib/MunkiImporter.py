@@ -19,9 +19,9 @@ import os
 import plistlib
 import subprocess
 
-from autopkglib import Processor, ProcessorError
-from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
-from autopkglib.munkirepolibs.MunkiLib import MunkiLib
+from autopkg.autopkglib import Processor, ProcessorError
+from autopkg.autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
+from autopkg.autopkglib.munkirepolibs.MunkiLib import MunkiLib
 
 __all__ = ["MunkiImporter"]
 

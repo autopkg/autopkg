@@ -20,8 +20,8 @@ import posixpath
 import zipfile
 from typing import Callable, Iterator, List, Optional
 
-from autopkglib import FileOrPath, ProcessorError, VarDict
-from autopkglib.DmgMounter import DmgMounter
+from autopkg.autopkglib import FileOrPath, ProcessorError, VarDict
+from autopkg.autopkglib.DmgMounter import DmgMounter
 
 UNKNOWN_VERSION = "UNKNOWN_VERSION"
 

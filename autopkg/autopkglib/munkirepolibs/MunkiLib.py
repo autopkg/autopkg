@@ -2,7 +2,7 @@ import os
 import sys
 from urllib.parse import urlparse
 
-from autopkglib import ProcessorError
+from autopkg.autopkglib import ProcessorError
 
 
 class MunkiLib:

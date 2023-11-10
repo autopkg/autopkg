@@ -19,7 +19,7 @@ upcoming removal of a recipe."""
 
 import os
 
-from autopkglib import Processor, remove_recipe_extension
+from autopkg.autopkglib import Processor, remove_recipe_extension
 
 __all__ = ["DeprecationWarning"]
 

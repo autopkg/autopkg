@@ -20,8 +20,8 @@ import plistlib
 import shutil
 import subprocess
 
-from autopkglib import ProcessorError
-from autopkglib.DmgMounter import DmgMounter
+from autopkg.autopkglib import ProcessorError
+from autopkg.autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["PkgExtractor"]
 

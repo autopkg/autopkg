@@ -22,7 +22,7 @@ from hashlib import md5, sha1, sha256
 from urllib.request import urlopen
 
 import certifi
-from autopkglib.URLDownloader import URLDownloader
+from autopkg.autopkglib.URLDownloader import URLDownloader
 
 __all__ = ["URLDownloaderPython"]
 
