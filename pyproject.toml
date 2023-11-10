@@ -5,7 +5,7 @@ description = "Automating packaging and software distribution on macOS"
 authors = ["Your Name <you@example.com>"]
 license = "Apache-2.0"
 readme = "README.md"
-packages = [{include = "autopkg"}],
+packages = [{include = "autopkg"}]
 
 [tool.poetry.scripts]
 autopkg = "autopkg.autopkg:main"
