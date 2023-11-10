@@ -11,26 +11,26 @@ packages = [{include = "autopkg"}]
 autopkg = "autopkg.autopkg:main"
 
 [tool.poetry.dependencies]
-python = "^3.9"
-appdirs = "^1.4.4"
-attrs = "^23.1.0"
-certifi = "^2023.7.22"
-cffi = "^1.16.0"
-cfgv = "^3.4.0"
-click = "^8.1.7"
-distlib = "^0.3.7"
-filelock = "^3.13.1"
-identify = "^2.5.31"
-mccabe = "^0.7.0"
-mypy-extensions = "^1.0.0"
-nodeenv = "^1.8.0"
-pathspec = "^0.11.2"
-platformdirs = "^3.11.0"
-pycparser = "^2.21"
-pyflakes = "^3.1.0"
-pyyaml = "^6.0.1"
-six = "^1.16.0"
-tomli = "^2.0.1"
+python = ">=3.9"
+appdirs = ">=1.4.4"
+attrs = ">=23.1.0"
+certifi = ">=2023.7.22"
+cffi = ">=1.16.0"
+cfgv = ">=3.4.0"
+click = ">=8.1.7"
+distlib = ">=0.3.7"
+filelock = ">=3.13.1"
+identify = ">=2.5.31"
+mccabe = ">=0.7.0"
+mypy-extensions = ">=1.0.0"
+nodeenv = ">=1.8.0"
+pathspec = ">=0.11.2"
+platformdirs = ">=3.11.0"
+pycparser = ">=2.21"
+pyflakes = ">=3.1.0"
+pyyaml = ">=6.0.1"
+six = ">=1.16.0"
+tomli = ">=2.0.1"
 pyobjc-core = {version = "9.2", platform = "darwin"}
 pyobjc-framework-cfnetwork = {version = "9.2", platform = "darwin"}
 pyobjc-framework-launchservices = {version = "9.2", platform = "darwin"}
@@ -39,16 +39,17 @@ pyobjc-framework-quartz = {version = "9.2", platform = "darwin"}
 pyobjc-framework-security = {version = "9.2", platform = "darwin"}
 pyobjc-framework-systemconfiguration = {version = "9.2", platform = "darwin"}
 xattr = [
-    {version = "^0.10.1", platform = "linux"},
-    {version = "^0.10.1", platform = "darwin"},
+    {version = ">=0.10.1", platform = "linux"},
+    {version = ">=0.10.1", platform = "darwin"},
 ]
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.11.0"
-flake8 = "^6.1.0"
-flake8-bugbear = "^23.9.16"
-pycodestyle = "^2.11.1"
-isort = "^5.12.0"
+black = ">=23.11.0"
+flake8 = ">=6.1.0"
+flake8-bugbear = ">=23.9.16"
+pycodestyle = ">=2.11.1"
+isort = ">=5.12.0"
+pre-commit = ">=3.5.0"
 
 [build-system]
 requires = ["poetry-core"]
