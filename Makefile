@@ -12,6 +12,7 @@ install-hooks: .venv
 	@poetry run pre-commit install -f --install-hooks
 
 .venv:
+	@poetry env use python3.10
 	@poetry install
 
 clean:
