@@ -22,8 +22,8 @@ from copy import deepcopy
 from io import BytesIO
 from typing import Any, Dict
 
-from autopkglib import find_binary
-from autopkglib.ChocolateyPackager import ChocolateyPackager
+from autopkg.autopkglib import find_binary
+from autopkg.autopkglib.ChocolateyPackager import ChocolateyPackager
 
 VarDict = Dict[str, Any]
 
