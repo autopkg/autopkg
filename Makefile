@@ -1,8 +1,8 @@
 .PHONY: test
 
 test: .venv
-	@echo "Running test"
-	@poetry run python scripts/run_tests.py
+	@echo "Running tests"
+	@poetry run python -m unittest discover
 
 install-hooks: .venv
 	@poetry run pre-commit install -f --install-hooks
