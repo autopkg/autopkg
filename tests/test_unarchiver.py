@@ -18,7 +18,7 @@ from copy import deepcopy
 from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Tuple
 
-from autopkglib.Unarchiver import Unarchiver
+from autopkg.autopkglib.Unarchiver import Unarchiver
 from tests import get_processor_module
 
 UnarchiverModule: Any = get_processor_module(Unarchiver)
