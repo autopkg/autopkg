@@ -8,5 +8,6 @@ find Recipes -name '*.dmg' -print0 | xargs -0 rm -f
 find Recipes -name '*.pkg' -print0 | xargs -0 rm -rf
 find Recipes -name 'PackageInfo' -print0 | xargs -0 rm -rf
 find Recipes/Munki/TextMate -name '*.zip' -print0 | xargs -0 rm -rf
+rm -f TestRecipe.check
 rm -rf .venv
 rm -rf dist
