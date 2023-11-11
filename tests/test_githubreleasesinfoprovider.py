@@ -3,8 +3,8 @@
 import re
 import unittest
 
-from autopkglib import ProcessorError
-from autopkglib.GitHubReleasesInfoProvider import GitHubReleasesInfoProvider
+from autopkg.autopkglib import ProcessorError
+from autopkg.autopkglib.GitHubReleasesInfoProvider import GitHubReleasesInfoProvider
 
 
 class TestGitHubReleasesInfoProvider(unittest.TestCase):

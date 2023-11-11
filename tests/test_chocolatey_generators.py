@@ -52,7 +52,7 @@ class TestNuspecGenerator(unittest.TestCase):
         )
         xml = pkg.render_str()
         self.assertTrue(len(xml) > 0)
-        self.assertEquals(expected, xml)
+        self.assertEqual(expected, xml)
 
     def test_nuspec_generator_basic_validation(self):
         # Test that our custom field requirement is honored.
@@ -180,7 +180,7 @@ Install-ChocolateyInstallPackage @packageArgs
             """
         )
 
-        self.assertEquals(
+        self.assertEqual(
             expected,
             ChocolateyInstallGenerator(
                 packageName="fakepkg",
