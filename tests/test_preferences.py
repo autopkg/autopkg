@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import patch
 
-from autopkglib import Preferences
+from autopkg.autopkglib import Preferences
 
 TEST_JSON_PREFS = b"""{"CACHE_DIR": "/path/to/cache"}"""
 TEST_PLIST_PREFS = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -45,23 +45,29 @@ class TestPreferences(unittest.TestCase):
 
     def setUp(self):
         self._workdir = TemporaryDirectory()
-        self.mock_platform = patch("autopkglib.sys.platform").start()
+        self.mock_platform = patch("autopkg.autopkglib.sys.platform").start()
         # Force loading to go through the file-backed path by default.
         self.mock_platform.return_value = "__HighlyUnlikely-Platform-Name__"
 
         # Mock all of these for all tests to help ensure we do not accidentally
         # use the real macOS preference store.
-        self.mock_copykeylist = patch("autopkglib.CFPreferencesCopyKeyList").start()
+        self.mock_copykeylist = patch(
+            "autopkg.autopkglib.CFPreferencesCopyKeyList"
+        ).start()
         # Return an empty list of preference keys by default. Makes a new list on
         # every call to ensure no false sharing.
         self.mock_copykeylist.side_effect = lambda *_, **_kw: list()
-        self.mock_copyappvalue = patch("autopkglib.CFPreferencesCopyAppValue").start()
-        self.mock_setappvalue = patch("autopkglib.CFPreferencesSetAppValue").start()
+        self.mock_copyappvalue = patch(
+            "autopkg.autopkglib.CFPreferencesCopyAppValue"
+        ).start()
+        self.mock_setappvalue = patch(
+            "autopkg.autopkglib.CFPreferencesSetAppValue"
+        ).start()
         self.mock_appsynchronize = patch(
-            "autopkglib.CFPreferencesAppSynchronize"
+            "autopkg.autopkglib.CFPreferencesAppSynchronize"
         ).start()
 
-        self.mock_appdirs = patch("autopkglib.appdirs").start()
+        self.mock_appdirs = patch("autopkg.autopkglib.appdirs").start()
         # Ensure we don't accidentally load real config and muck up tests.
         self.mock_appdirs.user_config_dir.return_value = self._workdir.name
 
