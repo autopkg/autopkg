@@ -16,7 +16,7 @@ import importlib
 from types import ModuleType
 from typing import Type, Union
 
-from autopkglib import Processor
+from autopkg.autopkglib import Processor
 
 
 def get_processor_module(
