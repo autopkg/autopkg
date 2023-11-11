@@ -16,7 +16,7 @@ import unittest
 from textwrap import dedent
 from typing import Optional, Sequence, Tuple
 
-from nuget import (
+from autopkg.nuget import (
     ChocolateyInstallGenerator,
     ChocolateyValidationError,
     NuspecGenerator,
