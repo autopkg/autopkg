@@ -2,17 +2,12 @@
 
 import imp
 import json
-import os
 import plistlib
 import unittest
 from textwrap import dedent
 from unittest.mock import mock_open, patch
 
-import autopkglib
-
-autopkg = imp.load_source(
-    "autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg")
-)
+from autopkg import autopkglib
 
 
 class TestAutoPkg(unittest.TestCase):
@@ -139,52 +134,52 @@ class TestAutoPkg(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch("autopkglib.sys")
+    @patch("autopkg.autopkglib.sys")
     def test_is_mac_returns_true_on_mac(self, mock_sys):
         """On macOS, is_mac() should return True."""
         mock_sys.platform = "Darwin-somethingsomething"
         result = autopkglib.is_mac()
         self.assertEqual(result, True)
 
-    @patch("autopkglib.sys")
+    @patch("autopkg.autopkglib.sys")
     def test_is_mac_returns_false_on_not_mac(self, mock_sys):
         """On not-macOS, is_mac() should return False."""
         mock_sys.platform = "Win32-somethingsomething"
         result = autopkglib.is_mac()
         self.assertEqual(result, False)
 
-    @patch("autopkglib.sys")
+    @patch("autopkg.autopkglib.sys")
     def test_is_windows_returns_true_on_windows(self, mock_sys):
         """On Windows, is_windows() should return True."""
         mock_sys.platform = "Win32-somethingsomething"
         result = autopkglib.is_windows()
         self.assertEqual(result, True)
 
-    @patch("autopkglib.sys")
+    @patch("autopkg.autopkglib.sys")
     def test_is_windows_returns_false_on_not_windows(self, mock_sys):
         """On not-Windows, is_windows() should return False."""
         mock_sys.platform = "Darwin-somethingsomething"
         result = autopkglib.is_windows()
         self.assertEqual(result, False)
 
-    @patch("autopkglib.sys")
+    @patch("autopkg.autopkglib.sys")
     def test_is_linux_returns_true_on_linux(self, mock_sys):
         """On Linux, is_linux() should return True."""
         mock_sys.platform = "Linux-somethingsomething"
         result = autopkglib.is_linux()
         self.assertEqual(result, True)
 
-    @patch("autopkglib.sys")
+    @patch("autopkg.autopkglib.sys")
     def test_is_linux_returns_false_on_not_linux(self, mock_sys):
         """On not-Linux, is_linux() should return False."""
         mock_sys.platform = "Win32-somethingsomething"
         result = autopkglib.is_linux()
         self.assertEqual(result, False)
 
-    @patch("autopkglib.sys")
-    @patch("autopkglib.is_executable")
-    @patch("autopkglib.os.get_exec_path")
-    @patch("autopkglib.os.path")
+    @patch("autopkg.autopkglib.sys")
+    @patch("autopkg.autopkglib.is_executable")
+    @patch("autopkg.autopkglib.os.get_exec_path")
+    @patch("autopkg.autopkglib.os.path")
     def test_find_binary_windows(self, mock_ospath, mock_getpath, mock_isexe, mock_sys):
         # Forcibly use ntpath regardless of platform to test "windows" anywhere.
         import ntpath
@@ -196,10 +191,10 @@ class TestAutoPkg(unittest.TestCase):
         result = autopkglib.find_binary("curl")
         self.assertEqual(result, r"C:\CurlInstall\curl.exe")
 
-    @patch("autopkglib.sys")
-    @patch("autopkglib.is_executable")
-    @patch("autopkglib.os.get_exec_path")
-    @patch("autopkglib.os.path")
+    @patch("autopkg.autopkglib.sys")
+    @patch("autopkg.autopkglib.is_executable")
+    @patch("autopkg.autopkglib.os.get_exec_path")
+    @patch("autopkg.autopkglib.os.path")
     def test_find_binary_posixy(self, mock_ospath, mock_getpath, mock_isexe, mock_sys):
         # Forcibly use posixpath regardless of platform to test "linux/mac" anywhere.
         import posixpath
@@ -229,7 +224,7 @@ class TestAutoPkg(unittest.TestCase):
         new_callable=mock_open,
         read_data=download_recipe.encode("utf-8"),
     )
-    @patch("autopkg.plistlib.load")
+    @patch("autopkg.autopkg.plistlib.load")
     @patch("os.path.isfile")
     def test_get_identifier_from_recipe_file_returns_identifier(
         self, mock_isfile, mock_load, mock_file
@@ -245,7 +240,7 @@ class TestAutoPkg(unittest.TestCase):
         new_callable=mock_open,
         read_data=download_recipe.encode("utf-8"),
     )
-    @patch("autopkg.plistlib.load")
+    @patch("autopkg.autopkg.plistlib.load")
     def test_get_identifier_from_recipe_file_returns_none(self, mock_load, mock_read):
         """get_identifier_from_recipe_file should return None if no identifier."""
         mock_read.return_value = self.download_struct
