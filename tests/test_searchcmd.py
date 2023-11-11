@@ -15,35 +15,35 @@
 import unittest
 from unittest.mock import patch
 
-from autopkgcmd import search_recipes
+from autopkg.autopkgcmd import search_recipes
 
 
 class TestSearchCmd(unittest.TestCase):
     def setUp(self):
         # Disable preference reading for consistency
-        patch("autopkgcmd.opts.globalPreferences").start()
+        patch("autopkg.autopkgcmd.opts.globalPreferences").start()
         pass
 
     def test_no_term(self):
         self.assertEqual(1, search_recipes(["TestSearchCmd", "search"]))
 
-    @patch("autopkgcmd.searchcmd.GitHubSession.code_search")
+    @patch("autopkg.autopkgcmd.searchcmd.GitHubSession.code_search")
     def test_empty_results(self, gh_mock):
         gh_mock.return_value = []
         self.assertEqual(
             2, search_recipes(["TestSearchCmd", "search", "#test-search#"])
         )
 
-    @patch("autopkgcmd.searchcmd.print_gh_search_results")
-    @patch("autopkgcmd.searchcmd.GitHubSession.search_for_name")
+    @patch("autopkg.autopkgcmd.searchcmd.print_gh_search_results")
+    @patch("autopkg.autopkgcmd.searchcmd.GitHubSession.search_for_name")
     def test_too_many_results(self, search_mock, _print_results_mock):
         search_mock.return_value = list(range(101))
         self.assertEqual(
             3, search_recipes(["TestSearchCmd", "search", "#test-search#"])
         )
 
-    @patch("autopkgcmd.searchcmd.print_gh_search_results")
-    @patch("autopkgcmd.searchcmd.GitHubSession.search_for_name")
+    @patch("autopkg.autopkgcmd.searchcmd.print_gh_search_results")
+    @patch("autopkg.autopkgcmd.searchcmd.GitHubSession.search_for_name")
     def test_got_results(self, search_mock, _print_results_mock):
         search_mock.return_value = list(range(10))
         self.assertEqual(
