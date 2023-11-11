@@ -4,7 +4,7 @@ import plistlib
 import unittest
 from unittest.mock import mock_open, patch
 
-from autopkglib.FileCreator import FileCreator
+from autopkg.autopkglib.FileCreator import FileCreator
 
 
 class TestFileCreator(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestFileCreator(unittest.TestCase):
         pass
 
     @patch("builtins.open", new_callable=mock_open, read_data="Hello world")
-    @patch("autopkglib.FileCreator")
+    @patch("autopkg.autopkglib.FileCreator")
     def test_file_content(self, mock_load, mock_file):
         """The file created by the processor should have the expected contents."""
         self.processor.env = self.good_env
