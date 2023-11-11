@@ -24,8 +24,8 @@ from typing import Any, Dict
 from unittest import mock
 from unittest.mock import patch
 
-from autopkglib import VarDict
-from autopkglib.Versioner import UNKNOWN_VERSION, ProcessorError, Versioner
+from autopkg.autopkglib import VarDict
+from autopkg.autopkglib.Versioner import UNKNOWN_VERSION, ProcessorError, Versioner
 
 
 def patch_open(data: bytes, **kwargs) -> mock._patch:
@@ -100,29 +100,29 @@ class TestVersioner(unittest.TestCase):
         with patch("os.path.exists", return_value=True):
             self.processor.process()
 
-    @patch("autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkglib.Versioner.parsePathForDMG")
+    @patch("autopkg.autopkglib.Versioner.load_plist_from_file")
+    @patch("autopkg.autopkglib.Versioner.parsePathForDMG")
     def test_no_fail_if_good_env(self, mock_dmg, mock_plist):
         """The processor should not raise any exceptions if run normally."""
         self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)
 
-    @patch("autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkglib.Versioner.parsePathForDMG")
+    @patch("autopkg.autopkglib.Versioner.load_plist_from_file")
+    @patch("autopkg.autopkglib.Versioner.parsePathForDMG")
     def test_find_cfbundle_short_version(self, mock_dmg, mock_plist):
         """The processor should find version in default `CFBundleShortVersionString`."""
         self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)
         self.assertEqual(self.processor.env["version"], TEST_VERSION_DEFAULT)
 
-    @patch("autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkglib.Versioner.parsePathForDMG")
+    @patch("autopkg.autopkglib.Versioner.load_plist_from_file")
+    @patch("autopkg.autopkglib.Versioner.parsePathForDMG")
     def test_find_custom_version(self, mock_dmg, mock_plist):
         """The processor should find version under key specified by `plist_version_key`."""
         self.processor.env["plist_version_key"] = TEST_VERSION_CUSTOM_KEY
         self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)
         self.assertEqual(self.processor.env["version"], TEST_VERSION_CUSTOM)
 
-    @patch("autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkglib.Versioner.parsePathForDMG")
+    @patch("autopkg.autopkglib.Versioner.load_plist_from_file")
+    @patch("autopkg.autopkglib.Versioner.parsePathForDMG")
     def test_no_version_found(self, mock_dmg, mock_plist):
         """The processor should not find version if plist misses it."""
         self._run_direct_plist(TEST_NO_VERSION_PLIST, mock_dmg, mock_plist)
@@ -191,7 +191,7 @@ class TestVersioner(unittest.TestCase):
                 test_for_extension(ext_case)
 
     @patch("os.path.exists", return_value=False)
-    @patch("autopkglib.Versioner._read_from_dmg")
+    @patch("autopkg.autopkglib.Versioner._read_from_dmg")
     def test_version_from_zip(self, mock_dmg, mock_exists):
         multi_subdir = list(
             map(
