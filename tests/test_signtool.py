@@ -16,7 +16,7 @@ import sys
 import unittest
 from typing import Any, Dict
 
-from autopkglib.SignToolVerifier import ProcessorError, SignToolVerifier
+from autopkg.autopkglib.SignToolVerifier import ProcessorError, SignToolVerifier
 
 
 class TestSignToolVerifier(unittest.TestCase):
