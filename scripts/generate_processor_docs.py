@@ -17,7 +17,6 @@
 documentation for the GitHub autopkg wiki"""
 
 
-import imp
 import optparse
 import os
 import sys
@@ -27,9 +26,7 @@ from textwrap import dedent
 # pylint: disable=import-error
 # Grabbing some functions from the Code directory
 try:
-    CODE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../Code"))
-    sys.path.append(CODE_DIR)
-    from autopkglib import get_processor, processor_names
+    from autopkg.autopkglib import get_processor, processor_names
 except ImportError as err:
     print("Unable to import code from autopkglib!", file=sys.stderr)
     raise err
@@ -38,8 +35,7 @@ except ImportError as err:
 # Don't make an "autopkgc" file
 try:
     sys.dont_write_bytecode = True
-    imp.load_source("autopkg", os.path.join(CODE_DIR, "autopkg"))
-    from autopkg import run_git
+    from autopkg.autopkg import run_git
 except ImportError:
     print("Unable to import code from autopkg!", file=sys.stderr)
     sys.exit(1)

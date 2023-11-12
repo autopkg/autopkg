@@ -21,9 +21,19 @@ jobs:
           repository: autopkg/autopkg.wiki
           path: wiki
 
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.10.4
+
+      - name: Set up Poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: 1.7.0
+
       - name: Install Python requirements
         working-directory: main
-        run: python3 -m pip install appdirs
+        run: make ".venv"
         continue-on-error: true
 
       - name: Configure Git
@@ -33,5 +43,5 @@ jobs:
           git config --global user.email github-actions@github.com
 
       - name: Update processor docs
-        working-directory: main/Scripts
-        run: python3 generate_processor_docs.py -d ../../wiki -y "${GITHUB_REF##*/}"
+        working-directory: main
+        run: poetry run python scripts/generate_processor_docs.py -d ../wiki -y "${GITHUB_REF##*/}"

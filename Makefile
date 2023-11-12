@@ -17,3 +17,7 @@ install-hooks: .venv
 
 clean:
 	@bash scripts/clean.sh
+
+# For testing purposes
+wiki:
+	@poetry run python scripts/generate_processor_docs.py
