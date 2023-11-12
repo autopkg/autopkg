@@ -20,3 +20,7 @@ clean:
 # For testing purposes
 wiki:
 	@poetry run python scripts/generate_processor_docs.py
+
+# Build for python distribution
+dist:
+	@poetry build
