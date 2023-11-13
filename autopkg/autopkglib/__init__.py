@@ -16,7 +16,8 @@
 
 """Core/shared autopkglib functions"""
 import glob
-import imp
+import importlib
+import importlib.util
 import json
 import os
 import plistlib
@@ -1047,9 +1048,14 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
         for directory in deduped_processors:
             processor_filename = os.path.join(directory, processor_name + ".py")
             if os.path.exists(processor_filename):
+                _spec = importlib.util.spec_from_file_location(
+                    processor_name, processor_filename
+                )
+                if not _spec:
+                    raise ImportError
                 try:
                     # attempt to import the module
-                    _tmp = imp.load_source(processor_name, processor_filename)
+                    _tmp = importlib.util.module_from_spec(_spec)
                     # look for an attribute with the step Processor name
                     _processor = getattr(_tmp, processor_name)
                     # add the processor to autopkglib's namespace

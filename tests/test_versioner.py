@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
 import os.path
 import plistlib
 import posixpath
@@ -25,7 +26,9 @@ from unittest import mock
 from unittest.mock import patch
 
 from autopkg.autopkglib import VarDict
-from autopkg.autopkglib.Versioner import UNKNOWN_VERSION, ProcessorError, Versioner
+
+Versioner = importlib.import_module("autopkg.autopkglib.Versioner")
+from autopkg.autopkglib.Versioner import UNKNOWN_VERSION, ProcessorError
 
 
 def patch_open(data: bytes, **kwargs) -> mock._patch:
@@ -77,7 +80,7 @@ class TestVersioner(unittest.TestCase):
             "RECIPE_CACHE_DIR": self.tempdir.name,
         }
         self.bad_env: Dict[str, Any] = {}
-        self.processor = Versioner(data=deepcopy(self.good_env))
+        self.processor = Versioner.Versioner(data=deepcopy(self.good_env))
         self.addCleanup(self.tempdir.cleanup)
 
     def tearDown(self):
@@ -100,37 +103,37 @@ class TestVersioner(unittest.TestCase):
         with patch("os.path.exists", return_value=True):
             self.processor.process()
 
-    @patch("autopkg.autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkg.autopkglib.Versioner.parsePathForDMG")
+    @patch(f"{__name__}.Versioner.Versioner.load_plist_from_file")
+    @patch(f"{__name__}.Versioner.Versioner.parsePathForDMG")
     def test_no_fail_if_good_env(self, mock_dmg, mock_plist):
         """The processor should not raise any exceptions if run normally."""
         self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)
 
-    @patch("autopkg.autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkg.autopkglib.Versioner.parsePathForDMG")
+    @patch(f"{__name__}.Versioner.Versioner.load_plist_from_file")
+    @patch(f"{__name__}.Versioner.Versioner.parsePathForDMG")
     def test_find_cfbundle_short_version(self, mock_dmg, mock_plist):
         """The processor should find version in default `CFBundleShortVersionString`."""
         self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)
         self.assertEqual(self.processor.env["version"], TEST_VERSION_DEFAULT)
 
-    @patch("autopkg.autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkg.autopkglib.Versioner.parsePathForDMG")
+    @patch(f"{__name__}.Versioner.Versioner.load_plist_from_file")
+    @patch(f"{__name__}.Versioner.Versioner.parsePathForDMG")
     def test_find_custom_version(self, mock_dmg, mock_plist):
         """The processor should find version under key specified by `plist_version_key`."""
         self.processor.env["plist_version_key"] = TEST_VERSION_CUSTOM_KEY
         self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)
         self.assertEqual(self.processor.env["version"], TEST_VERSION_CUSTOM)
 
-    @patch("autopkg.autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkg.autopkglib.Versioner.parsePathForDMG")
+    @patch(f"{__name__}.Versioner.Versioner.load_plist_from_file")
+    @patch(f"{__name__}.Versioner.Versioner.parsePathForDMG")
     def test_no_version_found(self, mock_dmg, mock_plist):
         """The processor should not find version if plist misses it."""
         self._run_direct_plist(TEST_NO_VERSION_PLIST, mock_dmg, mock_plist)
         self.assertEqual(self.processor.env["version"], UNKNOWN_VERSION)
 
     @patch("os.path.exists", return_value=True)
-    @patch.object(Versioner, "_read_from_zip", return_value={})
-    @patch.object(Versioner, "_read_from_dmg", return_value={})
+    @patch.object(Versioner.Versioner, "_read_from_zip", return_value={})
+    @patch.object(Versioner.Versioner, "_read_from_dmg", return_value={})
     def test_read_auto_detect(self, mock_dmg, mock_zip, mock_exists):
         """File type auto detection"""
         mock_deserializer = mock.MagicMock()
@@ -160,9 +163,9 @@ class TestVersioner(unittest.TestCase):
         """Inner image-like (DMG/ISO) paths work"""
 
         @patch("os.path.exists", return_value=True)
-        @patch.object(Versioner, "_read_from_zip")
-        @patch.object(Versioner, "unmount")
-        @patch.object(Versioner, "mount")
+        @patch.object(Versioner.Versioner, "_read_from_zip")
+        @patch.object(Versioner.Versioner, "unmount")
+        @patch.object(Versioner.Versioner, "mount")
         # @patch("autopkglib.Versioner.load_plist_from_file")
         @patch_open(TEST_VERSION_PLIST)
         def test_for_extension(
@@ -191,7 +194,7 @@ class TestVersioner(unittest.TestCase):
                 test_for_extension(ext_case)
 
     @patch("os.path.exists", return_value=False)
-    @patch("autopkg.autopkglib.Versioner._read_from_dmg")
+    @patch(f"{__name__}.Versioner.Versioner._read_from_dmg")
     def test_version_from_zip(self, mock_dmg, mock_exists):
         multi_subdir = list(
             map(
@@ -243,7 +246,7 @@ class TestVersioner(unittest.TestCase):
                     self.assertEqual(TEST_VERSION_DEFAULT, result["version"])
 
     @patch("os.path.exists", return_value=False)
-    @patch.object(Versioner, "_read_from_dmg")
+    @patch.object(Versioner.Versioner, "_read_from_dmg")
     @patch("zipfile.ZipFile", autospec=True)
     def test_multi_root_zip(self, mock_zipfile, mock_dmg, mock_exists):
         """Raises ProcessorError when skip_single_root_dir=True and extra dir exists"""
