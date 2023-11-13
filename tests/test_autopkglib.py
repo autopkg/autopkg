@@ -1,6 +1,6 @@
 #!/usr/local/autopkg/python
 
-import imp
+import importlib
 import json
 import plistlib
 import unittest
@@ -128,7 +128,7 @@ class TestAutoPkg(unittest.TestCase):
 
     def setUp(self):
         # This forces autopkglib to accept our patching of memoize
-        imp.reload(autopkglib)
+        importlib.reload(autopkglib)
         autopkglib.globalPreferences
 
     def tearDown(self):

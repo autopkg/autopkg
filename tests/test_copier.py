@@ -1,11 +1,13 @@
 #!/usr/local/autopkg/python
 
+import importlib
 import plistlib
 import unittest
 from unittest.mock import patch
 
 from autopkg.autopkglib import ProcessorError
-from autopkg.autopkglib.Copier import Copier
+
+Copier = importlib.import_module("autopkg.autopkglib.Copier")
 
 
 class TestCopier(unittest.TestCase):
@@ -34,7 +36,7 @@ class TestCopier(unittest.TestCase):
         }
         self.bad_env = {"source_path": "source"}
         self.input_plist = plistlib.dumps(self.good_env)
-        self.processor = Copier(infile=self.input_plist)
+        self.processor = Copier.Copier(infile=self.input_plist)
 
     def tearDown(self):
         pass
@@ -46,7 +48,7 @@ class TestCopier(unittest.TestCase):
             self.processor.main()
 
     @patch("autopkg.autopkglib.glob.glob")
-    @patch("autopkg.autopkglib.Copier.copy")
+    @patch(f"{__name__}.Copier.Copier.copy")
     def test_no_fail_if_good_env(self, mock_copy, mock_glob):
         """The processor should not raise any exceptions if run normally."""
         self.processor.env = self.good_env
@@ -56,7 +58,7 @@ class TestCopier(unittest.TestCase):
         mock_copy.assert_called_once()
 
     @patch("autopkg.autopkglib.glob.glob")
-    @patch("autopkg.autopkglib.Copier.copy")
+    @patch(f"{__name__}.Copier.Copier.copy")
     def test_no_fail_if_glob_env(self, mock_copy, mock_glob):
         """The processor should not raise any exceptions if run with a glob."""
         self.processor.env = self.glob_env
@@ -65,10 +67,10 @@ class TestCopier(unittest.TestCase):
         self.processor.main()
         mock_copy.assert_called_once()
 
-    @patch("autopkg.autopkglib.Copier.unmount")
-    @patch("autopkg.autopkglib.Copier.mount")
+    @patch(f"{__name__}.Copier.Copier.unmount")
+    @patch(f"{__name__}.Copier.Copier.mount")
     @patch("autopkg.autopkglib.glob.glob")
-    @patch("autopkg.autopkglib.Copier.copy")
+    @patch(f"{__name__}.Copier.Copier.copy")
     def test_no_fail_if_dmg_env(self, mock_copy, mock_glob, mock_mount, mock_unmount):
         """The processor should not raise any exceptions if run with a DMG."""
         self.processor.env = self.dmg_env
@@ -79,10 +81,10 @@ class TestCopier(unittest.TestCase):
         mock_copy.assert_called_once()
         mock_unmount.assert_called_once()
 
-    @patch("autopkg.autopkglib.Copier.unmount")
-    @patch("autopkg.autopkglib.Copier.mount")
+    @patch(f"{__name__}.Copier.Copier.unmount")
+    @patch(f"{__name__}.Copier.Copier.mount")
     @patch("autopkg.autopkglib.glob.glob")
-    @patch("autopkg.autopkglib.Copier.copy")
+    @patch(f"{__name__}.Copier.Copier.copy")
     def test_no_fail_if_dmg_glob_env(
         self, mock_copy, mock_glob, mock_mount, mock_unmount
     ):
@@ -96,7 +98,7 @@ class TestCopier(unittest.TestCase):
         mock_unmount.assert_called_once()
 
     @patch("autopkg.autopkglib.glob.glob")
-    @patch("autopkg.autopkglib.Copier.copy")
+    @patch(f"{__name__}.Copier.Copier.copy")
     def test_multiple_matches(self, mock_copy, mock_glob):
         """The processor should not raise any exceptions if run with a glob."""
         self.processor.env = self.glob_env

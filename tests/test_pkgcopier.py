@@ -1,11 +1,12 @@
 #!/usr/local/autopkg/python
 
+import importlib
 import os
 import plistlib
 import unittest
 from unittest.mock import patch
 
-from autopkg.autopkglib.PkgCopier import PkgCopier
+PkgCopier = importlib.import_module("autopkg.autopkglib.PkgCopier")
 
 
 class TestPkgCopier(unittest.TestCase):
@@ -17,12 +18,12 @@ class TestPkgCopier(unittest.TestCase):
         self.good_glob_env = {"source_pkg": "source*"}
         self.bad_env = {}
         self.input_plist = plistlib.dumps(self.good_env)
-        self.processor = PkgCopier(infile=self.input_plist)
+        self.processor = PkgCopier.PkgCopier(infile=self.input_plist)
 
     def tearDown(self):
         pass
 
-    @patch("autopkg.autopkglib.PkgCopier.copy")
+    @patch(f"{__name__}.PkgCopier.PkgCopier.copy")
     @patch("autopkg.autopkglib.glob.glob")
     def test_no_fail_if_good_env(self, mock_glob, mock_copy):
         """The processor should not raise any exceptions if run normally."""
@@ -30,7 +31,7 @@ class TestPkgCopier(unittest.TestCase):
         mock_glob.return_value = ["source.pkg"]
         self.processor.main()
 
-    @patch("autopkg.autopkglib.PkgCopier.copy")
+    @patch(f"{__name__}.PkgCopier.PkgCopier.copy")
     @patch("autopkg.autopkglib.glob.glob")
     def test_no_pkgpath_uses_source_name(self, mock_glob, mock_copy):
         """If pkg_path is not specified, it should use the source name."""
@@ -44,7 +45,7 @@ class TestPkgCopier(unittest.TestCase):
             overwrite=True,
         )
 
-    @patch("autopkg.autopkglib.PkgCopier.copy")
+    @patch(f"{__name__}.PkgCopier.PkgCopier.copy")
     @patch("autopkg.autopkglib.glob.glob")
     def test_no_pkgpath_uses_dest_name(self, mock_glob, mock_copy):
         """If pkg_path is specified, it should be used."""
