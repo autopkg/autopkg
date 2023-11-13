@@ -1,4 +1,4 @@
-.PHONY: test install-hooks
+.PHONY: test install-hooks e2e_tests activate
 
 test: .venv
 	@echo "Running tests"
@@ -13,6 +13,9 @@ install-hooks: .venv
 
 .venv:
 	@poetry install
+
+activate: .venv
+	@poetry shell
 
 clean:
 	@bash scripts/clean.sh
