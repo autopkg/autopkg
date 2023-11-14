@@ -1,0 +1,17 @@
+#!/usr/local/autopkg/python
+
+import sys
+
+import autopkgcmd
+import autopkglib
+import nuget
+from autopkgcli.autopkg import main
+
+# backward compatibility
+sys.modules["autopkglib"] = autopkglib
+sys.modules["autopkigcmd"] = autopkgcmd
+sys.modules["nuget"] = nuget
+
+
+if __name__ == "__main__":
+    sys.exit(main())

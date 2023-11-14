@@ -14,18 +14,14 @@
 
 import imp
 import json
-import os
 import plistlib
 import sys
 import unittest
 from textwrap import dedent
 from unittest.mock import mock_open, patch
 
+import autopkgcli.autopkg  # noqa: F401
 import autopkglib
-
-autopkg = imp.load_source(
-    "autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg")
-)
 
 
 class TestAutoPkg(unittest.TestCase):
@@ -218,7 +214,7 @@ class TestAutoPkg(unittest.TestCase):
         new_callable=mock_open,
         read_data=download_recipe.encode("utf-8"),
     )
-    @patch("autopkg.plistlib.load")
+    @patch("autopkgcli.autopkg.plistlib.load")
     @patch("os.path.isfile")
     def test_get_identifier_from_recipe_file_returns_identifier(
         self, mock_isfile, mock_load, mock_file
@@ -234,7 +230,7 @@ class TestAutoPkg(unittest.TestCase):
         new_callable=mock_open,
         read_data=download_recipe.encode("utf-8"),
     )
-    @patch("autopkg.plistlib.load")
+    @patch("autopkgcli.autopkg.plistlib.load")
     def test_get_identifier_from_recipe_file_returns_none(self, mock_load, mock_read):
         """get_identifier_from_recipe_file should return None if no identifier."""
         mock_read.return_value = self.download_struct
