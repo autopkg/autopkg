@@ -2626,8 +2626,10 @@ def new_recipe(argv):
     calculate_recipe_map()
 
 
-def main(argv):
+def main():
     """Main routine"""
+    # getting cmdline args
+    argv = sys.argv
     # define our subcommands ('verbs')
     subcommands = {
         "help": {"function": display_help, "help": "Display this help"},
@@ -2722,4 +2724,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())
