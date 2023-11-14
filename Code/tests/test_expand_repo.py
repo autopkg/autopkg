@@ -12,13 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import imp
-import os
 import unittest
 
-autopkg = imp.load_source(
-    "autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg")
-)
+from autopkgcli import autopkg
 
 
 class TestExpandRepo(unittest.TestCase):

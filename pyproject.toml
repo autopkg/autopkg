@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autopkg"
+authors = []
+version = "2.7.3"
+description = "AutoPkg is an automation framework for macOS software packaging and distribution"
+readme = "Readme.md"
+requires-python = ">=3.10"
+license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Topic :: System :: Software Distribution",
+]
+dynamic = [ "dependencies" ]
+
+[project.scripts]
+autopkg = "autopkgcli.autopkg:main"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["gh_actions_requirements.txt"]}
+
+
+[tool.setuptools.packages.find]
+where = ["Code"]
+include = ["autopkg*", "nuget*"]
+exclude = [".tests*"]
+namespaces = false
