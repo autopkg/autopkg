@@ -5,7 +5,8 @@
 VERSION=$(/usr/libexec/PlistBuddy -c "Print:Version" "../Code/autopkglib/version.plist")
 PKGROOT=$(mktemp -d /tmp/AutoPkg-build-root-XXXXXXXXXXX)
 mkdir -p "$PKGROOT/Library/AutoPkg"
-cp -R ../Code/* "$PKGROOT/Library/AutoPkg/"
+# cp -R ../Code/* "$PKGROOT/Library/AutoPkg/"
+rsync -a --exclude '*.pyc' --exclude "*__pycache__" --exclude '.DS_Store' ../Code/ "$PKGROOT/Library/AutoPkg/"
 mkdir -p "$PKGROOT/Library/LaunchDaemons"
 mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkgserver.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkgserver.plist"
 mv "$PKGROOT/Library/AutoPkg/autopkgserver/autopkginstalld.plist" "$PKGROOT/Library/LaunchDaemons/com.github.autopkg.autopkginstalld.plist"
