@@ -463,6 +463,10 @@ def update_data(a_dict, key, value):
         """Returns data from a match object"""
         return a_dict[match.group("key")]
 
+    def getdata_str(match):
+        """Returns string data from a match object"""
+        return str(a_dict[match.group("key")])
+
     def do_variable_substitution(item):
         """Do variable substitution for item"""
         if isinstance(item, str):
@@ -470,6 +474,12 @@ def update_data(a_dict, key, value):
                 item = RE_KEYREF.sub(getdata, item)
             except KeyError as err:
                 log_err(f"Use of undefined key in variable substitution: {err}")
+            except TypeError as err:
+                if "sequence item 0: expected str instance, int found" in str(err):
+                    log(f"WARNING: subtituting int for string: {err}")
+                    item = RE_KEYREF.sub(getdata_str, item)
+                else:
+                    raise err
         elif isinstance(item, (list, NSArray)):
             for index in range(len(item)):
                 item[index] = do_variable_substitution(item[index])
