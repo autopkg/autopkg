@@ -96,36 +96,39 @@ def main():
 
     # Iterate through all test recipes, capturing exit codes
     error_list = []
-    for idx, recipe in enumerate(found_recipes):
-        print("Processing %s (%d of %d)..." % (recipe, idx + 1, len(found_recipes)))
+    try:
+        for idx, recipe in enumerate(found_recipes):
+            print("Processing %s (%d of %d)..." % (recipe, idx + 1, len(found_recipes)))
 
-        print(f"  Testing on autopkg {CONTROL_BRANCH} branch")
-        subprocess.run(
-            ["git", "-C", AUTOPKG_REPO, "checkout", CONTROL_BRANCH],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        c1, c2 = test_recipe(recipe, os.path.join(AUTOPKG_REPO, "Code/autopkg"))
+            print(f"  Testing on autopkg {CONTROL_BRANCH} branch")
+            subprocess.run(
+                ["git", "-C", AUTOPKG_REPO, "checkout", CONTROL_BRANCH],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            c1, c2 = test_recipe(recipe, os.path.join(AUTOPKG_REPO, "Code/autopkg"))
 
-        print(f"  Testing on autopkg {EXPER_BRANCH} branch")
-        subprocess.run(
-            ["git", "-C", AUTOPKG_REPO, "checkout", EXPER_BRANCH],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        x1, x2 = test_recipe(recipe, os.path.join(AUTOPKG_REPO, "Code/autopkg"))
-        if not all((c1 == x1, c2 == x2)):
-            print("  Inconsistency detected: %s" % recipe)
-            error_list.append(recipe)
-
-    if error_list:
-        print("Inconsistencies encountered:")
-        print("\n".join(error_list))
-        sys.exit(1)
-    else:
-        print("No inconsistencies encountered.")
+            print(f"  Testing on autopkg {EXPER_BRANCH} branch")
+            subprocess.run(
+                ["git", "-C", AUTOPKG_REPO, "checkout", EXPER_BRANCH],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            x1, x2 = test_recipe(recipe, os.path.join(AUTOPKG_REPO, "Code/autopkg"))
+            if not all((c1 == x1, c2 == x2)):
+                print("  Inconsistency detected: %s" % recipe)
+                error_list.append(recipe)
+    except KeyboardInterrupt:
+        print("\nCtrl-C received.")
+    finally:
+        if error_list:
+            print("Inconsistencies encountered:")
+            print("\n".join(error_list))
+            sys.exit(1)
+        else:
+            print("No inconsistencies encountered.")
 
 
 if __name__ == "__main__":
