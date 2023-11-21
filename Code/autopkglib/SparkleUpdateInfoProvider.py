@@ -231,6 +231,10 @@ class SparkleUpdateInfoProvider(URLGetter):
             if enclosure is None:
                 continue
 
+            # Skip enclosures with no URL
+            if not enclosure.get("url"):
+                continue
+
             item = {}
             item["url"] = self.build_url(enclosure)
 
