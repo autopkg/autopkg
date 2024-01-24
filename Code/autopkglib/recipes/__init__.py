@@ -617,7 +617,7 @@ def fetch_recipe_chain(
     check_only: bool = False,
 ) -> RecipeChain:
     """Obtain a RecipeChain object from an input string. Does not handle exceptions."""
-    recipe_path = find_recipe_path(input)
+    recipe_path = find_recipe_path(input, make_suggestions, search_github, auto_pull, skip_overrides)
     chain = RecipeChain()
     chain.add_recipe(recipe_path)
     chain.build(check_only)
