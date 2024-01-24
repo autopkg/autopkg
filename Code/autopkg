@@ -1276,7 +1276,7 @@ def get_trust_info(recipe, search_dirs=None):
     for processor in non_core_processors:
         processor_path = find_processor_path(processor, recipe)
         if processor_path:
-            processor_hash = getsha256hash(processor_path)
+            processor_hash = get_sha256_hash(processor_path)
             git_hash = get_git_commit_hash(processor_path)
         else:
             log_err(f"WARNING: processor path not found for processor: {processor}")
