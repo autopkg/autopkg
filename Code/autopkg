@@ -72,7 +72,7 @@ from autopkglib.apgithub import (
     print_gh_search_results,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
-from autopkglib.common import VarDict, getsha256hash
+from autopkglib.common import VarDict, get_sha256_hash
 from autopkglib.prefs import PreferenceError
 from autopkglib.recipes import (
     RecipeChain,
@@ -1256,7 +1256,7 @@ def get_trust_info(recipe, search_dirs=None):
     parent_recipe_paths = recipe.get("PARENT_RECIPES", []) + [recipe["RECIPE_PATH"]]
     parent_recipe_hashes = {}
     for p_recipe_path in parent_recipe_paths:
-        p_recipe_hash = getsha256hash(p_recipe_path)
+        p_recipe_hash = get_sha256_hash(p_recipe_path)
         git_hash = get_git_commit_hash(p_recipe_path)
         p_recipe = old_load_recipe(p_recipe_path)
         identifier = get_identifier(p_recipe)
