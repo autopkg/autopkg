@@ -174,6 +174,8 @@ class URLDownloader(URLGetter):
         """Attempt to find filename in HTTP headers."""
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--head", "--request", "GET"])
+        # Add the common options
+        self.add_curl_common_opts(curl_cmd)
 
         raw_headers = self.download_with_curl(curl_cmd)
         header = self.parse_headers(raw_headers)
