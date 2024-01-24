@@ -126,7 +126,7 @@ class ParentRecipeTrustInfo:
             {"non_core_processors": {"ProcessorName": TrustBlob(...)},
             "parent_recipes": {"RecipeName": TrustBlob(...)}}
         )
-    However, this does not validate that the trust has been filled correctly. Using unfilled trust info will 
+    However, this does not validate that the trust has been filled correctly. Using unfilled trust info will
     fail trust validation.
     """
 
@@ -343,18 +343,34 @@ class Recipe:
     def _parse_trust_info(self, recipe_dict: [Dict[str, Any]]) -> None:
         """Parse the trust info from a recipe dictionary"""
         trust = ParentRecipeTrustInfo()
-        for proc in recipe_dict["ParentRecipeTrustInfo"].get("non_core_processors", {}).keys():
+        for proc in (
+            recipe_dict["ParentRecipeTrustInfo"].get("non_core_processors", {}).keys()
+        ):
             proc_trust = TrustBlob(
-                git_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc]["git_hash"],
-                path=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc]["path"],
-                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc]["sha256_hash"],
+                git_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][
+                    proc
+                ]["git_hash"],
+                path=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc][
+                    "path"
+                ],
+                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][
+                    proc
+                ]["sha256_hash"],
             )
             trust.non_core_processors.update({str(proc): proc_trust})
-        for parent_recipe in recipe_dict["ParentRecipeTrustInfo"].get("parent_recipes", {}).keys():
+        for parent_recipe in (
+            recipe_dict["ParentRecipeTrustInfo"].get("parent_recipes", {}).keys()
+        ):
             rec_trust = TrustBlob(
-                git_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][parent_recipe]["git_hash"],
-                path=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][parent_recipe]["path"],
-                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][parent_recipe]["sha256_hash"],
+                git_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
+                    parent_recipe
+                ]["git_hash"],
+                path=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
+                    parent_recipe
+                ]["path"],
+                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
+                    parent_recipe
+                ]["sha256_hash"],
             )
             trust.parent_recipes.update({str(parent_recipe): rec_trust})
         self.trust_info = trust
@@ -617,7 +633,9 @@ def fetch_recipe_chain(
     check_only: bool = False,
 ) -> RecipeChain:
     """Obtain a RecipeChain object from an input string. Does not handle exceptions."""
-    recipe_path = find_recipe_path(input, make_suggestions, search_github, auto_pull, skip_overrides)
+    recipe_path = find_recipe_path(
+        input, make_suggestions, search_github, auto_pull, skip_overrides
+    )
     chain = RecipeChain()
     chain.add_recipe(recipe_path)
     chain.build(check_only)
@@ -735,4 +753,3 @@ if __name__ == "__main__":
     # non_git_recipe = "/Users/nmcspadden/Library/AutoPkg/Recipes/AutoPkg-Test.download.recipe"
     # hash = get_git_commit_hash(non_git_recipe)
     # print(f"Git hash: {hash}")
-
