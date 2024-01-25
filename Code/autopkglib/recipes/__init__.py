@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 sys.path.append("/Users/nmcspadden/Documents/GitHub/autopkg/Code")
-from autopkglib import get_git_commit_hash, get_override_dirs, get_pref
+from autopkglib.apgit import get_git_commit_hash
 from autopkglib.common import (
     DEFAULT_RECIPE_MAP,
     DEFAULT_SEARCH_DIRS,
@@ -38,6 +38,7 @@ from autopkglib.common import (
     log_err,
     version_equal_or_greater,
 )
+from autopkglib.prefs import get_pref, get_override_dirs
 
 # Set the global recipe map
 globalRecipeMap: Dict[str, Dict[str, str]] = {
@@ -138,17 +139,22 @@ class RecipeChain:
     """Full construction of a recipe chain"""
 
     def __init__(self) -> None:
-        """Init"""
+        """Create a full chain of recipes. Add recipes with add_recipe(),
+        then compile with build()"""
         # List of all recipe identifiers that make up this chain
         self.ordered_list_of_recipe_ids: List[str] = []
         # Final constructed list of all processors
         self.process: List[Dict[str, Any]] = []
         # List of recipe objects that made up this chain
+        # The recipe chain's list of recipes is reverse-ordered
+        # i.e. item 0 is the "root" recipe with no parents
         self.recipes: List[Recipe] = []
         # The amalgamated inputs
         self.input: Dict[str, str] = {}
         # Minimum version by default starts at our version
         self.minimum_version: str = get_autopkg_version()
+        # List of all recipe paths in the chain
+        self.ordered_list_of_paths: List[str] = []
 
     def add_recipe(self, path: str) -> None:
         """Add a recipe by path into the chain"""
@@ -157,8 +163,9 @@ class RecipeChain:
         except RecipeError as err:
             print(f"Unable to read recipe at {path}, aborting: {err}")
             raise
-        # Add to the recipe parent list
+        # Add to the recipe parent lists
         self.ordered_list_of_recipe_ids.append(recipe.identifier)
+        self.ordered_list_of_paths.append(recipe.path)
         # Add to the recipe object list
         self.recipes.append(recipe)
         # Look for parents and add them to the chain

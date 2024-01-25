@@ -32,22 +32,19 @@ import yaml
 from autopkglib.common import (
     DEFAULT_RECIPE_MAP,
     DEFAULT_SEARCH_DIRS,
-    DEFAULT_USER_OVERRIDES_DIR,
     RE_KEYREF,
     RECIPE_EXTS,
     FileOrPath,
     VarDict,
     autopkg_user_folder,
     get_autopkg_version,
-    is_executable,
-    is_linux,
     is_mac,
-    is_windows,
     log,
     log_err,
     version_equal_or_greater,
 )
-from autopkglib.prefs import Preferences
+from autopkglib.recipes import RecipeChain
+from autopkglib.prefs import get_pref, get_override_dirs
 
 try:
     from CoreFoundation import (  # type: ignore
@@ -94,9 +91,6 @@ except ImportError:
     kCFPreferencesCurrentUser = None
     kCFPreferencesCurrentHost = None
 
-# Set the global preferences object
-globalPreferences = Preferences()
-
 # Set the global recipe map
 globalRecipeMap: Dict[str, Dict[str, str]] = {
     "identifiers": {},
@@ -104,22 +98,6 @@ globalRecipeMap: Dict[str, Dict[str, str]] = {
     "overrides": {},
     "overrides-identifiers": {},
 }
-
-
-def get_pref(key):
-    """Return a single pref value (or None) for a domain."""
-    return globalPreferences.get_pref(key)
-
-
-def set_pref(key, value):
-    """Sets a preference for domain"""
-    globalPreferences.set_pref(key, value)
-
-
-def get_all_prefs():
-    """Return a dict (or an empty dict) with the contents of all
-    preferences in the domain."""
-    return globalPreferences.get_all_prefs()
 
 
 def remove_recipe_extension(name):
@@ -210,17 +188,9 @@ def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
 
 
 def get_identifier(recipe):
-    """Return identifier from recipe dict. Tries the Identifier
+    """Return identifier from recipe object. Tries the Identifier
     top-level key and falls back to the legacy key location."""
-    try:
-        return recipe["Identifier"]
-    except (KeyError, AttributeError):
-        try:
-            return recipe["Input"]["IDENTIFIER"]
-        except (KeyError, AttributeError):
-            return None
-    except TypeError:
-        return None
+    return recipe.identifier
 
 
 def get_identifier_from_recipe_file(filename) -> Optional[str]:
@@ -284,26 +254,6 @@ def find_identifier_from_name(name: str) -> Optional[str]:
             return id
     log_err(f"Could not find identifier from {name}!")
     return None
-
-
-def get_search_dirs() -> List[str]:
-    """Return search dirs from preferences or default list"""
-    dirs: List[str] = get_pref("RECIPE_SEARCH_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or DEFAULT_SEARCH_DIRS
-
-
-def get_override_dirs() -> List[str]:
-    """Return override dirs from preferences or default list"""
-    default = [DEFAULT_USER_OVERRIDES_DIR]
-
-    dirs: List[str] = get_pref("RECIPE_OVERRIDE_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
 
 
 def calculate_recipe_map(
@@ -468,71 +418,6 @@ def update_data(a_dict, key, value):
         return item
 
     a_dict[key] = do_variable_substitution(value)
-
-
-def find_binary(binary: str, env: Optional[Dict] = None) -> Optional[str]:
-    r"""Returns the full path for `binary`, or `None` if it was not found.
-
-    The search order is as follows:
-    * A key in the optional `env` dictionary named `<binary>_PATH`.
-        Where `binary` is uppercase. E.g., `git` -> `GIT`.
-    * A preference named `<binary>_PATH` uppercase, as above.
-    * The directories listed in the system-dependent `$PATH` environment variable.
-    * On POSIX-y platforms only: `/usr/bin/<binary>`
-    In all cases, the binary found at any path must be executable to be used.
-
-    The `binary` parameter should be given without any file extension. A platform
-    specific file extension for executables will be added automatically, as needed.
-
-    Example: `find_binary('curl')` may return `C:\Windows\system32\curl.exe`.
-    """
-
-    if env is None:
-        env = {}
-    pref_key = f"{binary.upper()}_PATH"
-
-    bin_env = env.get(pref_key)
-    if bin_env:
-        if not is_executable(bin_env):
-            log_err(
-                f"WARNING: path given in the '{pref_key}' environment: '{bin_env}' "
-                "either doesn't exist or is not executable! "
-                f"Continuing search for usable '{binary}'."
-            )
-        else:
-            return env[pref_key]
-
-    bin_pref = get_pref(pref_key)
-    if bin_pref:
-        if not is_executable(bin_pref):
-            log_err(
-                f"WARNING: path given in the '{pref_key}' preference: '{bin_pref}' "
-                "either doesn't exist or is not executable! "
-                f"Continuing search for usable '{binary}'."
-            )
-        else:
-            return bin_pref
-
-    if is_windows():
-        extension = ".exe"
-    else:
-        extension = ""
-
-    full_binary = f"{binary}{extension}"
-
-    for search_dir in os.get_exec_path():
-        exe_path = os.path.join(search_dir, full_binary)
-        if is_executable(exe_path):
-            return exe_path
-
-    if (is_linux() or is_mac()) and is_executable(f"/usr/bin/{binary}"):
-        return f"/usr/bin/{binary}"
-
-    log_err(
-        f"WARNING: Unable to find '{full_binary}' in either configured, "
-        "or environmental locations. Things aren't guaranteed to work from here."
-    )
-    return None
 
 
 # Processor and ProcessorError base class definitions
@@ -724,20 +609,13 @@ class AutoPackager:
         if self.verbose >= verbose_level:
             print(msg)
 
-    def get_recipe_identifier(self, recipe):
-        """Return the identifier given an input recipe dict."""
-        identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
-        if not identifier:
-            log_err("ID NOT FOUND")
-            # build a pseudo-identifier based on the recipe pathname
-            recipe_path = self.env.get("RECIPE_PATH")
-            # get rid of filename extension
-            recipe_path = remove_recipe_extension(recipe_path)
-            path_parts = recipe_path.split("/")
-            identifier = "-".join(path_parts)
-        return identifier
+    def get_recipe_identifier(self, recipe: RecipeChain):
+        """Return the identifier of the invoked recipe of a chain."""
+        # The recipe chain's list of recipes is reverse-ordered
+        # i.e. item 0 is the "root" recipe with no parents
+        return recipe.recipes[-1].identifier
 
-    def process_cli_overrides(self, recipe_inputs: Dict[str, str], cli_values: Dict[str, Any]):
+    def process_cli_overrides(self, recipe: RecipeChain, cli_values: Dict[str, Any]):
         """Override env with input values from the CLI:
         Start with items in recipe's 'Input' dict, merge and
         overwrite any key-value pairs appended to the
@@ -746,33 +624,32 @@ class AutoPackager:
 
         # Set up empty container for final output
         inputs = {}
-        inputs.update(recipe_inputs)
+        inputs.update(recipe.input)
         inputs.update(cli_values)
         self.env.update(inputs)
         # do any internal string substitutions
         for key, value in list(self.env.items()):
             update_data(self.env, key, value)
 
-    def verify(self, recipe):
+    def verify(self, recipe: RecipeChain):
         """Verify a recipe and check for errors."""
 
         # Check for MinimumAutopkgVersion
-        if "MinimumVersion" in list(recipe.keys()):
-            if not version_equal_or_greater(
-                self.env["AUTOPKG_VERSION"], recipe.get("MinimumVersion")
-            ):
-                raise AutoPackagerError(
-                    "Recipe (or a parent recipe) requires at least autopkg "
-                    f"version {recipe.get('MinimumVersion')}, but we are autopkg "
-                    f"version {self.env['AUTOPKG_VERSION']}."
-                )
+        if not version_equal_or_greater(
+            self.env["AUTOPKG_VERSION"], recipe.minimum_version
+        ):
+            raise AutoPackagerError(
+                "Recipe (or a parent recipe) requires at least autopkg "
+                f"version {recipe.get('MinimumVersion')}, but we are autopkg "
+                f"version {self.env['AUTOPKG_VERSION']}."
+            )
 
         # Initialize variable set with input variables.
-        variables = set(recipe["Input"].keys())
+        variables = set(recipe.input.keys())
         # Add environment.
         variables.update(set(self.env.keys()))
         # Check each step of the process.
-        for step in recipe["Process"]:
+        for step in recipe.process:
             try:
                 processor_class = get_processor(
                     step["Processor"], verbose=self.verbose, recipe=recipe, env=self.env
@@ -803,7 +680,7 @@ class AutoPackager:
             # Add output variables to set.
             variables.update(set(processor_class.output_variables.keys()))
 
-    def process(self, recipe):
+    def process(self, recipe: RecipeChain):
         """Process a recipe."""
         identifier = self.get_recipe_identifier(recipe)
         # define a cache/work directory for use by the recipe
@@ -830,7 +707,7 @@ class AutoPackager:
         if self.verbose > 2:
             pprint.pprint(self.env)
 
-        for step in recipe["Process"]:
+        for step in recipe.process:
 
             if self.verbose:
                 print(step["Processor"])
@@ -954,13 +831,13 @@ def extract_processor_name_with_recipe_identifier(processor_name):
     return (processor_name, identifier)
 
 
-def get_processor(processor_name, verbose=None, recipe=None, env=None):
+def get_processor(processor_name, verbose=None, recipe: RecipeChain = None, env=None):
     """Returns a Processor object given a name and optionally a recipe,
     importing a processor from the recipe directory if available"""
     if env is None:
         env = {}
     if recipe:
-        recipe_dir = os.path.dirname(recipe["RECIPE_PATH"])
+        recipe_dir = os.path.dirname(recipe.recipes[-1].path)
         processor_search_dirs = [recipe_dir]
 
         # check if our processor_name includes a recipe identifier that
@@ -979,12 +856,10 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
                 )
 
         # search recipe dirs for processor
-        if recipe.get("PARENT_RECIPES"):
-            # also look in the directories containing the parent recipes
-            parent_recipe_dirs = list(
-                {os.path.dirname(item) for item in recipe["PARENT_RECIPES"]}
-            )
-            processor_search_dirs.extend(parent_recipe_dirs)
+        parent_recipe_dirs = list(
+            {os.path.dirname(item) for item in recipe.ordered_list_of_paths}
+        )
+        processor_search_dirs.extend(parent_recipe_dirs)
 
         # Dedupe the list first
         deduped_processors = set([dir for dir in processor_search_dirs])
@@ -1040,92 +915,6 @@ def plist_serializer(obj):
         for item in range(len(obj)):
             plist_serializer(obj[item])
     return obj
-
-
-# git functions
-def git_cmd():
-    """Returns a path to a git binary, priority in the order below.
-    Returns None if none found.
-    1. app pref 'GIT_PATH'
-    2. a 'git' binary that can be found in the PATH environment variable
-    3. '/usr/bin/git'
-    """
-    return find_binary("git")
-
-
-class GitError(Exception):
-    """Exception to throw if git fails"""
-
-    pass
-
-
-def run_git(git_options_and_arguments, git_directory=None):
-    """Run a git command and return its output if successful;
-    raise GitError if unsuccessful."""
-    gitcmd = git_cmd()
-    if not gitcmd:
-        raise GitError("ERROR: git is not installed!")
-    cmd = [gitcmd]
-    cmd.extend(git_options_and_arguments)
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=git_directory,
-            text=True,
-        )
-        (cmd_out, cmd_err) = proc.communicate()
-    except OSError as err:
-        raise GitError from OSError(
-            f"ERROR: git execution failed with error code {err.errno}: "
-            f"{err.strerror}"
-        )
-    if proc.returncode != 0:
-        raise GitError(f"ERROR: {cmd_err}")
-    else:
-        return cmd_out
-
-
-def get_git_commit_hash(filepath):
-    """Get the current git commit hash if possible"""
-    try:
-        git_toplevel_dir = run_git(
-            ["rev-parse", "--show-toplevel"], git_directory=os.path.dirname(filepath)
-        ).rstrip("\n")
-    except GitError:
-        return None
-    try:
-        relative_path = os.path.relpath(filepath, git_toplevel_dir)
-        # this was the _wrong_ implementation and essentially is the same
-        # as `git hash-object filepath`. It gives us the object hash for the
-        # file. Fine for later getting diff info but no good for finding the
-        # the commits since the hash was recorded
-        #
-        # git_hash = run_git(
-        #    ['rev-parse', ':' + relative_path],
-        #    git_directory=git_toplevel_dir).rstrip('\n')
-        #
-        # instead, we need to use `rev-list` to find the most recent commit
-        # hash for the file in question.
-        git_hash = run_git(
-            ["rev-list", "-1", "HEAD", "--", relative_path],
-            git_directory=git_toplevel_dir,
-        ).rstrip("\n")
-    except GitError:
-        return None
-    # make sure the file hasn't been changed locally since the last git pull
-    # if git diff produces output, it's been changed, and therefore storing
-    # the hash is pointless
-    try:
-        diff_output = run_git(
-            ["diff", git_hash, relative_path], git_directory=git_toplevel_dir
-        ).rstrip("\n")
-    except GitError:
-        return None
-    if diff_output:
-        return None
-    return git_hash
 
 
 # when importing autopkglib, need to also import all the processors

@@ -18,7 +18,7 @@ import json
 import os.path
 import plistlib
 from copy import deepcopy
-from typing import Optional
+from typing import List, Optional
 
 import appdirs
 import autopkglib.common
@@ -262,3 +262,41 @@ class Preferences:
             autopkglib.common.log_err(
                 f"WARNING: Preference change {key}=''{value}'' was not saved."
             )
+
+
+# Set the global preferences object
+globalPreferences = Preferences()
+
+
+def get_pref(key):
+    """Return a single pref value (or None) for a domain."""
+    return globalPreferences.get_pref(key)
+
+
+def set_pref(key, value):
+    """Sets a preference for domain"""
+    globalPreferences.set_pref(key, value)
+
+
+def get_all_prefs():
+    """Return a dict (or an empty dict) with the contents of all
+    preferences in the domain."""
+    return globalPreferences.get_all_prefs()
+
+
+def get_search_dirs() -> List[str]:
+    """Return search dirs from preferences or default list"""
+    dirs: List[str] = get_pref("RECIPE_SEARCH_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or autopkglib.common.DEFAULT_SEARCH_DIRS
+
+
+def get_override_dirs() -> List[str]:
+    """Return override dirs from preferences or default list"""
+    dirs: List[str] = get_pref("RECIPE_OVERRIDE_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or [autopkglib.common.DEFAULT_USER_OVERRIDES_DIR]

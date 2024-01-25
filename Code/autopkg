@@ -37,20 +37,15 @@ from autopkglib import (
     RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
-    GitError,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
     find_recipe_by_id_in_map,
     find_recipe_by_name_in_map,
-    get_all_prefs,
     get_autopkg_version,
-    get_git_commit_hash,
     get_identifier,
     get_override_dirs,
     get_pref,
     get_processor,
-    get_search_dirs,
-    git_cmd,
     globalRecipeMap,
     is_mac,
     log,
@@ -59,13 +54,12 @@ from autopkglib import (
     processor_names,
     recipe_from_file,
     remove_recipe_extension,
-    run_git,
-    set_pref,
     valid_override_dict,
     valid_recipe_dict,
     valid_recipe_file,
     version_equal_or_greater,
 )
+from autopkglib.apgit import GitError, get_git_commit_hash, git_cmd, run_git
 from autopkglib.apgithub import (
     GitHubSession,
     get_repository_from_identifier,
@@ -73,7 +67,7 @@ from autopkglib.apgithub import (
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
 from autopkglib.common import VarDict, get_sha256_hash
-from autopkglib.prefs import PreferenceError
+from autopkglib.prefs import PreferenceError, get_all_prefs, get_search_dirs, set_pref
 from autopkglib.recipes import (
     RecipeChain,
     RecipeError,
@@ -2045,46 +2039,43 @@ def run_recipes(argv):
 
     # Look for the actual recipes here
     for recipe_path in recipe_paths:
-        start = time.perf_counter()
-        recipe = old_load_recipe(
-            recipe_path,
-            preprocessors=preprocessors,
-            postprocessors=postprocessors,
-            make_suggestions=make_suggestions,
-            search_github=make_suggestions,
-        )
-        end = time.perf_counter()
-        log(f"**load_recipe time: {str(end - start)}")
-        if not recipe:
-            if not make_suggestions:
-                log_err(f"No valid recipe found for {recipe_path}")
+        start: float = time.perf_counter()
+        # Time for new recipe logic
+        try:
+            recipe_chain: RecipeChain = fetch_recipe_chain(
+                recipe_path,
+                make_suggestions=make_suggestions,
+                search_github=make_suggestions,
+                check_only=options.check,
+            )
+        except RecipeError as err:
+            log_err(f"Error fetching recipe: {err}")
+            error_count += 1
+            continue
+        except ValueError:  # from the check_only option
+            log_err(
+                f"Recipe at {recipe_path} is missing EndOfCheckPhase Processor, "
+                "not possible to perform check."
+            )
             error_count += 1
             continue
 
-        if options.check:
-            # remove steps from the end of the recipe Process until we find a
-            # EndOfCheckPhase step
-            while (
-                len(recipe["Process"]) >= 1
-                and recipe["Process"][-1]["Processor"] != "EndOfCheckPhase"
-            ):
-                del recipe["Process"][-1]
-            if len(recipe["Process"]) == 0:
-                log_err(
-                    f"Recipe at {recipe_path} is missing EndOfCheckPhase Processor, "
-                    "not possible to perform check."
-                )
-                error_count += 1
-                continue
+        end: float = time.perf_counter()
+        log(f"**old_load_recipe time: {str(end - start)}")
+        for preprocess in reversed(preprocessors):
+            # We add them in reverse order because they are always inserted at the beginning
+            recipe_chain.add_preprocessor(preprocess)
+        for postprocess in postprocessors:
+            recipe_chain.add_postprocessor(postprocess)
 
         log(f"Processing {recipe_path}...")
 
         # Create a local copy of preferences
         prefs: VarDict = copy.deepcopy(dict(get_all_prefs()))
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
-        prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
+        prefs["RECIPE_PATH"] = os.path.abspath(recipe_path)
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])
-        prefs["PARENT_RECIPES"] = recipe.get("PARENT_RECIPES", [])
+        prefs["PARENT_RECIPES"] = recipe_chain.ordered_list_of_paths
         # Update search locations that may have been overridden with CLI or
         # environment variables
         prefs["RECIPE_SEARCH_DIRS"] = search_dirs
@@ -2102,29 +2093,28 @@ def run_recipes(argv):
             )
         )
 
-        if (
-            "ParentRecipeTrustInfo" not in recipe
-            and not fail_recipes_without_trust_info
-        ):
+        # If FAIL_RECIPES_WITHOUT_TRUST_INFO is set, that means you _must_ be
+        # running an override because only overrides contain trust. Thus,
+        # fail if you aren't running an override.
+        if fail_recipes_without_trust_info and not recipe_chain.check_is_override():
             log_err(
-                f"WARNING: {recipe_path} is missing trust info and "
-                "FAIL_RECIPES_WITHOUT_TRUST_INFO is not set. "
-                "Proceeding..."
+                f"ERROR: {recipe_path} is not an override and "
+                "FAIL_RECIPES_WITHOUT_TRUST_INFO is set. "
+                "Skipping recipe!"
             )
+            continue
 
         # we should also skip trust verification if we've been told to ignore
         # verification errors
-        skip_trust_verification: bool = options.ignore_parent_trust_verification_errors or (
-            "ParentRecipeTrustInfo" not in recipe
-            and not fail_recipes_without_trust_info
-        )
-
         try:
-            if not skip_trust_verification:
-                verify_parent_trust(recipe, override_dirs, search_dirs, options.verbose)
-            autopackager.process_cli_overrides(recipe, cli_values)
-            autopackager.verify(recipe)
-            autopackager.process(recipe)
+            if not options.ignore_parent_trust_verification_errors:
+                # Old verification logic: TODO Remove me!
+                # verify_parent_trust(recipe, override_dirs, search_dirs, options.verbose)
+                # New verification logic:
+                recipe_chain.verify_trust()
+            autopackager.process_cli_overrides(recipe_chain, cli_values)
+            autopackager.verify(recipe_chain)
+            autopackager.process(recipe_chain)
         except AutoPackagerError as err:
             error_count += 1
             failure = {}
