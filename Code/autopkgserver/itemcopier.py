@@ -70,7 +70,6 @@ class ItemCopier:
         """
         mountpoint = self.request["mount_point"]
         for item in self.request["items_to_copy"]:
-
             # get itemname
             source_itemname = item.get("source_item")
             dest_itemname = item.get("destination_item")
