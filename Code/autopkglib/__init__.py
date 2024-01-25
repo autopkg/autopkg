@@ -708,7 +708,6 @@ class AutoPackager:
             pprint.pprint(self.env)
 
         for step in recipe.process:
-
             if self.verbose:
                 print(step["Processor"])
 

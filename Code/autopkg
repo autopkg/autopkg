@@ -256,7 +256,7 @@ def old_locate_recipe(
                     )
             elif len(repo_names) > 1:
                 print()
-                print("To add a new recipe repo, use 'autopkg repo-add " "<repo name>'")
+                print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
                 return None
 
     return recipe_file
@@ -2260,12 +2260,12 @@ def printplistitem(label, value, indent=0):
     indentspace = "    "
     if value is None:
         log(indentspace * indent + f"{label}: !NONE!")
-    elif type(value) == list or type(value).__name__ == "NSCFArray":
+    elif isinstance(value, list) or type(value).__name__ == "NSCFArray":
         if label:
             log(indentspace * indent + f"{label}:")
         for item in value:
             printplistitem("", item, indent + 1)
-    elif type(value) == dict or type(value).__name__ == "NSCFDictionary":
+    elif isinstance(value, dict) or type(value).__name__ == "NSCFDictionary":
         if label:
             log(indentspace * indent + f"{label}:")
         for subkey in list(value.keys()):

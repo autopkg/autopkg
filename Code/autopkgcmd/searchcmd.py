@@ -94,7 +94,7 @@ def search_recipes(argv: List[str]):
     if len(results) > results_limit:
         print()
         print(
-            "Warning: Search yielded more than 100 results. Please try a "
+            f"Warning: Search yielded more than {results_limit} results. Please try a "
             "more specific search term."
         )
         return 3

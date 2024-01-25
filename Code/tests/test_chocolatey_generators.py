@@ -73,7 +73,6 @@ class TestNuspecGenerator(unittest.TestCase):
 
 
 class TestChocolateyInstallGenerator(unittest.TestCase):
-
     COMMON_HEADER = dedent(
         """\
 $ErrorActionPreference = 'Stop'
