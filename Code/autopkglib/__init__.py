@@ -187,7 +187,7 @@ def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
     return False
 
 
-def get_identifier(recipe):
+def get_identifier(recipe: RecipeChain):
     """Return identifier from recipe object."""
     return recipe.identifier
 
