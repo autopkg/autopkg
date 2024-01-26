@@ -22,7 +22,7 @@ import plistlib
 import pprint
 import sys
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -40,7 +40,7 @@ from autopkglib.common import (
 from autopkglib.prefs import get_pref, get_override_dirs
 
 # Set the global recipe map
-globalRecipeMap: Dict[str, Dict[str, str]] = {
+globalRecipeMap: dict[str, dict[str, str]] = {
     "identifiers": {},
     "shortnames": {},
     "overrides": {},
@@ -130,8 +130,8 @@ class ParentRecipeTrustInfo:
     fail trust validation.
     """
 
-    non_core_processors: Dict[str, TrustBlob] = field(default_factory=dict)
-    parent_recipes: Dict[str, TrustBlob] = field(default_factory=dict)
+    non_core_processors: dict[str, TrustBlob] = field(default_factory=dict)
+    parent_recipes: dict[str, TrustBlob] = field(default_factory=dict)
 
 
 class RecipeChain:
@@ -141,19 +141,19 @@ class RecipeChain:
         """Create a full chain of recipes. Add recipes with add_recipe(),
         then compile with build()"""
         # List of all recipe identifiers that make up this chain
-        self.ordered_list_of_recipe_ids: List[str] = []
+        self.ordered_list_of_recipe_ids: list[str] = []
         # Final constructed list of all processors
-        self.process: List[Dict[str, Any]] = []
+        self.process: list[dict[str, Any]] = []
         # List of recipe objects that made up this chain
         # The recipe chain's list of recipes is reverse-ordered
         # i.e. item 0 is the "root" recipe with no parents
-        self.recipes: List[Recipe] = []
+        self.recipes: list[Recipe] = []
         # The amalgamated inputs
-        self.input: Dict[str, str] = {}
+        self.input: dict[str, str] = {}
         # Minimum version by default starts at our version
         self.minimum_version: str = get_autopkg_version()
         # List of all recipe paths in the chain
-        self.ordered_list_of_paths: List[str] = []
+        self.ordered_list_of_paths: list[str] = []
 
     def add_recipe(self, path: str) -> None:
         """Add a recipe by path into the chain"""
@@ -204,15 +204,15 @@ class RecipeChain:
         if check_only:
             self.process = self.get_check_only_processors()
 
-    def add_preprocessor(self, processor: Dict[str, Any]) -> None:
+    def add_preprocessor(self, processor: dict[str, Any]) -> None:
         """Add a preprocessor to the beginning of the process list of a chain."""
         self.process.insert(0, processor)
 
-    def add_postprocessor(self, processor: Dict[str, Any]) -> None:
+    def add_postprocessor(self, processor: dict[str, Any]) -> None:
         """Add a postrocessor to the end of the process list of a chain."""
         self.process.append(processor)
 
-    def get_check_only_processors(self) -> List[Dict[str, Any]]:
+    def get_check_only_processors(self) -> list[dict[str, Any]]:
         """Return a list of processors up until EndOfCheckPhase"""
         list_of_processors = [x["Processor"] for x in self.process]
         check_index = list_of_processors.index("EndOfCheckPhase")
@@ -235,7 +235,7 @@ class RecipeChain:
         for processor in self.process:
             print(f"  {processor}")
 
-    def to_dict(self, check_only: bool = False) -> Dict[str, Any]:
+    def to_dict(self, check_only: bool = False) -> dict[str, Any]:
         """Return a dictionary representation of the chain"""
         process = self.process
         if check_only:
@@ -272,8 +272,8 @@ class Recipe:
         # For now, this is a list of dictionaries parsed from the recipe file
         # Should this be converted to an actual list of Processor objects? I don't think
         # we are currently structured in a way to make that reasonable
-        self.process: List[Optional[Dict[str, Any]]] = []
-        self.input: Dict[str, str] = {}
+        self.process: list[Optional[dict[str, Any]]] = []
+        self.input: dict[str, str] = {}
         # Trust-specific values
         self.sha256_hash: str = "abc123"
         self.git_hash: Optional[str] = None
@@ -281,17 +281,17 @@ class Recipe:
         self.is_override: bool = False
         self.trust_info: Optional[ParentRecipeTrustInfo] = None
         # Defined list of keys that are considered inviolate requirements of a recipe
-        self.recipe_required_keys: List[str] = [
+        self.recipe_required_keys: list[str] = [
             "Identifier",
         ]
-        self.recipe_optional_keys: List[str] = [
+        self.recipe_optional_keys: list[str] = [
             "Description",
             "Input",
             "MinimumVersion",
             "ParentRecipe",
             "Process",
         ]
-        self.override_required_keys: List[str] = [
+        self.override_required_keys: list[str] = [
             "Identifier",
             "Input",
             "ParentRecipe",
@@ -346,7 +346,7 @@ class Recipe:
         # This is already validated that it must be a string if it exists
         self.parent_recipe = recipe_dict.get("ParentRecipe", None)
 
-    def _parse_trust_info(self, recipe_dict: [Dict[str, Any]]) -> None:
+    def _parse_trust_info(self, recipe_dict: [dict[str, Any]]) -> None:
         """Parse the trust info from a recipe dictionary"""
         trust = ParentRecipeTrustInfo()
         for proc in (
@@ -390,7 +390,7 @@ class Recipe:
                 return True
         return False
 
-    def _recipe_dict_from_yaml(self, filename: str) -> Dict[str, Any]:
+    def _recipe_dict_from_yaml(self, filename: str) -> dict[str, Any]:
         """Read in a dictionary from a YAML file"""
         try:
             # try to read it as yaml
@@ -400,7 +400,7 @@ class Recipe:
         except Exception as err:
             raise RecipeError from err
 
-    def _recipe_dict_from_plist(self, filename: str) -> Dict[str, Any]:
+    def _recipe_dict_from_plist(self, filename: str) -> dict[str, Any]:
         """Read in a dictionary from a plist file"""
         try:
             # try to read it as a plist
@@ -414,7 +414,7 @@ class Recipe:
         """Returns True if the version provided meets the minimum version requirement"""
         return version_equal_or_greater(get_autopkg_version(), self.minimum_version)
 
-    def validate(self, recipe_dict: Dict[str, Any]) -> None:
+    def validate(self, recipe_dict: dict[str, Any]) -> None:
         """Validate that the recipe dictionary contains reasonable and safe values"""
         required_keys = self.recipe_required_keys
         if self.is_override:
@@ -437,7 +437,7 @@ class Recipe:
             )
 
     def _valid_recipe_dict_with_keys(
-        self, recipe_dict: Dict[str, Any], keys_to_verify: List[str]
+        self, recipe_dict: dict[str, Any], keys_to_verify: list[str]
     ) -> bool:
         """Attempts to read a dict and ensures the keys in
         keys_to_verify exist. Returns False on any failure, True otherwise."""
@@ -464,8 +464,8 @@ class Recipe:
 
 
 def calculate_recipe_map(
-    extra_search_dirs: Optional[List[str]] = None,
-    extra_override_dirs: Optional[List[str]] = None,
+    extra_search_dirs: Optional[list[str]] = None,
+    extra_override_dirs: Optional[list[str]] = None,
     skip_cwd: bool = True,
 ):
     """Recalculate the entire recipe map"""
@@ -504,7 +504,7 @@ def calculate_recipe_map(
         write_recipe_map_to_disk()
 
 
-def map_key_to_paths(keyname: str, repo_dir: str) -> Dict[str, str]:
+def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
     """Return a dict of keyname to absolute recipe paths"""
     recipe_map = {}
     normalized_dir = os.path.abspath(os.path.expanduser(repo_dir))
@@ -547,7 +547,7 @@ def write_recipe_map_to_disk():
         )
 
 
-def handle_reading_recipe_map_file() -> Dict[str, Dict[str, str]]:
+def handle_reading_recipe_map_file() -> dict[str, dict[str, str]]:
     """Read the recipe map file, handle exceptions"""
     try:
         with open(DEFAULT_RECIPE_MAP, "r") as f:
@@ -558,7 +558,7 @@ def handle_reading_recipe_map_file() -> Dict[str, Dict[str, str]]:
     return recipe_map
 
 
-def validate_recipe_map(recipe_map: Dict[str, Dict[str, str]]) -> bool:
+def validate_recipe_map(recipe_map: dict[str, dict[str, str]]) -> bool:
     """Return True if the recipe map has the correct set of keys"""
     expected_keys = [
         "identifiers",
