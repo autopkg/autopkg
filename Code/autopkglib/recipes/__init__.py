@@ -735,27 +735,3 @@ def find_identifier_from_name(name: str) -> Optional[str]:
             return id
     log_err(f"Could not find identifier from {name}!")
     return None
-
-
-if __name__ == "__main__":
-    read_recipe_map()
-    print("** Building chain for GoogleChromePkg.pkg")
-    # chain = RecipeChain()
-    # chain.add_recipe(
-    #     "/Users/nmcspadden/Library/AutoPkg/RecipeRepos/com.github.autopkg.recipes/GoogleChrome/GoogleChromePkg.pkg.recipe"
-    # )
-    # chain.build()
-    # chain.display_chain()
-    # print("** Check-only processors:")
-    # print(chain.get_check_only_processors())
-    # recipe = fetch_recipe_chain("GoogleChromePkg.pkg", check_only=True)
-    # recipe.display_chain()
-    recipe = fetch_recipe_chain("Firefox.munki", check_only=False)
-    recipe.display_chain()
-    # print("** Dictionary version")
-    # rdict = recipe.to_dict()
-    # pprint.pprint(rdict, width=1)
-    # print("** Checking non-git recipe")
-    # non_git_recipe = "/Users/nmcspadden/Library/AutoPkg/Recipes/AutoPkg-Test.download.recipe"
-    # hash = get_git_commit_hash(non_git_recipe)
-    # print(f"Git hash: {hash}")
