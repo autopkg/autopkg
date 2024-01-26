@@ -437,6 +437,8 @@ class Processor:
 
     def __init__(self, env=None, infile=None, outfile=None):
         # super(Processor, self).__init__()
+        # Path to the processor itself
+        self.path = None
         self.env = env
         if infile is None:
             self.infile = sys.stdin
@@ -456,7 +458,9 @@ class Processor:
         """Stub method"""
         raise ProcessorError("Abstract method main() not implemented.")
 
-    def get_manifest(self):
+    def get_manifest(
+        self,
+    ) -> tuple[str, dict[str, dict[str, bool | str]], dict[str, str]]:
         """Return Processor's description, input and output variables"""
         try:
             return (self.description, self.input_variables, self.output_variables)
@@ -503,7 +507,7 @@ class Processor:
         for key, value in list(arguments.items()):
             update_data(self.env, key, value)
 
-    def process(self):
+    def process(self) -> dict[str, Any]:
         """Main processing loop."""
         # Make sure all required arguments have been supplied.
         for variable, flags in list(self.input_variables.items()):
@@ -675,7 +679,7 @@ class AutoPackager:
                     raise AutoPackagerError(
                         f"{step['Processor']} requires missing argument {key}"
                     )
-
+            # TODO: Why do we do this? We don't use this for anything...
             # Add output variables to set.
             variables.update(set(processor_class.output_variables.keys()))
 
@@ -829,7 +833,9 @@ def extract_processor_name_with_recipe_identifier(processor_name):
     return (processor_name, identifier)
 
 
-def get_processor(processor_name, verbose=None, recipe: RecipeChain = None, env=None):
+def get_processor(
+    processor_name, verbose=None, recipe: RecipeChain = None, env=None
+) -> Processor:
     """Returns a Processor object given a name and optionally a recipe,
     importing a processor from the recipe directory if available"""
     if env is None:
