@@ -26,7 +26,6 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
-sys.path.append("/Users/nmcspadden/Documents/GitHub/autopkg/Code")
 from autopkglib.apgit import get_git_commit_hash
 from autopkglib.common import (
     DEFAULT_RECIPE_MAP,
