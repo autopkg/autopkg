@@ -188,8 +188,7 @@ def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
 
 
 def get_identifier(recipe):
-    """Return identifier from recipe object. Tries the Identifier
-    top-level key and falls back to the legacy key location."""
+    """Return identifier from recipe object."""
     return recipe.identifier
 
 
@@ -681,8 +680,8 @@ class AutoPackager:
             variables.update(set(processor_class.output_variables.keys()))
 
     def process(self, recipe: RecipeChain):
-        """Process a recipe."""
-        identifier = self.get_recipe_identifier(recipe)
+        """Process a recipe chain."""
+        identifier = recipe.recipes[-1].identifier
         # define a cache/work directory for use by the recipe
         cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
             os.path.join(autopkg_user_folder(), "Cache"),
