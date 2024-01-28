@@ -1,15 +1,9 @@
 import os
 import subprocess
-from typing import Optional, Dict
+from typing import Dict, Optional
 
+from autopkglib.common import is_executable, is_linux, is_mac, is_windows, log_err
 from autopkglib.prefs import get_pref
-from autopkglib.common import (
-    is_executable,
-    is_linux,
-    is_mac,
-    is_windows,
-    log_err,
-)
 
 
 # git functions

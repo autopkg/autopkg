@@ -43,8 +43,8 @@ from autopkglib.common import (
     log_err,
     version_equal_or_greater,
 )
+from autopkglib.prefs import get_override_dirs, get_pref
 from autopkglib.recipes import RecipeChain
-from autopkglib.prefs import get_pref, get_override_dirs
 
 try:
     from CoreFoundation import (  # type: ignore

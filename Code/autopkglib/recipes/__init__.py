@@ -25,7 +25,6 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import yaml
-
 from autopkglib.apgit import get_git_commit_hash
 from autopkglib.common import (
     DEFAULT_RECIPE_MAP,
@@ -37,7 +36,7 @@ from autopkglib.common import (
     log_err,
     version_equal_or_greater,
 )
-from autopkglib.prefs import get_pref, get_override_dirs
+from autopkglib.prefs import get_override_dirs, get_pref
 
 # Set the global recipe map
 globalRecipeMap: dict[str, dict[str, str]] = {
