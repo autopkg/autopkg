@@ -87,6 +87,12 @@ class RecipeMinimumVersionNotMetError(RecipeError):
     pass
 
 
+class RecipeTrustVerificationError(RecipeError):
+    """Exception for trust verification errors"""
+
+    pass
+
+
 # Use Dataclasses to represent Trust content because they are always fixed structures
 @dataclass
 class TrustBlob:
@@ -246,13 +252,36 @@ class RecipeChain:
         }
 
     def verify_trust(self) -> bool:
-        """Return True if the recipe trust is correct."""
-        return True
-        # TODO: Implement this
+        """Return True if the recipe trust is verified."""
         # We need to determine if a recipe in the chain is an override and thus contains trust
         # if it contains trust, we then go validate that the trust is correct
         # if there are no overrides, this always returns True (but maybe we print out that we did nothing)
-        # for recipe in self.recipes:
+        for recipe in self.recipes:
+            if recipe.is_override and recipe.trust_info:
+                # We need a way to map the Recipes in our RecipeChain to the parent
+                # recipes in the recipe.trust_info.parent_recipes dictionary.
+                _recipe_map = {recipe.identifier: recipe for recipe in self.recipes}
+                for (
+                    override_parent_recipe_id,
+                    override_parent_recipe_trust,
+                ) in recipe.trust_info.parent_recipes.items():
+                    parent_recipe = _recipe_map.get(override_parent_recipe_id)
+                    # These are the values we calculated for the recipe while generating
+                    # our Recipe objects. We will compare these to what was saved in the
+                    # override recipe (override_parent_recipe_trust).
+                    parent_trust = TrustBlob(
+                        parent_recipe.git_hash,
+                        parent_recipe.path,
+                        parent_recipe.sha256_hash,
+                    )
+                    if override_parent_recipe_trust != parent_trust:
+                        # TODO: Attempt to explain which values don't match
+                        raise RecipeTrustVerificationError()
+                # All parent recipes should match trust info in override.
+                return True
+
+        print("No overrides found to verify trust.")
+        return True
 
 
 class Recipe:
