@@ -18,6 +18,7 @@
 
 import os.path
 import subprocess
+from typing import List
 
 from autopkglib import Processor, ProcessorError, find_binary, is_windows
 
@@ -49,7 +50,7 @@ class URLGetter(Processor):
 
         raise ProcessorError("Unable to locate or execute any curl binary")
 
-    def prepare_curl_cmd(self):
+    def prepare_curl_cmd(self) -> List[str]:
         """Assemble basic curl command and return it."""
         if is_windows() and "windows\\system32" in self.curl_binary().lower():
             # if using windows default curl, --compressed is not supported
@@ -78,10 +79,11 @@ class URLGetter(Processor):
             self.existing_file_size = os.path.getsize(filename)
             etag = self.getxattr(self.xattr_etag)
             last_modified = self.getxattr(self.xattr_last_modified)
-            if etag:
-                headers["If-None-Match"] = etag
-            if last_modified:
-                headers["If-Modified-Since"] = last_modified
+            if not self.env.get("CHECK_FILESIZE_ONLY"):
+                if etag:
+                    headers["If-None-Match"] = etag
+                if last_modified:
+                    headers["If-Modified-Since"] = last_modified
         return headers
 
     def clear_header(self, header):
@@ -168,6 +170,7 @@ class URLGetter(Processor):
 
     def execute_curl(self, curl_cmd, text=True):
         """Execute curl command. Return stdout, stderr and return code."""
+        errors = "ignore" if text else None
         try:
             result = subprocess.run(
                 curl_cmd,
@@ -175,6 +178,7 @@ class URLGetter(Processor):
                 capture_output=True,
                 check=True,
                 text=text,
+                errors=errors,
             )
         except subprocess.CalledProcessError as e:
             self.output(f"ERROR: {e.stderr.removeprefix('curl: ')}")

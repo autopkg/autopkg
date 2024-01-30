@@ -5,7 +5,7 @@
 appdirs==1.4.4
 attrs==21.4.0
 black==22.3.0
-certifi==2021.10.8
+certifi==2023.7.22
 cffi==1.15.0
 cfgv==3.3.1
 click==8.1.0
@@ -14,7 +14,7 @@ filelock==3.6.0
 flake8==4.0.1
 flake8-bugbear==22.3.23
 identify==2.4.12
-isort==5.10.1
+isort==5.12.0
 mccabe==0.6.1
 mypy-extensions==0.4.3
 nodeenv==1.6.0
@@ -23,28 +23,28 @@ platformdirs==2.5.1
 pre-commit==2.17.0
 pycodestyle==2.8.0
 pycparser==2.21
+PyGithub==1.59.0
 pyflakes==2.4.0
-PyYAML==6.0
+PyYAML==6.0.1
 six==1.16.0
-toml==0.10.2
 tomli==2.0.1
 virtualenv==20.14.0
 #
 # *nix Requirements
 #
-xattr==0.9.7; sys_platform == 'darwin' or sys_platform == 'linux'
+xattr==0.10.1; sys_platform == 'darwin' or sys_platform == 'linux'
 #
 # MacOS Requirements
 #
-pyobjc-core==8.5; sys_platform == 'darwin'
-pyobjc-framework-CFNetwork==8.5; sys_platform == 'darwin'
-pyobjc-framework-LaunchServices==8.5; sys_platform == 'darwin'
-pyobjc-framework-OpenDirectory==8.5; sys_platform == 'darwin'
-pyobjc-framework-Quartz==8.5; sys_platform == 'darwin'
-pyobjc-framework-Security==8.5; sys_platform == 'darwin'
-pyobjc-framework-SystemConfiguration==8.5; sys_platform == 'darwin'
+pyobjc-core==9.2; sys_platform == 'darwin'
+pyobjc-framework-CFNetwork==9.2; sys_platform == 'darwin'
+pyobjc-framework-LaunchServices==9.2; sys_platform == 'darwin'
+pyobjc-framework-OpenDirectory==9.2; sys_platform == 'darwin'
+pyobjc-framework-Quartz==9.2; sys_platform == 'darwin'
+pyobjc-framework-Security==9.2; sys_platform == 'darwin'
+pyobjc-framework-SystemConfiguration==9.2; sys_platform == 'darwin'
 #
 # Windows Requirements
 #
 generateDS==2.35.24; sys_platform == 'win32'
---no-binary :all:
+--no-binary wrapt,charset_normalizer,blib2to3,PyYAML,black,xattr,cffi

@@ -100,7 +100,7 @@ class BrewCaskInfoProvider(Processor):
         try:
             urlobj = urllib.request.urlopen(cask_url)
         except urllib.error.HTTPError as err:
-            raise ProcessorError(f"Error opening URL {cask_url}: {err}")
+            raise ProcessorError(f"Error opening URL {cask_url}: {err}") from err
 
         formula_data = urlobj.read()
         parsed = self.parse_formula(formula_data)

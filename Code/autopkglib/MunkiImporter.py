@@ -331,7 +331,7 @@ class MunkiImporter(Processor):
             raise ProcessorError(
                 f"makepkginfo execution failed with error code {err.errno}: "
                 f"{err.strerror}"
-            )
+            ) from err
         if err_out:
             for err_line in err_out.decode().splitlines():
                 self.output(err_line)
@@ -395,8 +395,7 @@ class MunkiImporter(Processor):
                 self.env["MUNKI_REPO"], "pkgs", installer_item_location
             )
             self.env["munki_info"] = {}
-            if "munki_repo_changed" not in self.env:
-                self.env["munki_repo_changed"] = False
+            self.env["munki_repo_changed"] = False
 
             self.output(
                 f"Item {os.path.basename(self.env['pkg_path'])} already exists in the "

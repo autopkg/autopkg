@@ -125,7 +125,7 @@ class PkgInfoCreator(Processor):
             except Exception:
                 raise ProcessorError(
                     f"Malformed Info.plist template {self.env['template_path']}"
-                )
+                ) from None
             if template_type == "bundle":
                 return info
             else:
@@ -137,7 +137,7 @@ class PkgInfoCreator(Processor):
             except Exception:
                 raise ProcessorError(
                     f"Malformed PackageInfo template {self.env['template_path']}"
-                )
+                ) from None
             if template_type == "flat":
                 return info
             else:
@@ -148,7 +148,7 @@ class PkgInfoCreator(Processor):
 
         size = 0
         nfiles = 0
-        for (dirpath, _, filenames) in os.walk(pkgroot):
+        for dirpath, _, filenames in os.walk(pkgroot):
             # Count the current directory and the number of files in it.
             nfiles += 1 + len(filenames)
             for filename in filenames:

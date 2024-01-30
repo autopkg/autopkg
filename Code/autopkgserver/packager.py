@@ -359,7 +359,7 @@ class Packager:
                     self.log.info(f"Setting mode of {entry['path']} to {entry['mode']}")
                     os.lchmod(chownpath, int(entry["mode"], 8))
             else:
-                for (dirpath, dirnames, filenames) in os.walk(chownpath):
+                for dirpath, dirnames, filenames in os.walk(chownpath):
                     try:
                         os.lchown(dirpath, uid, gid)
                     except OSError as e:

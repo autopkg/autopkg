@@ -56,7 +56,7 @@ class PkgPayloadUnpacker(Processor):
             except OSError as err:
                 raise ProcessorError(
                     f"Can't create {self.env['destination_path']}: {err.strerror}"
-                )
+                ) from err
         elif self.env.get("purge_destination"):
             for entry in os.listdir(self.env["destination_path"]):
                 path = os.path.join(self.env["destination_path"], entry)
@@ -66,7 +66,9 @@ class PkgPayloadUnpacker(Processor):
                     else:
                         os.unlink(path)
                 except OSError as err:
-                    raise ProcessorError(f"Can't remove {path}: {err.strerror}")
+                    raise ProcessorError(
+                        f"Can't remove {path}: {err.strerror}"
+                    ) from err
 
         # set an error string when ditto or aa fail
         error = ""

@@ -15,53 +15,34 @@
 # limitations under the License.
 """See docstring for MunkiCatalogBuilder class"""
 
-import subprocess
+import os
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, remove_recipe_extension
 
 __all__ = ["MunkiCatalogBuilder"]
 
 
 class MunkiCatalogBuilder(Processor):
-    """Rebuilds Munki catalogs."""
+    """DEPRECATED. This processor now emits a warning and performs no function.
+    Previously it rebuilt Munki catalogs."""
 
-    input_variables = {
-        "MUNKI_REPO": {"required": True, "description": "Path to the Munki repo."},
-        "munki_repo_changed": {
-            "required": False,
-            "description": (
-                "If not defined or False, causes running makecatalogs to be skipped."
-            ),
-        },
-    }
+    input_variables = {}
     output_variables = {}
     description = __doc__
 
     def main(self):
-        # MunkiImporter or other processor must set
-        # env["munki_repo_changed"] = True in order for makecatalogs
-        # to run
-        if not self.env.get("munki_repo_changed"):
-            self.output("Skipping makecatalogs because repo is unchanged.")
-            return
-
-        # Generate arguments for makecatalogs.
-        args = ["/usr/local/munki/makecatalogs", self.env["MUNKI_REPO"]]
-
-        # Call makecatalogs.
-        try:
-            proc = subprocess.Popen(
-                args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-            )
-            (_, err_out) = proc.communicate()
-        except OSError as err:
-            raise ProcessorError(
-                f"makecatalog execution failed with error code {err.errno}: "
-                f"{err.strerror}"
-            )
-        if proc.returncode != 0:
-            raise ProcessorError(f"makecatalogs failed: {err_out}")
-        self.output("Munki catalogs rebuilt!")
+        warning_message = self.env.get(
+            "warning_message",
+            "### The MunkiCatalogBuilder processor has been deprecated. It currently does nothing. It will be removed in the future. ###",
+        )
+        self.output(warning_message)
+        recipe_name = os.path.basename(self.env["RECIPE_PATH"])
+        recipe_name = remove_recipe_extension(recipe_name)
+        self.env["deprecation_summary_result"] = {
+            "summary_text": "The following recipes have deprecation warnings:",
+            "report_fields": ["name", "warning"],
+            "data": {"name": recipe_name, "warning": warning_message},
+        }
 
 
 if __name__ == "__main__":

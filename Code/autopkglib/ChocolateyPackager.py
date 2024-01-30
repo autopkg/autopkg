@@ -471,7 +471,7 @@ class ChocolateyPackager(Processor):
                 },
             }
         except Exception:
-            raise ProcessorError("Chocolatey packaging failed unexpectedly.")
+            raise ProcessorError("Chocolatey packaging failed unexpectedly.") from None
         finally:
             if not keep_build_directory and build_dir is not None:
                 rmtree(build_dir)

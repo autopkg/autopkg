@@ -12,6 +12,8 @@ on:
       - ".github/workflows/tests.yaml"
       - "Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml"
   pull_request:
+    branches:
+      - dev
     paths:
       - "**.py"
       - "requirements.txt"
@@ -24,7 +26,7 @@ jobs:
       matrix:
         # https://ncorti.com/blog/howto-github-actions-build-matrix
         # ubuntu-latest, macos-latest, windows-latest
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       # only needed on self hosted windows runners:
@@ -42,13 +44,6 @@ jobs:
         with:
           python-version: 3.10.4
 
-      - name: Set token
-        # required for githubreleaseinfoprovider in github actions
-        # without this, API limits will be hit
-        run: |
-          cd ~
-          echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
-
       - name: Install requirements
         run: pip install --requirement gh_actions_requirements.txt
 
@@ -58,12 +53,26 @@ jobs:
         shell: cmd
         run: |
           if not exist "%USERPROFILE%/AppData/Local/Autopkg" mkdir "%USERPROFILE%/AppData/Local/Autopkg"
+          if not exist "%USERPROFILE%/Library/AutoPkg" mkdir "%USERPROFILE%/Library/AutoPkg"
           if not exist "%USERPROFILE%/AppData/Local/Autopkg/config.json" echo {} > "%USERPROFILE%/AppData/Local/Autopkg/config.json"
       - name: create empty autopkg config file - Linux
         if: runner.os == 'Linux'
         run: |
           cd ~ && mkdir -p .config/Autopkg
+          cd ~ && mkdir -p Library/AutoPkg
           cd ~ && echo {} > .config/Autopkg/config.json
+      - name: create folder for recipe map - macOS
+        if: runner.os == 'macOS'
+        run: |
+          cd ~ && mkdir -p Library/AutoPkg
+      - name: Set token
+        # required for githubreleaseinfoprovider in github actions
+        # without this, API limits will be hit
+        run: |
+          cd ~
+          echo ${{ secrets.GITHUB_TOKEN }} > "Library/AutoPkg/gh_token"
+      - name: run autopkg info to get it to generate recipe map
+        run: python Code/autopkg info
       - name: run unittests
         run: python Scripts/run_tests.py
       - name: run e2e tests

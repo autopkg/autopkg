@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Python requirements
         working-directory: main
-        run: python3 -m pip install appdirs
+        run: python3 -m pip install -r gh_actions_requirements.txt
         continue-on-error: true
 
       - name: Configure Git
