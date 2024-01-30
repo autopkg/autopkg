@@ -276,7 +276,7 @@ class RecipeChain:
                     )
                     if override_parent_recipe_trust != parent_trust:
                         # TODO: Attempt to explain which values don't match
-                        raise RecipeTrustVerificationError()
+                        return False
                 # All parent recipes should match trust info in override.
                 return True
 
