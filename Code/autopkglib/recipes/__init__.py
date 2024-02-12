@@ -258,7 +258,7 @@ class RecipeChain:
 class Recipe:
     """A representation of a Recipe"""
 
-    def __init__(self, filename: Optional[str] = None) -> None:
+    def __init__(self, filename: Optional[str] = None, for_map: bool = False) -> None:
         """All recipes have a generally specific format"""
         self.shortname: str = "Recipe.nothing"
         self.path: str = "nowhere"
@@ -297,7 +297,7 @@ class Recipe:
             "ParentRecipeTrustInfo",
         ]
         if filename:
-            self.from_file(filename)
+            self.from_file(filename, for_map)
 
     def __repr__(self) -> str:
         """String representation of this object"""
@@ -309,7 +309,7 @@ class Recipe:
             f'Shortname: "{self.shortname}", Full path: "{self.path}")'
         )
 
-    def from_file(self, filename: str) -> None:
+    def from_file(self, filename: str, for_map: bool = False) -> None:
         """Read in a recipe from a file path as a str"""
         if not os.path.isfile(filename):
             raise RecipeError(
@@ -334,8 +334,9 @@ class Recipe:
             # Trust info is only present in overrides
             self._parse_trust_info(recipe_dict)
         # Assign the values, we'll force some of the variables to become strings
-        self.sha256_hash = get_sha256_hash(self.path)
-        self.git_hash = get_git_commit_hash(self.path)
+        if not for_map:
+            self.sha256_hash = get_sha256_hash(self.path)
+            self.git_hash = get_git_commit_hash(self.path)
         self.description = str(recipe_dict.get("Description", ""))
         # The identifier is the only field we cannot live without
         self.identifier = str(recipe_dict["Identifier"])
@@ -514,7 +515,7 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
         for match in matches:
             try:
                 # We need to load and validate the recipe in order to extract the identifier
-                recipe = Recipe(match)
+                recipe = Recipe(match, for_map=False)
             except RecipeError as err:
                 print(
                     f"WARNING: {match} is potentially an invalid file, not adding it to the recipe map! "
