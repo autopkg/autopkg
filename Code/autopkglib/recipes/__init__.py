@@ -120,6 +120,9 @@ class TrustBlob:
     path: str
     sha256_hash: str
 
+    def __post_init__(self):
+        self.path = os.path.abspath(os.path.expanduser(self.path))
+
 
 # Similarly, the entire ParentRecipeTrustInfo dictionary is always fixed
 @dataclass
