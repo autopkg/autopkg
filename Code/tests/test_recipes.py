@@ -18,9 +18,9 @@
 import unittest
 from unittest.mock import patch
 
+from autopkglib.common import get_autopkg_version
 # import autopkglib
 from autopkglib.recipes import Recipe, RecipeChain, TrustBlob
-from autopkglib.common import get_autopkg_version
 
 
 class TestRecipeChain(unittest.TestCase):
@@ -56,8 +56,14 @@ class TestRecipe(unittest.TestCase):
         self.assertFalse(recipe.is_override)
         self.assertIsNone(recipe.trust_info)
         self.assertEqual(recipe.recipe_required_keys, ["Identifier"])
-        self.assertEqual(recipe.recipe_optional_keys, ["Description", "Input", "MinimumVersion", "ParentRecipe", "Process"])
-        self.assertEqual(recipe.override_required_keys, ["Identifier", "Input", "ParentRecipe", "ParentRecipeTrustInfo"])
+        self.assertEqual(
+            recipe.recipe_optional_keys,
+            ["Description", "Input", "MinimumVersion", "ParentRecipe", "Process"],
+        )
+        self.assertEqual(
+            recipe.override_required_keys,
+            ["Identifier", "Input", "ParentRecipe", "ParentRecipeTrustInfo"],
+        )
 
     @patch("autopkglib.recipes.os.path.isfile")
     @patch("autopkglib.recipes.get_sha256_hash")
@@ -66,7 +72,16 @@ class TestRecipe(unittest.TestCase):
     @patch("autopkglib.recipes.Recipe.validate")
     @patch("autopkglib.recipes.Recipe._generate_shortname")
     @patch("autopkglib.recipes.Recipe._parse_trust_info")
-    def test_from_file(self, mock_parse_trust_info, mock_generate_shortname, mock_validate, mock_recipe_dict_from_plist, mock_get_git_commit_hash, mock_get_sha256_hash, mock_isfile):
+    def test_from_file(
+        self,
+        mock_parse_trust_info,
+        mock_generate_shortname,
+        mock_validate,
+        mock_recipe_dict_from_plist,
+        mock_get_git_commit_hash,
+        mock_get_sha256_hash,
+        mock_isfile,
+    ):
         mock_isfile.return_value = True
         mock_get_sha256_hash.return_value = "def456"
         mock_get_git_commit_hash.return_value = "123abc"
@@ -76,13 +91,13 @@ class TestRecipe(unittest.TestCase):
             "Input": {"NAME": "TestRecipe"},
             "MinimumVersion": "1.0.0",
             "Process": [],
-            "ParentRecipe": None
+            "ParentRecipe": None,
         }
         mock_generate_shortname.return_value = "TestRecipe"
-        
+
         recipe = Recipe()
         recipe.from_file("test.recipe")
-        
+
         self.assertEqual(recipe.path, "test.recipe")
         self.assertFalse(recipe.is_override)
         self.assertEqual(recipe.description, "Test recipe")
@@ -95,19 +110,21 @@ class TestRecipe(unittest.TestCase):
         self.assertEqual(recipe.git_hash, "123abc")
         self.assertEqual(recipe.shortname, "TestRecipe")
         self.assertIsNone(recipe.trust_info)
-        
+
         mock_isfile.assert_called_once_with("test.recipe")
         mock_get_sha256_hash.assert_called_once_with("test.recipe")
         mock_get_git_commit_hash.assert_called_once_with("test.recipe")
         mock_recipe_dict_from_plist.assert_called_once_with("test.recipe")
-        mock_validate.assert_called_once_with({
-            "Identifier": "com.github.autopkg.testrecipe",
-            "Description": "Test recipe",
-            "Input": {"NAME": "TestRecipe"},
-            "MinimumVersion": "1.0.0",
-            "Process": [],
-            "ParentRecipe": None
-        })
+        mock_validate.assert_called_once_with(
+            {
+                "Identifier": "com.github.autopkg.testrecipe",
+                "Description": "Test recipe",
+                "Input": {"NAME": "TestRecipe"},
+                "MinimumVersion": "1.0.0",
+                "Process": [],
+                "ParentRecipe": None,
+            }
+        )
         mock_generate_shortname.assert_called_once()
 
     @patch("autopkglib.recipes.pathlib.PurePath")
@@ -115,35 +132,37 @@ class TestRecipe(unittest.TestCase):
     def test_check_is_override(self, mock_get_override_dirs, mock_purepath):
         mock_get_override_dirs.return_value = ["/path/to/overrides"]
         mock_purepath.return_value.is_relative_to.return_value = True
-        
+
         recipe = Recipe()
         result = recipe.check_is_override()
-        
+
         self.assertTrue(result)
         mock_get_override_dirs.assert_called_once()
         mock_purepath.assert_called_once_with(recipe.path)
-        mock_purepath.return_value.is_relative_to.assert_called_once_with("/path/to/overrides")
-        
+        mock_purepath.return_value.is_relative_to.assert_called_once_with(
+            "/path/to/overrides"
+        )
+
     def test_recipe_dict_from_yaml(self):
         # TODO: Implement this test
         pass
-    
+
     def test_recipe_dict_from_plist(self):
         # TODO: Implement this test
         pass
-    
+
     def test_minimum_version_met(self):
         # TODO: Implement this test
         pass
-    
+
     def test_valid_recipe_dict_with_keys(self):
         # TODO: Implement this test
         pass
-    
+
     def test_generate_shortname(self):
         # TODO: Implement this test
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
