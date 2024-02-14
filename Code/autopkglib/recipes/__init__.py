@@ -87,6 +87,12 @@ class RecipeMinimumVersionNotMetError(RecipeError):
     pass
 
 
+class RecipeTrustVerificationError(RecipeError):
+    """Exception for trust verification errors"""
+
+    pass
+
+
 # Use Dataclasses to represent Trust content because they are always fixed structures
 @dataclass
 class TrustBlob:
@@ -113,6 +119,9 @@ class TrustBlob:
     git_hash: str
     path: str
     sha256_hash: str
+
+    def __post_init__(self):
+        self.path = os.path.abspath(os.path.expanduser(self.path))
 
 
 # Similarly, the entire ParentRecipeTrustInfo dictionary is always fixed
@@ -153,6 +162,8 @@ class RecipeChain:
         self.minimum_version: str = get_autopkg_version()
         # List of all recipe paths in the chain
         self.ordered_list_of_paths: list[str] = []
+        # Is the trust valid for this RecipeChain if an override is present
+        self.trust_is_valid = False
 
     def add_recipe(self, path: str) -> None:
         """Add a recipe by path into the chain"""
@@ -200,6 +211,8 @@ class RecipeChain:
             # Set our minimum version to the highest we see
             if version_equal_or_greater(self.minimum_version, recipe.minimum_version):
                 self.minimum_version = recipe.minimum_version
+            if recipe.is_override and recipe.trust_info:
+                self.trust_is_valid = self.verify_trust(recipe)
         if check_only:
             self.process = self.get_check_only_processors()
 
@@ -245,14 +258,33 @@ class RecipeChain:
             "Process": process,
         }
 
-    def verify_trust(self) -> bool:
-        """Return True if the recipe trust is correct."""
-        return True
-        # TODO: Implement this
+    def verify_trust(self, recipe) -> bool:
+        """Return True if the recipe trust is verified."""
         # We need to determine if a recipe in the chain is an override and thus contains trust
         # if it contains trust, we then go validate that the trust is correct
         # if there are no overrides, this always returns True (but maybe we print out that we did nothing)
-        # for recipe in self.recipes:
+
+        # We need a way to map the Recipes in our RecipeChain to the parent
+        # recipes in the recipe.trust_info.parent_recipes dictionary.
+        _recipe_map = {recipe.identifier: recipe for recipe in self.recipes}
+        for (
+            override_parent_recipe_id,
+            override_parent_recipe_trust,
+        ) in recipe.trust_info.parent_recipes.items():
+            parent_recipe = _recipe_map.get(override_parent_recipe_id)
+            # These are the values we calculated for the recipe while generating
+            # our Recipe objects. We will compare these to what was saved in the
+            # override recipe (override_parent_recipe_trust).
+            parent_trust = TrustBlob(
+                parent_recipe.git_hash,
+                parent_recipe.path,
+                parent_recipe.sha256_hash,
+            )
+            if override_parent_recipe_trust != parent_trust:
+                # TODO: Attempt to explain which values don't match)
+                return False
+        # All parent recipes should match trust info in override.
+        return True
 
 
 class Recipe:
@@ -346,40 +378,16 @@ class Recipe:
         # This is already validated that it must be a string if it exists
         self.parent_recipe = recipe_dict.get("ParentRecipe", None)
 
-    def _parse_trust_info(self, recipe_dict: [dict[str, Any]]) -> None:
+    def _parse_trust_info(self, recipe_dict: dict[str, Any]) -> None:
         """Parse the trust info from a recipe dictionary"""
-        trust = ParentRecipeTrustInfo()
-        for proc in (
-            recipe_dict["ParentRecipeTrustInfo"].get("non_core_processors", {}).keys()
-        ):
-            proc_trust = TrustBlob(
-                git_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][
-                    proc
-                ]["git_hash"],
-                path=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc][
-                    "path"
-                ],
-                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][
-                    proc
-                ]["sha256_hash"],
-            )
-            trust.non_core_processors.update({str(proc): proc_trust})
-        for parent_recipe in (
-            recipe_dict["ParentRecipeTrustInfo"].get("parent_recipes", {}).keys()
-        ):
-            rec_trust = TrustBlob(
-                git_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
-                    parent_recipe
-                ]["git_hash"],
-                path=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
-                    parent_recipe
-                ]["path"],
-                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
-                    parent_recipe
-                ]["sha256_hash"],
-            )
-            trust.parent_recipes.update({str(parent_recipe): rec_trust})
-        self.trust_info = trust
+        trust_info = ParentRecipeTrustInfo(**recipe_dict["ParentRecipeTrustInfo"])
+        for id, nc_proc in trust_info.non_core_processors.items():
+            trust_blob = TrustBlob(**nc_proc)
+            trust_info.non_core_processors.update({id: trust_blob})
+        for id, parent_recipe in trust_info.parent_recipes.items():
+            trust_blob = TrustBlob(**parent_recipe)
+            trust_info.parent_recipes.update({id: trust_blob})
+        self.trust_info = trust_info
 
     def check_is_override(self) -> bool:
         """Return True if this recipe is an override"""
