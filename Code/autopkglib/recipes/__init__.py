@@ -515,7 +515,7 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
         for match in matches:
             try:
                 # We need to load and validate the recipe in order to extract the identifier
-                recipe = Recipe(match, for_map=False)
+                recipe = Recipe(match, for_map=True)
             except RecipeError as err:
                 print(
                     f"WARNING: {match} is potentially an invalid file, not adding it to the recipe map! "
