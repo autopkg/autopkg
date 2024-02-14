@@ -375,40 +375,16 @@ class Recipe:
         # This is already validated that it must be a string if it exists
         self.parent_recipe = recipe_dict.get("ParentRecipe", None)
 
-    def _parse_trust_info(self, recipe_dict: [dict[str, Any]]) -> None:
+    def _parse_trust_info(self, recipe_dict: dict[str, Any]) -> None:
         """Parse the trust info from a recipe dictionary"""
-        trust = ParentRecipeTrustInfo()
-        for proc in (
-            recipe_dict["ParentRecipeTrustInfo"].get("non_core_processors", {}).keys()
-        ):
-            proc_trust = TrustBlob(
-                git_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][
-                    proc
-                ]["git_hash"],
-                path=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc][
-                    "path"
-                ],
-                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][
-                    proc
-                ]["sha256_hash"],
-            )
-            trust.non_core_processors.update({str(proc): proc_trust})
-        for parent_recipe in (
-            recipe_dict["ParentRecipeTrustInfo"].get("parent_recipes", {}).keys()
-        ):
-            rec_trust = TrustBlob(
-                git_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
-                    parent_recipe
-                ]["git_hash"],
-                path=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
-                    parent_recipe
-                ]["path"],
-                sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
-                    parent_recipe
-                ]["sha256_hash"],
-            )
-            trust.parent_recipes.update({str(parent_recipe): rec_trust})
-        self.trust_info = trust
+        trust_info = ParentRecipeTrustInfo(**recipe_dict["ParentRecipeTrustInfo"])
+        for id, nc_proc in trust_info.non_core_processors.items():
+            trust_blob = TrustBlob(**nc_proc)
+            trust_info.non_core_processors.update({id: trust_blob})
+        for id, parent_recipe in trust_info.parent_recipes.items():
+            trust_blob = TrustBlob(**parent_recipe)
+            trust_info.parent_recipes.update({id: trust_blob})
+        self.trust_info = trust_info
 
     def check_is_override(self) -> bool:
         """Return True if this recipe is an override"""
