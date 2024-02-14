@@ -162,6 +162,8 @@ class RecipeChain:
         self.minimum_version: str = get_autopkg_version()
         # List of all recipe paths in the chain
         self.ordered_list_of_paths: list[str] = []
+        # Is the trust valid for this RecipeChain if an override is present
+        self.trust_is_valid = False
 
     def add_recipe(self, path: str) -> None:
         """Add a recipe by path into the chain"""
@@ -209,6 +211,8 @@ class RecipeChain:
             # Set our minimum version to the highest we see
             if version_equal_or_greater(self.minimum_version, recipe.minimum_version):
                 self.minimum_version = recipe.minimum_version
+            if recipe.is_override and recipe.trust_info:
+                self.trust_is_valid = self.verify_trust(recipe)
         if check_only:
             self.process = self.get_check_only_processors()
 
@@ -254,36 +258,32 @@ class RecipeChain:
             "Process": process,
         }
 
-    def verify_trust(self) -> bool:
+    def verify_trust(self, recipe) -> bool:
         """Return True if the recipe trust is verified."""
         # We need to determine if a recipe in the chain is an override and thus contains trust
         # if it contains trust, we then go validate that the trust is correct
         # if there are no overrides, this always returns True (but maybe we print out that we did nothing)
-        for recipe in self.recipes:
-            if recipe.is_override and recipe.trust_info:
-                # We need a way to map the Recipes in our RecipeChain to the parent
-                # recipes in the recipe.trust_info.parent_recipes dictionary.
-                _recipe_map = {recipe.identifier: recipe for recipe in self.recipes}
-                for (
-                    override_parent_recipe_id,
-                    override_parent_recipe_trust,
-                ) in recipe.trust_info.parent_recipes.items():
-                    parent_recipe = _recipe_map.get(override_parent_recipe_id)
-                    # These are the values we calculated for the recipe while generating
-                    # our Recipe objects. We will compare these to what was saved in the
-                    # override recipe (override_parent_recipe_trust).
-                    parent_trust = TrustBlob(
-                        parent_recipe.git_hash,
-                        parent_recipe.path,
-                        parent_recipe.sha256_hash,
-                    )
-                    if override_parent_recipe_trust != parent_trust:
-                        # TODO: Attempt to explain which values don't match
-                        return False
-                # All parent recipes should match trust info in override.
-                return True
 
-        print("No overrides found to verify trust.")
+        # We need a way to map the Recipes in our RecipeChain to the parent
+        # recipes in the recipe.trust_info.parent_recipes dictionary.
+        _recipe_map = {recipe.identifier: recipe for recipe in self.recipes}
+        for (
+            override_parent_recipe_id,
+            override_parent_recipe_trust,
+        ) in recipe.trust_info.parent_recipes.items():
+            parent_recipe = _recipe_map.get(override_parent_recipe_id)
+            # These are the values we calculated for the recipe while generating
+            # our Recipe objects. We will compare these to what was saved in the
+            # override recipe (override_parent_recipe_trust).
+            parent_trust = TrustBlob(
+                parent_recipe.git_hash,
+                parent_recipe.path,
+                parent_recipe.sha256_hash,
+            )
+            if override_parent_recipe_trust != parent_trust:
+                # TODO: Attempt to explain which values don't match)
+                return False
+        # All parent recipes should match trust info in override.
         return True
 
 
