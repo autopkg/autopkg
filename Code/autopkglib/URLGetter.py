@@ -20,7 +20,9 @@ import os.path
 import subprocess
 from typing import List
 
-from autopkglib import Processor, ProcessorError, find_binary, is_windows
+from autopkglib import Processor, ProcessorError
+from autopkglib.apgit import find_binary
+from autopkglib.common import is_windows
 
 __all__ = ["URLGetter"]
 

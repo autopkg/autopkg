@@ -21,7 +21,8 @@ import os
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree
 
-from autopkglib import APLooseVersion, ProcessorError
+from autopkglib import ProcessorError
+from autopkglib.common import APLooseVersion
 from autopkglib.URLGetter import URLGetter
 
 __all__ = ["SparkleUpdateInfoProvider"]
