@@ -274,7 +274,7 @@ class Recipe:
         self.process: list[Optional[dict[str, Any]]] = []
         self.input: dict[str, str] = {}
         # Trust-specific values
-        self.sha256_hash: str = "abc123"
+        self.sha256_hash: Optional[str] = None
         self.git_hash: Optional[str] = None
         # Override-specific functionality
         self.is_override: bool = False
@@ -355,13 +355,13 @@ class Recipe:
             proc_trust = TrustBlob(
                 git_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][
                     proc
-                ]["git_hash"],
+                ].get("git_hash", ""),
                 path=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][proc][
                     "path"
                 ],
                 sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["non_core_processors"][
                     proc
-                ]["sha256_hash"],
+                ].get("sha256_hash"),
             )
             trust.non_core_processors.update({str(proc): proc_trust})
         for parent_recipe in (
@@ -370,13 +370,13 @@ class Recipe:
             rec_trust = TrustBlob(
                 git_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
                     parent_recipe
-                ]["git_hash"],
+                ].get("git_hash", ""),
                 path=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
                     parent_recipe
                 ]["path"],
                 sha256_hash=recipe_dict["ParentRecipeTrustInfo"]["parent_recipes"][
                     parent_recipe
-                ]["sha256_hash"],
+                ].get("sha256_hash"),
             )
             trust.parent_recipes.update({str(parent_recipe): rec_trust})
         self.trust_info = trust
