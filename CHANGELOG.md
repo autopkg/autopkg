@@ -1,10 +1,19 @@
-### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...HEAD) (Unreleased)
+### [2.7.4](https://github.com/autopkg/autopkg/compare/v2.7.3...HEAD) (Unreleased)
+
+### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.7.3) (May 15, 2024)
+
+* Fix for URLDownloader `prefetch_filename` on macOS 14.5. (https://github.com/autopkg/autopkg/pull/939)
+* Fixes for unit test workflow
+* Updates to included Python framework requirements file
+* Typo fix in docstring (https://github.com/autopkg/autopkg/pull/937)
+
+**Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7.2..v2.7.3
 
 ### [2.7.2](https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7.2) (December 07, 2022)
 
 * Fix for SparkleUpdateInfoProvider. (https://github.com/autopkg/autopkg/pull/845)
 
-**Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.71..v2.7.2
+**Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7.1..v2.7.2
 
 ### [2.7.1](https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7.1) (December 06, 2022)
 
