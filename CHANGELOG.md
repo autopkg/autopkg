@@ -1,6 +1,4 @@
-### [2.7.4](https://github.com/autopkg/autopkg/compare/v2.7.3...v2.7.3) (May 15, 2024)
-
-### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.7.3) (May 15, 2024)
+### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...HEAD) (Unreleased)
 
 * Fix for URLDownloader `prefetch_filename` on macOS 14.5. (https://github.com/autopkg/autopkg/pull/939)
 * Fixes for unit test workflow
