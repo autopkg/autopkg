@@ -1,4 +1,4 @@
-### [2.7.4](https://github.com/autopkg/autopkg/compare/v2.7.3...HEAD) (Unreleased)
+### [2.7.4](https://github.com/autopkg/autopkg/compare/v2.7.3...v2.7.3) (May 15, 2024)
 
 ### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.7.3) (May 15, 2024)
 
