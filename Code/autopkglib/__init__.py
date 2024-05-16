@@ -24,27 +24,27 @@ import pprint
 import subprocess
 import sys
 import traceback
-from distutils.version import LooseVersion
-from typing import IO, Dict, List, Optional
+from optparse import Values
+from typing import IO, Any, Dict, List, Optional
 
 import pkg_resources
 import yaml
 from autopkglib.common import (
     DEFAULT_RECIPE_MAP,
     DEFAULT_SEARCH_DIRS,
-    DEFAULT_USER_OVERRIDES_DIR,
     RE_KEYREF,
     RECIPE_EXTS,
     FileOrPath,
     VarDict,
     autopkg_user_folder,
-    is_linux,
+    get_autopkg_version,
     is_mac,
-    is_windows,
     log,
     log_err,
+    version_equal_or_greater,
 )
-from autopkglib.prefs import Preferences
+from autopkglib.prefs import get_override_dirs, get_pref
+from autopkglib.recipes import RecipeChain
 
 try:
     from CoreFoundation import (  # type: ignore
@@ -91,9 +91,6 @@ except ImportError:
     kCFPreferencesCurrentUser = None
     kCFPreferencesCurrentHost = None
 
-# Set the global preferences object
-globalPreferences = Preferences()
-
 # Set the global recipe map
 globalRecipeMap: Dict[str, Dict[str, str]] = {
     "identifiers": {},
@@ -101,22 +98,6 @@ globalRecipeMap: Dict[str, Dict[str, str]] = {
     "overrides": {},
     "overrides-identifiers": {},
 }
-
-
-def get_pref(key):
-    """Return a single pref value (or None) for a domain."""
-    return globalPreferences.get_pref(key)
-
-
-def set_pref(key, value):
-    """Sets a preference for domain"""
-    globalPreferences.set_pref(key, value)
-
-
-def get_all_prefs():
-    """Return a dict (or an empty dict) with the contents of all
-    preferences in the domain."""
-    return globalPreferences.get_all_prefs()
 
 
 def remove_recipe_extension(name):
@@ -206,18 +187,9 @@ def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
     return False
 
 
-def get_identifier(recipe):
-    """Return identifier from recipe dict. Tries the Identifier
-    top-level key and falls back to the legacy key location."""
-    try:
-        return recipe["Identifier"]
-    except (KeyError, AttributeError):
-        try:
-            return recipe["Input"]["IDENTIFIER"]
-        except (KeyError, AttributeError):
-            return None
-    except TypeError:
-        return None
+def get_identifier(recipe: RecipeChain):
+    """Return identifier from recipe object."""
+    return recipe.identifier
 
 
 def get_identifier_from_recipe_file(filename) -> Optional[str]:
@@ -281,26 +253,6 @@ def find_identifier_from_name(name: str) -> Optional[str]:
             return id
     log_err(f"Could not find identifier from {name}!")
     return None
-
-
-def get_search_dirs() -> List[str]:
-    """Return search dirs from preferences or default list"""
-    dirs: List[str] = get_pref("RECIPE_SEARCH_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or DEFAULT_SEARCH_DIRS
-
-
-def get_override_dirs() -> List[str]:
-    """Return override dirs from preferences or default list"""
-    default = [DEFAULT_USER_OVERRIDES_DIR]
-
-    dirs: List[str] = get_pref("RECIPE_OVERRIDE_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
 
 
 def calculate_recipe_map(
@@ -434,27 +386,6 @@ def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> No
             sys.exit(1)
 
 
-def get_autopkg_version():
-    """Gets the version number of autopkg"""
-    try:
-        version_plist = plistlib.load(
-            pkg_resources.resource_stream(__name__, "version.plist")
-        )
-    except Exception as ex:
-        log_err(f"Unable to get autopkg version: {ex}")
-        return "UNKNOWN"
-    try:
-        return version_plist["Version"]
-    except (AttributeError, TypeError):
-        return "UNKNOWN"
-
-
-def version_equal_or_greater(this, that):
-    """Compares two LooseVersion objects. Returns True if this is
-    equal to or greater than that"""
-    return LooseVersion(this) >= LooseVersion(that)
-
-
 def update_data(a_dict, key, value):
     """Update a_dict keys with value. Existing data can be referenced
     by wrapping the key in %percent% signs."""
@@ -488,76 +419,6 @@ def update_data(a_dict, key, value):
     a_dict[key] = do_variable_substitution(value)
 
 
-def is_executable(exe_path):
-    """Is exe_path executable?"""
-    return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
-
-
-def find_binary(binary: str, env: Optional[Dict] = None) -> Optional[str]:
-    r"""Returns the full path for `binary`, or `None` if it was not found.
-
-    The search order is as follows:
-    * A key in the optional `env` dictionary named `<binary>_PATH`.
-        Where `binary` is uppercase. E.g., `git` -> `GIT`.
-    * A preference named `<binary>_PATH` uppercase, as above.
-    * The directories listed in the system-dependent `$PATH` environment variable.
-    * On POSIX-y platforms only: `/usr/bin/<binary>`
-    In all cases, the binary found at any path must be executable to be used.
-
-    The `binary` parameter should be given without any file extension. A platform
-    specific file extension for executables will be added automatically, as needed.
-
-    Example: `find_binary('curl')` may return `C:\Windows\system32\curl.exe`.
-    """
-
-    if env is None:
-        env = {}
-    pref_key = f"{binary.upper()}_PATH"
-
-    bin_env = env.get(pref_key)
-    if bin_env:
-        if not is_executable(bin_env):
-            log_err(
-                f"WARNING: path given in the '{pref_key}' environment: '{bin_env}' "
-                "either doesn't exist or is not executable! "
-                f"Continuing search for usable '{binary}'."
-            )
-        else:
-            return env[pref_key]
-
-    bin_pref = get_pref(pref_key)
-    if bin_pref:
-        if not is_executable(bin_pref):
-            log_err(
-                f"WARNING: path given in the '{pref_key}' preference: '{bin_pref}' "
-                "either doesn't exist or is not executable! "
-                f"Continuing search for usable '{binary}'."
-            )
-        else:
-            return bin_pref
-
-    if is_windows():
-        extension = ".exe"
-    else:
-        extension = ""
-
-    full_binary = f"{binary}{extension}"
-
-    for search_dir in os.get_exec_path():
-        exe_path = os.path.join(search_dir, full_binary)
-        if is_executable(exe_path):
-            return exe_path
-
-    if (is_linux() or is_mac()) and is_executable(f"/usr/bin/{binary}"):
-        return f"/usr/bin/{binary}"
-
-    log_err(
-        f"WARNING: Unable to find '{full_binary}' in either configured, "
-        "or environmental locations. Things aren't guaranteed to work from here."
-    )
-    return None
-
-
 # Processor and ProcessorError base class definitions
 
 
@@ -576,6 +437,8 @@ class Processor:
 
     def __init__(self, env=None, infile=None, outfile=None):
         # super(Processor, self).__init__()
+        # Path to the processor itself
+        self.path = None
         self.env = env
         if infile is None:
             self.infile = sys.stdin
@@ -595,7 +458,9 @@ class Processor:
         """Stub method"""
         raise ProcessorError("Abstract method main() not implemented.")
 
-    def get_manifest(self):
+    def get_manifest(
+        self,
+    ) -> tuple[str, dict[str, dict[str, bool | str]], dict[str, str]]:
         """Return Processor's description, input and output variables"""
         try:
             return (self.description, self.input_variables, self.output_variables)
@@ -642,7 +507,7 @@ class Processor:
         for key, value in list(arguments.items()):
             update_data(self.env, key, value)
 
-    def process(self):
+    def process(self) -> dict[str, Any]:
         """Main processing loop."""
         # Make sure all required arguments have been supplied.
         for variable, flags in list(self.input_variables.items()):
@@ -736,7 +601,7 @@ class AutoPackagerLoadError(Exception):
 class AutoPackager:
     """Instantiate and execute processors from a recipe."""
 
-    def __init__(self, options, env):
+    def __init__(self, options: Values, env: Dict[str, Any]):
         self.verbose = options.verbose
         self.env = env
         self.results = []
@@ -747,20 +612,13 @@ class AutoPackager:
         if self.verbose >= verbose_level:
             print(msg)
 
-    def get_recipe_identifier(self, recipe):
-        """Return the identifier given an input recipe dict."""
-        identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
-        if not identifier:
-            log_err("ID NOT FOUND")
-            # build a pseudo-identifier based on the recipe pathname
-            recipe_path = self.env.get("RECIPE_PATH")
-            # get rid of filename extension
-            recipe_path = remove_recipe_extension(recipe_path)
-            path_parts = recipe_path.split("/")
-            identifier = "-".join(path_parts)
-        return identifier
+    def get_recipe_identifier(self, recipe: RecipeChain):
+        """Return the identifier of the invoked recipe of a chain."""
+        # The recipe chain's list of recipes is reverse-ordered
+        # i.e. item 0 is the "root" recipe with no parents
+        return recipe.recipes[-1].identifier
 
-    def process_cli_overrides(self, recipe, cli_values):
+    def process_cli_overrides(self, recipe: RecipeChain, cli_values: Dict[str, Any]):
         """Override env with input values from the CLI:
         Start with items in recipe's 'Input' dict, merge and
         overwrite any key-value pairs appended to the
@@ -769,33 +627,32 @@ class AutoPackager:
 
         # Set up empty container for final output
         inputs = {}
-        inputs.update(recipe["Input"])
+        inputs.update(recipe.input)
         inputs.update(cli_values)
         self.env.update(inputs)
         # do any internal string substitutions
         for key, value in list(self.env.items()):
             update_data(self.env, key, value)
 
-    def verify(self, recipe):
+    def verify(self, recipe: RecipeChain):
         """Verify a recipe and check for errors."""
 
         # Check for MinimumAutopkgVersion
-        if "MinimumVersion" in list(recipe.keys()):
-            if not version_equal_or_greater(
-                self.env["AUTOPKG_VERSION"], recipe.get("MinimumVersion")
-            ):
-                raise AutoPackagerError(
-                    "Recipe (or a parent recipe) requires at least autopkg "
-                    f"version {recipe.get('MinimumVersion')}, but we are autopkg "
-                    f"version {self.env['AUTOPKG_VERSION']}."
-                )
+        if not version_equal_or_greater(
+            self.env["AUTOPKG_VERSION"], recipe.minimum_version
+        ):
+            raise AutoPackagerError(
+                "Recipe (or a parent recipe) requires at least autopkg "
+                f"version {recipe.get('MinimumVersion')}, but we are autopkg "
+                f"version {self.env['AUTOPKG_VERSION']}."
+            )
 
         # Initialize variable set with input variables.
-        variables = set(recipe["Input"].keys())
+        variables = set(recipe.input.keys())
         # Add environment.
         variables.update(set(self.env.keys()))
         # Check each step of the process.
-        for step in recipe["Process"]:
+        for step in recipe.process:
             try:
                 processor_class = get_processor(
                     step["Processor"], verbose=self.verbose, recipe=recipe, env=self.env
@@ -822,13 +679,13 @@ class AutoPackager:
                     raise AutoPackagerError(
                         f"{step['Processor']} requires missing argument {key}"
                     )
-
+            # TODO: Why do we do this? We don't use this for anything...
             # Add output variables to set.
             variables.update(set(processor_class.output_variables.keys()))
 
-    def process(self, recipe):
-        """Process a recipe."""
-        identifier = self.get_recipe_identifier(recipe)
+    def process(self, recipe: RecipeChain):
+        """Process a recipe chain."""
+        identifier = recipe.recipes[-1].identifier
         # define a cache/work directory for use by the recipe
         cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
             os.path.join(autopkg_user_folder(), "Cache"),
@@ -853,7 +710,7 @@ class AutoPackager:
         if self.verbose > 2:
             pprint.pprint(self.env)
 
-        for step in recipe["Process"]:
+        for step in recipe.process:
             if self.verbose:
                 print(step["Processor"])
 
@@ -920,77 +777,6 @@ class AutoPackager:
             pprint.pprint(self.env)
 
 
-def _cmp(x, y):
-    """
-    Replacement for built-in function cmp that was removed in Python 3
-    Compare the two objects x and y and return an integer according to
-    the outcome. The return value is negative if x < y, zero if x == y
-    and strictly positive if x > y.
-    """
-    return (x > y) - (x < y)
-
-
-class APLooseVersion(LooseVersion):
-    """Subclass of distutils.version.LooseVersion to fix issues under Python 3"""
-
-    def _pad(self, version_list, max_length):
-        """Pad a version list by adding extra 0 components to the end if needed."""
-        # copy the version_list so we don't modify it
-        cmp_list = list(version_list)
-        while len(cmp_list) < max_length:
-            cmp_list.append(0)
-        return cmp_list
-
-    def _compare(self, other):
-        """Complete comparison mechanism since LooseVersion's is broken in Python 3."""
-        if not isinstance(other, (LooseVersion, APLooseVersion)):
-            other = APLooseVersion(other)
-        max_length = max(len(self.version), len(other.version))
-        self_cmp_version = self._pad(self.version, max_length)
-        other_cmp_version = self._pad(other.version, max_length)
-        cmp_result = 0
-        for index, value in enumerate(self_cmp_version):
-            try:
-                cmp_result = _cmp(value, other_cmp_version[index])
-            except TypeError:
-                # integer is less than character/string
-                if isinstance(value, int):
-                    return -1
-                return 1
-            else:
-                if cmp_result:
-                    return cmp_result
-        return cmp_result
-
-    def __hash__(self):
-        """Hash method."""
-        return hash(self.version)
-
-    def __eq__(self, other):
-        """Equals comparison."""
-        return self._compare(other) == 0
-
-    def __ne__(self, other):
-        """Not-equals comparison."""
-        return self._compare(other) != 0
-
-    def __lt__(self, other):
-        """Less than comparison."""
-        return self._compare(other) < 0
-
-    def __le__(self, other):
-        """Less than or equals comparison."""
-        return self._compare(other) <= 0
-
-    def __gt__(self, other):
-        """Greater than comparison."""
-        return self._compare(other) > 0
-
-    def __ge__(self, other):
-        """Greater than or equals comparison."""
-        return self._compare(other) >= 0
-
-
 _CORE_PROCESSOR_NAMES = []
 _PROCESSOR_NAMES = []
 
@@ -1047,13 +833,15 @@ def extract_processor_name_with_recipe_identifier(processor_name):
     return (processor_name, identifier)
 
 
-def get_processor(processor_name, verbose=None, recipe=None, env=None):
+def get_processor(
+    processor_name, verbose=None, recipe: RecipeChain = None, env=None
+) -> Processor:
     """Returns a Processor object given a name and optionally a recipe,
     importing a processor from the recipe directory if available"""
     if env is None:
         env = {}
     if recipe:
-        recipe_dir = os.path.dirname(recipe["RECIPE_PATH"])
+        recipe_dir = os.path.dirname(recipe.recipes[-1].path)
         processor_search_dirs = [recipe_dir]
 
         # check if our processor_name includes a recipe identifier that
@@ -1072,12 +860,10 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
                 )
 
         # search recipe dirs for processor
-        if recipe.get("PARENT_RECIPES"):
-            # also look in the directories containing the parent recipes
-            parent_recipe_dirs = list(
-                {os.path.dirname(item) for item in recipe["PARENT_RECIPES"]}
-            )
-            processor_search_dirs.extend(parent_recipe_dirs)
+        parent_recipe_dirs = list(
+            {os.path.dirname(item) for item in recipe.ordered_list_of_paths}
+        )
+        processor_search_dirs.extend(parent_recipe_dirs)
 
         # Dedupe the list first
         deduped_processors = set([dir for dir in processor_search_dirs])
