@@ -1290,7 +1290,7 @@ def getsha256hash(filepath):
 
 
 def find_processor_path(processor_name, recipe, env=None):
-    """Returns the pathname to a procesor given a name and a recipe"""
+    """Returns the pathname to a processor given a name and a recipe"""
     if env is None:
         env = {}
         env["RECIPE_SEARCH_DIRS"] = get_pref("RECIPE_SEARCH_DIRS") or []
