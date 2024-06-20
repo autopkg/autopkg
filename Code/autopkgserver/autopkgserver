@@ -272,7 +272,7 @@ class AutoPkgServer(socketserver.UnixStreamServer):
     request_queue_size = 10
     timeout = 10
 
-    def __init__(self, socket_fd, RequestHandlerClass):
+    def __init__(self, socket_fd, RequestHandlerClass, log):
         # Avoid initialization of UnixStreamServer as we need to open the
         # socket from a file descriptor instead of creating our own.
         self.socket = socket.fromfd(socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
@@ -281,44 +281,48 @@ class AutoPkgServer(socketserver.UnixStreamServer):
             self, self.socket.getsockname(), RequestHandlerClass
         )
         self.timed_out = False
+        self.log = log
 
     # def server_bind(self):
     #    """Override binding to inherit socket from launchd."""
     #
 
-    def setup_logging(self):
-        try:
-            self.log = logging.getLogger(APPNAME)
-            self.log.setLevel(logging.DEBUG)
-
-            log_console = logging.StreamHandler()
-            log_console.setLevel(logging.DEBUG)
-            log_file = logging.handlers.RotatingFileHandler(
-                f"/private/var/log/{APPNAME}", "a", 100000, 9, "utf-8"
-            )
-            log_file.setLevel(logging.DEBUG)
-
-            console_formatter = logging.Formatter("%(message)s")
-            file_formatter = logging.Formatter(
-                "%(asctime)s %(module)s[%(process)d]: " + "%(message)s   (%(funcName)s)"
-            )
-
-            log_console.setFormatter(console_formatter)
-            log_file.setFormatter(file_formatter)
-
-            self.log.addHandler(log_console)
-            self.log.addHandler(log_file)
-        except OSError as err:
-            raise AutoPkgServerError(f"Can't open log: {err.strerror}")
-
     def handle_timeout(self):
         self.timed_out = True
 
 
+def setup_logging():
+    try:
+        log = logging.getLogger(APPNAME)
+        log.setLevel(logging.DEBUG)
+
+        log_console = logging.StreamHandler()
+        log_console.setLevel(logging.DEBUG)
+        log_file = logging.handlers.RotatingFileHandler(
+            f"/private/var/log/{APPNAME}", "a", 100000, 9, "utf-8"
+        )
+        log_file.setLevel(logging.DEBUG)
+
+        console_formatter = logging.Formatter("%(message)s")
+        file_formatter = logging.Formatter(
+            "%(asctime)s %(module)s[%(process)d]: " + "%(message)s   (%(funcName)s)"
+        )
+
+        log_console.setFormatter(console_formatter)
+        log_file.setFormatter(file_formatter)
+
+        log.addHandler(log_console)
+        log.addHandler(log_file)
+        return log
+    except OSError as err:
+        raise AutoPkgServerError(f"Can't open log: {err.strerror}")
+
+
 def main(argv):
+    log = setup_logging()
     # Make sure we're launched as root
     if os.geteuid() != 0:
-        print(f"{APPNAME} must be run as root.", file=sys.stderr)
+        log.critical(f"ERROR: {APPNAME} must be run as root.")
         # Sleep to avoid respawn.
         time.sleep(10)
         return 1
@@ -334,13 +338,13 @@ def main(argv):
     while True:
         info = os.stat(exepath)
         if info.st_uid != root_uid:
-            print(f"{exepath} must be owned by root.", file=sys.stderr)
+            log.critical(f"{exepath} must be owned by root.")
             path_ok = False
         if info.st_gid not in (wheel_gid, admin_gid):
-            print(f"{exepath} must have group wheel or admin.", file=sys.stderr)
+            log.critical(f"{exepath} must have group wheel or admin.")
             path_ok = False
         if info.st_mode & stat.S_IWOTH:
-            print(f"{exepath} mustn't be world writeable.", file=sys.stderr)
+            log.critical(f"{exepath} mustn't be world writeable.")
             path_ok = False
         exepath = os.path.dirname(exepath)
         if exepath == "/":
@@ -359,15 +363,14 @@ def main(argv):
     try:
         sockets = launch2.launch_activate_socket("AutoPkgServer")
     except launch2.LaunchDError as err:
-        print(f"launchd check-in failed: {err}", file=sys.stderr)
+        log.critical(f"launchd check-in failed: {err}")
         time.sleep(10)
         return 1
 
     sock_fd = sockets[0]
 
     # Create the server object.
-    server = AutoPkgServer(sock_fd, PkgHandler)
-    server.setup_logging()
+    server = AutoPkgServer(sock_fd, PkgHandler, log)
 
     # Wrap main loop in try/finally to unlink the socket when we exit.
     try:
