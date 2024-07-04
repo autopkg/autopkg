@@ -4,5 +4,7 @@
 <dict>
 	<key>Version</key>
 	<string>3.0.0</string>
+	<key>PythonVersion</key>
+	<string>3.10.4</string>
 </dict>
 </plist>

@@ -229,7 +229,7 @@ def get_identifier_from_recipe_file(filename) -> Optional[str]:
     return None
 
 
-def find_recipe_by_identifier(
+def find_recipe_by_id_in_map(
     identifier: str, skip_overrides: bool = False
 ) -> Optional[str]:
     """Search recipe map for an identifier"""
@@ -239,14 +239,16 @@ def find_recipe_by_identifier(
         if valid_recipe_file(globalRecipeMap["overrides-identifiers"][identifier]):
             log(f"Found {identifier} in recipe map overrides")
             return globalRecipeMap["overrides-identifiers"][identifier]
-    if not skip_overrides and identifier in globalRecipeMap["identifiers"]:
+    if identifier in globalRecipeMap["identifiers"]:
         if valid_recipe_file(globalRecipeMap["identifiers"][identifier]):
             log(f"Found {identifier} in recipe map")
             return globalRecipeMap["identifiers"][identifier]
     return None
 
 
-def find_recipe_by_name(name: str, skip_overrides: bool = False) -> Optional[str]:
+def find_recipe_by_name_in_map(
+    name: str, skip_overrides: bool = False
+) -> Optional[str]:
     """Search recipe map for a shortname"""
     # Check the overrides first, unless skipping them
     if not skip_overrides and name in globalRecipeMap["overrides"]:
@@ -304,6 +306,7 @@ def get_override_dirs() -> List[str]:
 def calculate_recipe_map(
     extra_search_dirs: Optional[List[str]] = None,
     extra_override_dirs: Optional[List[str]] = None,
+    skip_cwd: bool = True,
 ):
     """Recalculate the entire recipe map"""
     global globalRecipeMap
@@ -320,9 +323,12 @@ def calculate_recipe_map(
         extra_override_dirs = []
     search_dirs = get_pref("RECIPE_SEARCH_DIRS") or DEFAULT_SEARCH_DIRS
     for search_dir in search_dirs + extra_search_dirs:
-        if search_dir == ".":
-            # skip searching cwd
+        if search_dir == "." and skip_cwd:
+            # skip searching cwd and don't add it to the map
             continue
+        elif search_dir == ".":
+            # if we're not skipping cwd, we want to add it to the map
+            search_dir = os.path.abspath(".")
         globalRecipeMap["identifiers"].update(
             map_key_to_paths("identifiers", search_dir)
         )
@@ -333,7 +339,7 @@ def calculate_recipe_map(
         globalRecipeMap["overrides-identifiers"].update(
             map_key_to_paths("overrides-identifiers", override)
         )
-    if not extra_search_dirs or not extra_override_dirs:
+    if skip_cwd and (not extra_search_dirs or not extra_override_dirs):
         # Don't store the extra stuff in the cache; they're intended to be temporary
         write_recipe_map_to_disk()
 
@@ -426,7 +432,6 @@ def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> No
                 "\nTry adding or removing a repo to rebuild it."
             )
             sys.exit(1)
-        # If rebuild is False and we are allowing to continue, just return
 
 
 def get_autopkg_version():
@@ -849,7 +854,6 @@ class AutoPackager:
             pprint.pprint(self.env)
 
         for step in recipe["Process"]:
-
             if self.verbose:
                 print(step["Processor"])
 
@@ -1061,9 +1065,7 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            shared_processor_recipe_path = find_recipe_by_identifier(
-                processor_recipe_id
-            )
+            shared_processor_recipe_path = find_recipe_by_id_in_map(processor_recipe_id)
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
                     os.path.dirname(shared_processor_recipe_path)

@@ -41,8 +41,8 @@ from autopkglib import (
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
     find_binary,
-    find_recipe_by_identifier,
-    find_recipe_by_name,
+    find_recipe_by_id_in_map,
+    find_recipe_by_name_in_map,
     get_all_prefs,
     get_autopkg_version,
     get_identifier,
@@ -65,12 +65,12 @@ from autopkglib import (
     valid_recipe_file,
     version_equal_or_greater,
 )
-from autopkglib.autopkgyaml import autopkg_str_representer
-from autopkglib.github import (
+from autopkglib.apgithub import (
     GitHubSession,
     get_repository_from_identifier,
     print_gh_search_results,
 )
+from autopkglib.autopkgyaml import autopkg_str_representer
 from autopkglib.prefs import PreferenceError
 
 # Catch Python 2 wrappers with an early f-string. Message must be on a single line.
@@ -135,13 +135,14 @@ def find_recipe(id_or_name: str, skip_overrides: bool = False):
     # search in identifiers
     # oh noez we can't find it
     log(f"Looking for {id_or_name}...")
-    recipe = find_recipe_by_name(
+    recipe = find_recipe_by_name_in_map(
         id_or_name, skip_overrides
-    ) or find_recipe_by_identifier(id_or_name, skip_overrides)
-    if not recipe:
-        # We didn't find the recipe in the map
-        log(f"Did not find {id_or_name} in recipe map")
-    return recipe
+    ) or find_recipe_by_id_in_map(id_or_name, skip_overrides)
+    if recipe:
+        return recipe
+    # At this point, we didn't find the recipe in the map
+    log(f"Did not find {id_or_name} in recipe map")
+    return None
 
 
 def get_identifier_from_override(override):
@@ -193,6 +194,11 @@ def locate_recipe(
     if not recipe_file:
         # name wasn't a filename. Let's search our map for names and/or identifiers.
         recipe_file = find_recipe(name, skip_overrides)
+        if not recipe_file:
+            # If we still didn't find it in the map, try rebuilding the map with current dirs
+            log("Rebuilding recipe map with current working directories...")
+            calculate_recipe_map(skip_cwd=False)
+            recipe_file = find_recipe(name, skip_overrides)
 
     if not recipe_file and make_suggestions:
         make_suggestions_for(name)
@@ -247,7 +253,7 @@ def locate_recipe(
                     )
             elif len(repo_names) > 1:
                 print()
-                print("To add a new recipe repo, use 'autopkg repo-add " "<repo name>'")
+                print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
                 return None
 
     return recipe_file
@@ -269,6 +275,7 @@ def load_recipe(
     updated recipe repos, the override still applies to the recipe from
     which it was derived."""
 
+    # Pre AutoPkg 3.0.0:
     # Here's how this should work, ideally:
     # 1. Search for the recipe based on path, then override, shortname, identifier
     # 2. If it's an override, load up the trust info
@@ -277,6 +284,24 @@ def load_recipe(
     # where child recipe values always take precedence
     # 5. Keep doing this until no more ParentRecipes
     # 6. Return the entire recipe as one single big dictionary
+
+    # Post Autopkg 3.0.0:
+    # Rethinking of recipe location logic:
+    # 1. Look for a path to a file first, return path to file
+    # 2. If not a path, look for it in recipe map, return path to file
+    # 3. If not in recipe map, search for it in the search directories, return path to file
+    # 4. If not in search directories, return none
+    # 5. If no path to file, error and fail
+
+    # Once we have a path to a file:
+    # 1. Load the file, attempt to parse into recipe object
+    # 2. Is it a valid recipe? (Need to document valid recipe expectations)
+    # 3. if not, return None for a recipe object
+    # 4. If no valid recipe object, error and fail
+    # 5. With a valid recipe object, check for a ParentRecipe
+    # 6. Rerun recipe location logic for ParentRecipe
+    # 7. When parsing recipe object, prepend Process with processors from each parent, in order
+    # 8. Add input variables from parents only if they don't already exist in the child (later recipes always win)
     recipe_file = locate_recipe(
         name,
         make_suggestions=make_suggestions,
@@ -291,7 +316,7 @@ def load_recipe(
         # search directories, and then add it if we find it.
         log(
             "We are not currently searching on-disk for recipes; if you intended to run a specific file not in the "
-            "recipe map, please pass in an absolute file path instead."
+            "recipe map, please pass in a real file path instead."
         )
         return
 
@@ -843,7 +868,7 @@ def get_info(argv):
     parser.set_usage(f"Usage: {'%prog'} {verb} [options] [recipe]")
 
     # Parse arguments
-    add_search_and_override_dir_options(parser)
+    # add_search_and_override_dir_options(parser)
     parser.add_option(
         "-q",
         "--quiet",
@@ -861,13 +886,11 @@ def get_info(argv):
     )
     (options, arguments) = common_parse(parser, argv)
 
-    override_dirs = options.override_dirs or get_override_dirs()
-    search_dirs = options.search_dirs or get_search_dirs()
+    # override_dirs = options.override_dirs or get_override_dirs()
+    # search_dirs = options.search_dirs or get_search_dirs()
 
     # Calculate recipe map if we got this
-    calculate_recipe_map(
-        extra_search_dirs=search_dirs, extra_override_dirs=override_dirs
-    )
+    read_recipe_map(rebuild=True)
 
     make_suggestions = True
     if options.quiet:
@@ -1267,7 +1290,7 @@ def getsha256hash(filepath):
 
 
 def find_processor_path(processor_name, recipe, env=None):
-    """Returns the pathname to a procesor given a name and a recipe"""
+    """Returns the pathname to a processor given a name and a recipe"""
     if env is None:
         env = {}
         env["RECIPE_SEARCH_DIRS"] = get_pref("RECIPE_SEARCH_DIRS") or []
@@ -1284,9 +1307,7 @@ def find_processor_path(processor_name, recipe, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            shared_processor_recipe_path = find_recipe_by_identifier(
-                processor_recipe_id
-            )
+            shared_processor_recipe_path = find_recipe_by_id_in_map(processor_recipe_id)
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
                     os.path.dirname(shared_processor_recipe_path)
@@ -2004,7 +2025,7 @@ def run_recipes(argv):
         "-q",
         "--quiet",
         action="store_true",
-        help=("Don't offer to search Github if a recipe can't " "be found."),
+        help=("Don't offer to search Github if a recipe can't be found."),
     )
     add_search_and_override_dir_options(parser)
     (options, arguments) = common_parse(parser, argv)
@@ -2013,7 +2034,7 @@ def run_recipes(argv):
     search_dirs = options.search_dirs or get_search_dirs()
 
     # First, populate the recipe map
-    read_recipe_map()
+    read_recipe_map(rebuild=True)
 
     # initialize some variables
     summary_results = {}
@@ -2340,12 +2361,12 @@ def printplistitem(label, value, indent=0):
     indentspace = "    "
     if value is None:
         log(indentspace * indent + f"{label}: !NONE!")
-    elif type(value) == list or type(value).__name__ == "NSCFArray":
+    elif isinstance(value, list) or type(value).__name__ == "NSCFArray":
         if label:
             log(indentspace * indent + f"{label}:")
         for item in value:
             printplistitem("", item, indent + 1)
-    elif type(value) == dict or type(value).__name__ == "NSCFDictionary":
+    elif isinstance(value, dict) or type(value).__name__ == "NSCFDictionary":
         if label:
             log(indentspace * indent + f"{label}:")
         for subkey in list(value.keys()):

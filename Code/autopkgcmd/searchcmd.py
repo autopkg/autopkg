@@ -16,12 +16,12 @@ from typing import List
 from urllib.parse import quote
 
 from autopkgcmd.opts import common_parse, gen_common_parser
-from autopkglib.common import log_err
-from autopkglib.github import (
+from autopkglib.apgithub import (
     DEFAULT_SEARCH_USER,
     GitHubSession,
     print_gh_search_results,
 )
+from autopkglib.common import log_err
 
 
 def search_recipes(argv: List[str]):
@@ -94,7 +94,7 @@ def search_recipes(argv: List[str]):
     if len(results) > results_limit:
         print()
         print(
-            "Warning: Search yielded more than 100 results. Please try a "
+            f"Warning: Search yielded more than {results_limit} results. Please try a "
             "more specific search term."
         )
         return 3
