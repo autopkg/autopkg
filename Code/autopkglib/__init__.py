@@ -648,8 +648,10 @@ class Processor:
         """Execute as a standalone binary on the commandline."""
 
         try:
-            self.read_input_plist()
-            self.parse_arguments()
+            if not sys.argv[1:]:
+                self.read_input_plist()
+            else:
+                self.parse_arguments()
             self.process()
             self.write_output_plist()
         except ProcessorError as err:
