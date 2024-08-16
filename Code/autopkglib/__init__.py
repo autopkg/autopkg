@@ -585,11 +585,17 @@ class Processor:
         if self.env is None:
             return
 
+        plist_safe = {}
+        
+        for env_key in self.env:
+            if not self.env[env_key] is None:
+                plist_safe[env_key] = self.env[env_key] 
+
         try:
             with open(self.outfile, "wb") as f:
-                plistlib.dump(self.env, f)
+                plistlib.dump(plist_safe, f)
         except TypeError:
-            plistlib.dump(self.env, self.outfile.buffer)
+            plistlib.dump(plist_safe, self.outfile.buffer)
         except BaseException as err:
             raise ProcessorError(err) from err
 
