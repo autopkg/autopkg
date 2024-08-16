@@ -596,6 +596,9 @@ class Processor:
     def parse_arguments(self):
         """Parse arguments as key='value'."""
 
+        if self.env is None:
+            self.env = {}
+
         for arg in sys.argv[1:]:
             (key, sep, value) = arg.partition("=")
             if sep != "=":
