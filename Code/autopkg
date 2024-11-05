@@ -604,7 +604,7 @@ def print_tool_info(options):
 
 def get_repo_info(path_or_url):
     """Given a path or URL, find a locally installed repo and return
-    infomation in a dictionary about it"""
+    information in a dictionary about it"""
     repo_info = {}
     recipe_repos = get_pref("RECIPE_REPOS") or {}
 
