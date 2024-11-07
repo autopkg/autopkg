@@ -16,8 +16,39 @@
 """Helper to deal with YAML serialization"""
 
 
+from yaml.composer import Composer
+from yaml.constructor import SafeConstructor
+from yaml.parser import Parser
+from yaml.reader import Reader
+from yaml.resolver import Resolver
+from yaml.scanner import Scanner
+
+
 def autopkg_str_representer(dumper, data):
     """Makes every multiline string a block literal"""
     if len(data.splitlines()) > 1:
         return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
     return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+# Create custom Constructor class that inherits from SafeConstructor
+class AutoPkgConstructor(SafeConstructor):
+    pass
+
+
+# Override YAML type conversion logic in the custom Constructor
+for yaml_type in {"bool", "int", "float", "null", "timestamp"}:
+    AutoPkgConstructor.add_constructor(
+        f"tag:yaml.org,2002:{yaml_type}", AutoPkgConstructor.construct_yaml_str
+    )
+
+
+# Create a custom Loader with the custom Constructor
+class AutoPkgLoader(Reader, Scanner, Parser, Composer, AutoPkgConstructor, Resolver):
+    def __init__(self, stream):
+        Reader.__init__(self, stream)
+        Scanner.__init__(self)
+        Parser.__init__(self)
+        Composer.__init__(self)
+        AutoPkgConstructor.__init__(self)
+        Resolver.__init__(self)
