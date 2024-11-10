@@ -50,9 +50,9 @@ from autopkglib import (
     get_pref,
     get_processor,
     is_mac,
+    is_windows,
     log,
     log_err,
-    plist_serializer,
     processor_names,
     recipe_from_file,
     remove_recipe_extension,
@@ -588,7 +588,7 @@ def write_plist_exit_on_fail(plist_dict, path):
     if the write fails."""
     try:
         with open(path, "wb") as f:
-            plistlib.dump(plist_serializer(plist_dict), f)
+            plistlib.dump(plist_dict, f)
     except (TypeError, OverflowError):
         log_err(f"Failed to save plist to {path}.")
         sys.exit(-1)
@@ -604,7 +604,7 @@ def print_tool_info(options):
 
 def get_repo_info(path_or_url):
     """Given a path or URL, find a locally installed repo and return
-    information in a dictionary about it"""
+    infomation in a dictionary about it"""
     repo_info = {}
     recipe_repos = get_pref("RECIPE_REPOS") or {}
 
@@ -807,6 +807,9 @@ def repo_delete(argv):
             recipe_search_dirs.remove(repo_path)
         # now remove the repo files
         try:
+            if is_windows():
+                # we need to remove readonly, hidden and system bits
+                os.system("attrib.exe -r -h -s " + repo_path + "\\*.* /S /D")
             shutil.rmtree(repo_path)
         except OSError as err:
             log_err(f"ERROR: Could not remove {repo_path}: {err}")
@@ -1354,7 +1357,7 @@ def getsha256hash(filepath):
 
 
 def find_processor_path(processor_name, recipe, env=None):
-    """Returns the pathname to a processor given a name and a recipe"""
+    """Returns the pathname to a procesor given a name and a recipe"""
     if env is None:
         env = {}
         env["RECIPE_SEARCH_DIRS"] = get_pref("RECIPE_SEARCH_DIRS") or []
@@ -1742,7 +1745,7 @@ def update_trust_info(argv):
                     yaml.dump(recipe, f, encoding="utf-8")
             else:
                 with open(recipe_path, "wb") as f:
-                    plistlib.dump(plist_serializer(recipe), f)
+                    plistlib.dump(recipe, f)
             log(f"Wrote updated {recipe_path}")
         else:
             log_err(
@@ -1972,7 +1975,7 @@ def make_override(argv):
             yaml.dump(override_dict, f, encoding="utf-8")
     else:
         with open(override_file, "wb") as f:
-            plistlib.dump(plist_serializer(override_dict), f)
+            plistlib.dump(override_dict, f)
     log(f"Override file saved to {override_file}")
     return 0
 
@@ -2179,7 +2182,7 @@ def run_recipes(argv):
     run_results = []
     try:
         with open(current_run_results_plist, "wb") as f:
-            plistlib.dump(plist_serializer(run_results), f)
+            plistlib.dump(run_results, f)
     except OSError as err:
         log_err(f"Can't write results to {current_run_results_plist}: {err.strerror}")
 
@@ -2292,7 +2295,7 @@ def run_recipes(argv):
         run_results.append(autopackager.results)
         try:
             with open(current_run_results_plist, "wb") as f:
-                plistlib.dump(plist_serializer(run_results), f)
+                plistlib.dump(run_results, f)
         except OSError as err:
             log_err(
                 f"Can't write results to {current_run_results_plist}: {err.strerror}"
@@ -2355,7 +2358,7 @@ def run_recipes(argv):
             receipt_path = os.path.join(receipt_dir, receipt_name)
             try:
                 with open(receipt_path, "wb") as f:
-                    plistlib.dump(plist_serializer(autopackager.results), f)
+                    plistlib.dump(autopackager.results, f)
                 if options.verbose:
                     log(f"Receipt written to {receipt_path}")
             except OSError as err:
@@ -2684,7 +2687,7 @@ def new_recipe(argv):
                 yaml.dump(recipe, f, encoding="utf-8")
         else:
             with open(filename, "wb") as f:
-                plistlib.dump(plist_serializer(recipe), f)
+                plistlib.dump(recipe, f)
         log(f"Saved new recipe to {filename}")
     except Exception as err:
         log_err(f"Failed to write recipe: {err}")

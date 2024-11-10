@@ -31,8 +31,7 @@ class MunkiOptionalReceiptEditor(Processor):
 
     def main(self):
         if len(self.env["pkginfo_repo_path"]) < 1:
-            self.output("No pkginfo_repo_path specified, skipping")
-            return
+            raise ProcessorError("You must specify at least one pkginfo repo path")
 
         with open(self.env["pkginfo_repo_path"], "rb") as f:
             pkginfo = plistlib.load(f)

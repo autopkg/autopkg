@@ -1,30 +1,5 @@
-### [2.7.4](https://github.com/autopkg/autopkg/compare/v2.7.3...HEAD) (Unreleased)
+### [2.7.1](https://github.com/autopkg/autopkg/compare/v2.7.1...HEAD) (Unreleased)
 
-### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.7.3) (May 15, 2024)
-
-* Fix for URLDownloader `prefetch_filename` on macOS 14.5. (https://github.com/autopkg/autopkg/pull/939)
-* Fixes for unit test workflow
-* Updates to included Python framework requirements file
-* Typo fix in docstring (https://github.com/autopkg/autopkg/pull/937)
-
-**Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7.2..v2.7.3
-
-### [2.7.2](https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7.2) (December 07, 2022)
-
-* Fix for SparkleUpdateInfoProvider. (https://github.com/autopkg/autopkg/pull/845)
-
-**Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7.1..v2.7.2
-
-### [2.7.1](https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7.1) (December 06, 2022)
-
-* GitHubReleasesInfoProvider -- add support for a "latest_only" input variable (https://github.com/autopkg/autopkg/pull/846)
-* GitHubReleasesInfoProvider -- add "asset_created_at" output variable
-* PkgPayloadUnpacker -- use "aa" to expand archives if "ditto" fails and "aa" is available (https://github.com/autopkg/autopkg/pull/804)
-* Fix for plist serialization when json input contains null values (https://github.com/autopkg/autopkg/pull/810)
-* SparkleUpdateInfoProvider -- add support for channels (https://github.com/autopkg/autopkg/commit/716dcea47237ec8895617c374bfa67a329a7188c)
-* Fix for autopkginstalld on recent versions of macOS. Fixes .install recipes. (https://github.com/autopkg/autopkg/pull/838)
-
-**Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7..v2.7.1
 
 ### [2.7.0](https://github.com/autopkg/autopkg/compare/v2.6.0...v2.7) (August 22, 2022)
 

@@ -46,14 +46,6 @@ class GitHubReleasesInfoProvider(Processor):
                 "If set to True or a non-empty value, include prereleases."
             ),
         },
-        "latest_only": {
-            "required": False,
-            "description": (
-                "If True or a non-empty value, API call will fetch only the "
-                "release marked as 'latest' in GitHub. May not play well with "
-                "'include_prereleases'."
-            ),
-        },
         "sort_by_highest_tag_names": {
             "required": False,
             "description": (
@@ -119,12 +111,11 @@ class GitHubReleasesInfoProvider(Processor):
                 "Version info parsed, naively derived from the release's tag."
             )
         },
-        "asset_created_at": {"description": ("The release time of the asset.")},
     }
 
     __doc__ = description
 
-    def get_releases(self, repo, latest_only=False):
+    def get_releases(self, repo):
         """Return a list of releases dicts for a given GitHub repo. repo must
         be of the form 'user/repo'"""
         releases = None
@@ -136,12 +127,7 @@ class GitHubReleasesInfoProvider(Processor):
             self.env["GITHUB_TOKEN_PATH"],
         )
         releases_uri = f"/repos/{repo}/releases"
-        if latest_only:
-            releases_uri += "/latest"
         (releases, status) = github.call_api(releases_uri)
-        if latest_only:
-            # turn single item into a list of one item
-            releases = [releases]
         if status != 200:
             raise ProcessorError(f"Unexpected GitHub API status code {status}.")
 
@@ -199,9 +185,7 @@ class GitHubReleasesInfoProvider(Processor):
 
     def main(self):
         # Get our list of releases
-        releases = self.get_releases(
-            self.env["github_repo"], latest_only=self.env.get("latest_only")
-        )
+        releases = self.get_releases(self.env["github_repo"])
         if self.env.get("sort_by_highest_tag_names"):
             releases = sorted(
                 releases, key=lambda a: APLooseVersion(a["tag_name"]), reverse=True
@@ -215,9 +199,6 @@ class GitHubReleasesInfoProvider(Processor):
 
         # Record the asset url
         self.env["asset_url"] = self.selected_asset["url"]
-
-        # Record the asset created_at time
-        self.env["asset_created_at"] = self.selected_asset["created_at"]
 
         # Get a version string from the tag name
         tag = self.selected_release["tag_name"]

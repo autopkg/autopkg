@@ -90,14 +90,6 @@ class SparkleUpdateInfoProvider(URLGetter):
                 "Defaults to True."
             ),
         },
-        "update_channel": {
-            "required": False,
-            "description": (
-                "Sparkle 2 provides specifying what channel an update is on. "
-                "You can specify which channel to look for via this key. "
-                "If a channel is defined, and exists, then this defined channel will be used."
-            ),
-        },
         "PKG": {
             "required": False,
             "description": (
@@ -205,7 +197,6 @@ class SparkleUpdateInfoProvider(URLGetter):
         human_version: 1.2.3.4 (optional)
         url: http://download/url.dmg
         minimum_os_version: 10.7 (optional)
-        channel: beta (optional)
         description_data: HTML description for update (optional)
         description_url: URL given by the sparkle:releaseNotesLink element
                          (optional)
@@ -226,53 +217,29 @@ class SparkleUpdateInfoProvider(URLGetter):
 
         versions = []
         for item_elem in items:
-            # Skip items with no enclosure
             enclosure = item_elem.find("enclosure")
-            if enclosure is None:
-                continue
-
-            item = {}
-            item["url"] = self.build_url(enclosure)
-
-            # version and shortVersionString can be either in item or in enclosure
-            # https://sparkle-project.org/documentation/publishing/#update-your-appcast
-            version = item_elem.find(f"{{{self.xmlns}}}version")
-            if version is not None:
-                item["version"] = version.text
-            else:
+            if enclosure is not None:
+                item = {}
+                item["url"] = self.build_url(enclosure)
                 item["version"] = self.determine_version(enclosure, item["url"])
-            human_version = item_elem.find(f"{{{self.xmlns}}}shortVersionString")
-            if human_version is not None:
-                item["human_version"] = human_version.text
-            else:
+
                 human_version = enclosure.get(f"{{{self.xmlns}}}shortVersionString")
                 if human_version is not None:
                     item["human_version"] = human_version
+                min_version = item_elem.find(f"{{{self.xmlns}}}minimumSystemVersion")
+                if min_version is not None:
+                    item["minimum_os_version"] = min_version.text
 
-            min_version = item_elem.find(f"{{{self.xmlns}}}minimumSystemVersion")
-            if min_version is not None:
-                item["minimum_os_version"] = min_version.text
+                description_elem = item_elem.find(f"{{{self.xmlns}}}releaseNotesLink")
+                # Strip possible surrounding whitespace around description_url
+                # element text as we'll be passing this as an argument to a
+                # curl process
+                if description_elem is not None:
+                    item["description_url"] = description_elem.text.strip()
 
-            channel = item_elem.find(f"{{{self.xmlns}}}channel")
-            if channel is not None:
-                item["channel"] = channel.text
-
-            description_elem = item_elem.find(f"{{{self.xmlns}}}releaseNotesLink")
-            # Strip possible surrounding whitespace around description_url
-            # element text as we'll be passing this as an argument to a
-            # curl process
-            if description_elem is not None:
-                item["description_url"] = description_elem.text
-
-            if item_elem.find("description") is not None:
-                item["description_data"] = item_elem.find("description").text
-
-            # Strip values
-            for k, v in item.items():
-                if v is not None:
-                    item[k] = v.strip()
-
-            versions.append(item)
+                if item_elem.find("description") is not None:
+                    item["description_data"] = item_elem.find("description").text
+                versions.append(item)
 
         return versions
 
@@ -332,19 +299,9 @@ class SparkleUpdateInfoProvider(URLGetter):
 
         data = self.get_feed_data(self.env.get("appcast_url"))
         items = self.parse_feed_data(data)
-        self.output(f"Items in feed: {len(items)}", verbose_level=1)
 
-        # Filter items to desired channel
-        channel_name = self.env.get("update_channel") or "default"
-        if self.env.get("update_channel"):
-            items = [x for x in items if x.get("channel") == self.env["update_channel"]]
-        else:
-            items = [x for x in items if not x.get("channel")]
-        self.output(f"Items in {channel_name} channel: {len(items)}", verbose_level=1)
-        if not items:
-            raise ProcessorError(f"No items were found in {channel_name} channel.")
-
-        latest = max(items, key=lambda x: APLooseVersion(x["version"]))
+        sorted_items = sorted(items, key=lambda a: APLooseVersion(a["version"]))
+        latest = sorted_items[-1]
         self.output(f"Version retrieved from appcast: {latest['version']}")
         if latest.get("human_version"):
             self.output(

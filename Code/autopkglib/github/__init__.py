@@ -271,15 +271,11 @@ To save the token, paste it to the following prompt."""
         if header["http_result_code"] != "000":
             self.http_result_code = int(header["http_result_code"])
 
-        resp_data = None
         try:
             with open(temp_content) as f:
                 resp_data = json.load(f)
-        except UnicodeDecodeError:
-            with open(temp_content, "rb") as f:
-                resp_data = json.load(f)
-        except json.JSONDecodeError as e:
-            self.output(f"JSONDecodeError: {e}")
+        except json.JSONDecodeError:
+            resp_data = None
 
         return (resp_data, self.http_result_code)
 
