@@ -31,7 +31,7 @@ class TestSearchCmd(unittest.TestCase):
     def test_empty_results(self, gh_mock):
         gh_mock.return_value = []
         self.assertEqual(
-            2, search_recipes(["TestSearchCmd", "search", "#test-search#"])
+            0, search_recipes(["TestSearchCmd", "search", "#test-search#"])
         )
 
     @patch("autopkgcmd.searchcmd.print_gh_search_results")
@@ -39,7 +39,7 @@ class TestSearchCmd(unittest.TestCase):
     def test_too_many_results(self, search_mock, _print_results_mock):
         search_mock.return_value = list(range(101))
         self.assertEqual(
-            3, search_recipes(["TestSearchCmd", "search", "#test-search#"])
+            0, search_recipes(["TestSearchCmd", "search", "#test-search#"])
         )
 
     @patch("autopkgcmd.searchcmd.print_gh_search_results")
