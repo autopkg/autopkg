@@ -140,7 +140,7 @@ class FlatPkgUnpacker(DmgMounter):
         try:
             pkgutilcmd = [
                 "/usr/sbin/pkgutil",
-                "--expand",
+                "--expand-full",
                 self.source_path,
                 self.env["destination_path"],
             ]
