@@ -96,6 +96,18 @@ class GitHubReleasesInfoProvider(Processor):
                 "takes precedence over this value."
             ),
         },
+        "IGNORE_GITHUB_TOKEN": {
+            "required": False,
+            "default": False,
+            "description": (
+                "If set to True, completely disables the use of GitHub "
+                "authentication tokens, regardless of any token files or "
+                "AutoPkg preferences. This is useful for situations where "
+                "a recipe accessing a public GitHub repository would fail "
+                "when a token is present for a private GitHub Enterprise "
+                "server."
+            ),
+        },
     }
     output_variables = {
         "release_notes": {
@@ -129,11 +141,19 @@ class GitHubReleasesInfoProvider(Processor):
         be of the form 'user/repo'"""
         releases = None
         curl_opts = self.env.get("curl_opts")
+
+        # Check if GitHub token should be disabled
+        # `github_token_path` is set to an empty string instead of None so that
+        # autopkglib.github.GitHubSession does not require any changes.
+        github_token_path = ''
+        if not self.env.get("IGNORE_GITHUB_TOKEN"):
+            github_token_path = self.env["GITHUB_TOKEN_PATH"]
+
         github = autopkglib.github.GitHubSession(
             self.env["CURL_PATH"],
             curl_opts,
             self.env["GITHUB_URL"],
-            self.env["GITHUB_TOKEN_PATH"],
+            github_token_path,
         )
         releases_uri = f"/repos/{repo}/releases"
         if latest_only:
