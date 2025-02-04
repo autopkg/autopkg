@@ -331,10 +331,15 @@ class URLDownloaderPython(URLDownloader):
         return ctx
 
     def ssl_context_certifi(self):
-        """ssl context using certifi CAs"""
+        """SSL context using certifi CAs or custom CAs if the env SSL_CERT_FILE is set"""
         # this doesn't need to be a class method
         # https://stackoverflow.com/questions/24374400/verifying-https-certificates-with-urllib-request
-        return ssl.create_default_context(cafile=certifi.where())
+        ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        ctx.load_verify_locations(cafile=certifi.where())
+        if (cafile := os.environ.get("SSL_CERT_FILE")) is not None:
+            ctx.load_verify_locations(cafile=cafile)
+
+        return ctx
 
     def download_and_hash(self, file_save_path):
         """stream down file from url and calculate size & hashes"""
