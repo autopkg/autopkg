@@ -138,28 +138,11 @@ class GitHubSession:
                 )
         return token
 
-    def get_latest_release_url(self, name_or_id: str, prereleases: bool = False) -> str:
-        """Get the download URL to the latest autopkg/autopkg release package.
-        If prereleases is True, return latest prerelease."""
-        if not prereleases:
-            # There's an EZ button for this in the API
-            return (
-                self.get_repo(name_or_id)
-                .get_latest_release()
-                .assets[0]
-                .browser_download_url
-            )
-        releases_paginated = self.get_repo(name_or_id).get_releases()
-        releases = [rel for rel in releases_paginated if rel.prerelease is True]
-        # This somewhat naively assumes the order of releases from the API remains consistent.
-        # https://docs.github.com/en/rest/releases/releases?apiVersion=2022-11-28#list-releases
-        # Docs do not seem to promise that this order is based on most recent, descending, but for now
-        # we'll assume it will continue to be.
-        return releases[0].assets[0].browser_download_url
-        # TODO: Something to consider: what happens if this fails? If there's a rate limit/API exception,
-        # what should we return?
-        # For now, we'll generally assume this won't, but this may need to return an Optional string in the future
-        # once we test what happens when it fails
+    def get_latest_repo_release(self, name_or_id: str) -> List[github.GitRelease.GitRelease]:
+        """Get a list of the latest GitRelease object for a repo"""
+        repo: github.Repository.Repository = self.get_repo(name_or_id)
+        latest_release: github.GitRelease.GitRelease = repo.get_latest_release()
+        return [latest_release]
 
     def get_repo(self, name_or_id: str) -> github.Repository.Repository:
         """Get a specific repository object"""
@@ -173,12 +156,28 @@ class GitHubSession:
         return [rel for rel in paginated_releases]
 
     def get_repo_asset_dict(
-        self, name_or_id: str, prereleases: bool = False
+        self, name_or_id: str, latest: bool = False, prereleases: bool = False
     ) -> GithubReleasesDict:
-        """Get a dict of Release title: [ {asset name: asset id} ] only for all releases for a repo"""
-        releases: List[github.GitRelease.GitRelease] = self.get_repo_releases(
-            name_or_id
-        )
+        """Get a dict of Release title: [ {asset name: asset id} ] for a repo"""
+        # No need to process everything if we only want the "latest" labeled release
+        if latest and not prereleases:
+            releases: List[github.GitRelease.GitRelease] = self.get_latest_repo_release(
+                name_or_id
+            )
+        else:
+            releases: List[github.GitRelease.GitRelease] = self.get_repo_releases(
+                name_or_id
+            )
+
+        # Use a dictionary comprehension to create a new dictionary that contains only the most recent key
+        if latest and prereleases:
+            reduced_releases: List[github.GitRelease.GitRelease] = {
+                k: releases[k]
+                for k in releases.keys()
+                if k == next(iter(releases))
+            }
+            releases = reduced_releases
+
         # Releases have a list of assets - release.asset, which is a list of GitReleaseAssets
         repo_asset_dict = {}
         for release in releases:
@@ -189,6 +188,7 @@ class GitHubSession:
             for asset in release.assets:
                 release_assets.append({asset.name: asset.browser_download_url})
             repo_asset_dict[release.tag_name] = release_assets
+
         return repo_asset_dict
 
     def search_for_name(
