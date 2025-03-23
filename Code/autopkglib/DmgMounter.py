@@ -18,6 +18,7 @@
 import plistlib
 import subprocess
 import sys
+import time
 
 from autopkglib import Processor, ProcessorError
 from autopkglib.common import log, log_err
@@ -159,6 +160,7 @@ class DmgMounter(Processor):
         # Don't try to unmount something we didn't mount.
         if pathname not in self.mounts:
             raise ProcessorError(f"{pathname} is not mounted")
+        time.sleep(1)
 
         # Call hdiutil.
         try:
