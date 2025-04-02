@@ -26,12 +26,12 @@ import subprocess
 import sys
 import traceback
 from copy import deepcopy
-from packaging.version import Version, parse
 from typing import IO, Any, Dict, List, Optional, Union
 
 import appdirs
 import pkg_resources
 import yaml
+from packaging.version import Version, parse
 
 # Type for methods that accept either a filesystem path or a file-like object.
 FileOrPath = Union[IO, str, bytes, int]

@@ -18,11 +18,11 @@
 import os.path
 import re
 import subprocess
-from packaging.version import Version
 from glob import glob
 
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
+from packaging.version import Version
 
 __all__ = ["CodeSignatureVerifier"]
 

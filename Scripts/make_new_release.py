@@ -29,12 +29,12 @@ import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
-from packaging.version import parse
 from pprint import pprint
 from shutil import rmtree
 from time import strftime
 
 import certifi
+from packaging.version import parse
 
 
 class GitHubAPIError(BaseException):
