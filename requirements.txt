@@ -28,6 +28,7 @@ tokenize-rt==3.2.0
 toml==0.10.0
 virtualenv==20.0.8
 zipp==0.5.1
+packaging==24.2
 #
 # *nix Requirements
 #
