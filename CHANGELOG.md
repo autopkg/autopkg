@@ -1,9 +1,10 @@
 ### [2.7.4](https://github.com/autopkg/autopkg/compare/v2.7.3...HEAD) (Unreleased)
 
-* Unarchiver -- add support for .tar.xz files (treated same as .tar) (#863)
-* SparkleUpdateInfoProvider -- skip item enclosures that lack a url (#907)
-* URLGetter -- prevent UnicodeDecodeError exception caused by subprocess `errors` argument remaining undefined (#850, thanks to @vmiller)
-* PkgCopier -- check to ensure file being copied is a pkg (#864, thanks to @jazzace)
+* Unarchiver -- add support for .tar.xz files (treated same as .tar) (https://github.com/autopkg/autopkg/pull/863)
+* SparkleUpdateInfoProvider -- skip item enclosures that lack a url (https://github.com/autopkg/autopkg/pull/907)
+* URLGetter -- prevent UnicodeDecodeError exception caused by subprocess `errors` argument remaining undefined (https://github.com/autopkg/autopkg/pull/850, thanks to @vmiller)
+* PkgCopier -- check to ensure file being copied is a pkg (https://github.com/autopkg/autopkg/pull/864, thanks to @jazzace)
+* Typo fix in docstring (https://github.com/autopkg/autopkg/pull/956, thanks to @eltociear)
 
 ### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.7.3) (May 15, 2024)
 
