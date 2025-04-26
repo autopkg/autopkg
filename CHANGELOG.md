@@ -2,6 +2,7 @@
 
 * Unarchiver -- add support for .tar.xz files (treated same as .tar) (#863)
 * SparkleUpdateInfoProvider -- skip item enclosures that lack a url (#907)
+* URLGetter -- prevent UnicodeDecodeError exception caused by subprocess `errors` argument remaining undefined (#850, thanks to @vmiller)
 
 ### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.7.3) (May 15, 2024)
 
