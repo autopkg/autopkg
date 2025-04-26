@@ -1,6 +1,7 @@
 ### [2.7.4](https://github.com/autopkg/autopkg/compare/v2.7.3...HEAD) (Unreleased)
 
-* Unarchiver -- add support for .tar.xz files (treated same as .tar)
+* Unarchiver -- add support for .tar.xz files (treated same as .tar) (#863)
+* SparkleUpdateInfoProvider -- skip item enclosures that lack a url (#907)
 
 ### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.7.3) (May 15, 2024)
 
