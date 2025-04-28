@@ -5,6 +5,7 @@
 * URLGetter -- prevent UnicodeDecodeError exception caused by subprocess `errors` argument remaining undefined (https://github.com/autopkg/autopkg/pull/850, thanks to @vmiller)
 * PkgCopier -- check to ensure file being copied is a pkg (https://github.com/autopkg/autopkg/pull/864, thanks to @jazzace)
 * Typo fix in docstring (https://github.com/autopkg/autopkg/pull/956, thanks to @eltociear)
+* Added end-to-end test script to assist in AutoPkg development regression detection.
 
 ### [2.7.3](https://github.com/autopkg/autopkg/compare/v2.7.2...v2.7.3) (May 15, 2024)
 
