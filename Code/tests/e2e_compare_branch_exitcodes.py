@@ -47,7 +47,7 @@ RECIPE_COUNT = 100
 
 # Control (known good) and experimental branch names
 CONTROL_BRANCH = "master"
-EXPER_BRANCH = "dev"
+EXPER_BRANCH = "dev-2.7.x"
 
 
 def clear_cache():
