@@ -22,7 +22,7 @@
 
 **Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7.1..v2.7.2
 
-### [2.7.1](https://github.com/autopkg/autopkg/compare/v2.7.1...v2.7.1) (December 06, 2022)
+### [2.7.1](https://github.com/autopkg/autopkg/compare/v2.7...v2.7.1) (December 06, 2022)
 
 * GitHubReleasesInfoProvider -- add support for a "latest_only" input variable (https://github.com/autopkg/autopkg/pull/846)
 * GitHubReleasesInfoProvider -- add "asset_created_at" output variable
@@ -57,6 +57,7 @@ Similarly, thanks to @homebysix for doing a similar action for linting, ensuring
 **Full Changelog**: https://github.com/autopkg/autopkg/compare/v2.7.0...v2.5
 
 ### [2.5.0](https://github.com/autopkg/autopkg/compare/v2.3...v2.5.0) (April 08, 2022)
+
 FIXES:
 
 - Resolved a bug preventing `autopkg repo-update` and `autopkg repo-delete` operations on local file paths ([#724](https://github.com/autopkg/autopkg/issues/724); fixes [#723](https://github.com/autopkg/autopkg/issues/723) and [lindegroup/autopkgr#666](https://github.com/lindegroup/autopkgr/issues/666))
@@ -105,8 +106,8 @@ MunkiImporter now supports Munki repo plugins, thanks to @tboyko. The default be
 is still to use FileRepo as the default local behavior, so existing behavior is
 unchanged. (https://github.com/autopkg/autopkg/pull/654)
 
-
 CHANGES FROM 2.1:
+
 - URLDownloader handles Content-Disposition filenames with quotes correctly (https://github.com/autopkg/autopkg/pull/633)
 - README and CONTRIBUTING guides updated with correct Python 3 framework info (https://github.com/autopkg/autopkg/pull/638)
 - PyYAML updated to 5.3.1 to address PyYAML-CVE-2020-1747 (https://github.com/autopkg/autopkg/pull/642)
@@ -121,6 +122,7 @@ CHANGES FROM 2.1:
 ### [2.1](https://github.com/autopkg/autopkg/compare/v2.0.2...v2.1) (May 19, 2020)
 
 NEW FEATURES
+
 AutoPkg now supports the verbs `list-repos` and `processor-list` for convenience (https://github.com/autopkg/autopkg/pull/628)
 
 `autopkg info --pull`/`-p` now allows you to fetch all parent repos of a recipe
@@ -161,6 +163,7 @@ dynamically fetch parents on-demand, instead of preconfiguring your environment 
 list of known repos.
 
 CHANGES FROM 2.0.2:
+
 - URLGetter can handle parsing headers without an explicit `url` in the environment (https://github.com/autopkg/autopkg/pull/605)
 - FileCreator now has a unit test (https://github.com/autopkg/autopkg/pull/591)
 - AutoPkg warns you more helpfully if you are trying to run it with Python 2 (https://github.com/autopkg/autopkg/pull/610)
@@ -176,12 +179,14 @@ CHANGES FROM 2.0.2:
 ### [2.0.2](https://github.com/autopkg/autopkg/compare/v2.0.1...v2.0.2) (February 05, 2020)
 
 CHANGES FROM RC2:
+
 - Fixed an encoding bug in the make_new_release script (https://github.com/autopkg/autopkg/commit/fca40526a3a19f3e208574be775fa7309244c0d5)
 - Removed some orphaned dead code (https://github.com/autopkg/autopkg/commit/c90e92b1988f347834ed4957cc9108c2b1eef44b)
 
 ### [2.0 RC2](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (January 31, 2020)
 
 CHANGES FROM RC1:
+
 - Fixed some processor docs (https://github.com/autopkg/autopkg/commit/3812ca12a44531c78c869e67fbbd84d7706b8a93)
 - Added in "APLooseVersion", loosely based on Munki's version comparison, to replace previous version comparison semantics. (https://github.com/autopkg/autopkg/commit/7c0676fdfe77f66f261b0df53ec5a792d31c5d3c)
   - This MAY cause a change in behavior for some current version comparisons, but it no longer crashes when comparing
@@ -190,6 +195,7 @@ CHANGES FROM RC1:
 ### [2.0 RC1](https://github.com/autopkg/autopkg/compare/2.0b3...v2.0.1) (December 03, 2019)
 
 CHANGES FROM BETA 3:
+
 - Some fixes around URLGetter's behavior and callsites
 - `URLGetter.execute_curl()` was changed to use `subprocess.run()` instead of `Popen` (https://github.com/autopkg/autopkg/commit/facad8ce48cfb9766578d55823660feb177b3e80)
 - Update URLDownloader variable descriptions to show up better on the wiki (https://github.com/autopkg/autopkg/commit/079c606778a3a4795cd52e4f98a77f5479b36ea9)
@@ -200,6 +206,7 @@ it simple to download a file in a custom processor (this was backported to 1.4.1
 - make_new_release.py produces more friendly console output indicating what stage it's on (https://github.com/autopkg/autopkg/commit/1373b31d407b1a2ae023256aa2d65ef165d5956)
 
 ### [2.0b3](https://github.com/autopkg/autopkg/compare/12249273c23e9c52675ab947024c2ac505080049...2.0b3) (November 25, 2019)
+
 CHANGES FROM BETA 2:
 
 - Thanks to @MichalMMac's heroic efforts, URLGetter is now much easier for other processors to use. There are now two ways a custom processor can download things without needing to write any urllib logic:
@@ -231,7 +238,6 @@ CHANGES IN INITIAL 2.0 RELEASE:
 KNOWN ISSUES:
 
 - There are likely still edge cases in the autopkg/recipes that slipped through testing, so please file issues if you find recipes that don't work as intended.
-
 
 ### [2.0b1](https://github.com/autopkg/autopkg/compare/AutoPkg_1.x...12249273c23e9c52675ab947024c2ac505080049) (November 06, 2019)
 
