@@ -18,6 +18,7 @@
 import glob
 import os.path
 
+from autopkglib import ProcessorError
 from autopkglib.Copier import Copier
 
 __all__ = ["PkgCopier"]
@@ -82,6 +83,14 @@ class PkgCopier(Copier):
                 self.output(
                     f"Using path '{matched_source_path}' matched from globbed "
                     f"'{source_pkg}'."
+                )
+
+            # Check that the source path ends with supported extension
+            pkg_extensions = (".mpkg", ".pkg")
+            if os.path.splitext(matched_source_path)[1] not in pkg_extensions:
+                raise ProcessorError(
+                    "Source does not appear to be a package based on its filename: "
+                    f"'{matched_source_path}'"
                 )
 
             # do the copy
