@@ -18,6 +18,7 @@
 import os
 import plistlib
 import subprocess
+from datetime import datetime
 
 from autopkglib import Processor, ProcessorError
 from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
@@ -347,7 +348,18 @@ class MunkiImporter(Processor):
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:
             for key in self.env["pkginfo"]:
-                pkginfo[key] = self.env["pkginfo"][key]
+                value = self.env["pkginfo"][key]
+                # Special handling: if key is force_install_after_date and value is a str with 'Z' at end, convert to naive datetime
+                if key == "force_install_after_date" and isinstance(value, str) and value.endswith("Z"):
+                    try:
+                        # Pull 'Z' off end, read string representation as naive/no-timezone-related datetime
+                        datetime_obj = datetime.strptime(value[:-1], "%Y-%m-%dT%H:%M:%S")
+                        # When being written out later, the serialization of a date is always ISO8601 w/Z
+                        pkginfo[key] = datetime_obj
+                    except Exception:
+                        pkginfo[key] = value  # fallback to string if parsing fails
+                else:
+                    pkginfo[key] = value
 
         # copy any keys from metadata_additions
         if "metadata_additions" in self.env:
