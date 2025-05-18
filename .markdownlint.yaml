@@ -1,0 +1,16 @@
+default: true
+emphasis-style: false
+fenced-code-language: false
+heading-style:
+  style: consistent
+line-length: false
+no-bare-urls: false
+no-duplicate-heading:
+  siblings_only: true
+no-hard-tabs: false
+no-multiple-blanks:
+  maximum: 2
+ul-indent:
+  indent: 4
+ul-style:
+  style: consistent
