@@ -227,7 +227,7 @@ def main():
     # write today's date in the changelog
     with open(changelog_path, "r") as fdesc:
         changelog = fdesc.read()
-    release_date = strftime("(%B %d, %Y)")
+    release_date = strftime("(%B %-d, %Y)")
     new_changelog = re.sub(r"\(Unreleased\)", release_date, changelog)
     new_changelog = re.sub("...HEAD", f"...v{current_version}", new_changelog)
     with open(changelog_path, "w") as fdesc:
