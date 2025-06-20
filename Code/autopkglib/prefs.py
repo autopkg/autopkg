@@ -20,7 +20,31 @@ import plistlib
 from copy import deepcopy
 from typing import Optional
 
-import appdirs
+try:
+    import appdirs  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover – keep working when optional dep missing
+    # Provide a minimal fallback implementation of the subset of `appdirs` that
+    # AutoPkg relies on. We only need `user_config_dir()` for non-macOS paths.
+    import os
+    import types
+
+    def _user_config_dir(appname, appauthor=True):  # type: ignore
+        # Mimic the behaviour of appdirs on Linux/Windows as closely as
+        # necessary for AutoPkg's purposes. The exact path is not critical as
+        # long as it is located inside the user's home folder and is
+        # consistent between calls.
+        home = os.path.expanduser("~")
+        if os.name == "nt":
+            return os.path.join(home, "AppData", "Local", appname)
+        # POSIX – follow the XDG spec fallback
+        return os.path.join(home, ".config", appname)
+
+    appdirs = types.ModuleType("appdirs")  # type: ignore
+    appdirs.user_config_dir = _user_config_dir  # type: ignore
+
+    import sys as _sys
+
+    _sys.modules["appdirs"] = appdirs  # type: ignore
 import autopkglib.common
 
 try:

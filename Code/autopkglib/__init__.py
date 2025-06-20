@@ -16,7 +16,38 @@
 
 """Core/shared autopkglib functions"""
 import glob
-import imp
+# The `imp` module was removed in Python 3.12. AutoPkg still relies on the
+# `imp.load_source()` helper to dynamically load processors during runtime and
+# inside the test-suite. To retain compatibility with newer Python versions we
+# provide a minimal shim that exposes the required `load_source` attribute using
+# `importlib` under the hood.
+
+import sys
+import types
+import importlib
+import importlib.machinery
+
+try:
+    import imp  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover – only relevant on 3.12+
+    imp = types.ModuleType("imp")  # type: ignore
+
+    def _load_source(name, pathname):  # type: ignore
+        """Replacement for imp.load_source using importlib."""
+        loader = importlib.machinery.SourceFileLoader(name, pathname)
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        if spec is None:
+            raise ImportError(f"Cannot load module {name} from {pathname}")
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        sys.modules[name] = module
+        return module
+
+    imp.load_source = _load_source  # type: ignore
+
+    # Register the shim so future `import imp` statements succeed.
+    sys.modules["imp"] = imp  # type: ignore
 import json
 import os
 import plistlib

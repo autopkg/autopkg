@@ -115,7 +115,23 @@ class GitHubSession:
 
     def _get_token(self, token_path: str) -> Optional[str]:
         """Reads token from GITHUB_TOKEN_PATH pref or provided token path."""
-        default_token_path = "~/.autopkg_gh_token"
+        # Default path for a GitHub personal access token used by AutoPkg.
+        # This should match the constant defined in autopkglib.common so that
+        # both the library code and the user-facing documentation refer to
+        # the exact same location. A previous hard-coded value pointed to
+        # an outdated location ("~/.autopkg_gh_token"), which meant that on
+        # a fresh setup – where the `GITHUB_TOKEN_PATH` preference is not yet
+        # written – AutoPkg looked in the wrong place and consequently failed
+        # to authenticate with GitHub (see GH-#899).
+        #
+        # Using the shared constant keeps these values in sync and ensures
+        # AutoPkg will correctly pick up a token that has been placed at the
+        # documented default location: `~/Library/AutoPkg/gh_token`.
+        # NOTE: We import inside the function to avoid a potential circular
+        # dependency at import-time.
+        from autopkglib.common import DEFAULT_GH_TOKEN  # local import
+
+        default_token_path = DEFAULT_GH_TOKEN
         if os.path.exists(token_path):
             expanded_token_path = os.path.expanduser(token_path)
         else:
