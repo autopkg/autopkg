@@ -8,3 +8,6 @@ autopkgc
 # IDE-specific files
 .vscode
 autopkg.code-workspace
+
+# ignore github token if it exists
+.autopkg_gh_token

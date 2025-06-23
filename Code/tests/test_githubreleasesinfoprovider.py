@@ -2,8 +2,10 @@
 
 import re
 import unittest
+from unittest.mock import patch
 
 from autopkglib import ProcessorError
+import autopkglib.GitHubReleasesInfoProvider
 from autopkglib.GitHubReleasesInfoProvider import GitHubReleasesInfoProvider
 
 
@@ -74,7 +76,28 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         self.processor.env = test_env
         self.processor.main()
         self.assertIsNotNone(test_env["asset_url"])
+    
+    @patch('autopkglib.GitHubReleasesInfoProvider.is_archived')
+    def test_main_with_archived_repo(self, mock_is_archived):
+        mock_is_archived.return_value = True
 
+        test_env = {"github_repo": "autopkg/autopkg"}
+        test_env.update(self.base_env)
+        self.processor.env = test_env
+        with self.assertRaises(ProcessorError):
+            self.processor.main()
+    
+    @patch('autopkglib.GitHubReleasesInfoProvider.is_archived')
+    def test_main_with_archived_repo_ignore_archive(self, mock_is_archived):
+        mock_is_archived.return_value = True
+
+        test_env = {
+            "github_repo": "autopkg/autopkg",
+            "ignore_archived": "true",
+        }
+        test_env.update(self.base_env)
+        self.processor.env = test_env
+        self.processor.main()
 
 if __name__ == "__main__":
     unittest.main()
