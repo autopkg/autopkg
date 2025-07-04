@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. This projec
 - Added code coverage outputs to gitignore (for future use)
 - Updated pre-commit hooks
 - Continued adding type hinting to core code
+- MunkiImporter always sets `munki_repo_changed` to `False` if we don't import an item
 
 ### Deprecations
 
