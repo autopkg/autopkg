@@ -11,6 +11,10 @@ All notable changes to this project will be documented in this file. This projec
 - Updated pre-commit hooks
 - Continued adding type hinting to core code
 
+### Deprecations
+
+- MunkiCatalogBuilder is deprecated and now performs no action
+
 
 ## [2.7.4](https://github.com/autopkg/autopkg/compare/v2.7.3...v2.7.4) (May 3, 2025)
 
