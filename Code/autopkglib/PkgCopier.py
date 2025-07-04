@@ -53,7 +53,7 @@ class PkgCopier(Copier):
         },
     }
 
-    def main(self):
+    def main(self) -> None:
         # clear any pre-existing summary result
         if "pkg_copier_summary_result" in self.env:
             del self.env["pkg_copier_summary_result"]

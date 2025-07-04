@@ -314,7 +314,7 @@ class SparkleUpdateInfoProvider(URLGetter):
                 )
         return pkginfo
 
-    def main(self):
+    def main(self) -> None:
         """Get URL for latest version in update feed"""
 
         if "PKG" in self.env:

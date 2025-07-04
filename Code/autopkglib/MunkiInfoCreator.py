@@ -44,7 +44,7 @@ class MunkiInfoCreator(Processor):
     }
     output_variables = {"munki_info": {"description": "The pkginfo property list."}}
 
-    def main(self):
+    def main(self) -> None:
         # Wrap in a try/finally so the temp_path is always removed.
         temp_path = None
         try:

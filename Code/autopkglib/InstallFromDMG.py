@@ -146,7 +146,7 @@ class InstallFromDMG(DmgMounter):
             # the socket is already closed
             pass
 
-    def main(self):
+    def main(self) -> None:
         """Install something!"""
         self.install()
 

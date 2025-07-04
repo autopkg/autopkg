@@ -111,7 +111,7 @@ class URLTextSearcher(URLGetter):
         # return the last matched group with the dict of named groups
         return (match.group(match.lastindex or 0), match.groupdict())
 
-    def main(self):
+    def main(self) -> None:
         output_var_name = self.env["result_output_var_name"]
 
         # Prepare curl command

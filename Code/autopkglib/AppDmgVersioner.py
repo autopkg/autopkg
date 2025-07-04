@@ -48,14 +48,14 @@ class AppDmgVersioner(DmgMounter):
 
     __doc__ = description
 
-    def find_app(self, path):
+    def find_app(self, path) -> str:
         """Find app bundle at path."""
         apps = glob.glob(os.path.join(path, "*.app"))
         if len(apps) == 0:
             raise ProcessorError("No app found in dmg")
         return apps[0]
 
-    def read_bundle_info(self, path):
+    def read_bundle_info(self, path) -> dict:
         """Read Contents/Info.plist inside a bundle."""
 
         plistpath = os.path.join(path, "Contents", "Info.plist")
@@ -66,7 +66,7 @@ class AppDmgVersioner(DmgMounter):
             raise ProcessorError(f"Can't read {plistpath}: {error}")
         return info
 
-    def main(self):
+    def main(self) -> None:
         # Mount the image.
         mount_point = self.mount(self.env["dmg_path"])
         # Wrap all other actions in a try/finally so the image is always

@@ -165,7 +165,7 @@ class Unarchiver(Processor):
                 f"{stderr}"
             )
 
-    def main(self):
+    def main(self) -> None:
         """Unarchive a file"""
         # handle some defaults for archive_path and destination_path
         archive_path = self.env.get("archive_path", self.env.get("pathname"))

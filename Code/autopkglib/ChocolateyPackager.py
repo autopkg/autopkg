@@ -276,7 +276,7 @@ class ChocolateyPackager(Processor):
         return os.path.abspath(os.path.join(build_dir, *additional_parts))
 
     @property
-    def idver(self):
+    def idver(self) -> str:
         return f"{self.env['id']}.{self.env['version']}"
 
     def _nuspec_path(self, build_dir: str) -> str:
@@ -402,7 +402,7 @@ class ChocolateyPackager(Processor):
             return
         self.output(msgs, verbose_level)
 
-    def main(self):
+    def main(self) -> None:
         # Validate arguments, apply dynamic defaults as needed.
         self._ensure_path_var("chocoexe_path")
         if (

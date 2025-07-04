@@ -195,7 +195,7 @@ class Versioner(DmgMounter):
             return None
         return deserializer(path)
 
-    def main(self):
+    def main(self) -> None:
         """Return a version for file at input_plist_path"""
         input_plist_path: str = self.env["input_plist_path"]
         skip_single_root_dir: bool = self.env["skip_single_root_dir"]

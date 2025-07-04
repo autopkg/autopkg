@@ -30,7 +30,7 @@ class MunkiCatalogBuilder(Processor):
     output_variables = {}
     description = __doc__
 
-    def main(self):
+    def main(self) -> None:
         warning_message = self.env.get(
             "warning_message",
             "### The MunkiCatalogBuilder processor has been deprecated. It currently does nothing. It will be removed in the future. ###",

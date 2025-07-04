@@ -156,7 +156,7 @@ class FlatPkgUnpacker(DmgMounter):
                 f"{stderr}"
             )
 
-    def main(self):
+    def main(self) -> None:
         # Check if we're trying to copy something inside a dmg.
         (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
             self.env["flat_pkg_path"]

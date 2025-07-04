@@ -269,7 +269,7 @@ class PkgCreator(Processor):
         except OSError as e:
             self.output(f"Failed to close socket: {e}", verbose_level=2)
 
-    def main(self):
+    def main(self) -> None:
         """Package something!"""
         self.package()
 

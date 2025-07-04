@@ -85,7 +85,7 @@ class PkgExtractor(DmgMounter):
         if proc.returncode != 0:
             raise ProcessorError(f"Unpacking payload failed: {stderr}")
 
-    def main(self):
+    def main(self) -> None:
         # Check if we're trying to read something inside a dmg.
         (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(self.env["pkg_path"])
         try:

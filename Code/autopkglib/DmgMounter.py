@@ -152,7 +152,7 @@ class DmgMounter(Processor):
             f"mounting {pathname} failed: unexpected output from hdiutil"
         )
 
-    def unmount(self, pathname):
+    def unmount(self, pathname) -> None:
         """Unmount previously mounted image."""
 
         # Don't try to unmount something we didn't mount.

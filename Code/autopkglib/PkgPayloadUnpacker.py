@@ -125,7 +125,7 @@ class PkgPayloadUnpacker(Processor):
             f"Unpacked {self.env['pkg_payload_path']} to {self.env['destination_path']}"
         )
 
-    def main(self):
+    def main(self) -> None:
         self.unpack_pkg_payload()
 
 

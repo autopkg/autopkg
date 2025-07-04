@@ -174,7 +174,7 @@ class Installer(DmgMounter):
         """Disconnect from autopkginstalld"""
         self.socket.close()
 
-    def main(self):
+    def main(self) -> None:
         """Install something!"""
         self.install()
 

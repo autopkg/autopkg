@@ -136,7 +136,7 @@ class SignToolVerifier(Processor):
 
         return proc.returncode == 0
 
-    def main(self):
+    def main(self) -> None:
         if self.env.get("DISABLE_CODE_SIGNATURE_VERIFICATION"):
             self.output("Authenticode verification disabled for this recipe run.")
             return

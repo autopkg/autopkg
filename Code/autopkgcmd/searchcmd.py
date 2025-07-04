@@ -24,7 +24,7 @@ from autopkglib.github import (
 )
 
 
-def search_recipes(argv: List[str]):
+def search_recipes(argv: List[str]) -> int:
     """Search recipes on GitHub"""
     verb = argv[1]
     parser = gen_common_parser()

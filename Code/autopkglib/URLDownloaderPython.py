@@ -345,7 +345,7 @@ class URLDownloaderPython(URLDownloader):
 
         return download_dictionary
 
-    def main(self):
+    def main(self) -> None:
         """Execution starts here"""
         # Clear and initiazize data structures
         self.clear_vars()

@@ -62,7 +62,7 @@ class PkgInfoCreator(Processor):
                     return test_item
         raise ProcessorError(f"Can't find {template_path}")
 
-    def main(self):
+    def main(self) -> None:
         if self.env["pkgtype"] not in ("bundle", "flat"):
             raise ProcessorError(f"Unknown pkgtype {self.env['pkgtype']}")
         template = self.load_template(self.find_template(), self.env["pkgtype"])

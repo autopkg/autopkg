@@ -57,7 +57,7 @@ class StopProcessingIf(Processor):
         self.output(f"({predicate_string}) is {result}")
         return result
 
-    def main(self):
+    def main(self) -> None:
         self.env["stop_processing_recipe"] = self.predicate_evaluates_as_true(
             self.env["predicate"]
         )

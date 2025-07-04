@@ -75,7 +75,7 @@ def test_recipe(filepath, autopkg_path="/usr/local/bin/autopkg"):
     return results["1st"], results["2nd"]
 
 
-def main():
+def main() -> None:
     """Main process."""
 
     # Gather list of eligible recipes.

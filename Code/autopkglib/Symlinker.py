@@ -39,7 +39,7 @@ class Symlinker(Processor):
     }
     output_variables = {}
 
-    def main(self):
+    def main(self) -> None:
         source_path = self.env["source_path"]
         destination_path = self.env["destination_path"]
 

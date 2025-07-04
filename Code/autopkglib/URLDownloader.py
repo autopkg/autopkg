@@ -312,7 +312,7 @@ class URLDownloader(URLGetter):
             )
             self.output(f"Storing new ETag header: {header.get('etag')}")
 
-    def main(self):
+    def main(self) -> None:
         # Clear and initiazize data structures
         self.clear_vars()
 

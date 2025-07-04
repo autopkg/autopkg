@@ -211,7 +211,7 @@ class URLGetter(Processor):
             return filename
         raise ProcessorError(f"{filename} was not written!")
 
-    def main(self):
+    def main(self) -> None:
         pass
 
 

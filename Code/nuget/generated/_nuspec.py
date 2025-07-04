@@ -7219,7 +7219,7 @@ def parseLiteral(inFileName, silence=False, print_warnings=True):
     return rootObj
 
 
-def main():
+def main() -> None:
     args = sys.argv[1:]
     if len(args) == 1:
         parse(args[0])

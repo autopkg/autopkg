@@ -222,7 +222,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             },
         }
 
-    def main(self):
+    def main(self) -> None:
         """Find an app, package it up"""
         if self.env.get("app_path"):
             app_path = self.env["app_path"]

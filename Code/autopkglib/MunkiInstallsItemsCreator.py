@@ -167,7 +167,7 @@ class MunkiInstallsItemsCreator(Processor):
                 "minimum_os_version"
             ]
 
-    def main(self):
+    def main(self) -> None:
         self.create_installs_items()
 
 

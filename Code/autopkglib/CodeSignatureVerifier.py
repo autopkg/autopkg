@@ -297,7 +297,7 @@ class CodeSignatureVerifier(DmgMounter):
             else:
                 self.output("Authority name chain is valid")
 
-    def main(self):
+    def main(self) -> None:
         if self.env.get("DISABLE_CODE_SIGNATURE_VERIFICATION"):
             self.output("Code signature verification disabled for this recipe run.")
             return

@@ -292,7 +292,7 @@ class MunkiImporter(Processor):
         # if we get here, we found no matches
         return None
 
-    def main(self):
+    def main(self) -> None:
         library = self._fetch_repo_library(
             self.env["MUNKI_REPO"],
             self.env["MUNKI_REPO_PLUGIN"],
