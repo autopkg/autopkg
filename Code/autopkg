@@ -2224,6 +2224,8 @@ def run_recipes(argv):
             else:
                 log_err("Failed.")
             failure["recipe"] = recipe_path
+            if recipe["Identifier"]:
+                failure["recipe_id"] = recipe["Identifier"]
             failure["message"] = str(err)
             failure["traceback"] = traceback.format_exc()
             failures.append(failure)
