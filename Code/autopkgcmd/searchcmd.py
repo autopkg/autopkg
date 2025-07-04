@@ -83,6 +83,12 @@ def search_recipes(argv: List[str]):
     results = GitHubSession().search_for_name(
         term, options.path_only, options.user, options.use_token, results_limit
     )
+    print()
+    print(
+        "Note: GitHub's code search API, which AutoPkg search uses, can produce "
+        "\nunexpected results. If you don't see the recipe you're looking for, "
+        "\ntry searching https://autopkgweb.com/ (maintained by @jannheider)."
+    )
     if not results:
         return 2
 
