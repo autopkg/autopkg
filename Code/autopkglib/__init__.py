@@ -27,7 +27,7 @@ import sys
 import traceback
 from copy import deepcopy
 from distutils.version import LooseVersion
-from typing import IO, Any, Dict, List, Optional, Union
+from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
 import appdirs
 import pkg_resources
@@ -42,22 +42,22 @@ FileOrPath = Union[IO, str, bytes, int]
 VarDict = Dict[str, Any]
 
 
-def is_mac():
+def is_mac() -> bool:
     """Return True if current OS is macOS."""
     return "darwin" in sys.platform.lower()
 
 
-def is_windows():
+def is_windows() -> bool:
     """Return True if current OS is Windows."""
     return "win32" in sys.platform.lower()
 
 
-def is_linux():
+def is_linux() -> bool:
     """Return True if current OS is Linux."""
     return "linux" in sys.platform.lower()
 
 
-def log(msg, error=False):
+def log(msg, error=False) -> None:
     """Message logger, prints to stdout/stderr."""
     if error:
         print(msg, file=sys.stderr)
@@ -65,7 +65,7 @@ def log(msg, error=False):
         print(msg)
 
 
-def log_err(msg):
+def log_err(msg) -> None:
     """Message logger for errors."""
     log(msg, error=True)
 
@@ -148,7 +148,7 @@ class Preferences:
         if not self.prefs:
             log_err("WARNING: Did not load any default preferences.")
 
-    def _parse_json_or_plist_file(self, file_path):
+    def _parse_json_or_plist_file(self, file_path) -> VarDict:
         """Parse the file. Start with plist, then JSON."""
         try:
             with open(file_path, "rb") as f:
@@ -168,7 +168,7 @@ class Preferences:
             pass
         return {}
 
-    def __deepconvert_objc(self, object):
+    def __deepconvert_objc(self, object) -> Any:
         """Convert all contents of an ObjC object to Python primitives."""
         value = object
         if isinstance(object, NSNumber):
@@ -185,12 +185,12 @@ class Preferences:
             return object
         return value
 
-    def _get_macos_pref(self, key):
+    def _get_macos_pref(self, key) -> Any:
         """Get a specific macOS preference key."""
         value = self.__deepconvert_objc(CFPreferencesCopyAppValue(key, BUNDLE_ID))
         return value
 
-    def _get_macos_prefs(self):
+    def _get_macos_prefs(self) -> VarDict:
         """Return a dict (or an empty dict) with the contents of all
         preferences in the domain."""
         prefs = {}
@@ -232,7 +232,7 @@ class Preferences:
 
         return {}
 
-    def _set_macos_pref(self, key, value):
+    def _set_macos_pref(self, key, value) -> None:
         """Sets a preference for domain"""
         try:
             CFPreferencesSetAppValue(key, value, BUNDLE_ID)
@@ -241,14 +241,14 @@ class Preferences:
         except Exception as err:
             raise PreferenceError(f"Could not set {key} preference: {err}") from err
 
-    def read_file(self, file_path):
+    def read_file(self, file_path) -> None:
         """Read in a file and add the key/value pairs into preferences."""
         # Determine type or file: plist or json
         data = self._parse_json_or_plist_file(file_path)
         for k in data:
             self.prefs[k] = data[k]
 
-    def _write_json_file(self):
+    def _write_json_file(self) -> None:
         """Write out the prefs into JSON."""
         try:
             assert self.file_path is not None
@@ -264,7 +264,7 @@ class Preferences:
         except Exception as e:
             log_err(f"Unable to write out JSON: {e}")
 
-    def _write_plist_file(self):
+    def _write_plist_file(self) -> None:
         """Write out the prefs into a Plist."""
         try:
             assert self.file_path is not None
@@ -273,7 +273,7 @@ class Preferences:
         except Exception as e:
             log_err(f"Unable to write out plist: {e}")
 
-    def write_file(self):
+    def write_file(self) -> None:
         """Write preferences back out to file."""
         if not self.file_path:
             # Nothing to do if we weren't given a file
@@ -283,15 +283,15 @@ class Preferences:
         elif self.type == "plist":
             self._write_plist_file()
 
-    def get_pref(self, key):
+    def get_pref(self, key) -> Optional[Any]:
         """Retrieve a preference value."""
         return deepcopy(self.prefs.get(key))
 
-    def get_all_prefs(self):
+    def get_all_prefs(self) -> VarDict:
         """Retrieve a dict of all preferences."""
         return self.prefs
 
-    def set_pref(self, key, value):
+    def set_pref(self, key, value) -> None:
         """Set a preference value."""
         self.prefs[key] = value
         # On macOS, write it back to preferences domain if we didn't use a file
@@ -307,23 +307,23 @@ class Preferences:
 globalPreferences = Preferences()
 
 
-def get_pref(key):
+def get_pref(key) -> Optional[Any]:
     """Return a single pref value (or None) for a domain."""
     return globalPreferences.get_pref(key)
 
 
-def set_pref(key, value):
+def set_pref(key, value) -> None:
     """Sets a preference for domain"""
     globalPreferences.set_pref(key, value)
 
 
-def get_all_prefs():
+def get_all_prefs() -> VarDict:
     """Return a dict (or an empty dict) with the contents of all
     preferences in the domain."""
     return globalPreferences.get_all_prefs()
 
 
-def remove_recipe_extension(name):
+def remove_recipe_extension(name) -> str:
     """Removes supported recipe extensions from a filename or path.
     If the filename or path does not end with any known recipe extension,
     the name is returned as is."""
@@ -333,7 +333,7 @@ def remove_recipe_extension(name):
     return name
 
 
-def recipe_from_file(filename):
+def recipe_from_file(filename) -> Optional[VarDict]:
     """Create a recipe dictionary from a file. Handle exceptions and log"""
     if not os.path.isfile(filename):
         return
@@ -359,7 +359,7 @@ def recipe_from_file(filename):
             return
 
 
-def get_identifier(recipe):
+def get_identifier(recipe) -> Optional[str]:
     """Return identifier from recipe dict. Tries the Identifier
     top-level key and falls back to the legacy key location."""
     try:
@@ -373,14 +373,14 @@ def get_identifier(recipe):
         return None
 
 
-def get_identifier_from_recipe_file(filename):
+def get_identifier_from_recipe_file(filename) -> Optional[str]:
     """Attempts to read filename and get the
     identifier. Otherwise, returns None."""
     recipe_dict = recipe_from_file(filename)
     return get_identifier(recipe_dict)
 
 
-def find_recipe_by_identifier(identifier, search_dirs):
+def find_recipe_by_identifier(identifier, search_dirs) -> Optional[str]:
     """Search search_dirs for a recipe with the given
     identifier"""
     for directory in search_dirs:
@@ -399,7 +399,7 @@ def find_recipe_by_identifier(identifier, search_dirs):
     return None
 
 
-def get_autopkg_version():
+def get_autopkg_version() -> str:
     """Gets the version number of autopkg"""
     try:
         version_plist = plistlib.load(
@@ -414,21 +414,21 @@ def get_autopkg_version():
         return "UNKNOWN"
 
 
-def version_equal_or_greater(this, that):
+def version_equal_or_greater(this, that) -> bool:
     """Compares two LooseVersion objects. Returns True if this is
     equal to or greater than that"""
     return LooseVersion(this) >= LooseVersion(that)
 
 
-def update_data(a_dict, key, value):
+def update_data(a_dict, key, value) -> None:
     """Update a_dict keys with value. Existing data can be referenced
     by wrapping the key in %percent% signs."""
 
-    def getdata(match):
+    def getdata(match) -> Any:
         """Returns data from a match object"""
         return a_dict[match.group("key")]
 
-    def do_variable_substitution(item):
+    def do_variable_substitution(item) -> Any:
         """Do variable substitution for item"""
         if isinstance(item, str):
             try:
@@ -453,7 +453,7 @@ def update_data(a_dict, key, value):
     a_dict[key] = do_variable_substitution(value)
 
 
-def is_executable(exe_path):
+def is_executable(exe_path) -> bool:
     """Is exe_path executable?"""
     return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
 
@@ -551,23 +551,23 @@ class Processor:
         else:
             self.outfile = outfile
 
-    def output(self, msg, verbose_level=1):
+    def output(self, msg, verbose_level=1) -> None:
         """Print a message if verbosity is >= verbose_level"""
         if int(self.env.get("verbose", 0)) >= verbose_level:
             print(f"{self.__class__.__name__}: {msg}")
 
-    def main(self):
+    def main(self) -> None:
         """Stub method"""
         raise ProcessorError("Abstract method main() not implemented.")
 
-    def get_manifest(self):
+    def get_manifest(self) -> Tuple[str, VarDict, VarDict]:
         """Return Processor's description, input and output variables"""
         try:
             return (self.description, self.input_variables, self.output_variables)
         except AttributeError as err:
             raise ProcessorError(f"Missing manifest: {err}") from err
 
-    def read_input_plist(self):
+    def read_input_plist(self) -> None:
         """Read environment from input plist."""
 
         try:
@@ -579,7 +579,7 @@ class Processor:
         except BaseException as err:
             raise ProcessorError(err) from err
 
-    def write_output_plist(self):
+    def write_output_plist(self) -> None:
         """Write environment to output as plist."""
 
         if self.env is None:
@@ -593,7 +593,7 @@ class Processor:
         except BaseException as err:
             raise ProcessorError(err) from err
 
-    def parse_arguments(self):
+    def parse_arguments(self) -> None:
         """Parse arguments as key='value'."""
 
         for arg in sys.argv[1:]:
@@ -602,12 +602,12 @@ class Processor:
                 raise ProcessorError(f"Illegal argument '{arg}'")
             update_data(self.env, key, value)
 
-    def inject(self, arguments):
+    def inject(self, arguments) -> None:
         """Update environment data with arguments."""
         for key, value in list(arguments.items()):
             update_data(self.env, key, value)
 
-    def process(self):
+    def process(self) -> None:
         """Main processing loop."""
         # Make sure all required arguments have been supplied.
         for variable, flags in list(self.input_variables.items()):
@@ -626,7 +626,7 @@ class Processor:
         self.main()
         return self.env
 
-    def cmdexec(self, command, description):
+    def cmdexec(self, command, description) -> Optional[str]:
         """Execute a command and return output."""
 
         try:
@@ -644,7 +644,7 @@ class Processor:
 
         return stdout
 
-    def execute_shell(self):
+    def execute_shell(self) -> None:
         """Execute as a standalone binary on the commandline."""
 
         try:
@@ -704,12 +704,12 @@ class AutoPackager:
         self.results = []
         self.env["AUTOPKG_VERSION"] = get_autopkg_version()
 
-    def output(self, msg, verbose_level=1):
+    def output(self, msg, verbose_level=1) -> None:
         """Print msg if verbosity is >= than verbose_level"""
         if self.verbose >= verbose_level:
             print(msg)
 
-    def get_recipe_identifier(self, recipe):
+    def get_recipe_identifier(self, recipe) -> Optional[str]:
         """Return the identifier given an input recipe dict."""
         identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
         if not identifier:
@@ -722,7 +722,7 @@ class AutoPackager:
             identifier = "-".join(path_parts)
         return identifier
 
-    def process_cli_overrides(self, recipe, cli_values):
+    def process_cli_overrides(self, recipe, cli_values) -> None:
         """Override env with input values from the CLI:
         Start with items in recipe's 'Input' dict, merge and
         overwrite any key-value pairs appended to the
@@ -738,7 +738,7 @@ class AutoPackager:
         for key, value in list(self.env.items()):
             update_data(self.env, key, value)
 
-    def verify(self, recipe):
+    def verify(self, recipe) -> None:
         """Verify a recipe and check for errors."""
 
         # Check for MinimumAutopkgVersion
@@ -788,7 +788,7 @@ class AutoPackager:
             # Add output variables to set.
             variables.update(set(processor_class.output_variables.keys()))
 
-    def process(self, recipe):
+    def process(self, recipe) -> None:
         """Process a recipe."""
         identifier = self.get_recipe_identifier(recipe)
         # define a cache/work directory for use by the recipe
@@ -883,7 +883,7 @@ class AutoPackager:
             pprint.pprint(self.env)
 
 
-def _cmp(x, y):
+def _cmp(x, y) -> int:
     """
     Replacement for built-in function cmp that was removed in Python 3
     Compare the two objects x and y and return an integer according to
@@ -896,7 +896,7 @@ def _cmp(x, y):
 class APLooseVersion(LooseVersion):
     """Subclass of distutils.version.LooseVersion to fix issues under Python 3"""
 
-    def _pad(self, version_list, max_length):
+    def _pad(self, version_list, max_length) -> list:
         """Pad a version list by adding extra 0 components to the end if needed."""
         # copy the version_list so we don't modify it
         cmp_list = list(version_list)
@@ -904,7 +904,7 @@ class APLooseVersion(LooseVersion):
             cmp_list.append(0)
         return cmp_list
 
-    def _compare(self, other):
+    def _compare(self, other) -> int:
         """Complete comparison mechanism since LooseVersion's is broken in Python 3."""
         if not isinstance(other, (LooseVersion, APLooseVersion)):
             other = APLooseVersion(other)
@@ -925,31 +925,31 @@ class APLooseVersion(LooseVersion):
                     return cmp_result
         return cmp_result
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Hash method."""
         return hash(self.version)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         """Equals comparison."""
         return self._compare(other) == 0
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         """Not-equals comparison."""
         return self._compare(other) != 0
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         """Less than comparison."""
         return self._compare(other) < 0
 
-    def __le__(self, other):
+    def __le__(self, other) -> bool:
         """Less than or equals comparison."""
         return self._compare(other) <= 0
 
-    def __gt__(self, other):
+    def __gt__(self, other) -> bool:
         """Greater than comparison."""
         return self._compare(other) > 0
 
-    def __ge__(self, other):
+    def __ge__(self, other) -> bool:
         """Greater than or equals comparison."""
         return self._compare(other) >= 0
 
@@ -958,7 +958,7 @@ _CORE_PROCESSOR_NAMES = []
 _PROCESSOR_NAMES = []
 
 
-def import_processors():
+def import_processors() -> None:
     processor_files: List[str] = [
         os.path.splitext(name)[0]
         for name in pkg_resources.resource_listdir(__name__, "")
@@ -984,14 +984,16 @@ def import_processors():
 
 # convenience functions for adding and accessing processors
 # since these can change dynamically
-def add_processor(name, processor_object):
+def add_processor(name, processor_object) -> None:
     """Adds a Processor to the autopkglib namespace"""
     globals()[name] = processor_object
     if name not in _PROCESSOR_NAMES:
         _PROCESSOR_NAMES.append(name)
 
 
-def extract_processor_name_with_recipe_identifier(processor_name):
+def extract_processor_name_with_recipe_identifier(
+    processor_name,
+) -> tuple[str, Optional[str]]:
     """Returns a tuple of (processor_name, identifier), given a Processor
     name.  This is to handle a processor name that may include a recipe
     identifier, in the format:
@@ -1079,7 +1081,7 @@ def core_processor_names():
     return _CORE_PROCESSOR_NAMES
 
 
-def plist_serializer(obj):
+def plist_serializer(obj) -> Any:
     """Serialize an object to ensure it can be dumped in plist format.
 
     Args:

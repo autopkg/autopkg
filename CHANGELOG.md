@@ -8,7 +8,8 @@ All notable changes to this project will be documented in this file. This projec
 - Resolved an issue with automatic generation of processor documentation on the GitHub wiki
 - Since AutoPkg's last release, @jannheider has created an impressive website at [autopkgweb.com](https://autopkgweb.com/) that includes recipe search. AutoPkg's `search` verb now suggests using this website as an alternative to the built-in search. Thanks very much to Jann for this excellent community resource. (The website autopkgweb.com is not affiliated with or maintained by the AutoPkg project.)
 - Added code coverage outputs to gitignore (for future use)
-- Update pre-commit hooks
+- Updated pre-commit hooks
+- Continued adding type hinting to core code
 
 
 ## [2.7.4](https://github.com/autopkg/autopkg/compare/v2.7.3...v2.7.4) (May 3, 2025)
