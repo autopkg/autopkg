@@ -62,7 +62,7 @@ class InstallFromDMG(DmgMounter):
         },
     }
 
-    def install(self):
+    def install(self) -> None:
         """Build an ItemCopier request, send it to autopkginstalld"""
         # clear any pre-existing summary result
         if "install_from_dmg_summary_result" in self.env:
@@ -109,7 +109,7 @@ class InstallFromDMG(DmgMounter):
         finally:
             self.unmount(self.env["dmg_path"])
 
-    def connect(self):
+    def connect(self) -> None:
         """Connect to autopkginstalld"""
         try:
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -117,7 +117,7 @@ class InstallFromDMG(DmgMounter):
         except OSError as err:
             raise ProcessorError(f"Couldn't connect to autopkginstalld: {err.strerror}")
 
-    def send_request(self, request):
+    def send_request(self, request) -> None:
         """Send an install request to autopkginstalld"""
         self.socket.send(plistlib.dumps(request))
         with os.fdopen(self.socket.fileno()) as fileref:
@@ -138,7 +138,7 @@ class InstallFromDMG(DmgMounter):
             errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """Disconnect from autopkginstalld"""
         try:
             self.socket.close()

@@ -225,7 +225,7 @@ def main():
 
     print("** Writing date into CHANGELOG.md")
     # write today's date in the changelog
-    with open(changelog_path, "r") as fdesc:
+    with open(changelog_path) as fdesc:
         changelog = fdesc.read()
     release_date = strftime("(%B %-d, %Y)")
     new_changelog = re.sub(r"\(Unreleased\)", release_date, changelog)

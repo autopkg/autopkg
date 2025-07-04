@@ -20,7 +20,7 @@ import json
 import os
 import re
 import tempfile
-from typing import List, Optional
+from typing import Any
 from urllib.parse import quote
 
 from autopkglib import RECIPE_EXTS, get_pref, log, log_err
@@ -37,7 +37,7 @@ class GitHubSession(URLGetter):
     def __init__(
         self, curl_path=None, curl_opts=None, github_url=None, token_path=TOKEN_LOCATION
     ):
-        super(GitHubSession, self).__init__()
+        super().__init__()
         self.env = {}
         self.env["url"] = None
         if curl_path:
@@ -55,7 +55,7 @@ class GitHubSession(URLGetter):
             token_abspath = token_path
         self.token = self._get_token(token_path=token_abspath)
 
-    def _get_token(self, token_path: str = TOKEN_LOCATION) -> Optional[str]:
+    def _get_token(self, token_path: str = TOKEN_LOCATION) -> str | None:
         """Reads token from perferences or provided token path.
         Defaults to TOKEN_LOCATION for the token path.
         Otherwise returns None.
@@ -63,7 +63,7 @@ class GitHubSession(URLGetter):
         token = get_pref("GITHUB_TOKEN")
         if not token and os.path.exists(token_path):
             try:
-                with open(token_path, "r") as tokenf:
+                with open(token_path) as tokenf:
                     token = tokenf.read().strip()
             except OSError as err:
                 log_err(f"Couldn't read token file at {token_path}! Error: {err}")
@@ -72,7 +72,7 @@ class GitHubSession(URLGetter):
         # auth status
         return token
 
-    def get_or_setup_token(self):
+    def get_or_setup_token(self) -> str:
         """Setup a GitHub OAuth token string. Will help to create one if necessary.
         The string will be stored in TOKEN_LOCATION and used again
         if it exists."""
@@ -106,7 +106,7 @@ To save the token, paste it to the following prompt."""
 
     def prepare_curl_cmd(
         self, method, accept, headers, data, temp_content
-    ) -> List[str]:
+    ) -> list[str]:
         """Assemble curl command and return it."""
         curl_cmd = [
             self.curl_binary(),
@@ -173,13 +173,13 @@ To save the token, paste it to the following prompt."""
         user: str = DEFAULT_SEARCH_USER,
         use_token: bool = False,
         results_limit: int = 100,
-    ):
+    ) -> list[dict]:
         """Search GitHub for results for a given name."""
 
         # Include all supported recipe extensions in search.
         # Compound extensions like ".recipe.yaml" aren't definable here,
         # so further filtering of results is done below.
-        exts = "+".join(("extension:" + ext.split(".")[-1] for ext in RECIPE_EXTS))
+        exts = "+".join("extension:" + ext.split(".")[-1] for ext in RECIPE_EXTS)
         # Example value: "extension:recipe+extension:plist+extension:yaml"
 
         query = f"q={quote(name)}+{exts}+user:{user}"
@@ -200,7 +200,7 @@ To save the token, paste it to the following prompt."""
         results_items = [
             item
             for item in results["items"]
-            if any((item["name"].endswith(ext) for ext in RECIPE_EXTS))
+            if any(item["name"].endswith(ext) for ext in RECIPE_EXTS)
         ]
 
         if not results_items:
@@ -208,7 +208,7 @@ To save the token, paste it to the following prompt."""
             return []
         return results_items
 
-    def code_search(self, query: str, use_token: bool = False):
+    def code_search(self, query: str, use_token: bool = False) -> dict | None:
         """Search GitHub code repos"""
         if use_token:
             _ = self.get_or_setup_token()
@@ -243,7 +243,7 @@ To save the token, paste it to the following prompt."""
         data=None,
         headers=None,
         accept="application/vnd.github.v3+json",
-    ):
+    ) -> tuple[Any, int]:
         """Return a tuple of a serialized JSON response and HTTP status code
         from a call to a GitHub API endpoint. Certain APIs return no JSON
         result and so the first item in the tuple (the response) will be None.
@@ -284,7 +284,7 @@ To save the token, paste it to the following prompt."""
         return (resp_data, self.http_result_code)
 
 
-def print_gh_search_results(results_items):
+def print_gh_search_results(results_items) -> None:
     """Pretty print our GitHub search results"""
     if not results_items:
         return

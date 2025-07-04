@@ -18,7 +18,7 @@
 import os.path
 import posixpath
 import zipfile
-from typing import Callable, Iterator, List, Optional
+from collections.abc import Callable, Iterator
 
 from autopkglib import FileOrPath, ProcessorError, VarDict
 from autopkglib.DmgMounter import DmgMounter
@@ -31,7 +31,7 @@ __all__ = ["Versioner"]
 def _zip_listdir(file: zipfile.ZipFile, dir: str) -> Iterator[zipfile.ZipInfo]:
     dir = dir.rstrip("/")
 
-    def is_direct_child(info: zipfile.ZipInfo):
+    def is_direct_child(info: zipfile.ZipInfo) -> bool:
         return posixpath.dirname(info.filename.rstrip("/")) == dir
 
     return filter(is_direct_child, file.infolist())
@@ -85,8 +85,8 @@ class Versioner(DmgMounter):
         path: str,
         skip_single_root_dir: bool,
         deserializer: Callable[[FileOrPath], VarDict],
-        extensions: List[str],
-    ) -> Optional[VarDict]:
+        extensions: list[str],
+    ) -> VarDict | None:
         """Parse a member from a zip and return `bytes`, or `None` if it does not exist.
 
         The `path` argument should be structured such that the path into the zip file
@@ -102,8 +102,8 @@ class Versioner(DmgMounter):
         """
         # Normalize path to ensure consistent cross-platform behavior.
         path = os.path.normpath(path)
-        archive_path: Optional[str] = None
-        inner_path: Optional[str] = None
+        archive_path: str | None = None
+        inner_path: str | None = None
         for ext in extensions:
             ext_index: int = path.lower().find(f"{ext.lower()}{os.path.sep}")
             if ext_index == -1:
@@ -118,7 +118,7 @@ class Versioner(DmgMounter):
             )
 
         archive = zipfile.ZipFile(archive_path)
-        root_names: List[zipfile.ZipInfo] = list(
+        root_names: list[zipfile.ZipInfo] = list(
             filter(zipfile.ZipInfo.is_dir, _zip_listdir(archive, ""))
         )
         if len(root_names) == 0:
@@ -142,7 +142,7 @@ class Versioner(DmgMounter):
         self,
         path: str,
         deserializer: Callable[[FileOrPath], VarDict],
-    ) -> Optional[VarDict]:
+    ) -> VarDict | None:
         """Parse a file from a DMG and return `bytes`, or `None` if no such file exists.
 
         The `path` argument should be structured such that the path into the disk image
@@ -177,14 +177,14 @@ class Versioner(DmgMounter):
         path: str,
         skip_single_root_dir: bool,
         deserializer: Callable[[FileOrPath], VarDict],
-    ) -> Optional[VarDict]:
+    ) -> VarDict | None:
         """Use simple herustics to read a file from a dmg, zip, or the filesystem.
 
         Returns `None` if the provided `path` could not be found. Exceptions are raised
         in the event that the file is corrupt or unaccessible.
         """
-        is_dmg_input: List[bool] = [ext in path for ext in self.DMG_EXTENSIONS]
-        is_zip_input: List[bool] = [ext in path for ext in self.ZIP_EXTENSIONS]
+        is_dmg_input: list[bool] = [ext in path for ext in self.DMG_EXTENSIONS]
+        is_zip_input: list[bool] = [ext in path for ext in self.ZIP_EXTENSIONS]
         if any(is_dmg_input):
             return self._read_from_dmg(path, deserializer)
         elif any(is_zip_input):

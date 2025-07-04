@@ -87,7 +87,7 @@ class PkgCreator(Processor):
 
         raise ProcessorError(f"Can't find {relpath}")
 
-    def xar_expand(self, source_path):
+    def xar_expand(self, source_path) -> None:
         """Uses xar to expand an archive"""
         try:
             xarcmd = [
@@ -112,7 +112,7 @@ class PkgCreator(Processor):
                 f"extraction of {source_path} with xar failed: {stderr}"
             )
 
-    def pkg_already_exists(self, pkg_path, identifier, version):
+    def pkg_already_exists(self, pkg_path, identifier, version) -> bool:
         """Check for an existing flat package in the output dir and compare its
         identifier and version to the one we're going to build.
         Returns a boolean."""
@@ -156,7 +156,7 @@ class PkgCreator(Processor):
                 return True
         return False
 
-    def package(self):
+    def package(self) -> None:
         """Build a packaging request, send it to the autopkgserver and get the
         constructed package."""
 
@@ -237,7 +237,7 @@ class PkgCreator(Processor):
             },
         }
 
-    def connect(self):
+    def connect(self) -> None:
         """Connect to autopkgserver"""
         try:
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -250,7 +250,7 @@ class PkgCreator(Processor):
                 f"\nError message: {err.strerror}"
             )
 
-    def send_request(self, request):
+    def send_request(self, request) -> str:
         """Send a packaging request to the autopkgserver"""
         self.socket.send(plistlib.dumps(request))
         with os.fdopen(self.socket.fileno()) as fileref:
@@ -262,7 +262,7 @@ class PkgCreator(Processor):
             errors = ["ERROR:No reply from server (crash?), check system logs"]
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """Disconnect from the autopkgserver"""
         try:
             self.socket.close()

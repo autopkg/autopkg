@@ -31,7 +31,6 @@ sys.path.insert(0, AUTOPKG_TOP)
 import ssl
 import subprocess
 from argparse import ArgumentParser
-from typing import List
 from urllib.request import urlopen
 
 from autopkglib import find_binary
@@ -79,7 +78,7 @@ def run_generateds(generateds_binary: str, output_path: str, schema_source: byte
     return call_res.returncode
 
 
-def main(input_args: List[str]) -> int:
+def main(input_args: list[str]) -> int:
     parser = ArgumentParser(
         description="Regenerate the python wrapper library around the nuget xml schema."
     )

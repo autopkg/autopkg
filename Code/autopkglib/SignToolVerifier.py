@@ -16,14 +16,14 @@
 import os
 import os.path
 import subprocess
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from autopkglib import Processor, ProcessorError
 
 __all__ = ["SignToolVerifier"]
 
 
-def signtool_default_path() -> Optional[str]:
+def signtool_default_path() -> str | None:
     """Looks for signtool in a few well known paths. Deliberately naive."""
     for program_files_candidate, arch in (
         (os.environ.get("ProgramFiles(x86)"), "x64"),
@@ -53,11 +53,11 @@ class SignToolVerifier(Processor):
     """Verifies an authenticode signed installer using the Microsoft SDK
     signtool executable."""
 
-    EXTENSIONS: List[str] = [".exe", ".msi"]
+    EXTENSIONS: list[str] = [".exe", ".msi"]
 
     # TODO: How much of this is needed to act as a drop-in replacement in an
     # override recipe??
-    input_variables: Dict[str, Any] = {
+    input_variables: dict[str, Any] = {
         "DISABLE_CODE_SIGNATURE_VERIFICATION": {
             "required": False,
             "description": ("Prevents this processor from running."),
@@ -85,7 +85,7 @@ class SignToolVerifier(Processor):
             "default": None,
         },
     }
-    output_variables: Dict[str, Any] = {}
+    output_variables: dict[str, Any] = {}
 
     description: str = __doc__
 
@@ -93,7 +93,7 @@ class SignToolVerifier(Processor):
         self,
         signtool_path: str,
         path: str,
-        additional_arguments: Optional[List[str]] = None,
+        additional_arguments: list[str] | None = None,
     ) -> bool:
         """
         Runs 'signtool.exe /pa <path>'. Returns True if signtool exited with 0

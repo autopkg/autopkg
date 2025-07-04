@@ -120,10 +120,10 @@ class URLDownloaderPython(URLDownloader):
     }
     __doc__ = description
 
-    def download_changed(self, header):
+    def download_changed(self, header) -> bool:
         """Check if downloaded file changed on server."""
 
-        self.output("HTTP Headers: \n{headers}".format(headers=header), 2)
+        self.output(f"HTTP Headers: \n{header}", 2)
 
         # get the list of headers to check
         headers_to_test = self.env.get("HEADERS_TO_TEST", None)
@@ -176,7 +176,7 @@ class URLDownloaderPython(URLDownloader):
             if test != "Content-Length":
                 try:
                     if previous_download_info["http_headers"][test] != header.get(test):
-                        self.output("{test} is different".format(test=test), 2)
+                        self.output(f"{test} is different", 2)
                         return True
                     else:
                         header_matches += 1
@@ -194,7 +194,7 @@ class URLDownloaderPython(URLDownloader):
         # if all above pass, then return False:
         return False
 
-    def store_download_info_json(self, download_dictionary):
+    def store_download_info_json(self, download_dictionary) -> None:
         """If file is downloaded, store info"""
         pathname = self.env.get("pathname")
         pathname_info_json = pathname + ".info.json"
@@ -204,13 +204,13 @@ class URLDownloaderPython(URLDownloader):
             # add newline at end of file:
             outfile.write("\n")
 
-    def get_download_info_json(self):
+    def get_download_info_json(self) -> dict | None:
         """get info from previous download"""
         pathname = self.env.get("pathname")
         pathname_info_json = pathname + ".info.json"
 
         try:
-            with open(pathname_info_json, "r") as infile:
+            with open(pathname_info_json) as infile:
                 info_json = json.load(infile)
         except FileNotFoundError as err:
             self.output(
@@ -223,7 +223,7 @@ class URLDownloaderPython(URLDownloader):
 
         return info_json
 
-    def ssl_context_ignore(self):
+    def ssl_context_ignore(self) -> ssl.SSLContext:
         """ssl context - ignore SSL validation"""
         # this doesn't need to be a class method
         ctx = ssl.create_default_context()
@@ -232,13 +232,13 @@ class URLDownloaderPython(URLDownloader):
         self.output("WARNING: disabling SSL validation is insecure!!!")
         return ctx
 
-    def ssl_context_certifi(self):
+    def ssl_context_certifi(self) -> ssl.SSLContext:
         """ssl context using certifi CAs"""
         # this doesn't need to be a class method
         # https://stackoverflow.com/questions/24374400/verifying-https-certificates-with-urllib-request
         return ssl.create_default_context(cafile=certifi.where())
 
-    def download_and_hash(self, file_save_path):
+    def download_and_hash(self, file_save_path) -> dict | None:
         """stream down file from url and calculate size & hashes"""
         # it is much more efficient to calculate hashes WHILE downloading
         # this allows the file to be read only once and never from disk
@@ -393,7 +393,7 @@ class URLDownloaderPython(URLDownloader):
                 "data": {"download_path": self.env["pathname"]},
             }
 
-        self.output("self.env: \n{self_env}\n".format(self_env=self.env), 4)
+        self.output(f"self.env: \n{self.env}\n", 4)
 
 
 if __name__ == "__main__":

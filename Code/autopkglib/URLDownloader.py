@@ -110,14 +110,14 @@ class URLDownloader(URLGetter):
         },
     }
 
-    def getxattr(self, attr):
+    def getxattr(self, attr) -> str | None:
         """Get a named xattr from a file. Return None if not present."""
 
         if attr in xattr.listxattr(self.env["pathname"]):
             return xattr.getxattr(self.env["pathname"], attr).decode()
         return None
 
-    def prepare_base_curl_cmd(self):
+    def prepare_base_curl_cmd(self) -> list[str]:
         """Assemble base curl command and return it."""
         curl_cmd = [
             self.curl_binary(),
@@ -135,12 +135,12 @@ class URLDownloader(URLGetter):
 
         return curl_cmd
 
-    def clear_zero_file(self, pathname):
+    def clear_zero_file(self, pathname) -> None:
         """If file already exists and the size is 0, discard it to download again."""
         if os.path.exists(pathname) and os.path.getsize(pathname) == 0:
             os.remove(pathname)
 
-    def prepare_download_curl_cmd(self, pathname_temporary):
+    def prepare_download_curl_cmd(self, pathname_temporary) -> list[str]:
         """Assemble file download curl command and return it."""
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--fail", "--output", pathname_temporary])
@@ -151,7 +151,7 @@ class URLDownloader(URLGetter):
         self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.env["pathname"]))
         return curl_cmd
 
-    def clear_vars(self):
+    def clear_vars(self) -> None:
         """Clear and initialize variables."""
         # Delete summary result if exists
         if "url_downloader_summary_result" in self.env:
@@ -169,7 +169,7 @@ class URLDownloader(URLGetter):
         self.env["etag"] = ""
         self.existing_file_size = None
 
-    def prefetch_filename(self):
+    def prefetch_filename(self) -> str | None:
         """Attempt to find filename in HTTP headers."""
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--head"])
@@ -202,7 +202,7 @@ class URLDownloader(URLGetter):
 
         return filename
 
-    def get_filename(self):
+    def get_filename(self) -> str | None:
         """Obtain filename from PKG variable or URL."""
         if "PKG" in self.env:
             self.env["pathname"] = os.path.expanduser(self.env["PKG"])
@@ -223,7 +223,7 @@ class URLDownloader(URLGetter):
 
         return filename
 
-    def get_download_dir(self):
+    def get_download_dir(self) -> str:
         """Create download dir and return its path."""
         download_dir = self.env.get("download_dir") or os.path.join(
             self.env["RECIPE_CACHE_DIR"], "downloads"
@@ -235,7 +235,7 @@ class URLDownloader(URLGetter):
                 raise ProcessorError(f"Can't create {download_dir}: {err.strerror}")
         return download_dir
 
-    def create_temp_file(self, download_dir):
+    def create_temp_file(self, download_dir) -> str:
         """Create temporary file and return its path."""
         temporary_file = tempfile.NamedTemporaryFile(dir=download_dir, delete=False)
         pathname_temporary = temporary_file.name
@@ -247,7 +247,7 @@ class URLDownloader(URLGetter):
         os.chmod(pathname_temporary, 0o644)
         return pathname_temporary
 
-    def download_changed(self, header):
+    def download_changed(self, header) -> bool:
         """Check if downloaded file changed on server."""
         # If Content-Length header is present and we had a cached
         # file, see if it matches the size of the cached file.
@@ -280,7 +280,7 @@ class URLDownloader(URLGetter):
 
         return True
 
-    def move_temp_file(self, pathname_temporary):
+    def move_temp_file(self, pathname_temporary) -> None:
         """Move temporary download file to pathname."""
         if os.path.exists(self.env["pathname"]):
             os.remove(self.env["pathname"])
@@ -291,7 +291,7 @@ class URLDownloader(URLGetter):
                 f"Can't move {pathname_temporary} to {self.env['pathname']}"
             )
 
-    def store_headers(self, header):
+    def store_headers(self, header) -> None:
         """Store last-modified and etag headers in pathname xattr."""
         if header.get("last-modified"):
             self.env["last_modified"] = header.get("last-modified")

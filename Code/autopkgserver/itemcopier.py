@@ -46,7 +46,7 @@ class ItemCopier:
         self.socket = socket
         self.request = request
 
-    def verify_request(self):
+    def verify_request(self) -> None:
         """Make sure copy request has everything we need"""
         self.log.debug("Verifying copy_from_dmg request")
         for key in ["mount_point", "items_to_copy"]:
@@ -58,7 +58,7 @@ class ItemCopier:
             if "destination_path" not in item:
                 raise ItemCopierError("Missing destination_path in items_to_copy item")
 
-    def copy_items(self):
+    def copy_items(self) -> None:
         """copies items from the mountpoint to the startup disk
         Returns 0 if no issues; some error code otherwise.
 
@@ -177,7 +177,7 @@ class ItemCopier:
                 raise ItemCopierError(f"Error removing xattr: {err}")
             return True
 
-    def copy(self):
+    def copy(self) -> None:
         """Main method."""
         try:
             self.verify_request()

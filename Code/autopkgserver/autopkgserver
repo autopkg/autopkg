@@ -230,7 +230,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
                 plist = plistlib.loads(plist_string)
             except BaseException:
                 self.log.error("Malformed request")
-                self.request.send("ERROR:Malformed request\n".encode())
+                self.request.send(b"ERROR:Malformed request\n")
                 return
             self.log.debug("Parsed request plist")
 
@@ -244,7 +244,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
             if os.path.exists(plist["pkgroot"]):
                 name = os.path.basename(plist["pkgroot"])
             else:
-                self.request.send("ERROR:Can't find pkgroot".encode())
+                self.request.send(b"ERROR:Can't find pkgroot")
                 return
 
             self.log.info(f"Dispatching worker to process request for user {uid}")

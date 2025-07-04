@@ -15,7 +15,7 @@
 Wrapper module that provides a consistent xattr interface
 regardless of platform support.
 """
-from typing import Any, List, Optional
+from typing import Any
 
 __all__ = ["getxattr", "listxattr", "removexattr", "setxattr"]
 
@@ -27,7 +27,7 @@ class __xattr_wrapper:
     def getxattr(self, path: str, attr: str, symlink: bool = False) -> str:
         return self._impl.getxattr(path, attr, symlink)
 
-    def listxattr(self, path: str, symlink: bool = False) -> List[str]:
+    def listxattr(self, path: str, symlink: bool = False) -> list[str]:
         return self._impl.listxattr(path, symlink)
 
     def removexattr(self, path: str, attr: str, symlink: bool = False) -> None:
@@ -53,11 +53,11 @@ except ImportError:
         xattr module on platforms where it is not supported."""
 
         @staticmethod
-        def getxattr(cls, path: str, attr: str, symlink: bool = False) -> Optional[str]:
+        def getxattr(cls, path: str, attr: str, symlink: bool = False) -> str | None:
             return None
 
         @staticmethod
-        def listxattr(cls, path: str, symlink: bool = False) -> List[str]:
+        def listxattr(cls, path: str, symlink: bool = False) -> list[str]:
             return []
 
         @staticmethod
@@ -82,7 +82,7 @@ assert (
 ), "Failed to initialize xattr library, or stub. This is a bug."
 
 
-def getxattr(path: str, attr: str, symlink: bool = False) -> Optional[str]:
+def getxattr(path: str, attr: str, symlink: bool = False) -> str | None:
     try:
         return _xattr.getxattr(path, attr, symlink)
     except OSError as e:
@@ -90,7 +90,7 @@ def getxattr(path: str, attr: str, symlink: bool = False) -> Optional[str]:
         return None
 
 
-def listxattr(path: str, symlink: bool = False) -> List[str]:
+def listxattr(path: str, symlink: bool = False) -> list[str]:
     try:
         return _xattr.listxattr(path, symlink)
     except OSError as e:

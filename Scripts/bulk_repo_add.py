@@ -133,7 +133,7 @@ def main():
     token = args.token
     if not args.token:
         if os.path.exists(os.path.expanduser("~/.autopkg_gh_token")):
-            with open(os.path.expanduser("~/.autopkg_gh_token"), "r") as f:
+            with open(os.path.expanduser("~/.autopkg_gh_token")) as f:
                 token = f.read().strip()
         if not token:
             sys.exit("Invalid token")

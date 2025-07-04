@@ -20,12 +20,12 @@ import unittest
 import unittest.mock
 from copy import deepcopy
 from io import BytesIO
-from typing import Any, Dict
+from typing import Any
 
 from autopkglib import find_binary
 from autopkglib.ChocolateyPackager import ChocolateyPackager
 
-VarDict = Dict[str, Any]
+VarDict = dict[str, Any]
 
 
 def get_mocked_writes(mock: unittest.mock.MagicMock) -> str:

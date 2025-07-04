@@ -72,7 +72,7 @@ class FlatPkgUnpacker(DmgMounter):
 
     source_path = None
 
-    def unpack_flat_pkg(self):
+    def unpack_flat_pkg(self) -> None:
         """Unpacks a flat package using either xar or pkgutil"""
         # Create the directory if needed.
         if not os.path.exists(self.env["destination_path"]):
@@ -98,7 +98,7 @@ class FlatPkgUnpacker(DmgMounter):
         else:
             self.pkgutil_expand()
 
-    def xar_expand(self):
+    def xar_expand(self) -> None:
         """Uses xar to expand an archive"""
         try:
             xarcmd = [
@@ -124,7 +124,7 @@ class FlatPkgUnpacker(DmgMounter):
                 f"extraction of {self.env['flat_pkg_path']} with xar failed: {stderr}"
             )
 
-    def pkgutil_expand(self):
+    def pkgutil_expand(self) -> None:
         """Uses pkgutil to expand a flat package"""
         # pkgutil requires the dest. folder to be non-existant
         if os.path.exists(self.env["destination_path"]):

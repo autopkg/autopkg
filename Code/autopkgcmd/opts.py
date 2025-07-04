@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import optparse
-from typing import List, Tuple
 
 from autopkglib import globalPreferences
 
@@ -26,8 +25,8 @@ def gen_common_parser() -> optparse.OptionParser:
 
 
 def common_parse(
-    parser: optparse.OptionParser, argv: List[str]
-) -> Tuple[optparse.Values, List[str]]:
+    parser: optparse.OptionParser, argv: list[str]
+) -> tuple[optparse.Values, list[str]]:
     """Parse an optparse parser with some enhancements and return a tuple."""
     options, arguments = parser.parse_args(argv[2:])
     if options.file_path:

@@ -115,7 +115,7 @@ def generate_sidebar(sidebar_path):
         page_name.replace(" ", "-")
         toc_string += f"      * [[{processor_name}|{page_name}]]\n"
 
-    with open(sidebar_path, "r") as fdesc:
+    with open(sidebar_path) as fdesc:
         current_sidebar_lines = fdesc.read().splitlines()
 
     # Determine our indent amount

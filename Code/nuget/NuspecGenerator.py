@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections.abc import Sequence
 from io import StringIO
-from typing import Optional, Sequence, TextIO
+from typing import TextIO
 
 from nuget.generated._nuspec import (
     GdsCollector_,
@@ -48,18 +49,18 @@ class NuspecGenerator(package):
         version: str,
         authors: str,
         description: str,
-        owners: Optional[str] = None,
-        licenseUrl: Optional[str] = None,
-        projectUrl: Optional[str] = None,
-        iconUrl: Optional[str] = None,
-        summary: Optional[str] = None,
-        releaseNotes: Optional[str] = None,
-        copyright: Optional[str] = None,
-        tags: Optional[str] = None,
-        icon: Optional[str] = None,
-        license: Optional[licenseType] = None,
-        dependencies: Optional[Sequence[dependency]] = None,
-        contentFiles: Optional[contentFilesType] = None,
+        owners: str | None = None,
+        licenseUrl: str | None = None,
+        projectUrl: str | None = None,
+        iconUrl: str | None = None,
+        summary: str | None = None,
+        releaseNotes: str | None = None,
+        copyright: str | None = None,
+        tags: str | None = None,
+        icon: str | None = None,
+        license: licenseType | None = None,
+        dependencies: Sequence[dependency] | None = None,
+        contentFiles: contentFilesType | None = None,
     ):
         if not isinstance(title, str):
             raise NuspecValidationError("Argument 'title' must be a string")

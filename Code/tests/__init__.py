@@ -14,13 +14,12 @@
 
 import importlib
 from types import ModuleType
-from typing import Type, Union
 
 from autopkglib import Processor
 
 
 def get_processor_module(
-    processor: Union[str, Type[Processor]], package_name: str = "autopkglib"
+    processor: str | type[Processor], package_name: str = "autopkglib"
 ) -> ModuleType:
     """Get the module for a processor, which may be passed as a string or class object.
 

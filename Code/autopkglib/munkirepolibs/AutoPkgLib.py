@@ -10,7 +10,7 @@ class AutoPkgLib:
         self.munki_repo = munki_repo
         self.repo_subdirectory = repo_subdirectory
 
-    def make_catalog_db(self):
+    def make_catalog_db(self) -> dict:
         """Reads the 'all' catalog and returns a dict we can use like a
         database"""
 
@@ -124,7 +124,7 @@ class AutoPkgLib:
 
         return pkgdb
 
-    def copy_pkg_to_repo(self, pkginfo, pkg_path):
+    def copy_pkg_to_repo(self, pkginfo, pkg_path) -> str:
         """Copies an item to the appropriate place in the repo.
         If pkg_path is a path within the repo/pkgs directory, copies nothing.
         Renames the item if an item already exists with that name.
@@ -179,7 +179,7 @@ class AutoPkgLib:
 
         return os.path.join(self.munki_repo, "pkgs", self.repo_subdirectory, item_name)
 
-    def copy_pkginfo_to_repo(self, pkginfo, file_extension="plist"):
+    def copy_pkginfo_to_repo(self, pkginfo, file_extension="plist") -> str:
         """Saves pkginfo to munki_repo_path/pkgsinfo/subdirectory.
         Returns full path to the pkginfo in the repo."""
         # less error checking because we copy the installer_item

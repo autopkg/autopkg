@@ -27,7 +27,7 @@ import sys
 import traceback
 from copy import deepcopy
 from distutils.version import LooseVersion
-from typing import IO, Any, Dict, List, Optional, Tuple, Union
+from typing import IO, Any, Union
 
 import appdirs
 import pkg_resources
@@ -39,7 +39,7 @@ FileOrPath = Union[IO, str, bytes, int]
 # Type for ubiquitous dictionary type used throughout autopkg.
 # Most commonly for `input_variables` and friends. It also applies to virtually all
 # usages of plistlib results as well.
-VarDict = Dict[str, Any]
+VarDict = dict[str, Any]
 
 
 def is_mac() -> bool:
@@ -137,9 +137,9 @@ class Preferences:
         """Init."""
         self.prefs: VarDict = {}
         # What type of preferences input are we using?
-        self.type: Optional[str] = None
+        self.type: str | None = None
         # Path to the preferences file we were given
-        self.file_path: Optional[str] = None
+        self.file_path: str | None = None
         # If we're on macOS, read in the preference domain first.
         if is_mac():
             self.prefs = self._get_macos_prefs()
@@ -283,7 +283,7 @@ class Preferences:
         elif self.type == "plist":
             self._write_plist_file()
 
-    def get_pref(self, key) -> Optional[Any]:
+    def get_pref(self, key) -> Any | None:
         """Retrieve a preference value."""
         return deepcopy(self.prefs.get(key))
 
@@ -307,7 +307,7 @@ class Preferences:
 globalPreferences = Preferences()
 
 
-def get_pref(key) -> Optional[Any]:
+def get_pref(key) -> Any | None:
     """Return a single pref value (or None) for a domain."""
     return globalPreferences.get_pref(key)
 
@@ -333,7 +333,7 @@ def remove_recipe_extension(name) -> str:
     return name
 
 
-def recipe_from_file(filename) -> Optional[VarDict]:
+def recipe_from_file(filename) -> VarDict | None:
     """Create a recipe dictionary from a file. Handle exceptions and log"""
     if not os.path.isfile(filename):
         return
@@ -359,7 +359,7 @@ def recipe_from_file(filename) -> Optional[VarDict]:
             return
 
 
-def get_identifier(recipe) -> Optional[str]:
+def get_identifier(recipe) -> str | None:
     """Return identifier from recipe dict. Tries the Identifier
     top-level key and falls back to the legacy key location."""
     try:
@@ -373,14 +373,14 @@ def get_identifier(recipe) -> Optional[str]:
         return None
 
 
-def get_identifier_from_recipe_file(filename) -> Optional[str]:
+def get_identifier_from_recipe_file(filename) -> str | None:
     """Attempts to read filename and get the
     identifier. Otherwise, returns None."""
     recipe_dict = recipe_from_file(filename)
     return get_identifier(recipe_dict)
 
 
-def find_recipe_by_identifier(identifier, search_dirs) -> Optional[str]:
+def find_recipe_by_identifier(identifier, search_dirs) -> str | None:
     """Search search_dirs for a recipe with the given
     identifier"""
     for directory in search_dirs:
@@ -458,7 +458,7 @@ def is_executable(exe_path) -> bool:
     return os.path.exists(exe_path) and os.access(exe_path, os.X_OK)
 
 
-def find_binary(binary: str, env: Optional[Dict] = None) -> Optional[str]:
+def find_binary(binary: str, env: dict | None = None) -> str | None:
     r"""Returns the full path for `binary`, or `None` if it was not found.
 
     The search order is as follows:
@@ -560,7 +560,7 @@ class Processor:
         """Stub method"""
         raise ProcessorError("Abstract method main() not implemented.")
 
-    def get_manifest(self) -> Tuple[str, VarDict, VarDict]:
+    def get_manifest(self) -> tuple[str, VarDict, VarDict]:
         """Return Processor's description, input and output variables"""
         try:
             return (self.description, self.input_variables, self.output_variables)
@@ -626,7 +626,7 @@ class Processor:
         self.main()
         return self.env
 
-    def cmdexec(self, command, description) -> Optional[str]:
+    def cmdexec(self, command, description) -> str | None:
         """Execute a command and return output."""
 
         try:
@@ -709,7 +709,7 @@ class AutoPackager:
         if self.verbose >= verbose_level:
             print(msg)
 
-    def get_recipe_identifier(self, recipe) -> Optional[str]:
+    def get_recipe_identifier(self, recipe) -> str | None:
         """Return the identifier given an input recipe dict."""
         identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
         if not identifier:
@@ -959,7 +959,7 @@ _PROCESSOR_NAMES = []
 
 
 def import_processors() -> None:
-    processor_files: List[str] = [
+    processor_files: list[str] = [
         os.path.splitext(name)[0]
         for name in pkg_resources.resource_listdir(__name__, "")
         if name.endswith(".py")
@@ -993,7 +993,7 @@ def add_processor(name, processor_object) -> None:
 
 def extract_processor_name_with_recipe_identifier(
     processor_name,
-) -> tuple[str, Optional[str]]:
+) -> tuple[str, str | None]:
     """Returns a tuple of (processor_name, identifier), given a Processor
     name.  This is to handle a processor name that may include a recipe
     identifier, in the format:
@@ -1045,7 +1045,7 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             processor_search_dirs.extend(parent_recipe_dirs)
 
         # Dedupe the list first
-        deduped_processors = set([dir for dir in processor_search_dirs])
+        deduped_processors = {dir for dir in processor_search_dirs}
         for directory in deduped_processors:
             processor_filename = os.path.join(directory, processor_name + ".py")
             if os.path.exists(processor_filename):

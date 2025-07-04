@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
 from urllib.parse import quote
 
 from autopkgcmd.opts import common_parse, gen_common_parser
@@ -24,7 +23,7 @@ from autopkglib.github import (
 )
 
 
-def search_recipes(argv: List[str]) -> int:
+def search_recipes(argv: list[str]) -> int:
     """Search recipes on GitHub"""
     verb = argv[1]
     parser = gen_common_parser()

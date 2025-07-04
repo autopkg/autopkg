@@ -30,7 +30,7 @@ import sys
 import time
 import traceback
 from base64 import b64decode
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import quote, urlparse
 
 import yaml
@@ -150,7 +150,7 @@ def valid_override_file(filename) -> bool:
     return valid_override_dict(override_dict)
 
 
-def find_recipe_by_name(name, search_dirs) -> Optional[str]:
+def find_recipe_by_name(name, search_dirs) -> str | None:
     """Search search_dirs for a recipe by file/directory naming rules"""
     # drop extension from the end of the name because we're
     # going to add it back on...
@@ -173,7 +173,7 @@ def find_recipe_by_name(name, search_dirs) -> Optional[str]:
     return None
 
 
-def find_recipe(id_or_name, search_dirs) -> Optional[str]:
+def find_recipe(id_or_name, search_dirs) -> str | None:
     """find a recipe based on a string that might be an identifier
     or a name"""
     return find_recipe_by_identifier(id_or_name, search_dirs) or find_recipe_by_name(
@@ -535,7 +535,7 @@ def run_git(git_options_and_arguments, git_directory=None):
         return cmd_out
 
 
-def get_recipe_repo(git_path) -> Optional[str]:
+def get_recipe_repo(git_path) -> str | None:
     """git clone git_path to local disk and return local path"""
 
     # figure out a local directory name to clone to
@@ -602,7 +602,7 @@ def print_tool_info(options) -> None:
     pprint.pprint(get_all_prefs())
 
 
-def get_repo_info(path_or_url) -> Dict[str, Any]:
+def get_repo_info(path_or_url) -> dict[str, Any]:
     """Given a path or URL, find a locally installed repo and return
     information in a dictionary about it"""
     repo_info = {}
@@ -636,22 +636,22 @@ def save_pref_or_warn(key, value):
         log_err(f"WARNING: {err}")
 
 
-def get_search_dirs() -> List[str]:
+def get_search_dirs() -> list[str]:
     """Return search dirs from preferences or default list"""
     default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
 
-    dirs: List[str] = get_pref("RECIPE_SEARCH_DIRS")
+    dirs: list[str] = get_pref("RECIPE_SEARCH_DIRS")
     if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
     return dirs or default
 
 
-def get_override_dirs() -> List[str]:
+def get_override_dirs() -> list[str]:
     """Return override dirs from preferences or default list"""
     default = ["~/Library/AutoPkg/RecipeOverrides"]
 
-    dirs: List[str] = get_pref("RECIPE_OVERRIDE_DIRS")
+    dirs: list[str] = get_pref("RECIPE_OVERRIDE_DIRS")
     if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
@@ -877,7 +877,7 @@ def repo_update(argv):
 
 def do_gh_repo_contents_fetch(
     repo: str, path: str, use_token=False, decode=True
-) -> Optional[bytes]:
+) -> bytes | None:
     """Fetch file contents from GitHub and return as a string."""
     gh_session = GitHubSession()
     if use_token:
@@ -1991,7 +1991,7 @@ def parse_recipe_list(filename):
     except Exception:
         # file does not appear to be a plist containing a dictionary;
         # read it as a plaintext list of recipes
-        with open(filename, "r") as file_desc:
+        with open(filename) as file_desc:
             data = file_desc.read()
         recipe_list["recipes"] = [
             line for line in data.splitlines() if line and not line.startswith("#")

@@ -47,7 +47,7 @@ class PkgPayloadUnpacker(Processor):
     output_variables = {}
     description = __doc__
 
-    def unpack_pkg_payload(self):
+    def unpack_pkg_payload(self) -> None:
         """Uses ditto or aa to unpack a package payload into destination_path"""
         # Create the destination directory if needed.
         if not os.path.exists(self.env["destination_path"]):

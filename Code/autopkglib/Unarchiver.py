@@ -20,7 +20,7 @@ import shutil
 import subprocess
 import tarfile
 import zipfile
-from typing import Dict, Type, Union
+from typing import Union
 
 from autopkglib import Processor, ProcessorError, is_mac
 
@@ -35,10 +35,10 @@ EXTNS = {
 }
 
 
-ExtractorType = Union[Type[tarfile.TarFile], Type[zipfile.ZipFile]]
+ExtractorType = Union[type[tarfile.TarFile], type[zipfile.ZipFile]]
 Extractor = Union[tarfile.TarFile, zipfile.ZipFile]
 
-NATIVE_EXTRACTORS: Dict[str, ExtractorType] = {
+NATIVE_EXTRACTORS: dict[str, ExtractorType] = {
     "tar_bzip2": tarfile.TarFile,
     "tar_gzip": tarfile.TarFile,
     "tar": tarfile.TarFile,
