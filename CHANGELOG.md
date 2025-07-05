@@ -10,7 +10,8 @@ All notable changes to this project will be documented in this file. This projec
 - Added code coverage outputs to gitignore (for future use)
 - Updated pre-commit hooks
 - Continued adding type hinting to core code
-- MunkiImporter always sets `munki_repo_changed` to `False` if we don't import an item
+- MunkiImporter: Always set `munki_repo_changed` to `False` if we don't import an item
+- URLDownloader: Skip setting etag and last-modified headers if `CHECK_FILESIZE_ONLY` is true (#866, thanks to @MLBZ521)
 
 ### Deprecations
 
