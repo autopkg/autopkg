@@ -138,7 +138,9 @@ class GitHubSession:
                 )
         return token
 
-    def get_latest_repo_release(self, name_or_id: str) -> List[github.GitRelease.GitRelease]:
+    def get_latest_repo_release(
+        self, name_or_id: str
+    ) -> List[github.GitRelease.GitRelease]:
         """Get a list of the latest GitRelease object for a repo"""
         repo: github.Repository.Repository = self.get_repo(name_or_id)
         latest_release: github.GitRelease.GitRelease = repo.get_latest_release()
@@ -172,9 +174,7 @@ class GitHubSession:
         # Use a dictionary comprehension to create a new dictionary that contains only the most recent key
         if latest and prereleases:
             reduced_releases: List[github.GitRelease.GitRelease] = {
-                k: releases[k]
-                for k in releases.keys()
-                if k == next(iter(releases))
+                k: releases[k] for k in releases.keys() if k == next(iter(releases))
             }
             releases = reduced_releases
 

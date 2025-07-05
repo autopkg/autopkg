@@ -158,7 +158,7 @@ class GitHubReleasesInfoProvider(Processor):
             new_session.get_repo_asset_dict(
                 self.env["github_repo"],
                 self.env.get("latest_only", False),
-                self.env.get("include_prereleases", False)
+                self.env.get("include_prereleases", False),
             )
         )
         self.output(f"All releases available: {releases}", 4)

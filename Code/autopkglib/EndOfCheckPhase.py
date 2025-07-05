@@ -31,14 +31,12 @@ class EndOfCheckPhase(Processor):
     where AutoPkg should stop when the -c/--check options are used."""
 
     input_variables = {}
-    output_variables = {
-        "stop_processing_recipe": {}
-    }
+    output_variables = {"stop_processing_recipe": {}}
     description = __doc__
 
     def main(self):
         try:
-            predicate = NSPredicate.predicateWithFormat_('download_changed == False')
+            predicate = NSPredicate.predicateWithFormat_("download_changed == False")
         except Exception as err:
             raise ProcessorError(
                 f"Predicate error for '{predicate_string}': {err}"
