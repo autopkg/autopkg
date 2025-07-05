@@ -87,18 +87,17 @@ class URLDownloaderPython(URLDownloader):
             "required": False,
             "default": False,
             "description": (
-                "Local path to the pkg/dmg we'd otherwise download. "
-                "If provided, the download is skipped and we just use "
-                "this package or disk image."
+                "Determine whether to compute md5, sha1, and sha256 hashes of "
+                "the downloaded file."
             ),
         },
         "HEADERS_TO_TEST": {
             "required": False,
             "default": ["ETag", "Last-Modified", "Content-Length"],
             "description": (
-                "Local path to the pkg/dmg we'd otherwise download. "
-                "If provided, the download is skipped and we just use "
-                "this package or disk image."
+                "List of HTTP headers to compare against the previous download "
+                "to detect changes. If 'CHECK_FILESIZE_ONLY' is enabled, this "
+                "list is overridden to ['Content-Length'] only."
             ),
         },
     }
