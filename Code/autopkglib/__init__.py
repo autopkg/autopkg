@@ -680,7 +680,7 @@ class Processor:
             fh.close()
 
 
-# AutoPackager class defintion
+# AutoPackager class definition
 
 
 class AutoPackagerError(Exception):

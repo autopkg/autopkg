@@ -347,7 +347,7 @@ class URLDownloaderPython(URLDownloader):
 
     def main(self) -> None:
         """Execution starts here"""
-        # Clear and initiazize data structures
+        # Clear and initialize data structures
         self.clear_vars()
 
         # self.prefetch_filename()

@@ -66,7 +66,7 @@ class ItemCopier:
         each item should contain source_path and destination_path;
         may optionally include:
         destination_item to rename the item on copy
-        user, group and mode to explictly set those items
+        user, group and mode to explicitly set those items
         """
         mountpoint = self.request["mount_point"]
         for item in self.request["items_to_copy"]:

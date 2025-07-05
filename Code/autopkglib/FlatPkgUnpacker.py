@@ -126,7 +126,7 @@ class FlatPkgUnpacker(DmgMounter):
 
     def pkgutil_expand(self) -> None:
         """Uses pkgutil to expand a flat package"""
-        # pkgutil requires the dest. folder to be non-existant
+        # pkgutil requires the dest. folder to be non-existent
         if os.path.exists(self.env["destination_path"]):
             try:
                 shutil.rmtree(self.env["destination_path"])

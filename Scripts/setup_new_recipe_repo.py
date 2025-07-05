@@ -125,7 +125,7 @@ def main():
         "\n\n %prog [options] source-repo-user/recipe-repo-name"
     )
     default_org = "autopkg"
-    permisison_levels = ["pull", "push", "admin"]
+    permission_levels = ["pull", "push", "admin"]
     default_permission_level = "push"
     parser = optparse.OptionParser(usage=usage)
     parser.add_option("-t", "--token", help="Auth token string to use. Required.")
@@ -150,7 +150,7 @@ def main():
         default=default_permission_level,
         help=(
             "Permission level to use for new team. Must be one "
-            f"of: {', '.join(permisison_levels)}. Defaults to "
+            f"of: {', '.join(permission_levels)}. Defaults to "
             f"{default_permission_level}."
         ),
     )
@@ -171,9 +171,9 @@ def main():
             "You must provide a repo in the form of 'user/repo' as the "
             "only argument!"
         )
-    if opts.permission_level not in permisison_levels:
+    if opts.permission_level not in permission_levels:
         sys.exit(
-            f"Permission level option must be one of: {', '.join(permisison_levels)}."
+            f"Permission level option must be one of: {', '.join(permission_levels)}."
         )
     if not opts.token:
         sys.exit(

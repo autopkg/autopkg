@@ -255,7 +255,7 @@ except ImportError as exp:
                 try:
                     int(value)
                 except (TypeError, ValueError):
-                    raise_parse_error(node, "Requires sequence of integer valuess")
+                    raise_parse_error(node, "Requires sequence of integer values")
             return values
 
         def gds_format_float(self, input_data, input_name=""):

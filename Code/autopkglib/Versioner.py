@@ -178,7 +178,7 @@ class Versioner(DmgMounter):
         skip_single_root_dir: bool,
         deserializer: Callable[[FileOrPath], VarDict],
     ) -> VarDict | None:
-        """Use simple herustics to read a file from a dmg, zip, or the filesystem.
+        """Use simple heuristics to read a file from a dmg, zip, or the filesystem.
 
         Returns `None` if the provided `path` could not be found. Exceptions are raised
         in the event that the file is corrupt or unaccessible.
