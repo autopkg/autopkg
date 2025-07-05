@@ -7,14 +7,9 @@ All notable changes to this project will be documented in this file. This projec
 
 - Resolved an issue with automatic generation of processor documentation on the GitHub wiki
 - Since AutoPkg's last release, @jannheider has created an impressive website at [autopkgweb.com](https://autopkgweb.com/) that includes recipe search. AutoPkg's `search` verb now suggests using this website as an alternative to the built-in search. Thanks very much to Jann for this excellent community resource. (The website autopkgweb.com is not affiliated with or maintained by the AutoPkg project.)
-- Added code coverage outputs to gitignore (for future use)
-- Updated pre-commit hooks
-- Continued adding type hinting to core code
+- Development improvements: Updated pre-commit hooks, prepared for future code coverage automation, and continued adding type hinting to core code
 - MunkiImporter: Always set `munki_repo_changed` to `False` if we don't import an item
 - URLDownloader: Skip setting etag and last-modified headers if `CHECK_FILESIZE_ONLY` is true (#866, thanks to @MLBZ521)
-
-### Deprecations
-
 - MunkiCatalogBuilder is deprecated and now performs no action
 
 
