@@ -18,8 +18,10 @@
 import plistlib
 import subprocess
 import sys
+import time
 
-from autopkglib import Processor, ProcessorError, log, log_err
+from autopkglib import Processor, ProcessorError
+from autopkglib.common import log, log_err
 
 __all__ = ["DmgMounter"]
 
@@ -128,7 +130,7 @@ class DmgMounter(Processor):
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(f"mounting {pathname} failed: {stderr}")
 
@@ -136,10 +138,10 @@ class DmgMounter(Processor):
         (pliststr, stdout) = self.get_first_plist(stdout)
         try:
             output = plistlib.loads(pliststr.encode())
-        except Exception:
+        except Exception as err:
             raise ProcessorError(
                 f"mounting {pathname} failed: unexpected output from hdiutil"
-            )
+            ) from err
 
         # Find mount point.
         for part in output.get("system-entities", []):
@@ -158,6 +160,7 @@ class DmgMounter(Processor):
         # Don't try to unmount something we didn't mount.
         if pathname not in self.mounts:
             raise ProcessorError(f"{pathname} is not mounted")
+        time.sleep(1)
 
         # Call hdiutil.
         try:
@@ -171,7 +174,7 @@ class DmgMounter(Processor):
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(f"unmounting {pathname} failed: {stderr}")
 

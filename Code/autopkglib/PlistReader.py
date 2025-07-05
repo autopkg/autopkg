@@ -110,7 +110,7 @@ class PlistReader(DmgMounter):
                     raise ProcessorError(
                         f"File {path} looks like a bundle, but its "
                         "'Contents/Info.plist' file cannot be parsed."
-                    )
+                    ) from None
                 if plist:
                     bundle_info_path = test_info_path
         return bundle_info_path
@@ -156,7 +156,7 @@ class PlistReader(DmgMounter):
                 with open(path, "rb") as f:
                     info = plistlib.load(f)
             except Exception as err:
-                raise ProcessorError(err)
+                raise ProcessorError(err) from err
 
             # Copy each plist_keys' values and assign to new env variables
             self.env["plist_reader_output_variables"] = {}
@@ -172,7 +172,7 @@ class PlistReader(DmgMounter):
                 except KeyError:
                     raise ProcessorError(
                         f"Key '{key}' could not be found in the plist {path}!"
-                    )
+                    ) from None
 
         finally:
             if dmg:

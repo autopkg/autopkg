@@ -23,6 +23,7 @@ platformdirs==2.5.1
 pre-commit==2.17.0
 pycodestyle==2.8.0
 pycparser==2.21
+PyGithub==1.59.0
 pyflakes==2.4.0
 PyYAML==6.0.1
 six==1.16.0
@@ -31,7 +32,7 @@ virtualenv==20.14.0
 #
 # *nix Requirements
 #
-xattr==0.9.7; sys_platform == 'darwin' or sys_platform == 'linux'
+xattr==0.10.1; sys_platform == 'darwin' or sys_platform == 'linux'
 #
 # MacOS Requirements
 #
@@ -46,4 +47,4 @@ pyobjc-framework-SystemConfiguration==9.2; sys_platform == 'darwin'
 # Windows Requirements
 #
 generateDS==2.35.24; sys_platform == 'win32'
---no-binary :all:
+--no-binary wrapt,charset_normalizer,blib2to3,PyYAML,black,xattr,cffi

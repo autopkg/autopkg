@@ -16,7 +16,12 @@
 """Place-holder processor that autopkg uses to mark the end of the check
 phase."""
 
-from autopkglib import Processor
+from autopkglib import Processor, ProcessorError, log
+
+try:
+    from Foundation import NSPredicate
+except ImportError:
+    log("WARNING: Failed 'from Foundation import NSPredicate' in " + __name__)
 
 __all__ = ["EndOfCheckPhase"]
 
@@ -26,11 +31,20 @@ class EndOfCheckPhase(Processor):
     where AutoPkg should stop when the -c/--check options are used."""
 
     input_variables = {}
-    output_variables = {}
+    output_variables = {
+        "stop_processing_recipe": {}
+    }
     description = __doc__
 
     def main(self):
-        return
+        try:
+            predicate = NSPredicate.predicateWithFormat_('download_changed == False')
+        except Exception as err:
+            raise ProcessorError(
+                f"Predicate error for '{predicate_string}': {err}"
+            ) from err
+
+        self.env["stop_processing_recipe"] = predicate.evaluateWithObject_(self.env)
 
 
 if __name__ == "__main__":

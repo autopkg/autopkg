@@ -125,7 +125,7 @@ class PkgInfoCreator(Processor):
             except Exception:
                 raise ProcessorError(
                     f"Malformed Info.plist template {self.env['template_path']}"
-                )
+                ) from None
             if template_type == "bundle":
                 return info
             else:
@@ -137,7 +137,7 @@ class PkgInfoCreator(Processor):
             except Exception:
                 raise ProcessorError(
                     f"Malformed PackageInfo template {self.env['template_path']}"
-                )
+                ) from None
             if template_type == "flat":
                 return info
             else:

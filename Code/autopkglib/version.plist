@@ -3,6 +3,8 @@
 <plist version="1.0">
 <dict>
 	<key>Version</key>
-	<string>2.7.5</string>
+	<string>3.0.0</string>
+	<key>PythonVersion</key>
+	<string>3.10.4</string>
 </dict>
 </plist>

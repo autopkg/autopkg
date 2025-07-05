@@ -18,7 +18,8 @@
 import plistlib
 import subprocess
 
-from autopkglib import APLooseVersion, Processor, ProcessorError, log
+from autopkglib import APLooseVersion, Processor, ProcessorError
+from autopkglib.common import log
 
 try:
     from Foundation import NSDictionary
@@ -89,7 +90,7 @@ class MunkiInstallsItemsCreator(Processor):
             raise ProcessorError(
                 f"makepkginfo execution failed with error code {err.errno}: "
                 f"{err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(f"creating pkginfo failed: {err.decode()}")
 

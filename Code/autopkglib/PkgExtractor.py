@@ -54,20 +54,20 @@ class PkgExtractor(DmgMounter):
             try:
                 shutil.rmtree(extract_root)
             except OSError as err:
-                raise ProcessorError(f"Failed to remove extract_root: {err}")
+                raise ProcessorError(f"Failed to remove extract_root: {err}") from err
 
         try:
             with open(info_plist, "rb") as f:
                 info = plistlib.load(f)
         except Exception as err:
-            raise ProcessorError(f"Failed to read Info.plist: {err}")
+            raise ProcessorError(f"Failed to read Info.plist: {err}") from err
 
         install_target = info.get("IFPkgFlagDefaultLocation", "/").lstrip("/")
         extract_path = os.path.join(extract_root, install_target)
         try:
             os.makedirs(extract_path, 0o755)
         except OSError as err:
-            raise ProcessorError(f"Failed to create extract_path: {err}")
+            raise ProcessorError(f"Failed to create extract_path: {err}") from err
 
         # Unpack payload.
         try:
@@ -81,7 +81,7 @@ class PkgExtractor(DmgMounter):
         except OSError as err:
             raise ProcessorError(
                 f"ditto execution failed with error code {err.errno}: {err.strerror}"
-            )
+            ) from err
         if proc.returncode != 0:
             raise ProcessorError(f"Unpacking payload failed: {stderr}")
 

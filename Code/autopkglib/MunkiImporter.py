@@ -331,7 +331,7 @@ class MunkiImporter(Processor):
             raise ProcessorError(
                 f"makepkginfo execution failed with error code {err.errno}: "
                 f"{err.strerror}"
-            )
+            ) from err
         if err_out:
             for err_line in err_out.decode().splitlines():
                 self.output(err_line)

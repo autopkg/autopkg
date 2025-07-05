@@ -49,7 +49,7 @@ jobs:
         # without this, API limits will be hit
         run: |
           cd ~
-          echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
+          echo ${{ secrets.GITHUB_TOKEN_PATH }} > "gh_token"
 
       - name: Install requirements
         run: pip install --requirement gh_actions_requirements.txt

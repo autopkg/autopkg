@@ -61,7 +61,7 @@ class PathDeleter(Processor):
                     )
                 self.output(f"Deleted {path}")
             except OSError as err:
-                raise ProcessorError(f"Could not remove {path}: {err}")
+                raise ProcessorError(f"Could not remove {path}: {err}") from err
 
 
 if __name__ == "__main__":

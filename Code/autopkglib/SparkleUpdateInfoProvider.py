@@ -218,7 +218,7 @@ class SparkleUpdateInfoProvider(URLGetter):
         try:
             xmldata = ElementTree.fromstring(data)
         except Exception:
-            raise ProcessorError("Error parsing XML from appcast feed.")
+            raise ProcessorError("Error parsing XML from appcast feed.") from None
 
         items = xmldata.findall("channel/item")
         if not items:
