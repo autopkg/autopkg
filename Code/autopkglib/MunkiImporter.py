@@ -292,7 +292,7 @@ class MunkiImporter(Processor):
         # if we get here, we found no matches
         return None
 
-    def main(self):
+    def main(self) -> None:
         library = self._fetch_repo_library(
             self.env["MUNKI_REPO"],
             self.env["MUNKI_REPO_PLUGIN"],
@@ -359,11 +359,9 @@ class MunkiImporter(Processor):
             for item in pkginfo["installs"]:
                 if not self.env["version_comparison_key"] in item:
                     raise ProcessorError(
-                        (
-                            "version_comparison_key "
-                            f"'{self.env['version_comparison_key']}' could not be "
-                            f"found in the installs item for path '{item['path']}'"
-                        )
+                        "version_comparison_key "
+                        f"'{self.env['version_comparison_key']}' could not be "
+                        f"found in the installs item for path '{item['path']}'"
                     )
                 item["version_comparison_key"] = self.env["version_comparison_key"]
 
@@ -395,8 +393,7 @@ class MunkiImporter(Processor):
                 self.env["MUNKI_REPO"], "pkgs", installer_item_location
             )
             self.env["munki_info"] = {}
-            if "munki_repo_changed" not in self.env:
-                self.env["munki_repo_changed"] = False
+            self.env["munki_repo_changed"] = False
 
             self.output(
                 f"Item {os.path.basename(self.env['pkg_path'])} already exists in the "

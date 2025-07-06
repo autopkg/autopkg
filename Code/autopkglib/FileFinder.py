@@ -68,7 +68,7 @@ class FileFinder(DmgMounter):
 
         return glob_matches[-1]
 
-    def main(self):
+    def main(self) -> None:
         pattern = self.env.get("pattern")
 
         method = self.env.get("find_method")

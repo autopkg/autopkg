@@ -197,7 +197,7 @@ class GitHubReleasesInfoProvider(Processor):
             f"'{self.selected_release['name']}'"
         )
 
-    def main(self):
+    def main(self) -> None:
         # Get our list of releases
         releases = self.get_releases(
             self.env["github_repo"], latest_only=self.env.get("latest_only")

@@ -20,7 +20,7 @@ import zipfile
 from copy import deepcopy
 from io import BytesIO
 from tempfile import TemporaryDirectory
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 from unittest.mock import patch
 
@@ -42,7 +42,8 @@ TEST_VERSION_DEFAULT: str = "1.2.3"
 TEST_VERSION_CUSTOM_KEY: str = "com.someapp.customversion"
 TEST_VERSION_CUSTOM: str = "3.2.1"
 
-TEST_VERSION_PLIST: bytes = f"""<?xml version="1.0" encoding="UTF-8"?>
+TEST_VERSION_PLIST: bytes = (
+    f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -51,17 +52,16 @@ TEST_VERSION_PLIST: bytes = f"""<?xml version="1.0" encoding="UTF-8"?>
     <key>{TEST_VERSION_CUSTOM_KEY}</key>
     <string>{TEST_VERSION_CUSTOM}</string>
 </dict>
-</plist>""".encode(
-    "utf-8"
+</plist>""".encode()
 )
 
-TEST_NO_VERSION_PLIST: bytes = """<?xml version="1.0" encoding="UTF-8"?>
+TEST_NO_VERSION_PLIST: bytes = (
+    b"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 </dict>
-</plist>""".encode(
-    "utf-8"
+</plist>"""
 )
 
 
@@ -71,12 +71,12 @@ class TestVersioner(unittest.TestCase):
     def setUp(self):
         self.maxDiff: int = 100000
         self.tempdir = TemporaryDirectory()
-        self.good_env: Dict[str, Any] = {
+        self.good_env: dict[str, Any] = {
             "input_plist_path": "dummy_path",
             "plist_version_key": TEST_VERSION_DEFAULT_KEY,
             "RECIPE_CACHE_DIR": self.tempdir.name,
         }
-        self.bad_env: Dict[str, Any] = {}
+        self.bad_env: dict[str, Any] = {}
         self.processor = Versioner(data=deepcopy(self.good_env))
         self.addCleanup(self.tempdir.cleanup)
 
@@ -173,7 +173,7 @@ class TestVersioner(unittest.TestCase):
             dmg_path: str = self._mkpath(f"fake{ext}")
             mock_mount.return_value = mount_path
             self.processor.env["input_plist_path"] = plist_path
-            result: Dict[str, Any] = self.processor.process()
+            result: dict[str, Any] = self.processor.process()
             mock_zip.assert_not_called()
             mock_exists.assert_called_once_with(
                 os.path.normpath(os.path.join(mount_path, "dir/version.plist"))
@@ -262,7 +262,7 @@ class TestVersioner(unittest.TestCase):
             zi.file_size = 0
             zi.compress_size = 0
         mock_zinst.open.return_value.read.return_value = TEST_VERSION_PLIST
-        result: Dict[str, Any] = {}
+        result: dict[str, Any] = {}
         with self.assertRaisesRegex(
             ProcessorError, r".*rchive.*has more than one.*at root"
         ):

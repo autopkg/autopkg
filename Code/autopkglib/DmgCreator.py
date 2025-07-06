@@ -70,7 +70,7 @@ class DmgCreator(Processor):
     }
     output_variables = {}
 
-    def main(self):
+    def main(self) -> None:
         # Remove existing dmg if it exists.
         if os.path.exists(self.env["dmg_path"]):
             os.unlink(self.env["dmg_path"])

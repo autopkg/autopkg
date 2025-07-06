@@ -37,10 +37,10 @@ RECIPE_REPOS = os.path.expanduser("~/Developer/repo-lasso/repos/autopkg")
 
 # Types of recipes you wish to test (recommended: download, pkg)
 # Munki tools and a valid Munki repo required to test munki recipes
-TYPES_TO_TEST = ["download", "pkg"]
-TYPES_TO_TEST = list([f".{x}.recipe" for x in TYPES_TO_TEST])
-TYPES_TO_TEST.extend([f"{x}.yaml" for x in TYPES_TO_TEST])
-TYPES_TO_TEST = tuple(TYPES_TO_TEST)
+_types_to_test = ["download", "pkg"]
+_types_to_test = [f".{x}.recipe" for x in _types_to_test]
+_types_to_test.extend(f"{x}.yaml" for x in ["download", "pkg"])
+TYPES_TO_TEST = tuple(_types_to_test)
 
 # How many recipes you wish to run the test on
 RECIPE_COUNT = 100
@@ -75,7 +75,7 @@ def test_recipe(filepath, autopkg_path="/usr/local/bin/autopkg"):
     return results["1st"], results["2nd"]
 
 
-def main():
+def main() -> None:
     """Main process."""
 
     # Gather list of eligible recipes.

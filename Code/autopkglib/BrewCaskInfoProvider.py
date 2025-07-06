@@ -88,7 +88,7 @@ class BrewCaskInfoProvider(Processor):
                 )
         return newattrs
 
-    def main(self):
+    def main(self) -> None:
         self.output(
             "WARNING: BrewCaskInfoProvider is deprecated and may be "
             "removed in a future AutoPkg release."

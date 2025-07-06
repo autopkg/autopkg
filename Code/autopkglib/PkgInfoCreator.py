@@ -41,7 +41,7 @@ class PkgInfoCreator(Processor):
     }
     output_variables = {}
 
-    def find_template(self):
+    def find_template(self) -> str:
         """Searches for the template, looking in the recipe directory
         and parent recipe directories if needed."""
         template_path = self.env["template_path"]
@@ -62,7 +62,7 @@ class PkgInfoCreator(Processor):
                     return test_item
         raise ProcessorError(f"Can't find {template_path}")
 
-    def main(self):
+    def main(self) -> None:
         if self.env["pkgtype"] not in ("bundle", "flat"):
             raise ProcessorError(f"Unknown pkgtype {self.env['pkgtype']}")
         template = self.load_template(self.find_template(), self.env["pkgtype"])
@@ -71,7 +71,7 @@ class PkgInfoCreator(Processor):
         else:
             self.create_flat_info(template)
 
-    def convert_bundle_info_to_flat(self, info):
+    def convert_bundle_info_to_flat(self, info) -> ElementTree.ElementTree:
         """Converts pkg info from bundle format to flat format"""
         # Since we now only support flat packages, we might be able to
         # get rid of this in the near future, but all existing recipes
@@ -109,7 +109,7 @@ class PkgInfoCreator(Processor):
 
         return ElementTree.ElementTree(pkg_info)
 
-    def convert_flat_info_to_bundle(self, info):
+    def convert_flat_info_to_bundle(self, info) -> None:
         """Converts pkg info from flat format to bundle format"""
         # since we now only support flat packages, just raise an exception
         raise ProcessorError("Bundle package creation no longer supported!")
@@ -143,12 +143,12 @@ class PkgInfoCreator(Processor):
             else:
                 return self.convert_flat_info_to_bundle(info)
 
-    def get_pkgroot_size(self, pkgroot):
+    def get_pkgroot_size(self, pkgroot) -> tuple[int, int]:
         """Return the size of pkgroot (in kilobytes) and the number of files."""
 
         size = 0
         nfiles = 0
-        for (dirpath, _, filenames) in os.walk(pkgroot):
+        for dirpath, _, filenames in os.walk(pkgroot):
             # Count the current directory and the number of files in it.
             nfiles += 1 + len(filenames)
             for filename in filenames:
@@ -160,7 +160,7 @@ class PkgInfoCreator(Processor):
 
         return (size, nfiles)
 
-    def create_flat_info(self, template):
+    def create_flat_info(self, template) -> None:
         """Create PackageInfo file for flat package"""
         info = template
 
@@ -179,7 +179,7 @@ class PkgInfoCreator(Processor):
 
         info.write(self.env["infofile"])
 
-    def create_bundle_info(self, template):
+    def create_bundle_info(self, template) -> None:
         """Create Info.plist data for bundle-style pkg"""
         # We don't support the creation of bundle-style pkgs
         # any longer, so raise an exception

@@ -69,7 +69,7 @@ class PlistEditor(Processor):
         except Exception as err:
             raise ProcessorError(f"Could not write {pathname}: {err}")
 
-    def main(self):
+    def main(self) -> None:
         # read original plist (or empty plist)
         working_plist = self.read_plist(self.env.get("input_plist_path"))
 

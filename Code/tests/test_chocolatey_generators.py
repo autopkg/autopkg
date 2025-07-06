@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import unittest
+from collections.abc import Sequence
 from textwrap import dedent
-from typing import Optional, Sequence, Tuple
 
 from nuget import (
     ChocolateyInstallGenerator,
@@ -52,7 +52,7 @@ class TestNuspecGenerator(unittest.TestCase):
         )
         xml = pkg.render_str()
         self.assertTrue(len(xml) > 0)
-        self.assertEquals(expected, xml)
+        self.assertEqual(expected, xml)
 
     def test_nuspec_generator_basic_validation(self):
         # Test that our custom field requirement is honored.
@@ -86,7 +86,7 @@ $toolsDir = "$(Split-Path -Parent $MyInvocation.MyCommand.Definition)\""""
     def test_basic_validation(self):
         # Only validating error cases for now.
         validation_cases: Sequence[
-            Tuple[str, ChocolateyInstallGenerator, Optional[Exception]]
+            tuple[str, ChocolateyInstallGenerator, Exception | None]
         ] = (
             (
                 "empty packageName",
@@ -180,7 +180,7 @@ Install-ChocolateyInstallPackage @packageArgs
             """
         )
 
-        self.assertEquals(
+        self.assertEqual(
             expected,
             ChocolateyInstallGenerator(
                 packageName="fakepkg",

@@ -101,17 +101,17 @@ class TestURLTextSearcher(unittest.TestCase):
         """Only named group with name equal to result_output_var_name should match."""
         output_var_name = "my_match"
         self.processor.env["result_output_var_name"] = output_var_name
-        self.processor.env[
-            "re_pattern"
-        ] = f'(<a href=")(?P<{output_var_name}>{self.first_match})(")'
+        self.processor.env["re_pattern"] = (
+            f'(<a href=")(?P<{output_var_name}>{self.first_match})(")'
+        )
         self.match_first(mock_download, result_output_var_name=output_var_name)
 
     @patch("autopkglib.URLTextSearcher.download_with_curl")
     def test_match_multiple_named_groups(self, mock_download):
         """Processor should return output variable for each named re group."""
-        self.processor.env[
-            "re_pattern"
-        ] = "(?P<match>(?P<protocol>http[s]?)://(?P<server>.*?)/(?P<path>.*dmg))"
+        self.processor.env["re_pattern"] = (
+            "(?P<match>(?P<protocol>http[s]?)://(?P<server>.*?)/(?P<path>.*dmg))"
+        )
         self.match_first(mock_download)
         self.assertEqual(self.processor.env["protocol"], self.match["protocol"])
         self.assertEqual(self.processor.env["server"], self.match["server"])

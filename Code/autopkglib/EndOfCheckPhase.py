@@ -29,7 +29,7 @@ class EndOfCheckPhase(Processor):
     output_variables = {}
     description = __doc__
 
-    def main(self):
+    def main(self) -> None:
         return
 
 

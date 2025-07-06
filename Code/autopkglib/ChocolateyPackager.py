@@ -11,13 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""See docstring for NugetChocoPackager class"""
+"""See docstring for ChocolateyPackager class"""
 
 import os
 import subprocess
 from shutil import copy2, rmtree
 from tempfile import mkdtemp
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from autopkglib import Processor, ProcessorError
 from nuget import (
@@ -238,7 +238,7 @@ class ChocolateyPackager(Processor):
         "chocolatey_packager_summary_result": {"description": "Summary of packaging."},
     }
 
-    def _check_enum_var(self, varname: str, enum_values: List[str]) -> None:
+    def _check_enum_var(self, varname: str, enum_values: list[str]) -> None:
         value = self.env.get(varname)
         if value not in enum_values:
             raise ValueError(
@@ -246,8 +246,8 @@ class ChocolateyPackager(Processor):
                 f" not one of: {','.join(enum_values)}"
             )
 
-    def _ensure_path_var(self, varname: str, default_var: Optional[str] = None) -> str:
-        default_path: Optional[str] = None
+    def _ensure_path_var(self, varname: str, default_var: str | None = None) -> str:
+        default_path: str | None = None
         default_msg: str = ""
         if default_var is not None:
             default_path = self.env.get(default_var)
@@ -276,7 +276,7 @@ class ChocolateyPackager(Processor):
         return os.path.abspath(os.path.join(build_dir, *additional_parts))
 
     @property
-    def idver(self):
+    def idver(self) -> str:
         return f"{self.env['id']}.{self.env['version']}"
 
     def _nuspec_path(self, build_dir: str) -> str:
@@ -286,7 +286,7 @@ class ChocolateyPackager(Processor):
         return self._build_path(build_dir, "tools", "chocolateyInstall.ps1")
 
     def nuspec_definition(self) -> NuspecGenerator:
-        def_args: Dict[str, Any] = {}
+        def_args: dict[str, Any] = {}
         for k in self.nuspec_variables.keys():
             if k not in self.env:
                 continue
@@ -299,10 +299,10 @@ class ChocolateyPackager(Processor):
         return NuspecGenerator(**def_args)
 
     def chocolateyinstall_ps1(self) -> ChocolateyInstallGenerator:
-        computed_args: List[str] = []
+        computed_args: list[str] = []
         if "installer_args" in self.env:
             installer_args = self.env["installer_args"]
-            if isinstance(installer_args, List):
+            if isinstance(installer_args, list):
                 computed_args = installer_args
             elif isinstance(installer_args, str):
                 computed_args = [installer_args]
@@ -395,14 +395,14 @@ class ChocolateyPackager(Processor):
         os.stat(expected_nupkg_path)  # Test for package existence, or raise.
         return expected_nupkg_path
 
-    def log(self, msgs: Union[List[str], str], verbose_level: int = 0) -> None:
-        if isinstance(msgs, List):
+    def log(self, msgs: list[str] | str, verbose_level: int = 0) -> None:
+        if isinstance(msgs, list):
             for m in msgs:
                 self.output(m, verbose_level)
             return
         self.output(msgs, verbose_level)
 
-    def main(self):
+    def main(self) -> None:
         # Validate arguments, apply dynamic defaults as needed.
         self._ensure_path_var("chocoexe_path")
         if (
@@ -428,7 +428,7 @@ class ChocolateyPackager(Processor):
 
         if (
             "installer_args" in self.env
-            and not isinstance(self.env["installer_args"], List)
+            and not isinstance(self.env["installer_args"], list)
             and not isinstance(self.env["installer_args"], str)
         ):
             raise ProcessorError(
@@ -452,7 +452,7 @@ class ChocolateyPackager(Processor):
         keep_build_directory = self.env.get("KEEP_BUILD_DIRECTORY", False)
 
         self.env["chocolatey_packager_summary_result"] = {}
-        build_dir: Optional[str] = None
+        build_dir: str | None = None
         try:
             build_dir = mkdtemp(prefix=f"{self.env['id']}.", dir=build_dir_base)
 

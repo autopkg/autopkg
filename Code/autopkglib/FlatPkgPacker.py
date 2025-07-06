@@ -52,7 +52,7 @@ class FlatPkgPacker(Processor):
         except subprocess.CalledProcessError as err:
             raise ProcessorError(f"{err} flattening {source_dir}")
 
-    def main(self):
+    def main(self) -> None:
         source_dir = self.env.get("source_flatpkg_dir")
         dest_pkg = self.env.get("destination_pkg")
 

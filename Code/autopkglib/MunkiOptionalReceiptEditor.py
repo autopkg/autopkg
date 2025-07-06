@@ -29,7 +29,7 @@ class MunkiOptionalReceiptEditor(Processor):
 
     description = __doc__
 
-    def main(self):
+    def main(self) -> None:
         if len(self.env["pkginfo_repo_path"]) < 1:
             self.output("No pkginfo_repo_path specified, skipping")
             return

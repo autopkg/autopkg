@@ -32,13 +32,13 @@ class MunkiLib:
         self.repo = munkirepo.connect(munki_repo, munki_repo_plugin)
         self.munkiimportlib = munkiimportlib
 
-    def _full_path(self, path):
+    def _full_path(self, path) -> str:
         return os.path.join(self.munki_repo, path)
 
-    def make_catalog_db(self):
+    def make_catalog_db(self) -> dict:
         return self.munkiimportlib.make_catalog_db(self.repo)
 
-    def copy_pkg_to_repo(self, pkginfo, pkg_path):
+    def copy_pkg_to_repo(self, pkginfo, pkg_path) -> str:
         uploaded_path = self.munkiimportlib.copy_item_to_repo(
             self.repo, pkg_path, pkginfo.get("version"), self.repo_subdirectory
         )
@@ -46,21 +46,23 @@ class MunkiLib:
         return self._full_path(uploaded_path)
 
     # includes '/pkgsinfo' in uploaded path
-    def copy_pkginfo_to_repo(self, pkginfo, file_extension="plist"):
+    def copy_pkginfo_to_repo(self, pkginfo, file_extension="plist") -> str:
         uploaded_path = self.munkiimportlib.copy_pkginfo_to_repo(
             self.repo, pkginfo, self.repo_subdirectory
         )
 
         return self._full_path(uploaded_path)
 
-    def find_matching_icon(self, pkginfo):
+    def find_matching_icon(self, pkginfo) -> str | None:
         if self.munkiimportlib.icon_exists_in_repo(self.repo, pkginfo):
             path = self.munkiimportlib.get_icon_path(pkginfo)
             return self._full_path(path)
 
         return None
 
-    def extract_and_copy_icon_to_repo(self, pkg_path, pkginfo, import_multiple=True):
+    def extract_and_copy_icon_to_repo(
+        self, pkg_path, pkginfo, import_multiple=True
+    ) -> str | None:
         uploaded_path = self.munkiimportlib.extract_and_copy_icon(
             self.repo, pkg_path, pkginfo, import_multiple
         )

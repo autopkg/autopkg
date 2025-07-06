@@ -47,7 +47,7 @@ class PkgRootCreator(Processor):
     }
     output_variables = {}
 
-    def main(self):
+    def main(self) -> None:
         # Delete pkgroot if it exists.
         try:
             if os.path.islink(self.env["pkgroot"]) or os.path.isfile(
