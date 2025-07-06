@@ -289,6 +289,8 @@ def main():
             "REQUIREMENTS_FILENAME=new_requirements.txt",
             "-k",
             "OS_VERSION=11",
+            "-k",
+            "upgrade_pip=true",
         ]
     )
     subprocess.run(args=cmd, text=True, check=True)
