@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. This projec
 - Development improvements: Updated pre-commit hooks, prepared for future code coverage automation, and continued adding type hinting to core code
 - MunkiImporter: Always set `munki_repo_changed` to `False` if we don't import an item
 - URLDownloader: Skip setting etag and last-modified headers if `CHECK_FILESIZE_ONLY` is true (#866, thanks to @MLBZ521)
+- URLDownloaderPython: Fix input variable descriptions (#969, thanks to @MScottBlake)
 - MunkiCatalogBuilder is deprecated and now performs no action
 
 
