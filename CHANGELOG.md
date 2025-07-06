@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
 
-## [2.7.5](https://github.com/autopkg/autopkg/compare/v2.7.4...HEAD) (Unreleased)
+## [2.7.5](https://github.com/autopkg/autopkg/compare/v2.7.4...v2.7.5) (July 6, 2025)
 
 - Resolved an issue with automatic generation of processor documentation on the GitHub wiki
 - Since AutoPkg's last release, @jannheider has created an impressive website at [autopkgweb.com](https://autopkgweb.com/) that includes recipe search. AutoPkg's `search` verb now suggests using this website as an alternative to the built-in search. Thanks very much to Jann for this excellent community resource. (The website autopkgweb.com is not affiliated with or maintained by the AutoPkg project.)
