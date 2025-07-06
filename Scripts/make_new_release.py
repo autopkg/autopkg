@@ -247,7 +247,7 @@ def main():
 
     print("** Gathering release notes")
     # extract release notes for this new version
-    notes_rex = r"(?P<current_ver_notes>\#\#\# \[%s\].+?)\#\#\#" % current_version
+    notes_rex = r"(?P<current_ver_notes>\#\# \[%s\].+?)\#\#" % current_version
     match = re.search(notes_rex, new_changelog, re.DOTALL)
     if not match:
         sys.exit("Couldn't extract release notes for this version!")
