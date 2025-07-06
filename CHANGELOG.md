@@ -1,8 +1,10 @@
-### [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...HEAD) (Unreleased)
-
 # AutoPkg Change Log
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
+
+## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...HEAD) (Unreleased)
+
+Nothing yet.
 
 
 ## [2.7.5](https://github.com/autopkg/autopkg/compare/v2.7.4...v2.7.5) (July 6, 2025)
