@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. This projec
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...HEAD) (Unreleased)
 
-Nothing yet.
+- New core processor [FindAndReplace](https://github.com/autopkg/autopkg/wiki/Processor-FindAndReplace), which is useful for replacing specified text with other text in environment variables
 
 
 ## [2.7.5](https://github.com/autopkg/autopkg/compare/v2.7.4...v2.7.5) (July 6, 2025)
