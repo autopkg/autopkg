@@ -110,5 +110,5 @@ class PkgCopier(Copier):
 
 
 if __name__ == "__main__":
-    PROCESSOR = Copier()
+    PROCESSOR = PkgCopier()
     PROCESSOR.execute_shell()
