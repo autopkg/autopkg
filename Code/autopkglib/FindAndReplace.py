@@ -44,6 +44,11 @@ class FindAndReplace(Processor):
             "description": 'The string that you want to replace the "find" '
             "string with.",
         },
+        "replace_output_var": {
+            "required": False,
+            "default": "output_string",
+            "description": "Variable to store the output to, defaults to `output_string`",
+        },
     }
     output_variables = {
         "output_string": {
@@ -56,10 +61,21 @@ class FindAndReplace(Processor):
         """Main process."""
 
         input_string = self.env["input_string"]
+        
+        # get name of variable to store output
+        replace_output_var = self.env.get("replace_output_var", "output_string")
+        
         find = self.env["find"]
         replace = self.env["replace"]
         self.output(f'Replacing "{find}" with "{replace}" in "{input_string}".')
-        self.env["output_string"] = self.env["input_string"].replace(find, replace)
+        self.env[replace_output_var] = self.env["input_string"].replace(find, replace)
+
+        # remove output_string from output variables in case a custom one was specified.
+        del self.output_variables["output_string"]
+        # set the custom or default output variable name in output_variables so it shows up in verbose output.
+        self.output_variables[replace_output_var] = {
+            "description": "The result of find/replace on the input string.",
+        }
 
 
 if __name__ == "__main__":
