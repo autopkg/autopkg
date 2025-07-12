@@ -52,10 +52,8 @@ class FindAndReplace(Processor):
         },
     }
     output_variables = {
-        "result_output_var_name": {
-            "description": "Result of the find/replace operation. Note the actual name of "
-            'variable depends on the input variable "result_output_var_name" or is assigned '
-            'a default of "output_string."'
+        "output_string": {
+            "description": "The result of find/replace on the input string."
         }
     }
     description = __doc__
@@ -77,6 +75,14 @@ class FindAndReplace(Processor):
             f'and saving result to "{output_var_name}" variable.'
         )
         self.env[output_var_name] = self.env["input_string"].replace(find, replace)
+
+        if result_output_var_name != "output_string":
+            # remove output_string from output variables in case a custom one was specified.
+            del self.output_variables["output_string"]
+            # set the custom or default output variable name in output_variables so it shows up in verbose output.
+            self.output_variables[result_output_var_name] = {
+                "description": "The result of find/replace on the input string.",
+            }
 
 
 if __name__ == "__main__":
