@@ -46,6 +46,27 @@ class TestFindAndReplace(unittest.TestCase):
         # "Universe" is not in "Hello World", so no replacement
         self.assertEqual(self.processor.env["output_string"], "Hello World")
 
+    def test_simple_find_and_replace_custom_output_var(self):
+        self.processor.env = dict(self.single)
+        self.processor.env["result_output_var_name"] = "custom_string"
+        self.processor.main()
+        self.assertEqual(self.processor.env["custom_string"], "Hello Universe")
+        self.assertNotIn("output_string", self.processor.env)
+
+    def test_multiple_find_and_replace_custom_output_var(self):
+        self.processor.env = dict(self.multiple)
+        self.processor.env["result_output_var_name"] = "custom_string"
+        self.processor.main()
+        self.assertEqual(self.processor.env["custom_string"], "Howdy Howdy World")
+        self.assertNotIn("output_string", self.processor.env)
+
+    def test_no_match_custom_output_var(self):
+        self.processor.env = dict(self.nomatch)
+        self.processor.env["result_output_var_name"] = "custom_string"
+        self.processor.main()
+        self.assertEqual(self.processor.env["custom_string"], "Hello World")
+        self.assertNotIn("output_string", self.processor.env)
+
 
 if __name__ == "__main__":
     unittest.main()
