@@ -24,7 +24,8 @@ class FindAndReplace(Processor):
     """Searches the provided 'input_string' and replaces instances of the 'find'
     string with the 'replace' string.
 
-    Returns 'output_string' containing the result of the find/replace operation.
+    Returns 'output_string' (or other variable specified by 'result_output_var_name')
+    containing the result of the find/replace operation.
 
     Requires version 2.7.6.
     """
@@ -36,23 +37,25 @@ class FindAndReplace(Processor):
         },
         "find": {
             "required": True,
-            "description": "This string, if found, will be replaced with the "
-            '"replace" string.',
+            "description": 'This string, if found, will be replaced with the "replace" string.',
         },
         "replace": {
             "required": True,
-            "description": 'The string that you want to replace the "find" '
-            "string with.",
+            "description": 'The string that you want to replace the "find" string with.',
         },
-        "replace_output_var": {
+        "result_output_var_name": {
             "required": False,
             "default": "output_string",
-            "description": "Variable to store the output to, defaults to `output_string`",
+            "description": "The name of the output variable containing the result of the "
+            'find/replace operation. If not specified then a default of "output_string" will "'
+            "be used.",
         },
     }
     output_variables = {
-        "output_string": {
-            "description": "The result of find/replace on the input string."
+        "result_output_var_name": {
+            "description": "Result of the find/replace operation. Note the actual name of "
+            'variable depends on the input variable "result_output_var_name" or is assigned '
+            'a default of "output_string."'
         }
     }
     description = __doc__
@@ -60,22 +63,20 @@ class FindAndReplace(Processor):
     def main(self) -> None:
         """Main process."""
 
+        # collect input variables
         input_string = self.env["input_string"]
-        
-        # get name of variable to store output
-        replace_output_var = self.env.get("replace_output_var", "output_string")
-        
         find = self.env["find"]
         replace = self.env["replace"]
-        self.output(f'Replacing "{find}" with "{replace}" in "{input_string}".')
-        self.env[replace_output_var] = self.env["input_string"].replace(find, replace)
 
-        # remove output_string from output variables in case a custom one was specified.
-        del self.output_variables["output_string"]
-        # set the custom or default output variable name in output_variables so it shows up in verbose output.
-        self.output_variables[replace_output_var] = {
-            "description": "The result of find/replace on the input string.",
-        }
+        # get name of variable to store output
+        output_var_name = self.env.get("result_output_var_name", "output_string")
+
+        # perform find/replace on input string
+        self.output(
+            f'Replacing "{find}" with "{replace}" in "{input_string}" '
+            f'and saving result to "{output_var_name}" variable.'
+        )
+        self.env[output_var_name] = self.env["input_string"].replace(find, replace)
 
 
 if __name__ == "__main__":
