@@ -77,7 +77,7 @@ class FindAndReplace(Processor):
         self.env[output_var_name] = self.env["input_string"].replace(find, replace)
 
         if result_output_var_name != "output_string":
-            # remove output_string from output variables in case a custom one was specified.
+            # remove output_string from output variables because a custom one was specified.
             del self.output_variables["output_string"]
             # set the custom variable name in output_variables so it shows up in verbose output.
             self.output_variables[result_output_var_name] = {
