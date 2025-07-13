@@ -1,0 +1,7 @@
+[run]
+omit = 
+    Code/nuget/generated/*
+    */test_*
+    */tests/*
+    */__pycache__/*
+    */venv/*
