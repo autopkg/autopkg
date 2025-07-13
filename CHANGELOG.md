@@ -7,8 +7,8 @@ All notable changes to this project will be documented in this file. This projec
 - [FindAndReplace](https://github.com/autopkg/autopkg/wiki/Processor-FindAndReplace) is a new core processor that replaces specified text with other text in the content of a string
     - This processor has already been available in homebysix-recipes, and is moving to the core due to widespread use
     - Now includes a `result_output_var_name` option that allows you to choose the variable that stores its output (#976, thanks to @jgstew)
-- AppDmgVersioner: added unit tests; improved error output when `dmg_path` is missing or empty
-- PkgCreator: added unit tests
+- AppDmgVersioner: improved error output when `dmg_path` is missing or empty
+- AppDmgVersioner, AppPkgCreator, PkgCreator: added unit tests
 
 
 ## [2.7.5](https://github.com/autopkg/autopkg/compare/v2.7.4...v2.7.5) (July 6, 2025)
