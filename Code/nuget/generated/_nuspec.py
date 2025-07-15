@@ -372,7 +372,7 @@ except ImportError as exp:
                 0,
             ):
                 raise_parse_error(
-                    node, "Requires boolean value " "(one of True, 1, False, 0)"
+                    node, "Requires boolean value (one of True, 1, False, 0)"
                 )
             return input_data
 

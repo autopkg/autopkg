@@ -317,7 +317,7 @@ def locate_recipe(
                     )
             elif len(repo_names) > 1:
                 print()
-                print("To add a new recipe repo, use 'autopkg repo-add " "<repo name>'")
+                print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
                 return None
 
     return recipe_file
@@ -667,7 +667,7 @@ def add_search_and_override_dir_options(parser):
         dest="search_dirs",
         action="append",
         default=[],
-        help=("Directory to search for recipes. Can be specified " "multiple times."),
+        help="Directory to search for recipes. Can be specified multiple times.",
     )
     parser.add_option(
         "--override-dir",
@@ -823,7 +823,7 @@ def repo_list(argv):
     """List recipe repos"""
     verb = argv[1]
     parser = gen_common_parser()
-    parser.set_usage(f"Usage: %prog {verb}\n" "List all installed recipe repos.")
+    parser.set_usage(f"Usage: %prog {verb}\nList all installed recipe repos.")
     _options, _arguments = common_parse(parser, argv)
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     if recipe_repos:
@@ -1050,7 +1050,7 @@ def list_processors(argv):
     """List the processors in autopkglib"""
     verb = argv[1]
     parser = gen_common_parser()
-    parser.set_usage(f"Usage: %prog {verb} [options]\n" "List the core Processors.")
+    parser.set_usage(f"Usage: %prog {verb} [options]\nList the core Processors.")
     _ = common_parse(parser, argv)[0]
 
     print("\n".join(sorted(processor_names())))
@@ -1765,7 +1765,7 @@ def verify_trust_info(argv):
         "-l",
         "--recipe-list",
         metavar="TEXT_FILE",
-        help=("Path to a text file with a list of recipes to " "verify."),
+        help="Path to a text file with a list of recipes to verify.",
     )
     parser.add_option(
         "-v",
@@ -2011,7 +2011,7 @@ def run_recipes(argv):
         )
     else:
         parser.set_usage(
-            f"Usage: %prog {verb} [options] [recipe ...]\n" "Run one or more recipes."
+            f"Usage: %prog {verb} [options] [recipe ...]\nRun one or more recipes."
         )
 
     # Parse arguments.
@@ -2049,7 +2049,7 @@ def run_recipes(argv):
         "--ignore-parent-trust-verification-errors",
         action="store_true",
         default=False,
-        help=("Run recipes even if they fail parent trust " "verification."),
+        help="Run recipes even if they fail parent trust verification.",
     )
     parser.add_option(
         "-k",
@@ -2091,7 +2091,7 @@ def run_recipes(argv):
         "-q",
         "--quiet",
         action="store_true",
-        help=("Don't offer to search Github if a recipe can't " "be found."),
+        help="Don't offer to search Github if a recipe can't be found.",
     )
     add_search_and_override_dir_options(parser)
     (options, arguments) = common_parse(parser, argv)
@@ -2474,7 +2474,7 @@ def audit(argv):
     parser = gen_common_parser()
 
     parser.set_usage(
-        f"Usage: %prog {verb} [options] recipe [..]\n" "Audit one or more recipes."
+        f"Usage: %prog {verb} [options] recipe [..]\nAudit one or more recipes."
     )
 
     # Parse arguments
@@ -2483,7 +2483,7 @@ def audit(argv):
         "-l",
         "--recipe-list",
         metavar="TEXT_FILE",
-        help="Path to a text file with a list of recipes to " "audit.",
+        help="Path to a text file with a list of recipes to audit.",
     )
     parser.add_option(
         "-p",
@@ -2633,7 +2633,7 @@ def new_recipe(argv):
     parser = gen_common_parser()
 
     parser.set_usage(
-        f"Usage: %prog {verb} [options] recipe_pathname\n" "Make a new template recipe."
+        f"Usage: %prog {verb} [options] recipe_pathname\nMake a new template recipe."
     )
 
     # Parse arguments
@@ -2738,9 +2738,7 @@ def main(argv):
         "search": {"function": search_recipes, "help": "Search for recipes on GitHub."},
         "update-trust-info": {
             "function": update_trust_info,
-            "help": (
-                "Update or add parent recipe trust info for a recipe " "override."
-            ),
+            "help": "Update or add parent recipe trust info for a recipe override.",
         },
         "verify-trust-info": {
             "function": verify_trust_info,
