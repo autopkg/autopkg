@@ -16,6 +16,7 @@ import imp
 import os
 import sys
 import unittest
+import unittest.mock
 from unittest.mock import Mock, patch
 
 # Add the Code directory to the Python path to resolve autopkg dependencies
@@ -2452,6 +2453,1338 @@ class TestAutoPkgRecipes(unittest.TestCase):
             self.assertEqual(len(lines), 2)
             self.assertIn("AnotherApp.munki", lines[0])
             self.assertIn("TestApp.download", lines[1])
+
+    def test_get_recipe_info_recipe_found_basic(self):
+        """Test get_recipe_info when recipe is found with basic information."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe for testing",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {"NAME": "TestApp", "VERSION": "1.0"},
+            "Process": [{"Processor": "URLDownloader"}],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            mock_load_recipe.assert_called_once_with(
+                recipe_name,
+                override_dirs,
+                recipe_dirs,
+                make_suggestions=True,
+                search_github=True,
+                auto_pull=False,
+            )
+
+            # Check that various log calls were made
+            mock_log.assert_any_call("Description:         Test recipe for testing")
+            mock_log.assert_any_call("Identifier:          com.example.test")
+            mock_log.assert_any_call("Munki import recipe: False")
+            mock_log.assert_any_call("Has check phase:     False")
+            mock_log.assert_any_call("Builds package:      False")
+            mock_log.assert_any_call("Recipe file path:    /path/to/TestRecipe.recipe")
+            mock_log.assert_any_call("Input values: ")
+
+    def test_get_recipe_info_recipe_not_found(self):
+        """Test get_recipe_info when recipe is not found."""
+        recipe_name = "NonExistentRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log_err"
+        ) as mock_log_err:
+
+            mock_load_recipe.return_value = None  # Recipe not found
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertFalse(result)
+            mock_load_recipe.assert_called_once_with(
+                recipe_name,
+                override_dirs,
+                recipe_dirs,
+                make_suggestions=True,
+                search_github=True,
+                auto_pull=False,
+            )
+            mock_log_err.assert_called_once_with(
+                "No valid recipe found for NonExistentRecipe"
+            )
+
+    def test_get_recipe_info_with_multiline_description(self):
+        """Test get_recipe_info with multiline description."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Line 1 of description\nLine 2 of description\nLine 3 of description",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},
+            "Process": [],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            # Check that multiline description is properly formatted
+            expected_description = (
+                "Description:         Line 1 of description\n"
+                "                     Line 2 of description\n"
+                "                     Line 3 of description"
+            )
+            mock_log.assert_any_call(expected_description)
+
+    def test_get_recipe_info_with_parent_recipes(self):
+        """Test get_recipe_info with parent recipes."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},
+            "Process": [],
+            "PARENT_RECIPES": [
+                "/path/to/Parent1.recipe",
+                "/path/to/Parent2.recipe",
+            ],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            # Check that parent recipes are logged
+            expected_parents = (
+                "Parent recipe(s):    /path/to/Parent1.recipe\n"
+                "                     /path/to/Parent2.recipe"
+            )
+            mock_log.assert_any_call(expected_parents)
+
+    def test_get_recipe_info_with_munki_importer(self):
+        """Test get_recipe_info with munki importer step."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},
+            "Process": [{"Processor": "MunkiImporter"}],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = True  # Has MunkiImporter
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            mock_log.assert_any_call("Munki import recipe: True")
+
+    def test_get_recipe_info_with_check_phase(self):
+        """Test get_recipe_info with check phase."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},
+            "Process": [{"Processor": "EndOfCheckPhase"}],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = True  # Has check phase
+            mock_builds_package.return_value = False
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            mock_log.assert_any_call("Has check phase:     True")
+
+    def test_get_recipe_info_builds_package(self):
+        """Test get_recipe_info that builds a package."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},
+            "Process": [{"Processor": "PkgCreator"}],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = True  # Builds package
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            mock_log.assert_any_call("Builds package:      True")
+
+    def test_get_recipe_info_with_complex_input(self):
+        """Test get_recipe_info with complex input dictionary."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {
+                "NAME": "TestApp",
+                "VERSION": "1.0",
+                "NESTED": {"key1": "value1", "key2": ["item1", "item2"]},
+            },
+            "Process": [],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package, patch(
+            "pprint.pformat"
+        ) as mock_pformat:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+            mock_pformat.return_value = "{'formatted': 'input'}"
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            mock_log.assert_any_call("Input values: ")
+            # Check that pprint.pformat was called with the Input dict
+            mock_pformat.assert_called_once_with(mock_recipe["Input"], indent=4)
+
+    def test_get_recipe_info_with_empty_description(self):
+        """Test get_recipe_info with empty description."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "",  # Empty description
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},
+            "Process": [],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            mock_log.assert_any_call("Description:         ")
+
+    def test_get_recipe_info_with_missing_description(self):
+        """Test get_recipe_info with missing description key."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            # No Description key
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},
+            "Process": [],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            mock_log.assert_any_call("Description:         ")
+
+    def test_get_recipe_info_with_options(self):
+        """Test get_recipe_info with different options."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},
+            "Process": [],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ), patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+
+            result = autopkg.get_recipe_info(
+                recipe_name,
+                override_dirs,
+                recipe_dirs,
+                make_suggestions=False,
+                search_github=False,
+                auto_pull=True,
+            )
+
+            self.assertTrue(result)
+            mock_load_recipe.assert_called_once_with(
+                recipe_name,
+                override_dirs,
+                recipe_dirs,
+                make_suggestions=False,
+                search_github=False,
+                auto_pull=True,
+            )
+
+    def test_get_recipe_info_no_parent_recipes(self):
+        """Test get_recipe_info when PARENT_RECIPES is not present."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},
+            "Process": [],
+            # No PARENT_RECIPES key
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            # Should not log parent recipes section
+            parent_calls = [
+                call
+                for call in mock_log.call_args_list
+                if "Parent recipe(s)" in str(call)
+            ]
+            self.assertEqual(len(parent_calls), 0)
+
+    def test_get_recipe_info_empty_input(self):
+        """Test get_recipe_info with empty Input dictionary."""
+        recipe_name = "TestRecipe"
+        override_dirs = ["/overrides"]
+        recipe_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe",
+            "Identifier": "com.example.test",
+            "RECIPE_PATH": "/path/to/TestRecipe.recipe",
+            "Input": {},  # Empty input
+            "Process": [],
+        }
+
+        with patch("autopkg.load_recipe") as mock_load_recipe, patch(
+            "autopkg.log"
+        ) as mock_log, patch("autopkg.get_identifier") as mock_get_identifier, patch(
+            "autopkg.has_munkiimporter_step"
+        ) as mock_has_munki, patch(
+            "autopkg.has_check_phase"
+        ) as mock_has_check, patch(
+            "autopkg.builds_a_package"
+        ) as mock_builds_package, patch(
+            "pprint.pformat"
+        ) as mock_pformat:
+
+            mock_load_recipe.return_value = mock_recipe
+            mock_get_identifier.return_value = "com.example.test"
+            mock_has_munki.return_value = False
+            mock_has_check.return_value = False
+            mock_builds_package.return_value = False
+            mock_pformat.return_value = "{}"
+
+            result = autopkg.get_recipe_info(recipe_name, override_dirs, recipe_dirs)
+
+            self.assertTrue(result)
+            mock_log.assert_any_call("Input values: ")
+            mock_pformat.assert_called_once_with({}, indent=4)
+
+    def test_get_recipe_list_no_directories_provided(self):
+        """Test get_recipe_list when no directories are provided."""
+        with patch("autopkg.get_override_dirs") as mock_get_override_dirs, patch(
+            "autopkg.get_search_dirs"
+        ) as mock_get_search_dirs, patch("os.path.isdir") as mock_isdir, patch(
+            "glob.glob"
+        ) as mock_glob:
+
+            mock_get_override_dirs.return_value = ["/default/overrides"]
+            mock_get_search_dirs.return_value = ["/default/recipes"]
+            mock_isdir.return_value = False  # No directories exist
+            mock_glob.return_value = []
+
+            result = autopkg.get_recipe_list()
+
+            # Should return empty list when no directories exist
+            self.assertIsInstance(result, list)
+            self.assertEqual(len(result), 0)
+
+            # Should call default directory functions
+            mock_get_override_dirs.assert_called_once()
+            mock_get_search_dirs.assert_called_once()
+
+    def test_get_recipe_list_augmented_list_option(self):
+        """Test get_recipe_list with augmented_list=True."""
+        override_dirs = ["/overrides"]
+        search_dirs = ["/recipes"]
+
+        # Mock a recipe and its override with same name and matching parent
+        mock_recipe = {
+            "Description": "Download TestApp",
+            "Identifier": "com.test.download",
+            "Input": {},
+            "Process": [],
+        }
+        mock_override = {
+            "ParentRecipe": "com.test.download",
+            "Input": {"NAME": "CustomTestApp"},
+        }
+
+        with patch("autopkg.get_override_dirs") as mock_get_override_dirs, patch(
+            "autopkg.get_search_dirs"
+        ) as mock_get_search_dirs, patch("os.path.isdir") as mock_isdir, patch(
+            "glob.glob"
+        ) as mock_glob, patch(
+            "autopkg.recipe_from_file"
+        ) as mock_recipe_from_file, patch(
+            "autopkg.valid_recipe_dict"
+        ) as mock_valid_recipe, patch(
+            "autopkg.valid_override_dict"
+        ) as mock_valid_override, patch(
+            "autopkg.get_identifier"
+        ) as mock_get_identifier, patch(
+            "autopkg.remove_recipe_extension"
+        ) as mock_remove_ext, patch(
+            "os.path.basename"
+        ) as mock_basename:
+
+            mock_get_override_dirs.return_value = override_dirs
+            mock_get_search_dirs.return_value = search_dirs
+            mock_isdir.return_value = True
+
+            def glob_side_effect(pattern):
+                if "/recipes/" in pattern:
+                    return ["/recipes/TestApp.recipe"]
+                elif "/overrides/" in pattern:
+                    return ["/overrides/TestApp.recipe"]
+                return []
+
+            mock_glob.side_effect = glob_side_effect
+
+            def recipe_from_file_side_effect(path):
+                if "/recipes/" in path:
+                    return mock_recipe.copy()
+                elif "/overrides/" in path:
+                    return mock_override.copy()
+                return {}
+
+            mock_recipe_from_file.side_effect = recipe_from_file_side_effect
+            mock_valid_recipe.return_value = True
+            mock_valid_override.return_value = True
+            mock_get_identifier.return_value = None
+            mock_remove_ext.return_value = "TestApp"
+            mock_basename.return_value = "TestApp.recipe"
+
+            result = autopkg.get_recipe_list(
+                override_dirs, search_dirs, augmented_list=True, show_all=False
+            )
+
+            # With augmented_list=True and show_all=False,
+            # the parent recipe should be removed when override has same name
+            self.assertIsInstance(result, list)
+
+            # Check that IsOverride flag is set for overrides
+            override_items = [item for item in result if item.get("IsOverride")]
+            self.assertGreater(len(override_items), 0)
+
+    def test_get_recipe_list_show_all_option(self):
+        """Test get_recipe_list with show_all=True."""
+        override_dirs = ["/overrides"]
+        search_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Download TestApp",
+            "Identifier": "com.test.download",
+            "Input": {},
+            "Process": [],
+        }
+        mock_override = {
+            "ParentRecipe": "com.test.download",
+            "Input": {"NAME": "CustomTestApp"},
+        }
+
+        with patch("autopkg.get_override_dirs") as mock_get_override_dirs, patch(
+            "autopkg.get_search_dirs"
+        ) as mock_get_search_dirs, patch("os.path.isdir") as mock_isdir, patch(
+            "glob.glob"
+        ) as mock_glob, patch(
+            "autopkg.recipe_from_file"
+        ) as mock_recipe_from_file, patch(
+            "autopkg.valid_recipe_dict"
+        ) as mock_valid_recipe, patch(
+            "autopkg.valid_override_dict"
+        ) as mock_valid_override, patch(
+            "autopkg.get_identifier"
+        ) as mock_get_identifier, patch(
+            "autopkg.remove_recipe_extension"
+        ) as mock_remove_ext, patch(
+            "os.path.basename"
+        ) as mock_basename:
+
+            mock_get_override_dirs.return_value = override_dirs
+            mock_get_search_dirs.return_value = search_dirs
+            mock_isdir.return_value = True
+
+            def glob_side_effect(pattern):
+                if "/recipes/" in pattern:
+                    return ["/recipes/TestApp.recipe"]
+                elif "/overrides/" in pattern:
+                    return ["/overrides/TestApp.recipe"]
+                return []
+
+            mock_glob.side_effect = glob_side_effect
+
+            def recipe_from_file_side_effect(path):
+                if "/recipes/" in path:
+                    return mock_recipe.copy()
+                elif "/overrides/" in path:
+                    return mock_override.copy()
+                return {}
+
+            mock_recipe_from_file.side_effect = recipe_from_file_side_effect
+            mock_valid_recipe.return_value = True
+            mock_valid_override.return_value = True
+            mock_get_identifier.return_value = None
+            mock_remove_ext.return_value = "TestApp"
+            mock_basename.return_value = "TestApp.recipe"
+
+            result = autopkg.get_recipe_list(
+                override_dirs, search_dirs, augmented_list=True, show_all=True
+            )
+
+            # With show_all=True, both recipe and override should be in the list
+            self.assertIsInstance(result, list)
+
+    def test_get_recipe_list_invalid_recipe(self):
+        """Test get_recipe_list with invalid recipe files."""
+        override_dirs = ["/overrides"]
+        search_dirs = ["/recipes"]
+
+        with patch("autopkg.get_override_dirs") as mock_get_override_dirs, patch(
+            "autopkg.get_search_dirs"
+        ) as mock_get_search_dirs, patch("os.path.isdir") as mock_isdir, patch(
+            "glob.glob"
+        ) as mock_glob, patch(
+            "autopkg.recipe_from_file"
+        ) as mock_recipe_from_file, patch(
+            "autopkg.valid_recipe_dict"
+        ) as mock_valid_recipe, patch(
+            "autopkg.valid_override_dict"
+        ) as mock_valid_override:
+
+            mock_get_override_dirs.return_value = override_dirs
+            mock_get_search_dirs.return_value = search_dirs
+            mock_isdir.return_value = True
+            mock_glob.return_value = ["/recipes/BadRecipe.recipe"]
+            mock_recipe_from_file.return_value = {"bad": "recipe"}
+            mock_valid_recipe.return_value = False  # Invalid recipe
+            mock_valid_override.return_value = False
+
+            result = autopkg.get_recipe_list(override_dirs, search_dirs)
+
+            # Should return empty list when all recipes are invalid
+            self.assertIsInstance(result, list)
+            self.assertEqual(len(result), 0)
+
+    def test_get_recipe_list_with_identifier_from_input(self):
+        """Test get_recipe_list when recipe has Identifier in Input section."""
+        override_dirs = []
+        search_dirs = ["/recipes"]
+
+        mock_recipe = {
+            "Description": "Test recipe",
+            "Input": {"IDENTIFIER": "com.test.from.input"},
+            "Process": [],
+            # No top-level Identifier
+        }
+
+        with patch("autopkg.get_override_dirs") as mock_get_override_dirs, patch(
+            "autopkg.get_search_dirs"
+        ) as mock_get_search_dirs, patch("os.path.isdir") as mock_isdir, patch(
+            "glob.glob"
+        ) as mock_glob, patch(
+            "autopkg.recipe_from_file"
+        ) as mock_recipe_from_file, patch(
+            "autopkg.valid_recipe_dict"
+        ) as mock_valid_recipe, patch(
+            "autopkg.valid_override_dict"
+        ) as mock_valid_override, patch(
+            "autopkg.get_identifier"
+        ) as mock_get_identifier, patch(
+            "autopkg.remove_recipe_extension"
+        ) as mock_remove_ext, patch(
+            "os.path.basename"
+        ) as mock_basename:
+
+            mock_get_override_dirs.return_value = []
+            mock_get_search_dirs.return_value = search_dirs
+            mock_isdir.return_value = True
+            mock_glob.return_value = ["/recipes/TestApp.recipe"]
+            mock_recipe_from_file.return_value = mock_recipe.copy()
+            mock_valid_recipe.return_value = True
+            mock_valid_override.return_value = False
+            mock_get_identifier.return_value = "com.test.from.input"
+            mock_remove_ext.return_value = "TestApp"
+            mock_basename.return_value = "TestApp.recipe"
+
+            result = autopkg.get_recipe_list(override_dirs, search_dirs)
+
+            # Should add Identifier from Input to top level
+            self.assertIsInstance(result, list)
+            self.assertGreater(len(result), 0)
+
+            # Check that get_identifier was called to extract identifier
+            mock_get_identifier.assert_called()
+
+    def test_get_recipe_list_nonexistent_directories(self):
+        """Test get_recipe_list with nonexistent directories."""
+        override_dirs = ["/nonexistent/overrides"]
+        search_dirs = ["/nonexistent/recipes"]
+
+        with patch("os.path.isdir") as mock_isdir, patch("glob.glob") as mock_glob:
+
+            mock_isdir.return_value = False  # Directories don't exist
+
+            result = autopkg.get_recipe_list(override_dirs, search_dirs)
+
+            # Should return empty list when directories don't exist
+            self.assertIsInstance(result, list)
+            self.assertEqual(len(result), 0)
+
+            # glob should not be called for nonexistent directories
+            mock_glob.assert_not_called()
+
+    def test_find_http_urls_in_recipe_empty_recipe(self):
+        """Test find_http_urls_in_recipe with an empty recipe."""
+        recipe = {}
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        self.assertEqual(result, {})
+
+    def test_find_http_urls_in_recipe_no_urls(self):
+        """Test find_http_urls_in_recipe with a recipe containing no HTTP URLs."""
+        recipe = {
+            "Input": {
+                "NAME": "TestApp",
+                "VERSION": "1.0",
+                "HTTPS_URL": "https://example.com/download",  # HTTPS, not HTTP
+            },
+            "Process": [
+                {
+                    "Processor": "URLDownloader",
+                    "Arguments": {
+                        "url": "https://secure.example.com/file.dmg",
+                        "filename": "test.dmg",
+                    },
+                }
+            ],
+        }
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        self.assertEqual(result, {})
+
+    def test_find_http_urls_in_recipe_input_section_only(self):
+        """Test find_http_urls_in_recipe with HTTP URLs only in Input section."""
+        recipe = {
+            "Input": {
+                "NAME": "TestApp",
+                "DOWNLOAD_URL": "http://example.com/download",
+                "MIRROR_URL": "http://mirror.example.com/file.zip",
+            }
+        }
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        expected = {
+            "Input": {
+                "DOWNLOAD_URL": "http://example.com/download",
+                "MIRROR_URL": "http://mirror.example.com/file.zip",
+            }
+        }
+        self.assertEqual(result, expected)
+
+    def test_find_http_urls_in_recipe_process_section_only(self):
+        """Test find_http_urls_in_recipe with HTTP URLs only in Process section."""
+        recipe = {
+            "Process": [
+                {
+                    "Processor": "URLDownloader",
+                    "Arguments": {
+                        "url": "http://example.com/file.dmg",
+                        "filename": "test.dmg",
+                    },
+                },
+                {
+                    "Processor": "CURLTextSearcher",
+                    "Arguments": {
+                        "url": "http://api.example.com/version",
+                        "re_pattern": r"version:\s*(\d+\.\d+)",
+                    },
+                },
+            ]
+        }
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        expected = {
+            "Process": {
+                "URLDownloader": {"url": "http://example.com/file.dmg"},
+                "CURLTextSearcher": {"url": "http://api.example.com/version"},
+            }
+        }
+        self.assertEqual(result, expected)
+
+    def test_find_http_urls_in_recipe_both_sections(self):
+        """Test find_http_urls_in_recipe with HTTP URLs in both Input and Process sections."""
+        recipe = {
+            "Input": {
+                "BASE_URL": "http://downloads.example.com",
+                "APP_NAME": "TestApp",
+            },
+            "Process": [
+                {
+                    "Processor": "URLDownloader",
+                    "Arguments": {
+                        "url": "http://example.com/file.dmg",
+                        "filename": "test.dmg",
+                    },
+                }
+            ],
+        }
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        expected = {
+            "Input": {"BASE_URL": "http://downloads.example.com"},
+            "Process": {"URLDownloader": {"url": "http://example.com/file.dmg"}},
+        }
+        self.assertEqual(result, expected)
+
+    def test_find_http_urls_in_recipe_multiple_processors_same_type(self):
+        """Test find_http_urls_in_recipe with multiple processors of the same type."""
+        recipe = {
+            "Process": [
+                {
+                    "Processor": "URLDownloader",
+                    "Arguments": {
+                        "url": "http://example.com/file1.dmg",
+                        "filename": "test1.dmg",
+                    },
+                },
+                {
+                    "Processor": "URLDownloader",
+                    "Arguments": {
+                        "url": "http://example.com/file2.dmg",
+                        "filename": "test2.dmg",
+                    },
+                },
+            ]
+        }
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        # Note: The function appears to overwrite previous entries for the same processor
+        # This is based on the implementation using dict assignment
+        expected = {
+            "Process": {"URLDownloader": {"url": "http://example.com/file2.dmg"}}
+        }
+        self.assertEqual(result, expected)
+
+    def test_find_http_urls_in_recipe_non_string_values(self):
+        """Test find_http_urls_in_recipe with non-string values that shouldn't be processed."""
+        recipe = {
+            "Input": {
+                "URL": "http://example.com/download",
+                "PORT": 8080,  # Integer
+                "ENABLED": True,  # Boolean
+                "CONFIG": {"key": "value"},  # Dict
+            },
+            "Process": [
+                {
+                    "Processor": "URLDownloader",
+                    "Arguments": {
+                        "url": "http://example.com/file.dmg",
+                        "timeout": 30,  # Integer
+                        "retries": 3,  # Integer
+                    },
+                }
+            ],
+        }
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        expected = {
+            "Input": {"URL": "http://example.com/download"},
+            "Process": {"URLDownloader": {"url": "http://example.com/file.dmg"}},
+        }
+        self.assertEqual(result, expected)
+
+    def test_find_http_urls_in_recipe_missing_arguments(self):
+        """Test find_http_urls_in_recipe with processors missing Arguments section."""
+        recipe = {
+            "Process": [
+                {
+                    "Processor": "AppDmgVersioner"
+                    # No Arguments section
+                },
+                {
+                    "Processor": "URLDownloader",
+                    "Arguments": {"url": "http://example.com/file.dmg"},
+                },
+            ]
+        }
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        expected = {
+            "Process": {"URLDownloader": {"url": "http://example.com/file.dmg"}}
+        }
+        self.assertEqual(result, expected)
+
+    def test_find_http_urls_in_recipe_empty_sections(self):
+        """Test find_http_urls_in_recipe with empty Input and Process sections."""
+        recipe = {"Input": {}, "Process": []}
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        self.assertEqual(result, {})
+
+    def test_find_http_urls_in_recipe_http_prefix_check(self):
+        """Test find_http_urls_in_recipe only catches URLs starting with 'http:'."""
+        recipe = {
+            "Input": {
+                "HTTP_URL": "http://example.com/download",
+                "HTTPS_URL": "https://example.com/secure",
+                "FTP_URL": "ftp://example.com/file",
+                "FILE_URL": "file:///path/to/file",
+                "PARTIAL_HTTP": "prefix_http://example.com",
+                "NOT_URL": "this is not a URL",
+            }
+        }
+        result = autopkg.find_http_urls_in_recipe(recipe)
+        expected = {"Input": {"HTTP_URL": "http://example.com/download"}}
+        self.assertEqual(result, expected)
+
+    def test_new_recipe_basic_plist(self):
+        """Test new_recipe creates a basic plist recipe."""
+        argv = ["autopkg", "new-recipe", "test.recipe"]
+
+        with patch("autopkg.common_parse") as mock_parse, patch(
+            "autopkg.gen_common_parser"
+        ) as mock_parser, patch(
+            "builtins.open", unittest.mock.mock_open()
+        ) as mock_file, patch(
+            "autopkg.plistlib.dump"
+        ) as mock_plist_dump, patch(
+            "autopkg.log"
+        ) as mock_log, patch(
+            "autopkg.plist_serializer"
+        ) as mock_serializer:
+
+            # Mock parser setup
+            mock_parser_obj = unittest.mock.Mock()
+            mock_parser.return_value = mock_parser_obj
+
+            # Mock options
+            mock_options = unittest.mock.Mock()
+            mock_options.identifier = None
+            mock_options.parent_identifier = None
+            mock_options.format = "plist"
+
+            mock_parse.return_value = (mock_options, ["test.recipe"])
+            mock_serializer.return_value = {"serialized": "recipe"}
+
+            autopkg.new_recipe(argv)
+
+            # Verify parser setup
+            mock_parser_obj.add_option.assert_any_call(
+                "-i", "--identifier", help="Recipe identifier"
+            )
+            mock_parser_obj.add_option.assert_any_call(
+                "-p",
+                "--parent-identifier",
+                help="Parent recipe identifier for this recipe.",
+            )
+
+            # Verify file operations
+            mock_file.assert_called_once_with("test.recipe", "wb")
+            mock_plist_dump.assert_called_once()
+            mock_log.assert_called_with("Saved new recipe to test.recipe")
+
+    def test_new_recipe_with_identifier(self):
+        """Test new_recipe with custom identifier."""
+        argv = ["autopkg", "new-recipe", "custom.recipe"]
+
+        with patch("autopkg.common_parse") as mock_parse, patch(
+            "autopkg.gen_common_parser"
+        ) as mock_parser, patch("builtins.open", unittest.mock.mock_open()) as _, patch(
+            "autopkg.plistlib.dump"
+        ) as _, patch(
+            "autopkg.log"
+        ) as _, patch(
+            "autopkg.plist_serializer"
+        ) as mock_serializer:
+
+            mock_parser_obj = unittest.mock.Mock()
+            mock_parser.return_value = mock_parser_obj
+
+            mock_options = unittest.mock.Mock()
+            mock_options.identifier = "com.example.custom"
+            mock_options.parent_identifier = None
+            mock_options.format = "plist"
+
+            mock_parse.return_value = (mock_options, ["custom.recipe"])
+            mock_serializer.return_value = {"serialized": "recipe"}
+
+            autopkg.new_recipe(argv)
+
+            # Check that plist_serializer was called with recipe containing custom identifier
+            args, kwargs = mock_serializer.call_args
+            recipe = args[0]
+            self.assertEqual(recipe["Identifier"], "com.example.custom")
+
+    def test_new_recipe_with_parent(self):
+        """Test new_recipe with parent recipe identifier."""
+        argv = ["autopkg", "new-recipe", "child.recipe"]
+
+        with patch("autopkg.common_parse") as mock_parse, patch(
+            "autopkg.gen_common_parser"
+        ) as mock_parser, patch("builtins.open", unittest.mock.mock_open()) as _, patch(
+            "autopkg.plistlib.dump"
+        ) as _, patch(
+            "autopkg.log"
+        ) as _, patch(
+            "autopkg.plist_serializer"
+        ) as mock_serializer:
+
+            mock_parser_obj = unittest.mock.Mock()
+            mock_parser.return_value = mock_parser_obj
+
+            mock_options = unittest.mock.Mock()
+            mock_options.identifier = None
+            mock_options.parent_identifier = "com.example.parent"
+            mock_options.format = "plist"
+
+            mock_parse.return_value = (mock_options, ["child.recipe"])
+            mock_serializer.return_value = {"serialized": "recipe"}
+
+            autopkg.new_recipe(argv)
+
+            # Check that plist_serializer was called with recipe containing parent
+            args, kwargs = mock_serializer.call_args
+            recipe = args[0]
+            self.assertEqual(recipe["ParentRecipe"], "com.example.parent")
+
+    def test_new_recipe_yaml_format(self):
+        """Test new_recipe creates YAML format recipe."""
+        argv = ["autopkg", "new-recipe", "test.recipe.yaml"]
+
+        with patch("autopkg.common_parse") as mock_parse, patch(
+            "autopkg.gen_common_parser"
+        ) as mock_parser, patch("builtins.open", unittest.mock.mock_open()) as _, patch(
+            "autopkg.yaml.dump"
+        ) as mock_yaml_dump, patch(
+            "autopkg.log"
+        ) as _:
+
+            mock_parser_obj = unittest.mock.Mock()
+            mock_parser.return_value = mock_parser_obj
+
+            mock_options = unittest.mock.Mock()
+            mock_options.identifier = None
+            mock_options.parent_identifier = None
+            mock_options.format = "plist"  # Should be overridden by filename
+
+            mock_parse.return_value = (mock_options, ["test.recipe.yaml"])
+
+            autopkg.new_recipe(argv)
+
+            # Verify YAML dump was called
+            mock_yaml_dump.assert_called_once()
+            args, kwargs = mock_yaml_dump.call_args
+            self.assertEqual(kwargs.get("encoding"), "utf-8")
+
+            # Check that MinimumVersion was set to 2.3 for YAML
+            recipe = args[0]
+            self.assertEqual(recipe["MinimumVersion"], "2.3")
+
+    def test_new_recipe_yaml_format_option(self):
+        """Test new_recipe with explicit YAML format option."""
+        argv = ["autopkg", "new-recipe", "test.recipe"]
+
+        with patch("autopkg.common_parse") as mock_parse, patch(
+            "autopkg.gen_common_parser"
+        ) as mock_parser, patch("builtins.open", unittest.mock.mock_open()) as _, patch(
+            "autopkg.yaml.dump"
+        ) as mock_yaml_dump, patch(
+            "autopkg.log"
+        ) as _:
+
+            mock_parser_obj = unittest.mock.Mock()
+            mock_parser.return_value = mock_parser_obj
+
+            mock_options = unittest.mock.Mock()
+            mock_options.identifier = None
+            mock_options.parent_identifier = None
+            mock_options.format = "yaml"
+
+            mock_parse.return_value = (mock_options, ["test.recipe"])
+
+            autopkg.new_recipe(argv)
+
+            # Verify YAML dump was called
+            mock_yaml_dump.assert_called_once()
+
+    def test_new_recipe_no_arguments(self):
+        """Test new_recipe with no recipe pathname provided."""
+        argv = ["autopkg", "new-recipe"]
+
+        with patch("autopkg.common_parse") as mock_parse, patch(
+            "autopkg.gen_common_parser"
+        ) as mock_parser, patch("autopkg.log_err") as mock_log_err:
+
+            mock_parser_obj = unittest.mock.Mock()
+            mock_parser.return_value = mock_parser_obj
+            mock_parser_obj.get_usage.return_value = "Usage: test"
+
+            mock_options = unittest.mock.Mock()
+            mock_parse.return_value = (mock_options, [])  # No arguments
+
+            result = autopkg.new_recipe(argv)
+
+            # Should return -1 and log error
+            self.assertEqual(result, -1)
+            mock_log_err.assert_any_call("Must specify exactly one recipe pathname!")
+            mock_log_err.assert_any_call("Usage: test")
+
+    def test_new_recipe_multiple_arguments(self):
+        """Test new_recipe with multiple recipe pathnames provided."""
+        argv = ["autopkg", "new-recipe", "recipe1.recipe", "recipe2.recipe"]
+
+        with patch("autopkg.common_parse") as mock_parse, patch(
+            "autopkg.gen_common_parser"
+        ) as mock_parser, patch("autopkg.log_err") as mock_log_err:
+
+            mock_parser_obj = unittest.mock.Mock()
+            mock_parser.return_value = mock_parser_obj
+            mock_parser_obj.get_usage.return_value = "Usage: test"
+
+            mock_options = unittest.mock.Mock()
+            mock_parse.return_value = (
+                mock_options,
+                ["recipe1.recipe", "recipe2.recipe"],
+            )
+
+            result = autopkg.new_recipe(argv)
+
+            # Should return -1 and log error
+            self.assertEqual(result, -1)
+            mock_log_err.assert_any_call("Must specify exactly one recipe pathname!")
+
+    def test_new_recipe_file_write_error(self):
+        """Test new_recipe handles file write errors."""
+        argv = ["autopkg", "new-recipe", "test.recipe"]
+
+        with patch("autopkg.common_parse") as mock_parse, patch(
+            "autopkg.gen_common_parser"
+        ) as mock_parser, patch(
+            "builtins.open", side_effect=IOError("Permission denied")
+        ) as _, patch(
+            "autopkg.log_err"
+        ) as mock_log_err:
+
+            mock_parser_obj = unittest.mock.Mock()
+            mock_parser.return_value = mock_parser_obj
+
+            mock_options = unittest.mock.Mock()
+            mock_options.identifier = None
+            mock_options.parent_identifier = None
+            mock_options.format = "plist"
+
+            mock_parse.return_value = (mock_options, ["test.recipe"])
+
+            autopkg.new_recipe(argv)
+
+            # Should log error
+            mock_log_err.assert_called_with("Failed to write recipe: Permission denied")
+
+    def test_new_recipe_default_structure(self):
+        """Test new_recipe creates recipe with correct default structure."""
+        argv = ["autopkg", "new-recipe", "example.recipe"]
+
+        with patch("autopkg.common_parse") as mock_parse, patch(
+            "autopkg.gen_common_parser"
+        ) as mock_parser, patch("builtins.open", unittest.mock.mock_open()) as _, patch(
+            "autopkg.plistlib.dump"
+        ) as _, patch(
+            "autopkg.log"
+        ) as _, patch(
+            "autopkg.plist_serializer"
+        ) as mock_serializer:
+
+            mock_parser_obj = unittest.mock.Mock()
+            mock_parser.return_value = mock_parser_obj
+
+            mock_options = unittest.mock.Mock()
+            mock_options.identifier = None
+            mock_options.parent_identifier = None
+            mock_options.format = "plist"
+
+            mock_parse.return_value = (mock_options, ["example.recipe"])
+            mock_serializer.return_value = {"serialized": "recipe"}
+
+            autopkg.new_recipe(argv)
+
+            # Check the recipe structure
+            args, kwargs = mock_serializer.call_args
+            recipe = args[0]
+
+            # Verify required fields
+            self.assertEqual(recipe["Description"], "Recipe description")
+            self.assertEqual(recipe["Identifier"], "local.example")
+            self.assertEqual(recipe["Input"]["NAME"], "example")
+            self.assertEqual(recipe["MinimumVersion"], "1.0")
+
+            # Verify Process structure
+            self.assertEqual(len(recipe["Process"]), 1)
+            process_step = recipe["Process"][0]
+            self.assertEqual(process_step["Processor"], "ProcessorName")
+            self.assertIn("Arguments", process_step)
+            self.assertEqual(process_step["Arguments"]["Argument1"], "Value1")
+            self.assertEqual(process_step["Arguments"]["Argument2"], "Value2")
+
+    def test_new_recipe_name_extraction(self):
+        """Test new_recipe correctly extracts name from different filename formats."""
+        test_cases = [
+            ("MyApp.recipe", "MyApp", "plist"),
+            ("/path/to/SomeApp.recipe", "SomeApp", "plist"),
+            ("test.recipe.plist", "test", "plist"),
+            ("complex-name.recipe.yaml", "complex-name", "yaml"),
+        ]
+
+        for filename, expected_name, expected_format in test_cases:
+            with self.subTest(filename=filename):
+                argv = ["autopkg", "new-recipe", filename]
+
+                if expected_format == "yaml":
+                    with patch("autopkg.common_parse") as mock_parse, patch(
+                        "autopkg.gen_common_parser"
+                    ) as mock_parser, patch(
+                        "builtins.open", unittest.mock.mock_open()
+                    ), patch(
+                        "autopkg.yaml.dump"
+                    ) as mock_yaml_dump, patch(
+                        "autopkg.log"
+                    ):
+
+                        mock_parser_obj = unittest.mock.Mock()
+                        mock_parser.return_value = mock_parser_obj
+
+                        mock_options = unittest.mock.Mock()
+                        mock_options.identifier = None
+                        mock_options.parent_identifier = None
+                        mock_options.format = "plist"  # Will be overridden by filename
+
+                        mock_parse.return_value = (mock_options, [filename])
+
+                        autopkg.new_recipe(argv)
+
+                        # Check the name in the recipe from YAML dump
+                        args, kwargs = mock_yaml_dump.call_args
+                        recipe = args[0]
+                        self.assertEqual(recipe["Input"]["NAME"], expected_name)
+                        self.assertEqual(recipe["Identifier"], f"local.{expected_name}")
+                else:
+                    with patch("autopkg.common_parse") as mock_parse, patch(
+                        "autopkg.gen_common_parser"
+                    ) as mock_parser, patch(
+                        "builtins.open", unittest.mock.mock_open()
+                    ), patch(
+                        "autopkg.plistlib.dump"
+                    ), patch(
+                        "autopkg.log"
+                    ), patch(
+                        "autopkg.plist_serializer"
+                    ) as mock_serializer:
+
+                        mock_parser_obj = unittest.mock.Mock()
+                        mock_parser.return_value = mock_parser_obj
+
+                        mock_options = unittest.mock.Mock()
+                        mock_options.identifier = None
+                        mock_options.parent_identifier = None
+                        mock_options.format = "plist"
+
+                        mock_parse.return_value = (mock_options, [filename])
+                        mock_serializer.return_value = {"serialized": "recipe"}
+
+                        autopkg.new_recipe(argv)
+
+                        # Check the name in the recipe
+                        args, kwargs = mock_serializer.call_args
+                        recipe = args[0]
+                        self.assertEqual(recipe["Input"]["NAME"], expected_name)
+                        self.assertEqual(recipe["Identifier"], f"local.{expected_name}")
 
 
 if __name__ == "__main__":
