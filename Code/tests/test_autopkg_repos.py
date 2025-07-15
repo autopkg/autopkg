@@ -30,10 +30,6 @@ autopkg = imp.load_source(
 class TestAutoPkgRepos(unittest.TestCase):
     """Test cases for repository-related functions of AutoPkg."""
 
-    def setUp(self):
-        if autopkg is None:
-            self.skipTest("autopkg module could not be imported")
-
     def test_expand_single_autopkg_org_urls(self):
         """Expand single part short repo URLs in the AutoPkg org on GitHub"""
         url = autopkg.expand_repo_url("recipes")

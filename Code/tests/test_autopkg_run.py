@@ -30,10 +30,6 @@ autopkg = imp.load_source(
 class TestAutoPkgRun(unittest.TestCase):
     """Test cases for recipe run related functions of AutoPkg."""
 
-    def setUp(self):
-        if autopkg is None:
-            self.skipTest("autopkg module could not be imported")
-
     def test_run_recipes_no_arguments(self):
         """Test run_recipes with no recipe arguments."""
         argv = ["autopkg", "run"]

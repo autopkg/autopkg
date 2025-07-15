@@ -29,10 +29,6 @@ autopkg = imp.load_source(
 class TestAutoPkgRecipes(unittest.TestCase):
     """Test cases for recipe-related functions of AutoPkg."""
 
-    def setUp(self):
-        if autopkg is None:
-            self.skipTest("autopkg module could not be imported")
-
     def test_recipe_has_step_processor_with_processor(self):
         """Test recipe_has_step_processor when recipe contains the specified processor."""
         recipe = {

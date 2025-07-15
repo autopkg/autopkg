@@ -30,10 +30,6 @@ autopkg = imp.load_source(
 class TestAutoPkgOverrides(unittest.TestCase):
     """Test cases for override trust-related functions of AutoPkg."""
 
-    def setUp(self):
-        if autopkg is None:
-            self.skipTest("autopkg module could not be imported")
-
     def test_get_trust_info_basic_recipe(self):
         """Test get_trust_info with a basic recipe."""
         mock_recipe = {
