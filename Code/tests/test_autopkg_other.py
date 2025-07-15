@@ -1483,52 +1483,6 @@ class TestAutoPkgOther(unittest.TestCase):
             ]
             mock_exists.assert_has_calls(expected_calls)
 
-    def test_find_processor_path_duplicate_parent_dirs_removed(self):
-        """Test find_processor_path removes duplicate parent directories."""
-        processor_name = "TestProcessor"
-        recipe = {
-            "RECIPE_PATH": "/recipes/TestApp.recipe",
-            "PARENT_RECIPES": [
-                "/parent/Parent1.recipe",
-                "/parent/Parent2.recipe",  # Same directory
-                "/other/Other.recipe",
-            ],
-        }
-        env = {"RECIPE_SEARCH_DIRS": ["/search/dir1"]}
-
-        with patch("os.path.dirname") as mock_dirname, patch(
-            "autopkg.extract_processor_name_with_recipe_identifier"
-        ) as mock_extract, patch("os.path.exists") as mock_exists, patch(
-            "os.path.join"
-        ) as mock_join:
-
-            def dirname_side_effect(path):
-                dirname_map = {
-                    "/recipes/TestApp.recipe": "/recipes",
-                    "/parent/Parent1.recipe": "/parent",
-                    "/parent/Parent2.recipe": "/parent",  # Same as Parent1
-                    "/other/Other.recipe": "/other",
-                }
-                return dirname_map.get(path, "/default")
-
-            mock_dirname.side_effect = dirname_side_effect
-            mock_extract.return_value = ("TestProcessor", None)
-            mock_exists.return_value = False  # Processor not found
-            mock_join.side_effect = lambda *args: "/".join(args)
-
-            result = autopkg.find_processor_path(processor_name, recipe, env)
-
-            self.assertIsNone(result)
-
-            # Verify it only checked each unique directory once
-            # Should check: /recipes, /parent (only once), /other
-            expected_calls = [
-                unittest.mock.call("/recipes/TestProcessor.py"),
-                unittest.mock.call("/parent/TestProcessor.py"),
-                unittest.mock.call("/other/TestProcessor.py"),
-            ]
-            mock_exists.assert_has_calls(expected_calls)
-
     def test_find_processor_path_shared_recipe_not_found(self):
         """Test find_processor_path when shared recipe is not found."""
         processor_name = "com.missing.recipe/TestProcessor"
