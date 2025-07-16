@@ -585,16 +585,25 @@ class Processor:
         if self.env is None:
             return
 
+        plist_safe = {}
+        
+        for env_key in self.env:
+            if not self.env[env_key] is None:
+                plist_safe[env_key] = self.env[env_key] 
+
         try:
             with open(self.outfile, "wb") as f:
-                plistlib.dump(self.env, f)
+                plistlib.dump(plist_safe, f)
         except TypeError:
-            plistlib.dump(self.env, self.outfile.buffer)
+            plistlib.dump(plist_safe, self.outfile.buffer)
         except BaseException as err:
             raise ProcessorError(err) from err
 
     def parse_arguments(self) -> None:
         """Parse arguments as key='value'."""
+
+        if self.env is None:
+            self.env = {}
 
         for arg in sys.argv[1:]:
             (key, sep, value) = arg.partition("=")
@@ -648,8 +657,10 @@ class Processor:
         """Execute as a standalone binary on the commandline."""
 
         try:
-            self.read_input_plist()
-            self.parse_arguments()
+            if not sys.argv[1:]:
+                self.read_input_plist()
+            else:
+                self.parse_arguments()
             self.process()
             self.write_output_plist()
         except ProcessorError as err:
