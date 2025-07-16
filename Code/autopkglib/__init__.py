@@ -586,10 +586,10 @@ class Processor:
             return
 
         plist_safe = {}
-        
+
         for env_key in self.env:
             if not self.env[env_key] is None:
-                plist_safe[env_key] = self.env[env_key] 
+                plist_safe[env_key] = self.env[env_key]
 
         try:
             with open(self.outfile, "wb") as f:
