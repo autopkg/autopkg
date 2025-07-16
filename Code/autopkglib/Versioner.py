@@ -28,11 +28,11 @@ UNKNOWN_VERSION = "UNKNOWN_VERSION"
 __all__ = ["Versioner"]
 
 
-def _zip_listdir(file: zipfile.ZipFile, dir: str) -> Iterator[zipfile.ZipInfo]:
-    dir = dir.rstrip("/")
+def _zip_listdir(file: zipfile.ZipFile, directory: str) -> Iterator[zipfile.ZipInfo]:
+    directory = directory.rstrip("/")
 
     def is_direct_child(info: zipfile.ZipInfo) -> bool:
-        return posixpath.dirname(info.filename.rstrip("/")) == dir
+        return posixpath.dirname(info.filename.rstrip("/")) == directory
 
     return filter(is_direct_child, file.infolist())
 

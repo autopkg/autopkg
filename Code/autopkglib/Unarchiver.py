@@ -108,16 +108,16 @@ class Unarchiver(Processor):
         # We found no known archive file extension if we got this far
         return None
 
-    def _extract(self, format: str, archive_path: str, destination_path: str) -> None:
+    def _extract(self, fmt: str, archive_path: str, destination_path: str) -> None:
         if self.env["USE_PYTHON_NATIVE_EXTRACTOR"]:
-            self._extract_native(format, archive_path, destination_path)
+            self._extract_native(fmt, archive_path, destination_path)
         else:
-            self._extract_utility(format, archive_path, destination_path)
+            self._extract_utility(fmt, archive_path, destination_path)
 
     def _extract_native(
-        self, format: str, archive_path: str, destination_path: str
+        self, fmt: str, archive_path: str, destination_path: str
     ) -> None:
-        archivefile_class: ExtractorType = NATIVE_EXTRACTORS[format]
+        archivefile_class: ExtractorType = NATIVE_EXTRACTORS[fmt]
         archive: Extractor = archivefile_class(archive_path, mode="r")
         try:
             archive.extractall(path=destination_path)
@@ -127,10 +127,10 @@ class Unarchiver(Processor):
             )
 
     def _extract_utility(
-        self, format: str, archive_path: str, destination_path: str
+        self, fmt: str, archive_path: str, destination_path: str
     ) -> None:
         """Extracts an archive using a platform specific utility."""
-        if format == "zip":
+        if fmt == "zip":
             cmd = [
                 "/usr/bin/ditto",
                 "--noqtn",
@@ -139,13 +139,13 @@ class Unarchiver(Processor):
                 archive_path,
                 destination_path,
             ]
-        elif format == "gzip":
+        elif fmt == "gzip":
             cmd = ["/usr/bin/ditto", "--noqtn", "-x", archive_path, destination_path]
-        elif format.startswith("tar"):
+        elif fmt.startswith("tar"):
             cmd = ["/usr/bin/tar", "-x", "-f", archive_path, "-C", destination_path]
-            if format.endswith("gzip"):
+            if fmt.endswith("gzip"):
                 cmd.append("-z")
-            elif format.endswith("bzip2"):
+            elif fmt.endswith("bzip2"):
                 cmd.append("-j")
 
         # Call command.

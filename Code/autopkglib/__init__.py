@@ -168,21 +168,21 @@ class Preferences:
             pass
         return {}
 
-    def __deepconvert_objc(self, object) -> Any:
+    def __deepconvert_objc(self, obj) -> Any:
         """Convert all contents of an ObjC object to Python primitives."""
-        value = object
-        if isinstance(object, NSNumber):
-            value = int(object)
-        elif isinstance(object, NSArray) or isinstance(object, list):
-            value = [self.__deepconvert_objc(x) for x in object]
-        elif isinstance(object, NSDictionary):
-            value = dict(object)
+        value = obj
+        if isinstance(obj, NSNumber):
+            value = int(obj)
+        elif isinstance(obj, NSArray) or isinstance(obj, list):
+            value = [self.__deepconvert_objc(x) for x in obj]
+        elif isinstance(obj, NSDictionary):
+            value = dict(obj)
             # RECIPE_REPOS is a dict of dicts
             for k, v in value.items():
                 if isinstance(v, NSDictionary):
                     value[k] = dict(v)
         else:
-            return object
+            return obj
         return value
 
     def _get_macos_pref(self, key) -> Any:
