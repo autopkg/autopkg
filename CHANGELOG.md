@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file. This projec
     - Now includes a `result_output_var_name` option that allows you to choose the variable that stores its output (#976, thanks to @jgstew)
 - Changes that allow easier command-line testing of custom processors (#953, thanks to @macmule)
 - AppDmgVersioner: improved error output when `dmg_path` is missing or empty
+- MunkiImporter: Improved handling of pkginfo keys that contain a `force_install_after_date` (#967, thanks to @arubdesu)
 - Added unit tests for various processors and some core AutoPkg functions
 
 
