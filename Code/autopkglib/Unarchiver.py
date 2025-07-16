@@ -26,6 +26,7 @@ from autopkglib import Processor, ProcessorError, is_mac
 
 __all__ = ["Unarchiver"]
 
+# Archive format types by file extension
 EXTNS = {
     "zip": ["zip"],
     "tar_gzip": ["tar.gz", "tgz"],
@@ -34,10 +35,10 @@ EXTNS = {
     "gzip": ["gzip"],
 }
 
-
 ExtractorType = Union[type[tarfile.TarFile], type[zipfile.ZipFile]]
 Extractor = Union[tarfile.TarFile, zipfile.ZipFile]
 
+# Native Python extractors for archive formats
 NATIVE_EXTRACTORS: dict[str, ExtractorType] = {
     "tar_bzip2": tarfile.TarFile,
     "tar_gzip": tarfile.TarFile,

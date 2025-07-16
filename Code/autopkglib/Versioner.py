@@ -23,6 +23,7 @@ from collections.abc import Callable, Iterator
 from autopkglib import FileOrPath, ProcessorError, VarDict
 from autopkglib.DmgMounter import DmgMounter
 
+# The version string to use when the version cannot be determined
 UNKNOWN_VERSION = "UNKNOWN_VERSION"
 
 __all__ = ["Versioner"]
