@@ -22,6 +22,7 @@ from hashlib import md5, sha1, sha256
 from urllib.request import urlopen
 
 import certifi
+from autopkglib import Processor, ProcessorError
 from autopkglib.URLDownloader import URLDownloader
 
 __all__ = ["URLDownloaderPython"]
@@ -238,8 +239,12 @@ class URLDownloaderPython(URLDownloader):
         ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
         ctx.load_verify_locations(cafile=certifi.where())
         if (cafile := os.environ.get("SSL_CERT_FILE")) is not None:
+            self.output(f"SSL_CERT_FILE={cafile}", 1)
+            if not os.path.isfile(cafile):
+                raise ProcessorError(f"Certificate file '{cafile}' does not exist.")
+            if not os.access(cafile, os.R_OK):
+                raise ProcessorError(f"Certificate file '{cafile}' is not readable.")
             ctx.load_verify_locations(cafile=cafile)
-
         return ctx
 
     def download_and_hash(self, file_save_path) -> dict | None:
