@@ -88,7 +88,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
             self.processor.main()
     
     @patch('autopkglib.GitHubReleasesInfoProvider.is_archived')
-    def test_main_with_archived_repo_ignore_archive(self, mock_is_archived):
+    def test_main_with_archived_repo_ignore_archived(self, mock_is_archived):
         mock_is_archived.return_value = True
 
         test_env = {
