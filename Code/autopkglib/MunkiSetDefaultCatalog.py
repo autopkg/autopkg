@@ -40,7 +40,7 @@ class MunkiSetDefaultCatalog(Processor):
     output_variables = {"pkginfo": {"description": "Updated pkginfo."}}
     description = __doc__
 
-    def main(self):
+    def main(self) -> None:
         if "pkginfo" not in self.env:
             self.env["pkginfo"] = {}
         default_catalog = CFPreferencesCopyAppValue(

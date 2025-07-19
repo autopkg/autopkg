@@ -225,9 +225,9 @@ def main():
 
     print("** Writing date into CHANGELOG.md")
     # write today's date in the changelog
-    with open(changelog_path, "r") as fdesc:
+    with open(changelog_path) as fdesc:
         changelog = fdesc.read()
-    release_date = strftime("(%B %d, %Y)")
+    release_date = strftime("(%B %-d, %Y)")
     new_changelog = re.sub(r"\(Unreleased\)", release_date, changelog)
     new_changelog = re.sub("...HEAD", f"...v{current_version}", new_changelog)
     with open(changelog_path, "w") as fdesc:
@@ -247,7 +247,7 @@ def main():
 
     print("** Gathering release notes")
     # extract release notes for this new version
-    notes_rex = r"(?P<current_ver_notes>\#\#\# \[%s\].+?)\#\#\#" % current_version
+    notes_rex = r"(?P<current_ver_notes>\#\# \[%s\].+?)\#\#" % current_version
     match = re.search(notes_rex, new_changelog, re.DOTALL)
     if not match:
         sys.exit("Couldn't extract release notes for this version!")
@@ -289,6 +289,8 @@ def main():
             "REQUIREMENTS_FILENAME=new_requirements.txt",
             "-k",
             "OS_VERSION=11",
+            "-k",
+            "upgrade_pip=true",
         ]
     )
     subprocess.run(args=cmd, text=True, check=True)

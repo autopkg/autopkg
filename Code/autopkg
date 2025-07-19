@@ -30,7 +30,7 @@ import sys
 import time
 import traceback
 from base64 import b64decode
-from typing import Optional
+from typing import Any
 from urllib.parse import quote, urlparse
 
 import yaml
@@ -75,13 +75,13 @@ yaml.add_representer(str, autopkg_str_representer)
 yaml.representer.SafeRepresenter.add_representer(str, autopkg_str_representer)
 
 
-def print_version(argv):
+def print_version(argv) -> None:
     """Prints autopkg version"""
     _ = argv[1]
     print(get_autopkg_version())
 
 
-def recipe_has_step_processor(recipe, processor):
+def recipe_has_step_processor(recipe, processor) -> bool:
     """Does the recipe object contain at least one step with the
     named Processor?"""
     if "Process" in recipe:
@@ -91,22 +91,22 @@ def recipe_has_step_processor(recipe, processor):
     return False
 
 
-def has_munkiimporter_step(recipe):
+def has_munkiimporter_step(recipe) -> bool:
     """Does the recipe have a MunkiImporter step?"""
     return recipe_has_step_processor(recipe, "MunkiImporter")
 
 
-def has_check_phase(recipe):
+def has_check_phase(recipe) -> bool:
     """Does the recipe have a "check" phase?"""
     return recipe_has_step_processor(recipe, "EndOfCheckPhase")
 
 
-def builds_a_package(recipe):
+def builds_a_package(recipe) -> bool:
     """Does this recipe build any packages?"""
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify):
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
     """Attempts to read a dict and ensures the keys in
     keys_to_verify exist. Returns False on any failure, True otherwise."""
     if recipe_dict:
@@ -118,7 +118,7 @@ def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify):
     return False
 
 
-def valid_recipe_dict(recipe_dict):
+def valid_recipe_dict(recipe_dict) -> bool:
     """Returns True if recipe dict is a valid recipe,
     otherwise returns False"""
     return (
@@ -128,14 +128,14 @@ def valid_recipe_dict(recipe_dict):
     )
 
 
-def valid_recipe_file(filename):
+def valid_recipe_file(filename) -> bool:
     """Returns True if filename contains a valid recipe,
     otherwise returns False"""
     recipe_dict = recipe_from_file(filename)
     return valid_recipe_dict(recipe_dict)
 
 
-def valid_override_dict(recipe_dict):
+def valid_override_dict(recipe_dict) -> bool:
     """Returns True if the recipe is a valid override,
     otherwise returns False"""
     return valid_recipe_dict_with_keys(
@@ -143,14 +143,14 @@ def valid_override_dict(recipe_dict):
     ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
 
 
-def valid_override_file(filename):
+def valid_override_file(filename) -> bool:
     """Returns True if filename contains a valid override,
     otherwise returns False"""
     override_dict = recipe_from_file(filename)
     return valid_override_dict(override_dict)
 
 
-def find_recipe_by_name(name, search_dirs):
+def find_recipe_by_name(name, search_dirs) -> str | None:
     """Search search_dirs for a recipe by file/directory naming rules"""
     # drop extension from the end of the name because we're
     # going to add it back on...
@@ -173,7 +173,7 @@ def find_recipe_by_name(name, search_dirs):
     return None
 
 
-def find_recipe(id_or_name, search_dirs):
+def find_recipe(id_or_name, search_dirs) -> str | None:
     """find a recipe based on a string that might be an identifier
     or a name"""
     return find_recipe_by_identifier(id_or_name, search_dirs) or find_recipe_by_name(
@@ -181,7 +181,7 @@ def find_recipe(id_or_name, search_dirs):
     )
 
 
-def get_identifier_from_override(override):
+def get_identifier_from_override(override) -> str:
     """Return the identifier from an override, falling back with a
     warning to just the 'name' of the recipe."""
     # prefer ParentRecipe
@@ -535,7 +535,7 @@ def run_git(git_options_and_arguments, git_directory=None):
         return cmd_out
 
 
-def get_recipe_repo(git_path):
+def get_recipe_repo(git_path) -> str | None:
     """git clone git_path to local disk and return local path"""
 
     # figure out a local directory name to clone to
@@ -583,7 +583,7 @@ def get_recipe_repo(git_path):
     return None
 
 
-def write_plist_exit_on_fail(plist_dict, path):
+def write_plist_exit_on_fail(plist_dict, path) -> None:
     """Writes a dict to a new plist at path, exits the program
     if the write fails."""
     try:
@@ -594,7 +594,7 @@ def write_plist_exit_on_fail(plist_dict, path):
         sys.exit(-1)
 
 
-def print_tool_info(options):
+def print_tool_info(options) -> None:
     """Eventually will print some information about the tool
     and environment. For now, just print the current prefs"""
     _ = options
@@ -602,7 +602,7 @@ def print_tool_info(options):
     pprint.pprint(get_all_prefs())
 
 
-def get_repo_info(path_or_url):
+def get_repo_info(path_or_url) -> dict[str, Any]:
     """Given a path or URL, find a locally installed repo and return
     information in a dictionary about it"""
     repo_info = {}
@@ -636,22 +636,22 @@ def save_pref_or_warn(key, value):
         log_err(f"WARNING: {err}")
 
 
-def get_search_dirs():
+def get_search_dirs() -> list[str]:
     """Return search dirs from preferences or default list"""
     default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
 
-    dirs = get_pref("RECIPE_SEARCH_DIRS")
+    dirs: list[str] = get_pref("RECIPE_SEARCH_DIRS")
     if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
     return dirs or default
 
 
-def get_override_dirs():
+def get_override_dirs() -> list[str]:
     """Return override dirs from preferences or default list"""
     default = ["~/Library/AutoPkg/RecipeOverrides"]
 
-    dirs = get_pref("RECIPE_OVERRIDE_DIRS")
+    dirs: list[str] = get_pref("RECIPE_OVERRIDE_DIRS")
     if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
@@ -877,7 +877,7 @@ def repo_update(argv):
 
 def do_gh_repo_contents_fetch(
     repo: str, path: str, use_token=False, decode=True
-) -> Optional[bytes]:
+) -> bytes | None:
     """Fetch file contents from GitHub and return as a string."""
     gh_session = GitHubSession()
     if use_token:
@@ -1991,7 +1991,7 @@ def parse_recipe_list(filename):
     except Exception:
         # file does not appear to be a plist containing a dictionary;
         # read it as a plaintext list of recipes
-        with open(filename, "r") as file_desc:
+        with open(filename) as file_desc:
             data = file_desc.read()
         recipe_list["recipes"] = [
             line for line in data.splitlines() if line and not line.startswith("#")
@@ -2421,12 +2421,12 @@ def printplistitem(label, value, indent=0):
     indentspace = "    "
     if value is None:
         log(indentspace * indent + f"{label}: !NONE!")
-    elif type(value) == list or type(value).__name__ == "NSCFArray":
+    elif isinstance(value, list) or type(value).__name__ == "NSCFArray":
         if label:
             log(indentspace * indent + f"{label}:")
         for item in value:
             printplistitem("", item, indent + 1)
-    elif type(value) == dict or type(value).__name__ == "NSCFDictionary":
+    elif isinstance(value, dict) or type(value).__name__ == "NSCFDictionary":
         if label:
             log(indentspace * indent + f"{label}:")
         for subkey in list(value.keys()):

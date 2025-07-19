@@ -35,7 +35,7 @@ class FileMover(Processor):
 
     description = __doc__
 
-    def main(self):
+    def main(self) -> None:
         rename(self.env["source"], self.env["target"])
         self.output(f"File {self.env['source']} moved to {self.env['target']}")
 

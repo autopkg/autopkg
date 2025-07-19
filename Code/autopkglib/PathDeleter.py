@@ -38,7 +38,7 @@ class PathDeleter(Processor):
     output_variables = {}
     description = __doc__
 
-    def main(self):
+    def main(self) -> None:
         # if recipe writer gave us a single string instead of a list of strings,
         # convert it to a list of strings
         if isinstance(self.env["path_list"], str):

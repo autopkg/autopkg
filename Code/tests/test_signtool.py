@@ -14,7 +14,7 @@
 
 import sys
 import unittest
-from typing import Any, Dict
+from typing import Any
 
 from autopkglib.SignToolVerifier import ProcessorError, SignToolVerifier
 
@@ -22,13 +22,13 @@ from autopkglib.SignToolVerifier import ProcessorError, SignToolVerifier
 class TestSignToolVerifier(unittest.TestCase):
     @unittest.skipUnless(sys.platform == "win32", "Requires Windows")
     def test_verify_ntdll(self):
-        env: Dict[str, str] = {"input_path": r"C:\Windows\System32\ntdll.dll"}
+        env: dict[str, str] = {"input_path": r"C:\Windows\System32\ntdll.dll"}
         processor = SignToolVerifier(env)
         processor.process()
 
     @unittest.skipUnless(sys.platform == "win32", "Requires Windows")
     def test_verify_nopath(self):
-        env: Dict[str, Any] = {"input_path": r"C:\Fake\Path\To.dll", "verbose": 4}
+        env: dict[str, Any] = {"input_path": r"C:\Fake\Path\To.dll", "verbose": 4}
         processor = SignToolVerifier(env)
         self.assertRaises(ProcessorError, processor.process)
 

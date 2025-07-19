@@ -16,7 +16,7 @@ import unittest
 import unittest.mock
 from copy import deepcopy
 from tempfile import TemporaryDirectory
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from autopkglib.Unarchiver import Unarchiver
 from tests import get_processor_module
@@ -34,7 +34,7 @@ class TestUnarchiver(unittest.TestCase):
         self.default_destination_path = (
             f"{self.tempdir.name}/destination_path/is/irrelevant"
         )
-        self.processor_env: Dict[str, Any] = {
+        self.processor_env: dict[str, Any] = {
             "archive_path": self.default_archive_path,
             "destination_path": self.default_destination_path,
             "purge_destination": False,
@@ -78,7 +78,7 @@ class TestUnarchiver(unittest.TestCase):
         self.process_mock.communicate.return_value = ("", "")
         self.process_mock.returncode = 0
 
-        utility_cases: List[Tuple[str, str, Optional[str]]] = [
+        utility_cases: list[tuple[str, str, str | None]] = [
             ("autodetects zip format", "/usr/bin/ditto", None),
             ("manual zip", "/usr/bin/ditto", "zip"),
             ("manual tar.gz", "/usr/bin/tar", "tar_gzip"),
@@ -103,8 +103,8 @@ class TestUnarchiver(unittest.TestCase):
 
         zipfile_mock = unittest.mock.MagicMock(spec=UnarchiverModule.zipfile.ZipFile)
         tarfile_mock = unittest.mock.MagicMock(spec=UnarchiverModule.tarfile.TarFile)
-        native_cases: List[
-            Tuple[str, UnarchiverModule.ExtractorType, Optional[str], str]
+        native_cases: list[
+            tuple[str, UnarchiverModule.ExtractorType, str | None, str]
         ] = [
             ("autodetects zip format", zipfile_mock, None, "zip"),
             ("manual zip", zipfile_mock, "zip", "zip"),

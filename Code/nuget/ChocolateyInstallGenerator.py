@@ -13,9 +13,10 @@
 # limitations under the License.
 
 import os
+from collections.abc import Sequence
 from dataclasses import dataclass
 from io import StringIO
-from typing import Any, Dict, List, Optional, Sequence, TextIO
+from typing import Any, TextIO
 
 # Constants for various argument constraints derived from
 # https://chocolatey.org/docs/helpers-install-chocolatey-package
@@ -44,19 +45,19 @@ class ChocolateyInstallGenerator:
 
     packageName: str
     fileType: str
-    silentArgs: Optional[str] = None
-    url: Optional[str] = None
-    url64bit: Optional[str] = None
-    validExitCodes: Optional[List[int]] = None
-    checksum: Optional[str] = None
-    checksumType: Optional[str] = None
-    checksum64: Optional[str] = None
-    checksumType64: Optional[str] = None
-    options: Optional[Dict[str, Any]] = None
-    file: Optional[str] = None
-    file64: Optional[str] = None
-    useOnlyPackageSilentArguments: Optional[bool] = None
-    useOriginalLocation: Optional[bool] = None
+    silentArgs: str | None = None
+    url: str | None = None
+    url64bit: str | None = None
+    validExitCodes: list[int] | None = None
+    checksum: str | None = None
+    checksumType: str | None = None
+    checksum64: str | None = None
+    checksumType64: str | None = None
+    options: dict[str, Any] | None = None
+    file: str | None = None
+    file64: str | None = None
+    useOnlyPackageSilentArguments: bool | None = None
+    useOriginalLocation: bool | None = None
 
     def render_str(self) -> str:
         """Render `chocolateyInstall.ps1` and return a `str` representation."""
@@ -67,7 +68,7 @@ class ChocolateyInstallGenerator:
     def render_to(self, out: TextIO) -> None:
         """Writes a `chocolateyInstall.ps1` file to `out`."""
         self._validate()
-        preamble_lines: List[str] = []
+        preamble_lines: list[str] = []
         splat: str = "$ErrorActionPreference = 'Stop'\n"
         splat += (
             '$toolsDir = "$(Split-Path -Parent $MyInvocation.MyCommand.Definition)"\n'
@@ -98,7 +99,7 @@ class ChocolateyInstallGenerator:
         splat += "\n"
         out.write(splat)
 
-    def _render_field(self, key: str, value: Any, preamble_lines: List[str]) -> str:
+    def _render_field(self, key: str, value: Any, preamble_lines: list[str]) -> str:
         # If a file parameter is used, fix it up to be relative to the computed
         # tools directory _at the time choco install_ runs.
         if key in ("file", "file64"):
@@ -108,7 +109,7 @@ class ChocolateyInstallGenerator:
             return f"${key}"
         elif isinstance(value, str):
             return f"'{value}'"
-        elif isinstance(value, List):
+        elif isinstance(value, list):
             return f"@({','.join([x.__str__() for x in value])})"
         elif isinstance(value, bool):
             return f"${value}"

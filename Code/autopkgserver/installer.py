@@ -40,14 +40,14 @@ class Installer:
         self.socket = socket
         self.request = request
 
-    def verify_request(self):
+    def verify_request(self) -> None:
         """Make sure copy request has everything we need"""
         self.log.debug("Verifying install request")
         for key in ["package"]:
             if key not in self.request:
                 raise InstallerError(f"ERROR:No {key} in request")
 
-    def do_install(self):
+    def do_install(self) -> bool | None:
         """Call /usr/sbin/installer"""
         pkg_path = self.request["package"]
         try:
@@ -76,7 +76,7 @@ class Installer:
             self.log.error(f"Install failed: {err}")
             raise InstallerError(f"ERROR:{err}\n")
 
-    def install(self):
+    def install(self) -> None:
         """Main method."""
         try:
             self.verify_request()

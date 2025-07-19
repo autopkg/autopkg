@@ -69,7 +69,7 @@ class MunkiInstallsItemsCreator(Processor):
     }
     description = __doc__
 
-    def create_installs_items(self):
+    def create_installs_items(self) -> None:
         """Calls makepkginfo to create an installs array."""
         faux_root = ""
         if self.env.get("faux_root"):
@@ -167,7 +167,7 @@ class MunkiInstallsItemsCreator(Processor):
                 "minimum_os_version"
             ]
 
-    def main(self):
+    def main(self) -> None:
         self.create_installs_items()
 
 

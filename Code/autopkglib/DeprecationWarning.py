@@ -40,7 +40,7 @@ class DeprecationWarning(Processor):
     }
     description = __doc__
 
-    def main(self):
+    def main(self) -> None:
         warning_message = self.env.get(
             "warning_message",
             "### This recipe has been deprecated. It may be removed soon. ###",

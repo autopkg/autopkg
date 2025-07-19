@@ -30,7 +30,7 @@ class PackageRequired(Processor):
     input_variables = {}
     output_variables = {}
 
-    def main(self):
+    def main(self) -> None:
         pkg = self.env.get("PKG", None)
 
         if not pkg:

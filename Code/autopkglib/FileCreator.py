@@ -36,7 +36,7 @@ class FileCreator(Processor):
     }
     output_variables = {}
 
-    def main(self):
+    def main(self) -> None:
         try:
             with open(self.env["file_path"], "w") as fileref:
                 fileref.write(self.env["file_content"])

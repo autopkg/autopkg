@@ -20,7 +20,7 @@ import shutil
 import subprocess
 import tarfile
 import zipfile
-from typing import Dict, Type, Union
+from typing import Union
 
 from autopkglib import Processor, ProcessorError, is_mac
 
@@ -30,15 +30,15 @@ EXTNS = {
     "zip": ["zip"],
     "tar_gzip": ["tar.gz", "tgz"],
     "tar_bzip2": ["tar.bz2", "tbz"],
-    "tar": ["tar"],
+    "tar": ["tar", "tar.xz"],
     "gzip": ["gzip"],
 }
 
 
-ExtractorType = Union[Type[tarfile.TarFile], Type[zipfile.ZipFile]]
+ExtractorType = Union[type[tarfile.TarFile], type[zipfile.ZipFile]]
 Extractor = Union[tarfile.TarFile, zipfile.ZipFile]
 
-NATIVE_EXTRACTORS: Dict[str, ExtractorType] = {
+NATIVE_EXTRACTORS: dict[str, ExtractorType] = {
     "tar_bzip2": tarfile.TarFile,
     "tar_gzip": tarfile.TarFile,
     "tar": tarfile.TarFile,
@@ -165,7 +165,7 @@ class Unarchiver(Processor):
                 f"{stderr}"
             )
 
-    def main(self):
+    def main(self) -> None:
         """Unarchive a file"""
         # handle some defaults for archive_path and destination_path
         archive_path = self.env.get("archive_path", self.env.get("pathname"))

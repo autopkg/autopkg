@@ -71,7 +71,7 @@ class Packager:
         finally:
             self.cleanup()
 
-    def verify_request(self):
+    def verify_request(self) -> None:
         """Verify that the request is valid."""
 
         def verify_dir_and_owner(path, uid):
@@ -86,7 +86,7 @@ class Packager:
             if not stat.S_ISDIR(info.st_mode):
                 raise PackagerError(f"{path} is not a directory")
 
-        def cmd_output(cmd):
+        def cmd_output(cmd) -> tuple[bytes, bytes]:
             """Outputs a stdout, stderr tuple from command output using a Popen"""
             p = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
@@ -97,7 +97,7 @@ class Packager:
                 self.log.debug(err.decode())
             return (out, err)
 
-        def get_mounts():
+        def get_mounts() -> list[str]:
             """Returns a list of mounted volume paths as reported by diskutil."""
             out, err = cmd_output(["/usr/sbin/diskutil", "list", "-plist"])
             try:
@@ -120,7 +120,7 @@ class Packager:
                 self.log.debug("Missing AllDisksAndPartitions key in diskutil output")
             return list(vols)
 
-        def check_ownerships_enabled(path):
+        def check_ownerships_enabled(path) -> bool:
             """Return True if 'ignore ownerships' is not set on the volume on which
             'path' resides, False if otherwise. We warn and return True on
             unexpected behavior."""
@@ -188,12 +188,10 @@ class Packager:
         # is set.
         if not check_ownerships_enabled(self.request["pkgroot"]):
             raise PackagerError(
-                (
-                    "'Ignore ownerships' is set on the disk where pkgroot "
-                    f"'{self.request['pkgroot']}' "
-                    "was set, and packaging cannot continue. Ownerships must "
-                    "be enabled on the volume where a package is to be built."
-                )
+                "'Ignore ownerships' is set on the disk where pkgroot "
+                f"'{self.request['pkgroot']}' "
+                "was set, and packaging cannot continue. Ownerships must "
+                "be enabled on the volume where a package is to be built."
             )
 
         # Check owner and type of directories.
@@ -263,7 +261,7 @@ class Packager:
             self.log.debug("scripts ok")
         self.log.info("Packaging request verified")
 
-    def copy_pkgroot(self):
+    def copy_pkgroot(self) -> None:
         """Copy pkgroot to temporary directory."""
 
         self.log.debug("Copying package root")
@@ -293,7 +291,7 @@ class Packager:
 
         self.log.info(f"Package root copied to {self.tmp_pkgroot}")
 
-    def apply_chown(self):
+    def apply_chown(self) -> None:
         """Change owner and group, and permissions if the 'mode' key was set."""
 
         self.log.debug("Applying chown")
@@ -359,7 +357,7 @@ class Packager:
                     self.log.info(f"Setting mode of {entry['path']} to {entry['mode']}")
                     os.lchmod(chownpath, int(entry["mode"], 8))
             else:
-                for (dirpath, dirnames, filenames) in os.walk(chownpath):
+                for dirpath, dirnames, filenames in os.walk(chownpath):
                     try:
                         os.lchown(dirpath, uid, gid)
                     except OSError as e:
@@ -375,12 +373,12 @@ class Packager:
 
         self.log.info("Chown applied")
 
-    def random_string(self, length):
+    def random_string(self, length: int) -> str:
         rand = os.urandom(int((length + 1) / 2))
         randstr = "".join(["%02x" % ord(c) for c in str(rand)])
         return randstr[:length]
 
-    def make_component_property_list(self):
+    def make_component_property_list(self) -> None:
         """Use pkgutil --analyze to build a component property list; then
         turn off package relocation"""
         self.component_plist = os.path.join(self.tmproot, "component.plist")
@@ -422,7 +420,7 @@ class Packager:
         except BaseException:
             raise PackagerError(f"Couldn't write {self.component_plist}")
 
-    def create_pkg(self):
+    def create_pkg(self) -> None:
         self.log.info("Creating package")
         if self.request["pkgtype"] != "flat":
             raise PackagerError(f"Unsupported pkgtype {self.request['pkgtype']}")
@@ -510,7 +508,7 @@ class Packager:
                         f"Can't remove temporary package at {temppkgpath}: {e.strerror}"
                     )
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up resources."""
 
         if self.tmproot:

@@ -82,7 +82,7 @@ class DmgMounter(Processor):
         (stdout, stderr) = proc.communicate()
         if stderr:
             # some error with hdiutil. Print it, but try to continue anyway.
-            # (APFS disk images generate extranous output to stderr)
+            # (APFS disk images generate extraneous output to stderr)
             self.output(f"hdiutil imageinfo error {stderr} with image {dmgpath}.")
 
         (pliststr, stdout) = self.get_first_plist(stdout)
@@ -152,7 +152,7 @@ class DmgMounter(Processor):
             f"mounting {pathname} failed: unexpected output from hdiutil"
         )
 
-    def unmount(self, pathname):
+    def unmount(self, pathname) -> None:
         """Unmount previously mounted image."""
 
         # Don't try to unmount something we didn't mount.

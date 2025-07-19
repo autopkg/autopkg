@@ -115,7 +115,7 @@ class PlistReader(DmgMounter):
                     bundle_info_path = test_info_path
         return bundle_info_path
 
-    def main(self):
+    def main(self) -> None:
         keys = self.env.get("plist_keys")
 
         # Many types of paths are accepted. Figure out which kind we have.
