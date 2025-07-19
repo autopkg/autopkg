@@ -75,8 +75,7 @@ class GitHubReleasesInfoProvider(Processor):
             "required": False,
             "default": False,
             "description": (
-                "If set to True, the processor will raise an exception if the "
-                "GitHub repo is archived."
+                "If the Github repo is archived and ignore_archived is False (default): Autopkg will fail hard."
             ),
         },
         "CURL_PATH": {
