@@ -29,6 +29,7 @@ from typing import IO, Dict, List, Optional
 
 import pkg_resources
 import yaml
+from autopkglib.autopkgyaml import AutoPkgLoader
 from autopkglib.common import (
     DEFAULT_RECIPE_MAP,
     DEFAULT_SEARCH_DIRS,
@@ -141,7 +142,7 @@ def recipe_from_file(filename):
         try:
             # try to read it as yaml
             with open(filename, "rb") as f:
-                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+                recipe_dict = yaml.load(f, Loader=AutoPkgLoader)
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")
