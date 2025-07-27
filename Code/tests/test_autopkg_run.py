@@ -243,3 +243,86 @@ TestApp2.recipe
             self.assertEqual(result["recipes"], expected_recipes)
         finally:
             os.unlink(temp_file)
+
+    def test_run_recipes_failure_includes_recipe_id(self):
+        """Test that recipe failures include recipe_id in the failures array when recipe has an Identifier."""
+        import tempfile
+
+        argv = [
+            "autopkg",
+            "run",
+            "--report-plist",
+            "/tmp/test_report.plist",
+            "TestApp.recipe",
+        ]
+        test_recipe_id = "com.test.TestApp"
+
+        # Mock recipe with an identifier
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/TestApp.recipe",
+            "Identifier": test_recipe_id,
+            "Input": {},
+            "Process": [],
+        }
+
+        # Mock AutoPackager that will raise an exception during processing
+        mock_autopackager = Mock()
+        mock_autopackager.results = []
+        mock_autopackager.env = {"RECIPE_CACHE_DIR": "/tmp"}
+        mock_autopackager.process.side_effect = autopkg.AutoPackagerError("Test error")
+
+        # Create a temporary directory for cache
+        with tempfile.TemporaryDirectory() as temp_cache_dir:
+            with patch.object(
+                autopkg, "get_override_dirs", return_value=[]
+            ), patch.object(autopkg, "get_search_dirs", return_value=[]), patch.object(
+                autopkg, "get_pref", return_value=temp_cache_dir
+            ), patch.object(
+                autopkg, "load_recipe", return_value=mock_recipe
+            ), patch.object(
+                autopkg, "AutoPackager", return_value=mock_autopackager
+            ), patch.object(
+                autopkg, "verify_parent_trust"
+            ), patch(
+                "os.path.exists", return_value=True
+            ), patch(
+                "os.makedirs"
+            ), patch.object(
+                autopkg, "plist_serializer", return_value={}
+            ), patch.object(
+                autopkg.plistlib, "dump"
+            ), patch.object(
+                autopkg, "log"
+            ), patch.object(
+                autopkg, "log_err"
+            ), patch.object(
+                autopkg, "write_plist_exit_on_fail"
+            ) as mock_write_plist:
+
+                # Run the function
+                result = autopkg.run_recipes(argv)
+
+                # Should return failure code
+                self.assertEqual(result, 70)  # autopkg.RECIPE_FAILED_CODE
+
+                # Check that write_plist_exit_on_fail was called
+                self.assertTrue(mock_write_plist.called)
+
+                # Extract the report data that would be written to the plist
+                call_args = mock_write_plist.call_args[0]
+                report_data = call_args[0]  # First argument is the report dictionary
+
+                # Verify failures array exists and contains our failure
+                self.assertIn("failures", report_data)
+                failures = report_data["failures"]
+                self.assertEqual(len(failures), 1)
+
+                # Verify the failure contains the recipe_id
+                failure = failures[0]
+                self.assertIn("recipe_id", failure)
+                self.assertEqual(failure["recipe_id"], test_recipe_id)
+                self.assertIn("recipe", failure)
+                self.assertEqual(failure["recipe"], "TestApp.recipe")
+                self.assertIn("message", failure)
+                self.assertEqual(failure["message"], "Test error")
+                self.assertIn("traceback", failure)
