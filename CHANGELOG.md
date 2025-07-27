@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. This projec
     - This processor has already been available in homebysix-recipes, and is moving to the core due to widespread use
     - Now includes a `result_output_var_name` option that allows you to choose the variable that stores its output (#976, thanks to @jgstew)
 - Changes that allow easier command-line testing of custom processors (#953, thanks to @macmule)
+- Recipe identifier is now included in the `failures` array of run receipts (#974, thanks to @smaddock)
 - URLDownloaderPython: uses the certificate bundle defined in the `SSL_CERT_FILE` environment variable if set (#962, thanks to @smithjw)
 - AppDmgVersioner: improved error output when `dmg_path` is missing or empty
 - MunkiImporter: Improved handling of pkginfo keys that contain a `force_install_after_date` (#967, thanks to @arubdesu)
