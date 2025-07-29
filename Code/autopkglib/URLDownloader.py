@@ -168,14 +168,13 @@ class URLDownloader(URLGetter):
         # If the download file already exists, add some headers to the request
         # so we don't retrieve the content if it hasn't changed
         if os.path.exists(filename):
-            self.existing_file_size = os.path.getsize(filename)
-            etag = self.getxattr(self.xattr_etag)
-            last_modified = self.getxattr(self.xattr_last_modified)
-            if not self.env.get("CHECK_FILESIZE_ONLY"):
-                if etag:
-                    headers["If-None-Match"] = etag
-                if last_modified:
-                    headers["If-Modified-Since"] = last_modified
+            metadata = self.get_metadata()
+            self.existing_file_size = metadata.get("file_size", 0)
+            http_headers: dict[str, Any] = metadata.get("http_headers", {})
+            if etag := http_headers.get("ETag"):
+                headers["If-None-Match"] = etag
+            if last_modified := http_headers.get("Last-Modified"):
+                headers["If-Modified-Since"] = last_modified
         return headers
 
     def clear_vars(self) -> None:
@@ -466,7 +465,7 @@ class URLDownloader(URLGetter):
         self.move_temp_file(pathname_temporary)
 
         # Save last-modified and etag headers to files xattr
-        self.store_headers(header)
+        self.store_metadata(header)
 
         # Generate output messages and variables
         self.output(f"Downloaded {self.env['pathname']}")
