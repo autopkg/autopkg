@@ -162,7 +162,7 @@ class URLDownloader(URLGetter):
         self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.env["pathname"]))
         return curl_cmd
 
-    def produce_etag_headers(self, filename) -> dict:
+    def produce_etag_headers(self, filename) -> dict[str, str]:
         """Produce a dict of curl headers containing etag headers from the download."""
         headers = {}
         # If the download file already exists, add some headers to the request
