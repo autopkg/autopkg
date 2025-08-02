@@ -13,3 +13,7 @@ autopkg.code-workspace
 .coverage
 coverage.xml
 htmlcov
+
+# Virtual environments
+.venv/
+venv/

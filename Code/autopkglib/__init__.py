@@ -168,21 +168,21 @@ class Preferences:
             pass
         return {}
 
-    def __deepconvert_objc(self, object) -> Any:
+    def __deepconvert_objc(self, obj) -> Any:
         """Convert all contents of an ObjC object to Python primitives."""
-        value = object
-        if isinstance(object, NSNumber):
-            value = int(object)
-        elif isinstance(object, NSArray) or isinstance(object, list):
-            value = [self.__deepconvert_objc(x) for x in object]
-        elif isinstance(object, NSDictionary):
-            value = dict(object)
+        value = obj
+        if isinstance(obj, NSNumber):
+            value = int(obj)
+        elif isinstance(obj, NSArray) or isinstance(obj, list):
+            value = [self.__deepconvert_objc(x) for x in obj]
+        elif isinstance(obj, NSDictionary):
+            value = dict(obj)
             # RECIPE_REPOS is a dict of dicts
             for k, v in value.items():
                 if isinstance(v, NSDictionary):
                     value[k] = dict(v)
         else:
-            return object
+            return obj
         return value
 
     def _get_macos_pref(self, key) -> Any:
@@ -585,16 +585,25 @@ class Processor:
         if self.env is None:
             return
 
+        plist_safe = {}
+
+        for env_key in self.env:
+            if not self.env[env_key] is None:
+                plist_safe[env_key] = self.env[env_key]
+
         try:
             with open(self.outfile, "wb") as f:
-                plistlib.dump(self.env, f)
+                plistlib.dump(plist_safe, f)
         except TypeError:
-            plistlib.dump(self.env, self.outfile.buffer)
+            plistlib.dump(plist_safe, self.outfile.buffer)
         except BaseException as err:
             raise ProcessorError(err) from err
 
     def parse_arguments(self) -> None:
         """Parse arguments as key='value'."""
+
+        if self.env is None:
+            self.env = {}
 
         for arg in sys.argv[1:]:
             (key, sep, value) = arg.partition("=")
@@ -648,8 +657,10 @@ class Processor:
         """Execute as a standalone binary on the commandline."""
 
         try:
-            self.read_input_plist()
-            self.parse_arguments()
+            if not sys.argv[1:]:
+                self.read_input_plist()
+            else:
+                self.parse_arguments()
             self.process()
             self.write_output_plist()
         except ProcessorError as err:

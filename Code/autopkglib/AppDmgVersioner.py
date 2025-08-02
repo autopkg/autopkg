@@ -68,6 +68,8 @@ class AppDmgVersioner(DmgMounter):
 
     def main(self) -> None:
         # Mount the image.
+        if not self.env.get("dmg_path"):
+            raise ProcessorError("Required dmg_path value is missing.")
         mount_point = self.mount(self.env["dmg_path"])
         # Wrap all other actions in a try/finally so the image is always
         # unmounted.

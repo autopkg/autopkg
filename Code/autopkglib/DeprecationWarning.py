@@ -24,6 +24,7 @@ from autopkglib import Processor, remove_recipe_extension
 __all__ = ["DeprecationWarning"]
 
 
+# pylint: disable=W0622
 class DeprecationWarning(Processor):
     """This processor outputs a warning that the recipe has been deprecated."""
 

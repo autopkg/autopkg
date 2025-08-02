@@ -188,7 +188,7 @@ class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
 
             console_formatter = logging.Formatter("%(message)s")
             file_formatter = logging.Formatter(
-                "%(asctime)s %(module)s[%(process)d]: " "%(message)s   (%(funcName)s)"
+                "%(asctime)s %(module)s[%(process)d]: %(message)s   (%(funcName)s)"
             )
 
             log_console.setFormatter(console_formatter)

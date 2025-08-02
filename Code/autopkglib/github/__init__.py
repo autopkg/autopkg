@@ -20,7 +20,7 @@ import json
 import os
 import re
 import tempfile
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import quote
 
 from autopkglib import RECIPE_EXTS, get_pref, log, log_err
@@ -239,7 +239,7 @@ To save the token, paste it to the following prompt."""
         self,
         endpoint: str,
         method: str = "GET",
-        query: str = None,
+        query: Optional[str] = None,
         data=None,
         headers=None,
         accept="application/vnd.github.v3+json",

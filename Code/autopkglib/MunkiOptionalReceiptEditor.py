@@ -59,5 +59,5 @@ class MunkiOptionalReceiptEditor(Processor):
 
 
 if __name__ == "__main__":
-    processor = MunkiOptionalReceiptEditor()
-    processor.execute_shell()
+    PROCESSOR = MunkiOptionalReceiptEditor()
+    PROCESSOR.execute_shell()

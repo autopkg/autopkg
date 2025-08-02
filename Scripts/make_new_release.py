@@ -364,7 +364,7 @@ def main():
 
     # increment changelog
     new_changelog = (
-        "### [{}](https://github.com/{}/{}/compare/v{}...HEAD) (Unreleased)\n\n".format(
+        "## [{}](https://github.com/{}/{}/compare/v{}...HEAD) (Unreleased)\n\n".format(
             next_version, publish_user, publish_repo, current_version
         )
         + new_changelog
