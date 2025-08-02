@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 #
 # Generated Thu Jul  9 19:35:57 2020 by generateDS.py version 2.35.24.
@@ -133,7 +132,7 @@ try:
     from generatedscollector import GdsCollector as GdsCollector_
 except ImportError:
 
-    class GdsCollector_(object):
+    class GdsCollector_:
         def __init__(self, messages=None):
             if messages is None:
                 self.messages = []
@@ -151,11 +150,11 @@ except ImportError:
 
         def print_messages(self):
             for msg in self.messages:
-                print("Warning: {}".format(msg))
+                print(f"Warning: {msg}")
 
         def write_messages(self, outstream):
             for msg in self.messages:
-                outstream.write("Warning: {}\n".format(msg))
+                outstream.write(f"Warning: {msg}\n")
 
 
 #
@@ -178,7 +177,7 @@ try:
     from generatedssuper import GeneratedsSuper
 except ImportError as exp:
 
-    class GeneratedsSuper(object):
+    class GeneratedsSuper:
         __slots__ = [
             "gds_collector_",
             "gds_elementtree_node_",
@@ -432,7 +431,7 @@ except ImportError as exp:
                             _svalue += "+"
                         hours = total_seconds // 3600
                         minutes = (total_seconds - (hours * 3600)) // 60
-                        _svalue += "{0:02d}:{1:02d}".format(hours, minutes)
+                        _svalue += f"{hours:02d}:{minutes:02d}"
             return _svalue
 
         @classmethod
@@ -453,9 +452,9 @@ except ImportError as exp:
             time_parts = input_data.split(".")
             if len(time_parts) > 1:
                 micro_seconds = int(float("0." + time_parts[1]) * 1000000)
-                input_data = "%s.%s" % (
+                input_data = "{}.{}".format(
                     time_parts[0],
-                    "{}".format(micro_seconds).rjust(6, "0"),
+                    f"{micro_seconds}".rjust(6, "0"),
                 )
                 dt = datetime_.datetime.strptime(input_data, "%Y-%m-%dT%H:%M:%S.%f")
             else:
@@ -487,7 +486,7 @@ except ImportError as exp:
                                 _svalue += "+"
                             hours = total_seconds // 3600
                             minutes = (total_seconds - (hours * 3600)) // 60
-                            _svalue += "{0:02d}:{1:02d}".format(hours, minutes)
+                            _svalue += f"{hours:02d}:{minutes:02d}"
             except AttributeError:
                 pass
             return _svalue
@@ -542,7 +541,7 @@ except ImportError as exp:
                             _svalue += "+"
                         hours = total_seconds // 3600
                         minutes = (total_seconds - (hours * 3600)) // 60
-                        _svalue += "{0:02d}:{1:02d}".format(hours, minutes)
+                        _svalue += f"{hours:02d}:{minutes:02d}"
             return _svalue
 
         def gds_validate_simple_patterns(self, patterns, target):
@@ -688,7 +687,7 @@ except ImportError as exp:
 
         @classmethod
         def gds_reverse_node_mapping(cls, mapping):
-            return dict(((v, k) for k, v in mapping.items()))
+            return {v: k for k, v in mapping.items()}
 
         @staticmethod
         def gds_encode(instring):
@@ -743,7 +742,7 @@ except ImportError as exp:
                 hasattr(self, "gds_elementtree_node_")
                 and self.gds_elementtree_node_ is not None
             ):
-                return " near line {}".format(self.gds_elementtree_node_.sourceline)
+                return f" near line {self.gds_elementtree_node_.sourceline}"
             else:
                 return ""
 
@@ -954,7 +953,7 @@ class MixedContainer:
 
     def exportSimple(self, outfile, level, name):
         if self.content_type == MixedContainer.TypeString:
-            outfile.write("<%s>%s</%s>" % (self.name, self.value, self.name))
+            outfile.write("<{}>{}</{}>".format(self.name, self.value, self.name))
         elif (
             self.content_type == MixedContainer.TypeInteger
             or self.content_type == MixedContainer.TypeBoolean
@@ -964,12 +963,12 @@ class MixedContainer:
             self.content_type == MixedContainer.TypeFloat
             or self.content_type == MixedContainer.TypeDecimal
         ):
-            outfile.write("<%s>%f</%s>" % (self.name, self.value, self.name))
+            outfile.write("<{}>{:f}</{}>".format(self.name, self.value, self.name))
         elif self.content_type == MixedContainer.TypeDouble:
-            outfile.write("<%s>%g</%s>" % (self.name, self.value, self.name))
+            outfile.write("<{}>{:g}</{}>".format(self.name, self.value, self.name))
         elif self.content_type == MixedContainer.TypeBase64:
             outfile.write(
-                "<%s>%s</%s>" % (self.name, base64.b64encode(self.value), self.name)
+                "<{}>{}</{}>".format(self.name, base64.b64encode(self.value), self.name)
             )
 
     def to_etree(self, element, mapping_=None, nsmap_=None):
@@ -1039,7 +1038,7 @@ class MixedContainer:
             outfile.write(")\n")
 
 
-class MemberSpec_(object):
+class MemberSpec_:
     def __init__(
         self,
         name="",
@@ -1230,7 +1229,7 @@ class dependency(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="dependency"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -1239,9 +1238,9 @@ class dependency(GeneratedsSuper):
                 name_="dependency",
                 pretty_print=pretty_print,
             )
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self, outfile, level, already_processed, namespaceprefix_="", name_="dependency"
@@ -1481,7 +1480,7 @@ class dependencyGroup(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="dependencyGroup"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -1491,9 +1490,9 @@ class dependencyGroup(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -1682,7 +1681,7 @@ class reference(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="reference"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -1691,9 +1690,9 @@ class reference(GeneratedsSuper):
                 name_="reference",
                 pretty_print=pretty_print,
             )
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self, outfile, level, already_processed, namespaceprefix_="", name_="reference"
@@ -1899,7 +1898,7 @@ class contentFileEntries(GeneratedsSuper):
             name_="contentFileEntries",
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -1908,9 +1907,9 @@ class contentFileEntries(GeneratedsSuper):
                 name_="contentFileEntries",
                 pretty_print=pretty_print,
             )
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -2179,7 +2178,7 @@ class referenceGroup(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="referenceGroup"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -2189,9 +2188,9 @@ class referenceGroup(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -2386,7 +2385,7 @@ class frameworkReference(GeneratedsSuper):
             name_="frameworkReference",
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -2395,9 +2394,9 @@ class frameworkReference(GeneratedsSuper):
                 name_="frameworkReference",
                 pretty_print=pretty_print,
             )
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -2600,7 +2599,7 @@ class frameworkReferenceGroup(GeneratedsSuper):
             name_="frameworkReferenceGroup",
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -2610,9 +2609,9 @@ class frameworkReferenceGroup(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -2838,7 +2837,7 @@ class package(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="package"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -2848,9 +2847,9 @@ class package(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self, outfile, level, already_processed, namespaceprefix_="", name_="package"
@@ -3614,7 +3613,7 @@ class metadataType(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="metadataType"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -3624,9 +3623,9 @@ class metadataType(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -4553,7 +4552,7 @@ class repositoryType(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="repositoryType"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -4562,9 +4561,9 @@ class repositoryType(GeneratedsSuper):
                 name_="repositoryType",
                 pretty_print=pretty_print,
             )
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -4801,9 +4800,9 @@ class licenseType(GeneratedsSuper):
                 name_="licenseType",
                 pretty_print=pretty_print,
             )
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -5006,7 +5005,7 @@ class packageTypesType(GeneratedsSuper):
             name_="packageTypesType",
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -5016,9 +5015,9 @@ class packageTypesType(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -5192,7 +5191,7 @@ class packageTypeType(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="packageTypeType"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -5201,9 +5200,9 @@ class packageTypeType(GeneratedsSuper):
                 name_="packageTypeType",
                 pretty_print=pretty_print,
             )
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -5428,7 +5427,7 @@ class dependenciesType(GeneratedsSuper):
             name_="dependenciesType",
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -5438,9 +5437,9 @@ class dependenciesType(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -5657,7 +5656,7 @@ class frameworkAssembliesType(GeneratedsSuper):
             name_="frameworkAssembliesType",
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -5667,9 +5666,9 @@ class frameworkAssembliesType(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -5858,7 +5857,7 @@ class frameworkAssemblyType(GeneratedsSuper):
             name_="frameworkAssemblyType",
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -5867,9 +5866,9 @@ class frameworkAssemblyType(GeneratedsSuper):
                 name_="frameworkAssemblyType",
                 pretty_print=pretty_print,
             )
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -6083,7 +6082,7 @@ class frameworkReferencesType(GeneratedsSuper):
             name_="frameworkReferencesType",
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -6093,9 +6092,9 @@ class frameworkReferencesType(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -6307,7 +6306,7 @@ class referencesType(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="referencesType"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -6317,9 +6316,9 @@ class referencesType(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -6529,7 +6528,7 @@ class contentFilesType(GeneratedsSuper):
             name_="contentFilesType",
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -6539,9 +6538,9 @@ class contentFilesType(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self,
@@ -6729,7 +6728,7 @@ class filesType(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="filesType"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -6739,9 +6738,9 @@ class filesType(GeneratedsSuper):
                 pretty_print=pretty_print,
             )
             showIndent(outfile, level, pretty_print)
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self, outfile, level, already_processed, namespaceprefix_="", name_="filesType"
@@ -6919,7 +6918,7 @@ class fileType(GeneratedsSuper):
             outfile, level, already_processed, namespaceprefix_, name_="fileType"
         )
         if self.hasContent_():
-            outfile.write(">%s" % (eol_,))
+            outfile.write(">{}".format(eol_))
             self.exportChildren(
                 outfile,
                 level + 1,
@@ -6928,9 +6927,9 @@ class fileType(GeneratedsSuper):
                 name_="fileType",
                 pretty_print=pretty_print,
             )
-            outfile.write("</%s%s>%s" % (namespaceprefix_, name_, eol_))
+            outfile.write("</{}{}>{}".format(namespaceprefix_, name_, eol_))
         else:
-            outfile.write("/>%s" % (eol_,))
+            outfile.write("/>{}".format(eol_))
 
     def exportAttributes(
         self, outfile, level, already_processed, namespaceprefix_="", name_="fileType"
@@ -7065,7 +7064,7 @@ def get_required_ns_prefix_defs(rootNode):
         if prefix is not None
     }
     namespacedefs = " ".join(
-        ['xmlns:{}="{}"'.format(prefix, uri) for prefix, uri in nsmap.items()]
+        [f'xmlns:{prefix}="{uri}"' for prefix, uri in nsmap.items()]
     )
     return nsmap, namespacedefs
 

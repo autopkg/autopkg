@@ -239,7 +239,7 @@ To save the token, paste it to the following prompt."""
         self,
         endpoint: str,
         method: str = "GET",
-        query: Optional[str] = None,
+        query: str | None = None,
         data=None,
         headers=None,
         accept="application/vnd.github.v3+json",
