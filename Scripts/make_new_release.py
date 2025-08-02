@@ -363,13 +363,26 @@ def main():
         plistlib.dump(plist, f)
 
     # increment changelog
-    new_changelog = (
-        "## [{}](https://github.com/{}/{}/compare/v{}...HEAD) (Unreleased)\n\n".format(
-            next_version, publish_user, publish_repo, current_version
+    new_version_header = (
+        "## [{}](https://github.com/{}/{}/compare/v{}...HEAD) "
+        "(Unreleased)\n\nNothing yet.\n\n"
+    ).format(next_version, publish_user, publish_repo, current_version)
+
+    # Insert the new version header before the first H2 heading
+    # Find the position of the first "##" heading
+    first_h2_match = re.search(r"^## ", new_changelog, re.MULTILINE)
+    if first_h2_match:
+        insert_pos = first_h2_match.start()
+        new_changelog = (
+            new_changelog[:insert_pos] + new_version_header + new_changelog[insert_pos:]
         )
-        + new_changelog
-    )
-    with open(changelog_path, "w") as fdesc:
+    else:
+        print(
+            "WARNING: No H2 headings found in CHANGELOG.md. "
+            "Prepending new version header."
+        )
+        new_changelog = new_version_header + new_changelog
+    with open(changelog_path, "w", encoding="utf-8") as fdesc:
         fdesc.write(new_changelog)
 
     print("** Creating commit for change increment")
