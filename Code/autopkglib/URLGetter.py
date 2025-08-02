@@ -69,22 +69,6 @@ class URLGetter(Processor):
         for item in self.env.get("curl_opts", []):
             curl_cmd.extend([item])
 
-    def produce_etag_headers(self, filename) -> dict:
-        """Produce a dict of curl headers containing etag headers from the download."""
-        headers = {}
-        # If the download file already exists, add some headers to the request
-        # so we don't retrieve the content if it hasn't changed
-        if os.path.exists(filename):
-            self.existing_file_size = os.path.getsize(filename)
-            etag = self.getxattr(self.xattr_etag)
-            last_modified = self.getxattr(self.xattr_last_modified)
-            if not self.env.get("CHECK_FILESIZE_ONLY"):
-                if etag:
-                    headers["If-None-Match"] = etag
-                if last_modified:
-                    headers["If-Modified-Since"] = last_modified
-        return headers
-
     def clear_header(self, header) -> None:
         """Clear header dictionary."""
         # Save redirect URL before clear
