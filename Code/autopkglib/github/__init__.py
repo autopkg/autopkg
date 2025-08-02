@@ -20,7 +20,7 @@ import json
 import os
 import re
 import tempfile
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import quote
 
 from autopkglib import RECIPE_EXTS, get_pref, log, log_err
