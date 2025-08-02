@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...HEAD) (Unreleased)
+## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 
 - [FindAndReplace](https://github.com/autopkg/autopkg/wiki/Processor-FindAndReplace) is a new core processor that replaces specified text with other text in the content of a string
     - This processor has already been available in homebysix-recipes, and is moving to the core due to widespread use
