@@ -283,6 +283,11 @@ def find_identifier_from_name(name: str) -> Optional[str]:
     return None
 
 
+def get_recipe_map_path() -> str:
+    """Return recipe map file path from preferences or default"""
+    return get_pref("DEFAULT_RECIPE_MAP") or DEFAULT_RECIPE_MAP
+
+
 def get_search_dirs() -> List[str]:
     """Return search dirs from preferences or default list"""
     dirs: List[str] = get_pref("RECIPE_SEARCH_DIRS")
@@ -381,7 +386,7 @@ def write_recipe_map_to_disk():
     # except (OSError):
     #     pass
     local_recipe_map.update(globalRecipeMap)
-    with open(DEFAULT_RECIPE_MAP, "w") as f:
+    with open(get_recipe_map_path(), "w") as f:
         json.dump(
             local_recipe_map,
             f,
@@ -394,7 +399,7 @@ def write_recipe_map_to_disk():
 def handle_reading_recipe_map_file() -> Dict[str, Dict[str, str]]:
     """Read the recipe map file, handle exceptions"""
     try:
-        with open(DEFAULT_RECIPE_MAP, "r") as f:
+        with open(get_recipe_map_path(), "r") as f:
             recipe_map = json.load(f)
     except (OSError, json.decoder.JSONDecodeError):
         log_err("Cannot read the recipe map file!")
