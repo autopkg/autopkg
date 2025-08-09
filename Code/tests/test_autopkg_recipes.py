@@ -14,9 +14,11 @@
 
 import imp
 import os
+import plistlib
 import sys
 import unittest
 import unittest.mock
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest.mock import Mock, patch
 
 # Add the Code directory to the Python path to resolve autopkg dependencies
@@ -29,6 +31,14 @@ autopkg = imp.load_source(
 
 class TestAutoPkgRecipes(unittest.TestCase):
     """Test cases for recipe-related functions of AutoPkg."""
+
+    def setUp(self):
+        """Set up test fixtures with a temporary directory."""
+        self.tmp_dir = TemporaryDirectory()
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        self.tmp_dir.cleanup()
 
     def test_recipe_has_step_processor_with_processor(self):
         """Test recipe_has_step_processor when recipe contains the specified processor."""
@@ -447,8 +457,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
     def test_valid_recipe_file_valid_file(self):
         """Test valid_recipe_file with a valid recipe file."""
         # Create a temporary recipe file
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -457,9 +465,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="wb", suffix=".recipe", delete=False
-        ) as f:
+        with NamedTemporaryFile(mode="wb", suffix=".recipe", delete=False) as f:
             plistlib.dump(recipe_dict, f)
             temp_file = f.name
 
@@ -471,8 +477,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_valid_recipe_file_invalid_file(self):
         """Test valid_recipe_file with an invalid recipe file."""
-        import plistlib
-        import tempfile
 
         # Create a recipe without required keys (missing Identifier and Input)
         recipe_dict = {
@@ -480,9 +484,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="wb", suffix=".recipe", delete=False
-        ) as f:
+        with NamedTemporaryFile(mode="wb", suffix=".recipe", delete=False) as f:
             plistlib.dump(recipe_dict, f)
             temp_file = f.name
 
@@ -499,10 +501,9 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_valid_recipe_file_malformed_plist(self):
         """Test valid_recipe_file with malformed plist file."""
-        import tempfile
 
         # Create a malformed plist file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".recipe", delete=False) as f:
+        with NamedTemporaryFile(mode="w", suffix=".recipe", delete=False) as f:
             f.write("This is not a valid plist file")
             temp_file = f.name
 
@@ -514,8 +515,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_valid_override_file_valid_file(self):
         """Test valid_override_file with a valid override file."""
-        import plistlib
-        import tempfile
 
         override_dict = {
             "Description": "Test override",
@@ -524,9 +523,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "ParentRecipe": "com.example.test.download",
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="wb", suffix=".recipe", delete=False
-        ) as f:
+        with NamedTemporaryFile(mode="wb", suffix=".recipe", delete=False) as f:
             plistlib.dump(override_dict, f)
             temp_file = f.name
 
@@ -538,8 +535,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_valid_override_file_invalid_file(self):
         """Test valid_override_file with an invalid override file."""
-        import plistlib
-        import tempfile
 
         # Create an override without required keys (missing Identifier and Input)
         override_dict = {
@@ -547,9 +542,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "ParentRecipe": "com.example.test.download",
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="wb", suffix=".recipe", delete=False
-        ) as f:
+        with NamedTemporaryFile(mode="wb", suffix=".recipe", delete=False) as f:
             plistlib.dump(override_dict, f)
             temp_file = f.name
 
@@ -566,10 +559,9 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_valid_override_file_malformed_plist(self):
         """Test valid_override_file with malformed plist file."""
-        import tempfile
 
         # Create a malformed plist file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".recipe", delete=False) as f:
+        with NamedTemporaryFile(mode="w", suffix=".recipe", delete=False) as f:
             f.write("This is not a valid plist file")
             temp_file = f.name
 
@@ -592,8 +584,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_find_recipe_by_name_with_valid_recipe(self):
         """Test find_recipe_by_name when a valid recipe file exists."""
-        import plistlib
-        import tempfile
 
         # Create a temporary recipe file
         recipe_dict = {
@@ -604,18 +594,15 @@ class TestAutoPkgRecipes(unittest.TestCase):
         }
 
         # Create a temporary directory and recipe file
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.download.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.download.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            result = autopkg.find_recipe_by_name("TestApp.download", [temp_dir])
-            self.assertEqual(result, recipe_file)
+        result = autopkg.find_recipe_by_name("TestApp.download", [self.tmp_dir.name])
+        self.assertEqual(result, recipe_file)
 
     def test_find_recipe_by_name_without_extension(self):
         """Test find_recipe_by_name when recipe name is provided without extension."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -624,19 +611,16 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.download.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.download.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            # Should find recipe even without .recipe extension
-            result = autopkg.find_recipe_by_name("TestApp.download", [temp_dir])
-            self.assertEqual(result, recipe_file)
+        # Should find recipe even without .recipe extension
+        result = autopkg.find_recipe_by_name("TestApp.download", [self.tmp_dir.name])
+        self.assertEqual(result, recipe_file)
 
     def test_find_recipe_by_name_in_subdirectory(self):
         """Test find_recipe_by_name when recipe is in a subdirectory."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -645,36 +629,33 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            subdir = os.path.join(temp_dir, "apps")
-            os.makedirs(subdir)
-            recipe_file = os.path.join(subdir, "TestApp.download.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        subdir = os.path.join(self.tmp_dir.name, "apps")
+        os.makedirs(subdir)
+        recipe_file = os.path.join(subdir, "TestApp.download.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            result = autopkg.find_recipe_by_name("TestApp.download", [temp_dir])
-            self.assertEqual(result, recipe_file)
+        result = autopkg.find_recipe_by_name("TestApp.download", [self.tmp_dir.name])
+        self.assertEqual(result, recipe_file)
 
     def test_find_recipe_by_name_nonexistent_recipe(self):
         """Test find_recipe_by_name when recipe doesn't exist."""
-        import tempfile
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            result = autopkg.find_recipe_by_name("NonExistent.download", [temp_dir])
-            self.assertIsNone(result)
+        result = autopkg.find_recipe_by_name(
+            "NonExistent.download", [self.tmp_dir.name]
+        )
+        self.assertIsNone(result)
 
     def test_find_recipe_by_name_invalid_recipe(self):
         """Test find_recipe_by_name when recipe file exists but is invalid."""
-        import tempfile
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create an invalid recipe file (missing required keys)
-            invalid_recipe_file = os.path.join(temp_dir, "Invalid.download.recipe")
-            with open(invalid_recipe_file, "w") as f:
-                f.write("This is not a valid plist")
+        # Create an invalid recipe file (missing required keys)
+        invalid_recipe_file = os.path.join(self.tmp_dir.name, "Invalid.download.recipe")
+        with open(invalid_recipe_file, "w") as f:
+            f.write("This is not a valid plist")
 
-            result = autopkg.find_recipe_by_name("Invalid.download", [temp_dir])
-            self.assertIsNone(result)
+        result = autopkg.find_recipe_by_name("Invalid.download", [self.tmp_dir.name])
+        self.assertIsNone(result)
 
     def test_find_recipe_by_name_empty_search_dirs(self):
         """Test find_recipe_by_name with empty search directories."""
@@ -688,8 +669,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_find_recipe_finds_by_identifier(self):
         """Test find_recipe when recipe can be found by identifier."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -698,27 +677,26 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.download.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.download.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            # Mock find_recipe_by_identifier to return our test file
-            original_find_by_id = autopkg.find_recipe_by_identifier
-            autopkg.find_recipe_by_identifier = lambda id_name, dirs: (
-                recipe_file if id_name == "com.example.testapp.download" else None
+        # Mock find_recipe_by_identifier to return our test file
+        original_find_by_id = autopkg.find_recipe_by_identifier
+        autopkg.find_recipe_by_identifier = lambda id_name, dirs: (
+            recipe_file if id_name == "com.example.testapp.download" else None
+        )
+
+        try:
+            result = autopkg.find_recipe(
+                "com.example.testapp.download", [self.tmp_dir.name]
             )
-
-            try:
-                result = autopkg.find_recipe("com.example.testapp.download", [temp_dir])
-                self.assertEqual(result, recipe_file)
-            finally:
-                autopkg.find_recipe_by_identifier = original_find_by_id
+            self.assertEqual(result, recipe_file)
+        finally:
+            autopkg.find_recipe_by_identifier = original_find_by_id
 
     def test_find_recipe_finds_by_name(self):
         """Test find_recipe when recipe can be found by name but not identifier."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -727,35 +705,32 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.download.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.download.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            # Mock find_recipe_by_identifier to return None
-            original_find_by_id = autopkg.find_recipe_by_identifier
-            autopkg.find_recipe_by_identifier = lambda id_name, dirs: None
+        # Mock find_recipe_by_identifier to return None
+        original_find_by_id = autopkg.find_recipe_by_identifier
+        autopkg.find_recipe_by_identifier = lambda id_name, dirs: None
 
-            try:
-                result = autopkg.find_recipe("TestApp.download", [temp_dir])
-                self.assertEqual(result, recipe_file)
-            finally:
-                autopkg.find_recipe_by_identifier = original_find_by_id
+        try:
+            result = autopkg.find_recipe("TestApp.download", [self.tmp_dir.name])
+            self.assertEqual(result, recipe_file)
+        finally:
+            autopkg.find_recipe_by_identifier = original_find_by_id
 
     def test_find_recipe_not_found(self):
         """Test find_recipe when recipe cannot be found by identifier or name."""
-        import tempfile
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Mock find_recipe_by_identifier to return None
-            original_find_by_id = autopkg.find_recipe_by_identifier
-            autopkg.find_recipe_by_identifier = lambda id_name, dirs: None
+        # Mock find_recipe_by_identifier to return None
+        original_find_by_id = autopkg.find_recipe_by_identifier
+        autopkg.find_recipe_by_identifier = lambda id_name, dirs: None
 
-            try:
-                result = autopkg.find_recipe("NonExistent.download", [temp_dir])
-                self.assertIsNone(result)
-            finally:
-                autopkg.find_recipe_by_identifier = original_find_by_id
+        try:
+            result = autopkg.find_recipe("NonExistent.download", [self.tmp_dir.name])
+            self.assertIsNone(result)
+        finally:
+            autopkg.find_recipe_by_identifier = original_find_by_id
 
     def test_get_identifier_from_override_with_parent_recipe(self):
         """Test get_identifier_from_override when override has ParentRecipe key."""
@@ -842,8 +817,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
     # Tests for locate_recipe function
     def test_locate_recipe_file_path(self):
         """Test locate_recipe when given a direct file path."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -852,9 +825,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="wb", suffix=".recipe", delete=False
-        ) as f:
+        with NamedTemporaryFile(mode="wb", suffix=".recipe", delete=False) as f:
             plistlib.dump(recipe_dict, f)
             temp_file = f.name
 
@@ -876,8 +847,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_locate_recipe_search_override_dirs(self):
         """Test locate_recipe searching in override directories."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test override",
@@ -886,20 +855,21 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "ParentRecipe": "com.example.test",
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            result = autopkg.locate_recipe(
-                "TestApp", [temp_dir], [], make_suggestions=False, search_github=False
-            )
-            self.assertEqual(result, recipe_file)
+        result = autopkg.locate_recipe(
+            "TestApp",
+            [self.tmp_dir.name],
+            [],
+            make_suggestions=False,
+            search_github=False,
+        )
+        self.assertEqual(result, recipe_file)
 
     def test_locate_recipe_search_recipe_dirs(self):
         """Test locate_recipe searching in recipe directories."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -908,15 +878,18 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            result = autopkg.locate_recipe(
-                "TestApp", [], [temp_dir], make_suggestions=False, search_github=False
-            )
-            self.assertEqual(result, recipe_file)
+        result = autopkg.locate_recipe(
+            "TestApp",
+            [],
+            [self.tmp_dir.name],
+            make_suggestions=False,
+            search_github=False,
+        )
+        self.assertEqual(result, recipe_file)
 
     def test_locate_recipe_not_found(self):
         """Test locate_recipe when recipe is not found."""
@@ -927,8 +900,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_locate_recipe_subdirectory(self):
         """Test locate_recipe finding recipes in subdirectories."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -937,23 +908,24 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            subdir = os.path.join(temp_dir, "subdir")
-            os.makedirs(subdir)
-            recipe_file = os.path.join(subdir, "TestApp.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        subdir = os.path.join(self.tmp_dir.name, "subdir")
+        os.makedirs(subdir)
+        recipe_file = os.path.join(subdir, "TestApp.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            result = autopkg.locate_recipe(
-                "TestApp", [], [temp_dir], make_suggestions=False, search_github=False
-            )
-            self.assertEqual(result, recipe_file)
+        result = autopkg.locate_recipe(
+            "TestApp",
+            [],
+            [self.tmp_dir.name],
+            make_suggestions=False,
+            search_github=False,
+        )
+        self.assertEqual(result, recipe_file)
 
     # Tests for load_recipe function
     def test_load_recipe_simple_recipe(self):
         """Test load_recipe with a simple recipe file."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe for loading",
@@ -966,30 +938,31 @@ class TestAutoPkgRecipes(unittest.TestCase):
             ],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            result = autopkg.load_recipe(
-                "TestApp", [], [temp_dir], make_suggestions=False, search_github=False
-            )
+        result = autopkg.load_recipe(
+            "TestApp",
+            [],
+            [self.tmp_dir.name],
+            make_suggestions=False,
+            search_github=False,
+        )
 
-            self.assertIsNotNone(result)
-            self.assertEqual(result["Identifier"], "com.example.test.load")
-            self.assertEqual(result["Description"], "Test recipe for loading")
-            self.assertEqual(result["Input"]["NAME"], "TestApp")
-            self.assertEqual(result["Input"]["VERSION"], "1.0")
-            self.assertEqual(result["MinimumVersion"], "2.0")
-            self.assertEqual(result["name"], "TestApp")
-            self.assertEqual(result["RECIPE_PATH"], recipe_file)
-            self.assertEqual(len(result["Process"]), 2)
-            self.assertEqual(result["Process"][0]["Processor"], "URLDownloader")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["Identifier"], "com.example.test.load")
+        self.assertEqual(result["Description"], "Test recipe for loading")
+        self.assertEqual(result["Input"]["NAME"], "TestApp")
+        self.assertEqual(result["Input"]["VERSION"], "1.0")
+        self.assertEqual(result["MinimumVersion"], "2.0")
+        self.assertEqual(result["name"], "TestApp")
+        self.assertEqual(result["RECIPE_PATH"], recipe_file)
+        self.assertEqual(len(result["Process"]), 2)
+        self.assertEqual(result["Process"][0]["Processor"], "URLDownloader")
 
     def test_load_recipe_with_parent_recipe(self):
         """Test load_recipe with an override that has a parent recipe."""
-        import plistlib
-        import tempfile
 
         # Create parent recipe
         parent_recipe_dict = {
@@ -1015,44 +988,45 @@ class TestAutoPkgRecipes(unittest.TestCase):
             ],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create parent recipe
-            parent_file = os.path.join(temp_dir, "Parent.recipe")
-            with open(parent_file, "wb") as f:
-                plistlib.dump(parent_recipe_dict, f)
+        # Create parent recipe
+        parent_file = os.path.join(self.tmp_dir.name, "Parent.recipe")
+        with open(parent_file, "wb") as f:
+            plistlib.dump(parent_recipe_dict, f)
 
-            # Create child override in same directory
-            child_file = os.path.join(temp_dir, "Child.recipe")
-            with open(child_file, "wb") as f:
-                plistlib.dump(child_recipe_dict, f)
+        # Create child override in same directory
+        child_file = os.path.join(self.tmp_dir.name, "Child.recipe")
+        with open(child_file, "wb") as f:
+            plistlib.dump(child_recipe_dict, f)
 
-            result = autopkg.load_recipe(
-                "Child", [], [temp_dir], make_suggestions=False, search_github=False
-            )
+        result = autopkg.load_recipe(
+            "Child",
+            [],
+            [self.tmp_dir.name],
+            make_suggestions=False,
+            search_github=False,
+        )
 
-            self.assertIsNotNone(result)
-            self.assertEqual(result["Identifier"], "com.example.child")
-            self.assertEqual(result["Description"], "Child override")
-            # Child input should override parent input
-            self.assertEqual(result["Input"]["NAME"], "ChildApp")
-            self.assertEqual(result["Input"]["VERSION"], "2.0")
-            # Should use higher MinimumVersion
-            self.assertEqual(result["MinimumVersion"], "2.0")
-            self.assertEqual(result["name"], "Child")
-            self.assertEqual(result["RECIPE_PATH"], child_file)
-            # Process should be parent + child
-            self.assertEqual(len(result["Process"]), 3)
-            self.assertEqual(result["Process"][0]["Processor"], "URLDownloader")
-            self.assertEqual(result["Process"][1]["Processor"], "CodeSignatureVerifier")
-            self.assertEqual(result["Process"][2]["Processor"], "MunkiImporter")
-            # Should have parent recipes list
-            self.assertIn("PARENT_RECIPES", result)
-            self.assertEqual(result["PARENT_RECIPES"], [parent_file])
+        self.assertIsNotNone(result)
+        self.assertEqual(result["Identifier"], "com.example.child")
+        self.assertEqual(result["Description"], "Child override")
+        # Child input should override parent input
+        self.assertEqual(result["Input"]["NAME"], "ChildApp")
+        self.assertEqual(result["Input"]["VERSION"], "2.0")
+        # Should use higher MinimumVersion
+        self.assertEqual(result["MinimumVersion"], "2.0")
+        self.assertEqual(result["name"], "Child")
+        self.assertEqual(result["RECIPE_PATH"], child_file)
+        # Process should be parent + child
+        self.assertEqual(len(result["Process"]), 3)
+        self.assertEqual(result["Process"][0]["Processor"], "URLDownloader")
+        self.assertEqual(result["Process"][1]["Processor"], "CodeSignatureVerifier")
+        self.assertEqual(result["Process"][2]["Processor"], "MunkiImporter")
+        # Should have parent recipes list
+        self.assertIn("PARENT_RECIPES", result)
+        self.assertEqual(result["PARENT_RECIPES"], [parent_file])
 
     def test_load_recipe_with_preprocessors(self):
         """Test load_recipe with preprocessors."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -1061,30 +1035,27 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            result = autopkg.load_recipe(
-                "TestApp",
-                [],
-                [temp_dir],
-                preprocessors=["Preprocessor1", "Preprocessor2"],
-                make_suggestions=False,
-                search_github=False,
-            )
+        result = autopkg.load_recipe(
+            "TestApp",
+            [],
+            [self.tmp_dir.name],
+            preprocessors=["Preprocessor1", "Preprocessor2"],
+            make_suggestions=False,
+            search_github=False,
+        )
 
-            self.assertIsNotNone(result)
-            self.assertEqual(len(result["Process"]), 3)
-            self.assertEqual(result["Process"][0]["Processor"], "Preprocessor1")
-            self.assertEqual(result["Process"][1]["Processor"], "Preprocessor2")
-            self.assertEqual(result["Process"][2]["Processor"], "URLDownloader")
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result["Process"]), 3)
+        self.assertEqual(result["Process"][0]["Processor"], "Preprocessor1")
+        self.assertEqual(result["Process"][1]["Processor"], "Preprocessor2")
+        self.assertEqual(result["Process"][2]["Processor"], "URLDownloader")
 
     def test_load_recipe_with_postprocessors(self):
         """Test load_recipe with postprocessors."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -1093,30 +1064,27 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            result = autopkg.load_recipe(
-                "TestApp",
-                [],
-                [temp_dir],
-                postprocessors=["Postprocessor1", "Postprocessor2"],
-                make_suggestions=False,
-                search_github=False,
-            )
+        result = autopkg.load_recipe(
+            "TestApp",
+            [],
+            [self.tmp_dir.name],
+            postprocessors=["Postprocessor1", "Postprocessor2"],
+            make_suggestions=False,
+            search_github=False,
+        )
 
-            self.assertIsNotNone(result)
-            self.assertEqual(len(result["Process"]), 3)
-            self.assertEqual(result["Process"][0]["Processor"], "URLDownloader")
-            self.assertEqual(result["Process"][1]["Processor"], "Postprocessor1")
-            self.assertEqual(result["Process"][2]["Processor"], "Postprocessor2")
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result["Process"]), 3)
+        self.assertEqual(result["Process"][0]["Processor"], "URLDownloader")
+        self.assertEqual(result["Process"][1]["Processor"], "Postprocessor1")
+        self.assertEqual(result["Process"][2]["Processor"], "Postprocessor2")
 
     def test_load_recipe_with_pre_and_postprocessors(self):
         """Test load_recipe with both preprocessors and postprocessors."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -1128,27 +1096,26 @@ class TestAutoPkgRecipes(unittest.TestCase):
             ],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            recipe_file = os.path.join(temp_dir, "TestApp.recipe")
-            with open(recipe_file, "wb") as f:
-                plistlib.dump(recipe_dict, f)
+        recipe_file = os.path.join(self.tmp_dir.name, "TestApp.recipe")
+        with open(recipe_file, "wb") as f:
+            plistlib.dump(recipe_dict, f)
 
-            result = autopkg.load_recipe(
-                "TestApp",
-                [],
-                [temp_dir],
-                preprocessors=["Preprocessor1"],
-                postprocessors=["Postprocessor1"],
-                make_suggestions=False,
-                search_github=False,
-            )
+        result = autopkg.load_recipe(
+            "TestApp",
+            [],
+            [self.tmp_dir.name],
+            preprocessors=["Preprocessor1"],
+            postprocessors=["Postprocessor1"],
+            make_suggestions=False,
+            search_github=False,
+        )
 
-            self.assertIsNotNone(result)
-            self.assertEqual(len(result["Process"]), 4)
-            self.assertEqual(result["Process"][0]["Processor"], "Preprocessor1")
-            self.assertEqual(result["Process"][1]["Processor"], "URLDownloader")
-            self.assertEqual(result["Process"][2]["Processor"], "CodeSignatureVerifier")
-            self.assertEqual(result["Process"][3]["Processor"], "Postprocessor1")
+        self.assertIsNotNone(result)
+        self.assertEqual(len(result["Process"]), 4)
+        self.assertEqual(result["Process"][0]["Processor"], "Preprocessor1")
+        self.assertEqual(result["Process"][1]["Processor"], "URLDownloader")
+        self.assertEqual(result["Process"][2]["Processor"], "CodeSignatureVerifier")
+        self.assertEqual(result["Process"][3]["Processor"], "Postprocessor1")
 
     def test_load_recipe_not_found(self):
         """Test load_recipe when recipe is not found."""
@@ -1159,8 +1126,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_load_recipe_none_dirs(self):
         """Test load_recipe with None directories."""
-        import plistlib
-        import tempfile
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -1169,9 +1134,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [{"Processor": "URLDownloader"}],
         }
 
-        with tempfile.NamedTemporaryFile(
-            mode="wb", suffix=".recipe", delete=False
-        ) as f:
+        with NamedTemporaryFile(mode="wb", suffix=".recipe", delete=False) as f:
             plistlib.dump(recipe_dict, f)
             temp_file = f.name
 
@@ -1186,8 +1149,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_load_recipe_override_with_trust_info(self):
         """Test load_recipe with an override containing trust info."""
-        import plistlib
-        import tempfile
 
         # Create parent recipe
         parent_recipe_dict = {
@@ -1215,37 +1176,34 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create parent recipe
-            parent_file = os.path.join(temp_dir, "Parent.recipe")
-            with open(parent_file, "wb") as f:
-                plistlib.dump(parent_recipe_dict, f)
+        # Create parent recipe
+        parent_file = os.path.join(self.tmp_dir.name, "Parent.recipe")
+        with open(parent_file, "wb") as f:
+            plistlib.dump(parent_recipe_dict, f)
 
-            # Create override directory
-            override_dir = os.path.join(temp_dir, "overrides")
-            os.makedirs(override_dir)
-            override_file = os.path.join(override_dir, "Override.recipe")
-            with open(override_file, "wb") as f:
-                plistlib.dump(override_dict, f)
+        # Create override directory
+        override_dir = os.path.join(self.tmp_dir.name, "overrides")
+        os.makedirs(override_dir)
+        override_file = os.path.join(override_dir, "Override.recipe")
+        with open(override_file, "wb") as f:
+            plistlib.dump(override_dict, f)
 
-            result = autopkg.load_recipe(
-                "Override",
-                [override_dir],
-                [temp_dir],
-                make_suggestions=False,
-                search_github=False,
-            )
+        result = autopkg.load_recipe(
+            "Override",
+            [override_dir],
+            [self.tmp_dir.name],
+            make_suggestions=False,
+            search_github=False,
+        )
 
-            self.assertIsNotNone(result)
-            self.assertEqual(result["Identifier"], "com.example.override")
-            # Trust info should be preserved
-            self.assertIn("ParentRecipeTrustInfo", result)
-            self.assertEqual(result["ParentRecipe"], "com.example.parent")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["Identifier"], "com.example.override")
+        # Trust info should be preserved
+        self.assertIn("ParentRecipeTrustInfo", result)
+        self.assertEqual(result["ParentRecipe"], "com.example.parent")
 
     def test_load_recipe_minimum_version_comparison(self):
         """Test load_recipe MinimumVersion handling with parent and child."""
-        import plistlib
-        import tempfile
 
         # Create parent recipe with lower MinimumVersion
         parent_recipe_dict = {
@@ -1266,29 +1224,30 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create parent recipe
-            parent_file = os.path.join(temp_dir, "Parent.recipe")
-            with open(parent_file, "wb") as f:
-                plistlib.dump(parent_recipe_dict, f)
+        # Create parent recipe
+        parent_file = os.path.join(self.tmp_dir.name, "Parent.recipe")
+        with open(parent_file, "wb") as f:
+            plistlib.dump(parent_recipe_dict, f)
 
-            # Create child override
-            child_file = os.path.join(temp_dir, "Child.recipe")
-            with open(child_file, "wb") as f:
-                plistlib.dump(child_recipe_dict, f)
+        # Create child override
+        child_file = os.path.join(self.tmp_dir.name, "Child.recipe")
+        with open(child_file, "wb") as f:
+            plistlib.dump(child_recipe_dict, f)
 
-            result = autopkg.load_recipe(
-                "Child", [], [temp_dir], make_suggestions=False, search_github=False
-            )
+        result = autopkg.load_recipe(
+            "Child",
+            [],
+            [self.tmp_dir.name],
+            make_suggestions=False,
+            search_github=False,
+        )
 
-            self.assertIsNotNone(result)
-            # Should use higher MinimumVersion from child
-            self.assertEqual(result["MinimumVersion"], "2.5")
+        self.assertIsNotNone(result)
+        # Should use higher MinimumVersion from child
+        self.assertEqual(result["MinimumVersion"], "2.5")
 
     def test_load_recipe_missing_minimum_version(self):
         """Test load_recipe when MinimumVersion is missing from recipes."""
-        import plistlib
-        import tempfile
 
         # Create parent recipe without MinimumVersion
         parent_recipe_dict = {
@@ -1307,24 +1266,27 @@ class TestAutoPkgRecipes(unittest.TestCase):
             "Process": [],
         }
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create parent recipe
-            parent_file = os.path.join(temp_dir, "Parent.recipe")
-            with open(parent_file, "wb") as f:
-                plistlib.dump(parent_recipe_dict, f)
+        # Create parent recipe
+        parent_file = os.path.join(self.tmp_dir.name, "Parent.recipe")
+        with open(parent_file, "wb") as f:
+            plistlib.dump(parent_recipe_dict, f)
 
-            # Create child override
-            child_file = os.path.join(temp_dir, "Child.recipe")
-            with open(child_file, "wb") as f:
-                plistlib.dump(child_recipe_dict, f)
+        # Create child override
+        child_file = os.path.join(self.tmp_dir.name, "Child.recipe")
+        with open(child_file, "wb") as f:
+            plistlib.dump(child_recipe_dict, f)
 
-            result = autopkg.load_recipe(
-                "Child", [], [temp_dir], make_suggestions=False, search_github=False
-            )
+        result = autopkg.load_recipe(
+            "Child",
+            [],
+            [self.tmp_dir.name],
+            make_suggestions=False,
+            search_github=False,
+        )
 
-            self.assertIsNotNone(result)
-            # Should default to "0" when missing
-            self.assertEqual(result["MinimumVersion"], "0")
+        self.assertIsNotNone(result)
+        # Should default to "0" when missing
+        self.assertEqual(result["MinimumVersion"], "0")
 
     @patch("sys.argv", ["autopkg", "audit", "test.recipe"])
     def test_audit_basic_recipe_no_issues(self):

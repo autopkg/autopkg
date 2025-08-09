@@ -15,8 +15,8 @@
 import imp
 import os
 import sys
-import tempfile
 import unittest
+from tempfile import TemporaryDirectory
 from unittest.mock import Mock, mock_open, patch
 
 # Add the Code directory to the Python path to resolve autopkg dependencies
@@ -29,6 +29,14 @@ autopkg = imp.load_source(
 
 class TestAutoPkgOverrides(unittest.TestCase):
     """Test cases for override trust-related functions of AutoPkg."""
+
+    def setUp(self):
+        """Set up test fixtures with a temporary directory."""
+        self.tmp_dir = TemporaryDirectory()
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        self.tmp_dir.cleanup()
 
     def test_get_trust_info_basic_recipe(self):
         """Test get_trust_info with a basic recipe."""
@@ -481,35 +489,34 @@ class TestAutoPkgOverrides(unittest.TestCase):
             mock_options.format = "plist"
             mock_common_parse.return_value = (mock_options, ["TestApp"])
 
-            with tempfile.TemporaryDirectory() as temp_dir:
-                mock_get_override_dirs.return_value = [temp_dir]
-                mock_get_search_dirs.return_value = [temp_dir]
+            mock_get_override_dirs.return_value = [self.tmp_dir.name]
+            mock_get_search_dirs.return_value = [self.tmp_dir.name]
 
-                recipe_dict = {
-                    "Identifier": "com.example.parent",
-                    "Input": {"NAME": "TestApp"},
-                    "Process": [{"Processor": "URLDownloader"}],
-                    "RECIPE_PATH": "TestApp.recipe",
-                }
-                mock_load_recipe.return_value = recipe_dict
-                mock_get_identifier.return_value = "com.example.parent"
-                mock_get_trust_info.return_value = {"test": "trust_info"}
-                mock_remove_recipe_ext.return_value = "TestApp"
+            recipe_dict = {
+                "Identifier": "com.example.parent",
+                "Input": {"NAME": "TestApp"},
+                "Process": [{"Processor": "URLDownloader"}],
+                "RECIPE_PATH": "TestApp.recipe",
+            }
+            mock_load_recipe.return_value = recipe_dict
+            mock_get_identifier.return_value = "com.example.parent"
+            mock_get_trust_info.return_value = {"test": "trust_info"}
+            mock_remove_recipe_ext.return_value = "TestApp"
 
-                # Mock os.path.isfile to return False for recipe names
-                mock_isfile.return_value = False
+            # Mock os.path.isfile to return False for recipe names
+            mock_isfile.return_value = False
 
-                # Mock os.path.exists to return True for directories, False for files
-                def mock_exists_side_effect(path):
-                    return path == temp_dir
+            # Mock os.path.exists to return True for directories, False for files
+            def mock_exists_side_effect(path):
+                return path == self.tmp_dir.name
 
-                mock_exists.side_effect = mock_exists_side_effect
-                mock_plist_serializer.return_value = {"test": "serialized"}
+            mock_exists.side_effect = mock_exists_side_effect
+            mock_plist_serializer.return_value = {"test": "serialized"}
 
-                result = autopkg.make_override(["autopkg", "make-override", "TestApp"])
+            result = autopkg.make_override(["autopkg", "make-override", "TestApp"])
 
-                self.assertEqual(result, 0)
-                mock_plist_dump.assert_called_once()
+            self.assertEqual(result, 0)
+            mock_plist_dump.assert_called_once()
 
     def test_make_override_success_yaml_format(self):
         """Test successful override creation in yaml format."""
@@ -554,35 +561,34 @@ class TestAutoPkgOverrides(unittest.TestCase):
             mock_options.format = "yaml"
             mock_common_parse.return_value = (mock_options, ["TestApp"])
 
-            with tempfile.TemporaryDirectory() as temp_dir:
-                mock_get_override_dirs.return_value = [temp_dir]
-                mock_get_search_dirs.return_value = [temp_dir]
+            mock_get_override_dirs.return_value = [self.tmp_dir.name]
+            mock_get_search_dirs.return_value = [self.tmp_dir.name]
 
-                recipe_dict = {
-                    "Identifier": "com.example.parent",
-                    "Input": {"NAME": "TestApp"},
-                    "Process": [{"Processor": "URLDownloader"}],
-                    "RECIPE_PATH": "TestApp.recipe",
-                }
-                mock_load_recipe.return_value = recipe_dict
-                mock_get_identifier.return_value = "com.example.parent"
-                mock_get_trust_info.return_value = {"test": "trust_info"}
-                mock_remove_recipe_ext.return_value = "TestApp"
+            recipe_dict = {
+                "Identifier": "com.example.parent",
+                "Input": {"NAME": "TestApp"},
+                "Process": [{"Processor": "URLDownloader"}],
+                "RECIPE_PATH": "TestApp.recipe",
+            }
+            mock_load_recipe.return_value = recipe_dict
+            mock_get_identifier.return_value = "com.example.parent"
+            mock_get_trust_info.return_value = {"test": "trust_info"}
+            mock_remove_recipe_ext.return_value = "TestApp"
 
-                # Mock os.path.isfile to return False for recipe names
-                mock_isfile.return_value = False
+            # Mock os.path.isfile to return False for recipe names
+            mock_isfile.return_value = False
 
-                # Mock os.path.exists to return True for directories, False for files
-                def mock_exists_side_effect(path):
-                    return path == temp_dir
+            # Mock os.path.exists to return True for directories, False for files
+            def mock_exists_side_effect(path):
+                return path == self.tmp_dir.name
 
-                mock_exists.side_effect = mock_exists_side_effect
-                mock_plist_serializer.return_value = {"test": "serialized"}
+            mock_exists.side_effect = mock_exists_side_effect
+            mock_plist_serializer.return_value = {"test": "serialized"}
 
-                result = autopkg.make_override(["autopkg", "make-override", "TestApp"])
+            result = autopkg.make_override(["autopkg", "make-override", "TestApp"])
 
-                self.assertEqual(result, 0)
-                mock_yaml_dump.assert_called_once()
+            self.assertEqual(result, 0)
+            mock_yaml_dump.assert_called_once()
 
     def test_make_override_no_arguments(self):
         """Test make_override with no recipe arguments."""
@@ -814,40 +820,39 @@ class TestAutoPkgOverrides(unittest.TestCase):
             mock_options.format = "plist"
             mock_common_parse.return_value = (mock_options, ["TestApp"])
 
-            with tempfile.TemporaryDirectory() as temp_dir:
-                mock_get_override_dirs.return_value = [temp_dir]
-                mock_get_search_dirs.return_value = [temp_dir]
+            mock_get_override_dirs.return_value = [self.tmp_dir.name]
+            mock_get_search_dirs.return_value = [self.tmp_dir.name]
 
-                recipe_dict = {
-                    "Identifier": "com.example.parent",
-                    "Input": {"NAME": "TestApp"},
-                    "Process": [{"Processor": "URLDownloader"}],
-                    "RECIPE_PATH": "TestApp.recipe",
-                }
-                mock_load_recipe.return_value = recipe_dict
-                mock_get_identifier.return_value = "com.example.parent"
-                mock_get_trust_info.return_value = {"test": "trust_info"}
-                mock_remove_recipe_ext.return_value = "TestApp"
+            recipe_dict = {
+                "Identifier": "com.example.parent",
+                "Input": {"NAME": "TestApp"},
+                "Process": [{"Processor": "URLDownloader"}],
+                "RECIPE_PATH": "TestApp.recipe",
+            }
+            mock_load_recipe.return_value = recipe_dict
+            mock_get_identifier.return_value = "com.example.parent"
+            mock_get_trust_info.return_value = {"test": "trust_info"}
+            mock_remove_recipe_ext.return_value = "TestApp"
 
-                # Mock os.path.isfile to return False for recipe names, True for existing overrides
-                def mock_isfile_side_effect(path):
-                    if path == "TestApp":
-                        return False  # Recipe name
-                    return "TestApp.recipe" in path  # Override file exists
+            # Mock os.path.isfile to return False for recipe names, True for existing overrides
+            def mock_isfile_side_effect(path):
+                if path == "TestApp":
+                    return False  # Recipe name
+                return "TestApp.recipe" in path  # Override file exists
 
-                mock_isfile.side_effect = mock_isfile_side_effect
+            mock_isfile.side_effect = mock_isfile_side_effect
 
-                # Mock os.path.exists to return True for directories, False for files
-                def mock_exists_side_effect(path):
-                    return path == temp_dir
+            # Mock os.path.exists to return True for directories, False for files
+            def mock_exists_side_effect(path):
+                return path == self.tmp_dir.name
 
-                mock_exists.side_effect = mock_exists_side_effect
-                mock_plist_serializer.return_value = {"test": "serialized"}
+            mock_exists.side_effect = mock_exists_side_effect
+            mock_plist_serializer.return_value = {"test": "serialized"}
 
-                result = autopkg.make_override(["autopkg", "make-override", "TestApp"])
+            result = autopkg.make_override(["autopkg", "make-override", "TestApp"])
 
-                self.assertEqual(result, 0)
-                mock_plist_dump.assert_called_once()
+            self.assertEqual(result, 0)
+            mock_plist_dump.assert_called_once()
 
 
 if __name__ == "__main__":

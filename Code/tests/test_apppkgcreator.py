@@ -2,9 +2,9 @@
 
 import os
 import plistlib
-import tempfile
 import unittest
 from copy import deepcopy
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from autopkglib import ProcessorError
@@ -15,14 +15,14 @@ class TestAppPkgCreator(unittest.TestCase):
     """Test class for AppPkgCreator processor."""
 
     def setUp(self):
-        self.tempdir = tempfile.TemporaryDirectory()
-        self.app_path = os.path.join(self.tempdir.name, "TestApp.app")
+        self.tmp_dir = TemporaryDirectory()
+        self.app_path = os.path.join(self.tmp_dir.name, "TestApp.app")
         self.bundle_id = "com.example.testapp"
         self.version = "1.0.0"
 
         self.good_env = {
             "app_path": self.app_path,
-            "RECIPE_CACHE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
             "bundleid": self.bundle_id,
             "version": self.version,
         }
@@ -31,7 +31,7 @@ class TestAppPkgCreator(unittest.TestCase):
         self.processor.env = deepcopy(self.good_env)
 
     def tearDown(self):
-        self.tempdir.cleanup()
+        self.tmp_dir.cleanup()
 
     def _create_test_app(self, app_path, bundle_id=None, version=None):
         """Create a test app bundle with Info.plist."""
@@ -88,7 +88,7 @@ class TestAppPkgCreator(unittest.TestCase):
     # Test main() logic - unique app path handling
     def test_main_missing_app_path_and_pathname_raises(self):
         """Test that main() raises exception when both app_path and pathname are missing."""
-        self.processor.env = {"RECIPE_CACHE_DIR": self.tempdir.name}
+        self.processor.env = {"RECIPE_CACHE_DIR": self.tmp_dir.name}
 
         with self.assertRaisesRegex(
             ProcessorError, "No app_path or pathname specified"
@@ -185,14 +185,14 @@ class TestAppPkgCreator(unittest.TestCase):
 
         self.processor.package_app(app_path)
 
-        expected_path = os.path.join(self.tempdir.name, "TestApp-1.0.0.pkg")
+        expected_path = os.path.join(self.tmp_dir.name, "TestApp-1.0.0.pkg")
         self.assertEqual(self.processor.env["pkg_path"], expected_path)
 
     @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=True)
     def test_package_app_uses_custom_pkg_path(self, mock_exists):
         """Test that package_app() uses provided pkg_path."""
         app_path = self._create_test_app(self.app_path)
-        custom_pkg_path = os.path.join(self.tempdir.name, "custom", "MyApp.pkg")
+        custom_pkg_path = os.path.join(self.tmp_dir.name, "custom", "MyApp.pkg")
 
         self.processor.env["pkg_path"] = custom_pkg_path
 
@@ -220,7 +220,7 @@ class TestAppPkgCreator(unittest.TestCase):
     ):
         """Test that package_app() sets correct summary result."""
         app_path = self._create_test_app(self.app_path)
-        expected_pkg_path = os.path.join(self.tempdir.name, "TestApp-1.0.0.pkg")
+        expected_pkg_path = os.path.join(self.tmp_dir.name, "TestApp-1.0.0.pkg")
         mock_send.return_value = expected_pkg_path
 
         self.processor.package_app(app_path)

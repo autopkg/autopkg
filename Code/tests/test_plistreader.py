@@ -174,7 +174,7 @@ class TestPlistReader(unittest.TestCase):
         """Test mounting DMG to read plist."""
         dmg_path = "/path/to/test.dmg"
         internal_path = "TestApp.app"
-        mount_point = "/tmp/mount"
+        mount_point = self.tmp_dir.name
 
         # Create a bundle at the mount point
         mounted_bundle_path = os.path.join(mount_point, "TestApp.app")
@@ -222,7 +222,7 @@ class TestPlistReader(unittest.TestCase):
         """Test that DMG is unmounted even when an exception occurs."""
         dmg_path = "/path/to/test.dmg"
         internal_path = "TestApp.app"
-        mount_point = "/tmp/mount"
+        mount_point = self.tmp_dir.name
 
         self.processor.env = {
             "info_path": f"{dmg_path}/{internal_path}",

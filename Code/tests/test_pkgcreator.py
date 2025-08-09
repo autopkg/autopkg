@@ -29,7 +29,7 @@ class TestPkgCreator(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff: int = 100000
-        self.tempdir = TemporaryDirectory()
+        self.tmp_dir = TemporaryDirectory()
         self.good_env: dict[str, Any] = {
             "pkg_request": {
                 "pkgroot": "/path/to/root",
@@ -37,15 +37,15 @@ class TestPkgCreator(unittest.TestCase):
                 "id": "com.example.testpackage",
                 "version": "1.0.0",
                 "pkgtype": "flat",
-                "pkgdir": self.tempdir.name,
+                "pkgdir": self.tmp_dir.name,
                 "infofile": "",
                 "resources": "",
                 "options": "",
                 "scripts": "",
                 "chown": [],
             },
-            "RECIPE_CACHE_DIR": self.tempdir.name,
-            "RECIPE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
+            "RECIPE_DIR": self.tmp_dir.name,
         }
         self.minimal_env: dict[str, Any] = {
             "pkg_request": {
@@ -54,18 +54,18 @@ class TestPkgCreator(unittest.TestCase):
                 "id": "com.example.testpackage",
                 "version": "1.0.0",
             },
-            "RECIPE_CACHE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
         }
         self.bad_env: dict[str, Any] = {}
         self.processor = PkgCreator(env=deepcopy(self.good_env))
-        self.addCleanup(self.tempdir.cleanup)
+        self.addCleanup(self.tmp_dir.cleanup)
 
     def tearDown(self):
         pass
 
     def _mkpath(self, *parts: str) -> str:
         """Returns a path into the per testcase temporary directory."""
-        return os.path.join(self.tempdir.name, *parts)
+        return os.path.join(self.tmp_dir.name, *parts)
 
     def test_missing_pkg_request_raises(self):
         """The processor should raise an exception if pkg_request is missing."""
@@ -79,7 +79,7 @@ class TestPkgCreator(unittest.TestCase):
         bad_request = {"pkgname": "test", "id": "com.test", "version": "1.0"}
         self.processor.env = {
             "pkg_request": bad_request,
-            "RECIPE_CACHE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
         }
         with self.assertRaisesRegex(ProcessorError, "Request key pkgroot missing"):
             self.processor.main()

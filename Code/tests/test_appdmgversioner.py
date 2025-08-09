@@ -73,21 +73,21 @@ class TestAppDmgVersioner(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff: int = 100000
-        self.tempdir = TemporaryDirectory()
+        self.tmp_dir = TemporaryDirectory()
         self.good_env: dict[str, Any] = {
             "dmg_path": "/path/to/test.dmg",
-            "RECIPE_CACHE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
         }
         self.bad_env: dict[str, Any] = {}
         self.processor = AppDmgVersioner(data=deepcopy(self.good_env))
-        self.addCleanup(self.tempdir.cleanup)
+        self.addCleanup(self.tmp_dir.cleanup)
 
     def tearDown(self):
         pass
 
     def _mkpath(self, *parts: str) -> str:
         """Returns a path into the per testcase temporary directory."""
-        return os.path.join(self.tempdir.name, *parts)
+        return os.path.join(self.tmp_dir.name, *parts)
 
     def test_missing_dmg_path_raises(self):
         """The processor should raise an exception if dmg_path is missing."""
