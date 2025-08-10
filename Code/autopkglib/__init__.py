@@ -679,16 +679,18 @@ class Processor:
         If there is an error loading the file, the exception raised will be prefixed
         with `exception_text`.
         """
+        fh: IO | None = None
         try:
             if isinstance(plist_file, (str, bytes, int)):
-                fh: IO = open(plist_file, "rb")
+                fh = open(plist_file, "rb")
             else:
                 fh = plist_file
             return plistlib.load(fh)
         except Exception as err:
             raise ProcessorError(f"{exception_text}: {err}") from err
         finally:
-            fh.close()
+            if fh and isinstance(plist_file, (str, bytes, int)):
+                fh.close()
 
     def show_deprecation(self, message: str) -> None:
         """Emit a deprecation warning, either from a deprecated recipe that calls
