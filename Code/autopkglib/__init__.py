@@ -690,6 +690,28 @@ class Processor:
         finally:
             fh.close()
 
+    def show_deprecation(self, message: str) -> None:
+        """Emit a deprecation warning, either from a deprecated recipe that calls
+        the DeprecationWarning processor, or from a deprecated processor that calls
+        this method directly.
+
+        This both prints the warning to stdout and adds the deprecation to the
+        summary results from the autopkg run.
+        """
+        self.output(f"WARNING: {message}")
+        recipe_name = os.path.basename(self.env["RECIPE_PATH"])
+        recipe_name = remove_recipe_extension(recipe_name)
+        depr_summary_result = {
+            "summary_text": "The following recipes have deprecation warnings:",
+            "report_fields": ["name", "warning"],
+            "data": {"name": recipe_name, "warning": message},
+        }
+        if self.output_variables:
+            self.output_variables["deprecation_summary_result"] = depr_summary_result
+        else:
+            self.output_variables = {"deprecation_summary_result": depr_summary_result}
+        self.env["deprecation_summary_result"] = depr_summary_result
+
 
 # AutoPackager class definition
 
