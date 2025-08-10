@@ -257,7 +257,11 @@ class URLDownloaderPython(URLDownloader):
 
         hashes = None
         if self.env.get("COMPUTE_HASHES", None):
-            hashes = sha1(), sha256(), md5()
+            hashes = (
+                sha1(usedforsecurity=False),
+                sha256(usedforsecurity=False),
+                md5(usedforsecurity=False),
+            )
 
         # chunksize seems like it could be anything
         #   it is probably best if it is a multiple of a typical hash block_size

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file. This projec
 
 ## [2.7.7](https://github.com/autopkg/autopkg/compare/v2.7.6...HEAD) (Unreleased)
 
-Nothing yet.
+- URLDownloaderPython: explicitly mark the sha1, md5, and sha256 hashing of downloaded files as non-security-related.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 
