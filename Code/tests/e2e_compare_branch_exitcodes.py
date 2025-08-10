@@ -42,9 +42,9 @@ EXPER_BRANCH = "unarchiver"
 # Types of recipes you wish to test (recommended: download, pkg)
 # Munki tools and a valid Munki repo required to test munki recipes
 _types_to_test = ["download", "pkg"]
-_types_to_test = [f".{x}.recipe" for x in _types_to_test]
-_types_to_test.extend(f"{x}.yaml" for x in ["download", "pkg"])
-TYPES_TO_TEST = tuple(_types_to_test)
+TYPES_TO_TEST = tuple(
+    [f".{x}.recipe" for x in _types_to_test] + [f"{x}.yaml" for x in _types_to_test]
+)
 
 # How many recipes you wish to run the test on
 RECIPE_COUNT = 100
