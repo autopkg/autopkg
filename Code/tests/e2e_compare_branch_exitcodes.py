@@ -46,6 +46,12 @@ TYPES_TO_TEST = tuple(
     [f".{x}.recipe" for x in _types_to_test] + [f"{x}.yaml" for x in _types_to_test]
 )
 
+# Additional command-line options to provide at runtime (example provided)
+ADDITIONAL_OPTS = [
+    # "-k",
+    # "USE_PYTHON_NATIVE_EXTRACTOR=true",
+]
+
 # How many recipes you wish to run the test on
 RECIPE_COUNT = 100
 
@@ -64,6 +70,7 @@ def test_recipe(filepath, autopkg_path="/usr/local/bin/autopkg"):
     results = {"1st": None, "2nd": None}
     for attempt in results.keys():
         cmd = [autopkg_path, "run", "--quiet", filepath]
+        cmd.extend(ADDITIONAL_OPTS)
         proc = subprocess.run(cmd, check=False, capture_output=True)
         results[attempt] = proc.returncode
         print("  %s run finished with exit code %d" % (attempt, proc.returncode))
