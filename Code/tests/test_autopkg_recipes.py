@@ -18,6 +18,7 @@ import plistlib
 import sys
 import unittest
 import unittest.mock
+from io import StringIO
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest.mock import Mock, patch
 
@@ -1655,7 +1656,9 @@ class TestAutoPkgRecipes(unittest.TestCase):
             autopkg, "find_http_urls_in_recipe"
         ) as mock_find_urls, patch.object(
             autopkg, "core_processor_names"
-        ) as mock_core_processors:
+        ) as mock_core_processors, patch(
+            "sys.stdout", new_callable=StringIO
+        ):
 
             mock_parser = Mock()
             mock_parser.add_option = Mock()

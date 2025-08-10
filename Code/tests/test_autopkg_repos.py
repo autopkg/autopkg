@@ -17,6 +17,7 @@ import os
 import plistlib
 import sys
 import unittest
+from io import StringIO
 from unittest.mock import Mock, patch
 
 # Add the Code directory to the Python path to resolve autopkg dependencies
@@ -120,7 +121,9 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_fetch.return_value = plistlib.dumps(recipe_plist)
 
         # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads:
+        with patch("autopkg.plistlib.loads") as mock_loads, patch(
+            "sys.stdout", new_callable=StringIO
+        ):
             mock_loads.return_value = recipe_plist
 
             result = autopkg.get_repository_from_identifier("com.test.recipe")
@@ -242,7 +245,9 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_fetch.side_effect = mock_fetch_side_effect
 
         # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads:
+        with patch("autopkg.plistlib.loads") as mock_loads, patch(
+            "sys.stdout", new_callable=StringIO
+        ):
             mock_loads.side_effect = [matching_plist]
 
             result = autopkg.get_repository_from_identifier("com.test.recipe")
