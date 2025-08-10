@@ -35,6 +35,10 @@ AUTOPKG_REPO = os.path.expanduser("~/Developer/autopkg")
 # Path to a folder that contains AutoPkg recipes
 RECIPE_REPOS = os.path.expanduser("~/Developer/repo-lasso/repos/autopkg")
 
+# Control (known good) and experimental branch names
+CONTROL_BRANCH = "dev-2.7.x"
+EXPER_BRANCH = "unarchiver"
+
 # Types of recipes you wish to test (recommended: download, pkg)
 # Munki tools and a valid Munki repo required to test munki recipes
 _types_to_test = ["download", "pkg"]
@@ -44,10 +48,6 @@ TYPES_TO_TEST = tuple(_types_to_test)
 
 # How many recipes you wish to run the test on
 RECIPE_COUNT = 100
-
-# Control (known good) and experimental branch names
-CONTROL_BRANCH = "master"
-EXPER_BRANCH = "dev-2.7.x"
 
 
 def clear_cache():
