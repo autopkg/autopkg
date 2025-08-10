@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. This projec
 
 - Added a method by which processors can be marked for deprecation, similar to what DeprecationWarning does for recipes.
 - URLDownloaderPython: explicitly mark the sha1, md5, and sha256 hashing of downloaded files as non-security-related.
+- Unarchiver: when using Python native extractor, stop processing if archives have indicators of directory traversal attacks.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 
