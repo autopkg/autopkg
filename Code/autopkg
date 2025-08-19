@@ -20,15 +20,15 @@ related tasks"""
 import copy
 import difflib
 import glob
-import hashlib
 import os
 import plistlib
 import pprint
 import shutil
-import subprocess
 import sys
 import time
 import traceback
+from optparse import OptionParser
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 import yaml
@@ -37,41 +37,44 @@ from autopkglib import (
     RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
-    calculate_recipe_map,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
-    find_binary,
     find_recipe_by_id_in_map,
     find_recipe_by_name_in_map,
-    get_all_prefs,
     get_autopkg_version,
     get_identifier,
     get_override_dirs,
     get_pref,
     get_processor,
-    get_search_dirs,
     globalRecipeMap,
     is_mac,
     log,
     log_err,
     plist_serializer,
     processor_names,
-    read_recipe_map,
     recipe_from_file,
     remove_recipe_extension,
-    set_pref,
     valid_override_dict,
     valid_recipe_dict,
     valid_recipe_file,
     version_equal_or_greater,
 )
+from autopkglib.apgit import GitError, get_git_commit_hash, git_cmd, run_git
 from autopkglib.apgithub import (
     GitHubSession,
     get_repository_from_identifier,
     print_gh_search_results,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
-from autopkglib.prefs import PreferenceError
+from autopkglib.common import VarDict, get_sha256_hash
+from autopkglib.prefs import PreferenceError, get_all_prefs, get_search_dirs, set_pref
+from autopkglib.recipes import (
+    RecipeChain,
+    RecipeError,
+    calculate_recipe_map,
+    fetch_recipe_chain,
+    read_recipe_map,
+)
 
 # Catch Python 2 wrappers with an early f-string. Message must be on a single line.
 _ = f"""{sys.version_info.major} It looks like you're running the autopkg tool with an incompatible version of Python. Please update your script to use autopkg's included Python (/usr/local/autopkg/python). AutoPkgr users please note that AutoPkgr 1.5.1 and earlier is NOT compatible with autopkg 2. """  # noqa
@@ -123,7 +126,7 @@ def builds_a_package(recipe):
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def find_recipe(id_or_name: str, skip_overrides: bool = False):
+def old_find_recipe(id_or_name: str, skip_overrides: bool = False):
     """Find a recipe based on a string that might be an identifier
     or a name"""
     # The recipe search should allow searching overrides vs. not (make-overrides shouldn't
@@ -167,7 +170,7 @@ def get_identifier_from_override(override):
     return name
 
 
-def locate_recipe(
+def old_locate_recipe(
     name,
     make_suggestions=True,
     search_github=True,
@@ -193,12 +196,12 @@ def locate_recipe(
 
     if not recipe_file:
         # name wasn't a filename. Let's search our map for names and/or identifiers.
-        recipe_file = find_recipe(name, skip_overrides)
+        recipe_file = old_find_recipe(name, skip_overrides)
         if not recipe_file:
             # If we still didn't find it in the map, try rebuilding the map with current dirs
             log("Rebuilding recipe map with current working directories...")
             calculate_recipe_map(skip_cwd=False)
-            recipe_file = find_recipe(name, skip_overrides)
+            recipe_file = old_find_recipe(name, skip_overrides)
 
     if not recipe_file and make_suggestions:
         make_suggestions_for(name)
@@ -245,7 +248,7 @@ def locate_recipe(
                     # try once again to locate the recipe, but don't
                     # search GitHub again!
                     print()
-                    recipe_file = locate_recipe(
+                    recipe_file = old_locate_recipe(
                         name,
                         make_suggestions=True,
                         search_github=False,
@@ -259,7 +262,7 @@ def locate_recipe(
     return recipe_file
 
 
-def load_recipe(
+def old_load_recipe(
     name,
     preprocessors=None,
     postprocessors=None,
@@ -302,7 +305,7 @@ def load_recipe(
     # 6. Rerun recipe location logic for ParentRecipe
     # 7. When parsing recipe object, prepend Process with processors from each parent, in order
     # 8. Add input variables from parents only if they don't already exist in the child (later recipes always win)
-    recipe_file = locate_recipe(
+    recipe_file = old_locate_recipe(
         name,
         make_suggestions=make_suggestions,
         search_github=search_github,
@@ -346,7 +349,7 @@ def load_recipe(
         child_recipe = recipe
         parent_id = get_identifier_from_override(recipe)
         # load its parent by identifier
-        recipe = load_recipe(
+        recipe = old_load_recipe(
             parent_id,
             make_suggestions=make_suggestions,
             search_github=search_github,
@@ -423,7 +426,7 @@ def get_recipe_info(
     auto_pull=False,
 ):
     """Loads a recipe, then prints some information about it. Override aware."""
-    recipe = load_recipe(
+    recipe = old_load_recipe(
         recipe_name,
         make_suggestions=make_suggestions,
         search_github=search_github,
@@ -455,50 +458,6 @@ def get_recipe_info(
     else:
         log_err(f"No valid recipe found for {recipe_name}")
         return False
-
-
-def git_cmd():
-    """Returns a path to a git binary, priority in the order below.
-    Returns None if none found.
-    1. app pref 'GIT_PATH'
-    2. a 'git' binary that can be found in the PATH environment variable
-    3. '/usr/bin/git'
-    """
-    return find_binary("git")
-
-
-class GitError(Exception):
-    """Exception to throw if git fails"""
-
-    pass
-
-
-def run_git(git_options_and_arguments, git_directory=None):
-    """Run a git command and return its output if successful;
-    raise GitError if unsuccessful."""
-    gitcmd = git_cmd()
-    if not gitcmd:
-        raise GitError("ERROR: git is not installed!")
-    cmd = [gitcmd]
-    cmd.extend(git_options_and_arguments)
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=git_directory,
-            text=True,
-        )
-        (cmd_out, cmd_err) = proc.communicate()
-    except OSError as err:
-        raise GitError from OSError(
-            f"ERROR: git execution failed with error code {err.errno}: "
-            f"{err.strerror}"
-        )
-    if proc.returncode != 0:
-        raise GitError(f"ERROR: {cmd_err}")
-    else:
-        return cmd_out
 
 
 def get_recipe_repo(git_path):
@@ -950,7 +909,7 @@ def processor_info(argv):
 
     recipe = None
     if options.recipe:
-        recipe = load_recipe(options.recipe)
+        recipe = old_load_recipe(options.recipe)
 
     try:
         processor_class = get_processor(processor_name, recipe=recipe)
@@ -1233,62 +1192,6 @@ def list_recipes(argv):
         print("\n".join(output))
 
 
-def get_git_commit_hash(filepath):
-    """Get the current git commit hash if possible"""
-    try:
-        git_toplevel_dir = run_git(
-            ["rev-parse", "--show-toplevel"], git_directory=os.path.dirname(filepath)
-        ).rstrip("\n")
-    except GitError:
-        return None
-    try:
-        relative_path = os.path.relpath(filepath, git_toplevel_dir)
-        # this was the _wrong_ implementation and essentially is the same
-        # as `git hash-object filepath`. It gives us the object hash for the
-        # file. Fine for later getting diff info but no good for finding the
-        # the commits since the hash was recorded
-        #
-        # git_hash = run_git(
-        #    ['rev-parse', ':' + relative_path],
-        #    git_directory=git_toplevel_dir).rstrip('\n')
-        #
-        # instead, we need to use `rev-list` to find the most recent commit
-        # hash for the file in question.
-        git_hash = run_git(
-            ["rev-list", "-1", "HEAD", "--", relative_path],
-            git_directory=git_toplevel_dir,
-        ).rstrip("\n")
-    except GitError:
-        return None
-    # make sure the file hasn't been changed locally since the last git pull
-    # if git diff produces output, it's been changed, and therefore storing
-    # the hash is pointless
-    try:
-        diff_output = run_git(
-            ["diff", git_hash, relative_path], git_directory=git_toplevel_dir
-        ).rstrip("\n")
-    except GitError:
-        return None
-    if diff_output:
-        return None
-    return git_hash
-
-
-def getsha256hash(filepath):
-    """Generate a sha256 hash for the file at filepath"""
-    if not os.path.isfile(filepath):
-        return "NOT A FILE"
-    hashfunction = hashlib.sha256()
-    fileref = open(filepath, "rb")
-    while 1:
-        chunk = fileref.read(2**16)
-        if not chunk:
-            break
-        hashfunction.update(chunk)
-    fileref.close()
-    return hashfunction.hexdigest()
-
-
 def find_processor_path(processor_name, recipe, env=None):
     """Returns the pathname to a processor given a name and a recipe"""
     if env is None:
@@ -1347,9 +1250,9 @@ def get_trust_info(recipe, search_dirs=None):
     parent_recipe_paths = recipe.get("PARENT_RECIPES", []) + [recipe["RECIPE_PATH"]]
     parent_recipe_hashes = {}
     for p_recipe_path in parent_recipe_paths:
-        p_recipe_hash = getsha256hash(p_recipe_path)
+        p_recipe_hash = get_sha256_hash(p_recipe_path)
         git_hash = get_git_commit_hash(p_recipe_path)
-        p_recipe = load_recipe(p_recipe_path)
+        p_recipe = old_load_recipe(p_recipe_path)
         identifier = get_identifier(p_recipe)
         parent_recipe_hashes[identifier] = {
             "path": os_path_compressuser(p_recipe_path),
@@ -1367,7 +1270,7 @@ def get_trust_info(recipe, search_dirs=None):
     for processor in non_core_processors:
         processor_path = find_processor_path(processor, recipe)
         if processor_path:
-            processor_hash = getsha256hash(processor_path)
+            processor_hash = get_sha256_hash(processor_path)
             git_hash = get_git_commit_hash(processor_path)
         else:
             log_err(f"WARNING: processor path not found for processor: {processor}")
@@ -1505,7 +1408,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
         )
 
     # verify trust of parent recipes
-    parent_recipe = load_recipe(
+    parent_recipe = old_load_recipe(
         recipe["ParentRecipe"],
         make_suggestions=False,
         search_github=False,
@@ -1568,7 +1471,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
             actual_trust_info["parent_recipes"].get(p_recipe_id, {}).get("sha256_hash")
         )
         if expected_hash != actual_hash:
-            p_recipe = load_recipe(
+            p_recipe = old_load_recipe(
                 p_recipe_id,
                 make_suggestions=False,
                 search_github=False,
@@ -1593,7 +1496,7 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
     for p_recipe_id in actual_parent_recipes:
         if p_recipe_id not in expected_parent_recipes:
             trust_errors += f"Unexpected parent recipe found: {p_recipe_id}\n"
-            p_recipe = load_recipe(
+            p_recipe = old_load_recipe(
                 p_recipe_id,
                 make_suggestions=False,
                 search_github=False,
@@ -1632,7 +1535,7 @@ def update_trust_info(argv):
     read_recipe_map()
 
     for recipe_name in recipe_names:
-        recipe_path = locate_recipe(
+        recipe_path = old_locate_recipe(
             recipe_name,
             make_suggestions=True,
             search_github=False,
@@ -1661,7 +1564,7 @@ def update_trust_info(argv):
                 if not answer.lower().startswith("y"):
                     continue
         # add trust info
-        parent_recipe = load_recipe(recipe["ParentRecipe"])
+        parent_recipe = old_load_recipe(recipe["ParentRecipe"])
         if parent_recipe:
             recipe["ParentRecipeTrustInfo"] = get_trust_info(
                 parent_recipe, search_dirs=search_dirs
@@ -1725,7 +1628,7 @@ def verify_trust_info(argv):
         return -1
 
     for recipe_name in recipe_names:
-        recipe = load_recipe(
+        recipe = old_load_recipe(
             recipe_name,
             make_suggestions=True,
             search_github=False,
@@ -1814,7 +1717,7 @@ def make_override(argv):
     # First, populate the recipe map
     read_recipe_map()
 
-    recipe = load_recipe(
+    recipe = old_load_recipe(
         recipe_name,
         make_suggestions=True,
         search_github=options.pull,
@@ -1936,8 +1839,8 @@ def parse_recipe_list(filename):
 def run_recipes(argv):
     """Run one or more recipes. If called with 'install' verb, run .install
     recipe"""
-    verb = argv[1]
-    parser = gen_common_parser()
+    verb: str = argv[1]
+    parser: OptionParser = gen_common_parser()
     if verb == "install":
         parser.set_usage(
             f"Usage: %prog {verb} [options] [itemname ...]\n"
@@ -2030,21 +1933,21 @@ def run_recipes(argv):
     add_search_and_override_dir_options(parser)
     (options, arguments) = common_parse(parser, argv)
 
-    override_dirs = options.override_dirs or get_override_dirs()
-    search_dirs = options.search_dirs or get_search_dirs()
+    override_dirs: List[str] = options.override_dirs or get_override_dirs()
+    search_dirs: List[str] = options.search_dirs or get_search_dirs()
 
     # First, populate the recipe map
     read_recipe_map(rebuild=True)
 
     # initialize some variables
-    summary_results = {}
-    failures = []
-    error_count = 0
-    preprocessors = []
-    postprocessors = []
+    summary_results: Dict[str, Any] = {}
+    failures: List[Any] = []
+    error_count: int = 0
+    preprocessors: List[str] = []
+    postprocessors: List[str] = []
 
     # get our list of recipes
-    recipe_paths = []
+    recipe_paths: List[str] = []
     if verb == "install":
         # hold on for syntactic sugar!
         for index, item in enumerate(arguments):
@@ -2057,7 +1960,7 @@ def run_recipes(argv):
                 del arguments[index]
 
     recipe_paths.extend(arguments)
-    recipe_list = {}
+    recipe_list: Dict[str, Any] = {}
     if options.recipe_list:
         recipe_list = parse_recipe_list(options.recipe_list)
         recipe_paths.extend(recipe_list.get("recipes", []))
@@ -2075,12 +1978,12 @@ def run_recipes(argv):
         postprocessors = options.postprocessors
 
     # Add variables from environment
-    cli_values = {}
+    cli_values: Dict[str, Any] = {}
     for key, value in list(os.environ.items()):
         if key.startswith("AUTOPKG_"):
             if options.verbose > 1:
                 log(f"Using environment var {key}={value}")
-            local_key = key[8:]
+            local_key: str = key[8:]
             cli_values[local_key] = value
 
     # Add variables from recipe list. These might override those from
@@ -2107,13 +2010,13 @@ def run_recipes(argv):
         log_err("-p/--pkg option can't be used with multiple recipes!")
         return -1
 
-    cache_dir = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
-    cache_dir = os.path.expanduser(cache_dir)
+    cache_dir: str = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
+    cache_dir: str = os.path.expanduser(cache_dir)
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0o755)
-    current_run_results_plist = os.path.join(cache_dir, "autopkg_results.plist")
+    current_run_results_plist: str = os.path.join(cache_dir, "autopkg_results.plist")
 
-    run_results = []
+    run_results: List[str] = []
     try:
         with open(current_run_results_plist, "wb") as f:
             plistlib.dump(plist_serializer(run_results), f)
@@ -2121,10 +2024,10 @@ def run_recipes(argv):
         log_err(f"Can't write results to {current_run_results_plist}: {err.strerror}")
 
     if options.report_plist:
-        results_report = dict()
+        results_report: Dict[str, str] = {}
         write_plist_exit_on_fail(results_report, options.report_plist)
 
-    make_suggestions = True
+    make_suggestions: bool = True
     if len(recipe_paths) > 1:
         # don't make suggestions or offer to search GitHub
         # if we have a list of recipes
@@ -2136,46 +2039,43 @@ def run_recipes(argv):
 
     # Look for the actual recipes here
     for recipe_path in recipe_paths:
-        start = time.perf_counter()
-        recipe = load_recipe(
-            recipe_path,
-            preprocessors=preprocessors,
-            postprocessors=postprocessors,
-            make_suggestions=make_suggestions,
-            search_github=make_suggestions,
-        )
-        end = time.perf_counter()
-        log(f"**load_recipe time: {str(end - start)}")
-        if not recipe:
-            if not make_suggestions:
-                log_err(f"No valid recipe found for {recipe_path}")
+        start: float = time.perf_counter()
+        # Time for new recipe logic
+        try:
+            recipe_chain: RecipeChain = fetch_recipe_chain(
+                recipe_path,
+                make_suggestions=make_suggestions,
+                search_github=make_suggestions,
+                check_only=options.check,
+            )
+        except RecipeError as err:
+            log_err(f"Error fetching recipe: {err}")
+            error_count += 1
+            continue
+        except ValueError:  # from the check_only option
+            log_err(
+                f"Recipe at {recipe_path} is missing EndOfCheckPhase Processor, "
+                "not possible to perform check."
+            )
             error_count += 1
             continue
 
-        if options.check:
-            # remove steps from the end of the recipe Process until we find a
-            # EndOfCheckPhase step
-            while (
-                len(recipe["Process"]) >= 1
-                and recipe["Process"][-1]["Processor"] != "EndOfCheckPhase"
-            ):
-                del recipe["Process"][-1]
-            if len(recipe["Process"]) == 0:
-                log_err(
-                    f"Recipe at {recipe_path} is missing EndOfCheckPhase Processor, "
-                    "not possible to perform check."
-                )
-                error_count += 1
-                continue
+        end: float = time.perf_counter()
+        log(f"**old_load_recipe time: {str(end - start)}")
+        for preprocess in reversed(preprocessors):
+            # We add them in reverse order because they are always inserted at the beginning
+            recipe_chain.add_preprocessor(preprocess)
+        for postprocess in postprocessors:
+            recipe_chain.add_postprocessor(postprocess)
 
         log(f"Processing {recipe_path}...")
 
         # Create a local copy of preferences
-        prefs = copy.deepcopy(dict(get_all_prefs()))
+        prefs: VarDict = copy.deepcopy(dict(get_all_prefs()))
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
-        prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
+        prefs["RECIPE_PATH"] = os.path.abspath(recipe_path)
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])
-        prefs["PARENT_RECIPES"] = recipe.get("PARENT_RECIPES", [])
+        prefs["PARENT_RECIPES"] = recipe_chain.ordered_list_of_paths
         # Update search locations that may have been overridden with CLI or
         # environment variables
         prefs["RECIPE_SEARCH_DIRS"] = search_dirs
@@ -2184,38 +2084,37 @@ def run_recipes(argv):
         # Add our verbosity level
         prefs["verbose"] = options.verbose
 
-        autopackager = AutoPackager(options, prefs)
+        autopackager: AutoPackager = AutoPackager(options, prefs)
 
-        fail_recipes_without_trust_info = bool(
+        fail_recipes_without_trust_info: bool = bool(
             cli_values.get(
                 "FAIL_RECIPES_WITHOUT_TRUST_INFO",
                 prefs.get("FAIL_RECIPES_WITHOUT_TRUST_INFO"),
             )
         )
 
-        if (
-            "ParentRecipeTrustInfo" not in recipe
-            and not fail_recipes_without_trust_info
-        ):
+        # If FAIL_RECIPES_WITHOUT_TRUST_INFO is set, that means you _must_ be
+        # running an override because only overrides contain trust. Thus,
+        # fail if you aren't running an override.
+        if fail_recipes_without_trust_info and not recipe_chain.check_is_override():
             log_err(
-                f"WARNING: {recipe_path} is missing trust info and "
-                "FAIL_RECIPES_WITHOUT_TRUST_INFO is not set. "
-                "Proceeding..."
+                f"ERROR: {recipe_path} is not an override and "
+                "FAIL_RECIPES_WITHOUT_TRUST_INFO is set. "
+                "Skipping recipe!"
             )
+            continue
 
         # we should also skip trust verification if we've been told to ignore
         # verification errors
-        skip_trust_verification = options.ignore_parent_trust_verification_errors or (
-            "ParentRecipeTrustInfo" not in recipe
-            and not fail_recipes_without_trust_info
-        )
-
         try:
-            if not skip_trust_verification:
-                verify_parent_trust(recipe, override_dirs, search_dirs, options.verbose)
-            autopackager.process_cli_overrides(recipe, cli_values)
-            autopackager.verify(recipe)
-            autopackager.process(recipe)
+            if not options.ignore_parent_trust_verification_errors:
+                # Old verification logic: TODO Remove me!
+                # verify_parent_trust(recipe, override_dirs, search_dirs, options.verbose)
+                # New verification logic:
+                recipe_chain.verify_trust()
+            autopackager.process_cli_overrides(recipe_chain, cli_values)
+            autopackager.verify(recipe_chain)
+            autopackager.process(recipe_chain)
         except AutoPackagerError as err:
             error_count += 1
             failure = {}
@@ -2469,7 +2368,7 @@ def audit(argv):
     recipe_issue_count = 0
     recipe_no_issue_count = 0
     for recipe_path in recipe_paths:
-        recipe = load_recipe(
+        recipe = old_load_recipe(
             recipe_path,
             make_suggestions=False,
             search_github=False,
