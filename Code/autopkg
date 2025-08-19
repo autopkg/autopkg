@@ -261,6 +261,7 @@ def locate_recipe(
 
 def load_recipe(
     name,
+    override_dirs=[],
     preprocessors=None,
     postprocessors=None,
     make_suggestions=True,
@@ -331,9 +332,10 @@ def load_recipe(
         log_err(f"Invalid recipe: {name}")
         return
 
-    # if recipe_in_override_dir(recipe_file, override_dirs):
-    if name in globalRecipeMap["overrides"] or name in globalRecipeMap.get(
-        "overrides-identifiers", {}
+    if (
+        name in globalRecipeMap["overrides"]
+        or name in globalRecipeMap.get("overrides-identifiers", {})
+        or recipe_in_override_dir(recipe_file, override_dirs)
     ):
         parent_trust_info = recipe.get("ParentRecipeTrustInfo")
         override_parent = recipe.get("ParentRecipe") or recipe.get("Recipe")
@@ -1727,6 +1729,7 @@ def verify_trust_info(argv):
     for recipe_name in recipe_names:
         recipe = load_recipe(
             recipe_name,
+            override_dirs=override_dirs,
             make_suggestions=True,
             search_github=False,
         )
