@@ -112,50 +112,36 @@ class TestProcessorBase(unittest.TestCase):
         self.assertEqual(processor.outfile, test_outfile)
 
     # Test output method
-    def test_output_prints_message_when_verbose_sufficient(self):
-        """Test that output prints message when verbosity is sufficient."""
-        self.processor.env["verbose"] = 2
+    def test_output_verbose_behavior(self):
+        """Test output method behavior under different verbosity conditions."""
+        test_cases = [
+            # (env_verbose, message_verbose_level, should_print, description)
+            (2, 2, True, "sufficient verbosity"),
+            (1, 2, False, "insufficient verbosity"),
+            (1, 1, True, "default verbose level"),
+            (0, 1, False, "verbose set to zero"),
+            (None, 1, False, "no verbose in env"),
+        ]
 
-        with patch("builtins.print") as mock_print:
-            self.processor.output("test message", verbose_level=2)
+        for env_verbose, msg_verbose, should_print, description in test_cases:
+            with self.subTest(description=description):
+                # Set up environment
+                if env_verbose is None:
+                    if "verbose" in self.processor.env:
+                        del self.processor.env["verbose"]
+                else:
+                    self.processor.env["verbose"] = env_verbose
 
-        mock_print.assert_called_once_with("TestProcessor: test message")
+                with patch("builtins.print") as mock_print:
+                    if msg_verbose == 1:  # Test default verbose level
+                        self.processor.output("test message")
+                    else:
+                        self.processor.output("test message", verbose_level=msg_verbose)
 
-    def test_output_no_print_when_verbose_insufficient(self):
-        """Test that output doesn't print when verbosity is insufficient."""
-        self.processor.env["verbose"] = 1
-
-        with patch("builtins.print") as mock_print:
-            self.processor.output("test message", verbose_level=2)
-
-        mock_print.assert_not_called()
-
-    def test_output_default_verbose_level(self):
-        """Test output with default verbose level."""
-        self.processor.env["verbose"] = 1
-
-        with patch("builtins.print") as mock_print:
-            self.processor.output("test message")
-
-        mock_print.assert_called_once_with("TestProcessor: test message")
-
-    def test_output_no_verbose_env(self):
-        """Test output when verbose is not set in env."""
-        del self.processor.env["verbose"]
-
-        with patch("builtins.print") as mock_print:
-            self.processor.output("test message", verbose_level=1)
-
-        mock_print.assert_not_called()
-
-    def test_output_verbose_zero(self):
-        """Test output when verbose is set to 0."""
-        self.processor.env["verbose"] = 0
-
-        with patch("builtins.print") as mock_print:
-            self.processor.output("test message", verbose_level=1)
-
-        mock_print.assert_not_called()
+                if should_print:
+                    mock_print.assert_called_once_with("TestProcessor: test message")
+                else:
+                    mock_print.assert_not_called()
 
     # Test main method
     def test_main_raises_not_implemented(self):
@@ -471,21 +457,15 @@ class TestProcessorBase(unittest.TestCase):
         mock_write.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
-    @patch("sys.argv", ["processor", "key=value"])
-    def test_execute_shell_parse_args(self):
-        """Test execute_shell parses args when provided."""
+    def test_parse_arguments_key_value(self):
+        """Test parse_arguments correctly parses key=value pairs."""
         processor = TestProcessor()
 
-        with patch.object(processor, "parse_arguments") as mock_parse:
-            with patch.object(processor, "process") as mock_process:
-                with patch.object(processor, "write_output_plist") as mock_write:
-                    with patch("sys.exit") as mock_exit:
-                        processor.execute_shell()
+        with patch("sys.argv", ["processor", "test_key=test_value", "number=42"]):
+            processor.parse_arguments()
 
-        mock_parse.assert_called_once()
-        mock_process.assert_called_once()
-        mock_write.assert_called_once()
-        mock_exit.assert_called_once_with(0)
+        self.assertEqual(processor.env["test_key"], "test_value")
+        self.assertEqual(processor.env["number"], "42")
 
     def test_execute_shell_handles_processor_error(self):
         """Test execute_shell handles ProcessorError."""
