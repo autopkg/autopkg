@@ -121,7 +121,7 @@ class TestPreferences(unittest.TestCase):
 
     @patch.object(Preferences, "write_file")
     @patch.object(Preferences, "_set_macos_pref")
-    def test_set_pref_no_file(self, mock_write_file, mock_set_macos_pref):
+    def test_set_pref_no_file(self, mock_set_macos_pref, mock_write_file):
         """set_pref should change the prefs object, but not write when no file loaded"""
         fake_prefs = Preferences()
         fake_prefs.set_pref("TEST_KEY", "fake_value")
