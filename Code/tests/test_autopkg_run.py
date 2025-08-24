@@ -75,6 +75,8 @@ class TestAutoPkgRun(unittest.TestCase):
             autopkg.plistlib, "dump"
         ), patch.object(
             autopkg, "log_err"
+        ), patch.object(
+            autopkg, "log"
         ):
 
             # Run recipes - with mocked plistlib.dump, this should complete successfully
