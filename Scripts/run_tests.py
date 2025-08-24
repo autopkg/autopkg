@@ -17,6 +17,31 @@ import sys
 import unittest
 from unittest import TestSuite, TextTestRunner
 
+
+class SafeStdout:
+    """Wrapper for stdout that handles file descriptor errors during shutdown."""
+
+    def __init__(self, original_stdout):
+        self._original = original_stdout
+
+    def __getattr__(self, name):
+        return getattr(self._original, name)
+
+    def write(self, data):
+        try:
+            return self._original.write(data)
+        except (OSError, ValueError):
+            # Silently handle file descriptor errors during shutdown
+            pass
+
+    def flush(self):
+        try:
+            return self._original.flush()
+        except (OSError, ValueError):
+            # Silently handle file descriptor errors during shutdown
+            pass
+
+
 AUTOPKG_TOP: str = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "Code")
 )
@@ -25,6 +50,9 @@ sys.path.insert(0, AUTOPKG_TOP)
 TESTS_DIR: str = os.path.join(AUTOPKG_TOP, "tests")
 TEST_SUITE: TestSuite = unittest.defaultTestLoader.discover(TESTS_DIR)
 RUNNER: TextTestRunner = TextTestRunner()
+
+# Protect stdout from file descriptor errors during interpreter shutdown
+sys.stdout = SafeStdout(sys.stdout)
 
 if RUNNER.run(TEST_SUITE).wasSuccessful():
     sys.exit(0)
