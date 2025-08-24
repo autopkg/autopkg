@@ -77,13 +77,9 @@ class TestAutoPkgRun(unittest.TestCase):
             autopkg, "log_err"
         ):
 
-            # We expect this to fail when it tries to write the results plist file
-            # but we should capture the load_recipe call first
-            with self.assertRaises(OSError) as context:
-                autopkg.run_recipes(argv)
-
-            # Verify the OSError is related to file writing (not other OS operations)
-            self.assertIn("results", str(context.exception).lower())
+            # Run recipes - with mocked plistlib.dump, this should complete successfully
+            # The test focuses on verifying the recipe name transformation logic
+            autopkg.run_recipes(argv)
 
             # Should have called load_recipe with .install extension
             mock_load_recipe.assert_called()
