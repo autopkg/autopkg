@@ -36,39 +36,39 @@ class URLTextSearcher(URLGetter):
 
     input_variables = {
         "re_pattern": {
-            "description": "Regular expression (Python) to match against page.",
             "required": True,
+            "description": "Regular expression (Python) to match against page.",
         },
-        "url": {"description": "URL to download", "required": True},
+        "url": {"required": True, "description": "URL to download"},
         "result_output_var_name": {
+            "required": False,
             "description": (
                 "The name of the output variable that is returned "
                 "by the match. If not specified then a default of "
                 '"match" will be used.'
             ),
-            "required": False,
             "default": "match",
         },
         "request_headers": {
+            "required": False,
             "description": (
                 "Optional dictionary of headers to include with "
                 "the download request."
             ),
-            "required": False,
         },
         "curl_opts": {
+            "required": False,
             "description": (
                 "Optional array of curl options to include with "
                 "the download request."
             ),
-            "required": False,
         },
         "re_flags": {
+            "required": False,
             "description": (
                 "Optional array of strings of Python regular "
                 "expression flags. E.g. IGNORECASE."
             ),
-            "required": False,
         },
     }
     output_variables = {

@@ -45,10 +45,10 @@ class FindAndReplace(Processor):
         },
         "result_output_var_name": {
             "required": False,
-            "default": "output_string",
             "description": "The name of the output variable containing the result of the "
             'find/replace operation. If not specified then a default of "output_string" will "'
             "be used.",
+            "default": "output_string",
         },
     }
     output_variables = {

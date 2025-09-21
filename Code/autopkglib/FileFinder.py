@@ -35,16 +35,16 @@ class FileFinder(DmgMounter):
 
     input_variables = {
         "pattern": {
-            "description": "Shell glob pattern to match files by",
             "required": True,
+            "description": "Shell glob pattern to match files by",
         },
         "find_method": {
+            "required": False,
             "description": (
                 "Type of pattern to match. Currently only "
                 'supported type is "glob" (also the default)'
             ),
             "default": "glob",
-            "required": False,
         },
     }
     output_variables = {

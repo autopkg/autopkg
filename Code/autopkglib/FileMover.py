@@ -28,8 +28,8 @@ class FileMover(Processor):
     Requires version 0.2.9."""
 
     input_variables = {
-        "source": {"description": "Source file", "required": True},
-        "target": {"description": "Target file", "required": True},
+        "source": {"required": True, "description": "Source file"},
+        "target": {"required": True, "description": "Target file"},
     }
     output_variables = {}
 

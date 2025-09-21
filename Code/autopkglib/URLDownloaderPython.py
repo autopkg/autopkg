@@ -48,7 +48,6 @@ class URLDownloaderPython(URLDownloader):
             "description": "Filename to override the URL's tail.",
         },
         "prefetch_filename": {
-            "default": False,
             "required": False,
             "description": (
                 "If True, URLDownloader attempts to determine filename from HTTP "
@@ -61,9 +60,9 @@ class URLDownloaderPython(URLDownloader):
                 "\t4. last part of 'url'.  \n"
                 "'prefetch_filename' is useful for URLs with redirects."
             ),
+            "default": False,
         },
         "CHECK_FILESIZE_ONLY": {
-            "default": False,
             "required": False,
             "description": (
                 "If True, a server's ETag and Last-Modified "
@@ -75,6 +74,7 @@ class URLDownloaderPython(URLDownloader):
                 "cause items to be needlessly re-downloaded. "
                 "Defaults to False."
             ),
+            "default": False,
         },
         "PKG": {
             "required": False,
@@ -86,20 +86,20 @@ class URLDownloaderPython(URLDownloader):
         },
         "COMPUTE_HASHES": {
             "required": False,
-            "default": False,
             "description": (
                 "Determine whether to compute md5, sha1, and sha256 hashes of "
                 "the downloaded file."
             ),
+            "default": False,
         },
         "HEADERS_TO_TEST": {
             "required": False,
-            "default": ["ETag", "Last-Modified", "Content-Length"],
             "description": (
                 "List of HTTP headers to compare against the previous download "
                 "to detect changes. If 'CHECK_FILESIZE_ONLY' is enabled, this "
                 "list is overridden to ['Content-Length'] only."
             ),
+            "default": ["ETag", "Last-Modified", "Content-Length"],
         },
     }
     output_variables = {

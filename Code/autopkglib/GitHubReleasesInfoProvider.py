@@ -73,21 +73,20 @@ class GitHubReleasesInfoProvider(Processor):
         },
         "CURL_PATH": {
             "required": False,
-            "default": "/usr/bin/curl",
             "description": "Path to curl binary. Defaults to /usr/bin/curl.",
+            "default": "/usr/bin/curl",
         },
         "GITHUB_URL": {
             "required": False,
-            "default": "https://api.github.com",
             "description": (
                 "If your organization has an internal GitHub instance "
                 "set this value to your internal GitHub URL "
                 "ie. 'https://git.internal.corp.com/api/v3'"
             ),
+            "default": "https://api.github.com",
         },
         "GITHUB_TOKEN_PATH": {
             "required": False,
-            "default": "~/.autopkg_gh_token",
             "description": (
                 "Path to a file containing your GitHub token. "
                 "Can be a relative path or absolute path. "
@@ -95,6 +94,7 @@ class GitHubReleasesInfoProvider(Processor):
                 "NOTE: the AutoPkg preference 'GITHUB_TOKEN' "
                 "takes precedence over this value."
             ),
+            "default": "~/.autopkg_gh_token",
         },
     }
     output_variables = {

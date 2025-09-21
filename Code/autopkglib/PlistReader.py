@@ -51,7 +51,6 @@ class PlistReader(DmgMounter):
         },
         "plist_keys": {
             "required": False,
-            "default": {"CFBundleShortVersionString": "version"},
             "description": (
                 "Dictionary of plist values to query. Key names "
                 "should match a top-level key to read. Values "
@@ -59,6 +58,7 @@ class PlistReader(DmgMounter):
                 "Defaults to: ",
                 "{'CFBundleShortVersionString': 'version'}",
             ),
+            "default": {"CFBundleShortVersionString": "version"},
         },
     }
     output_variables = {

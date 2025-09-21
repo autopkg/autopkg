@@ -53,14 +53,13 @@ class Versioner(DmgMounter):
         },
         "plist_version_key": {
             "required": False,
-            "default": "CFBundleShortVersionString",
             "description": (
                 "Which plist key to use; defaults to CFBundleShortVersionString"
             ),
+            "default": "CFBundleShortVersionString",
         },
         "skip_single_root_dir": {
             "required": False,
-            "default": False,
             "description": (
                 "If this flag is set, `input_plist_path` points inside a zip file, "
                 "and there is a single directory inside the zip file at the root of "
@@ -75,6 +74,7 @@ class Versioner(DmgMounter):
                 "path. If there is more than one file or directory at the root, the "
                 "Processor will fail."
             ),
+            "default": False,
         },
     }
     output_variables = {"version": {"description": "Version of the item."}}

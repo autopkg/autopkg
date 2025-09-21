@@ -56,7 +56,6 @@ class URLDownloader(URLGetter):
             "description": "Filename to override the URL's tail.",
         },
         "prefetch_filename": {
-            "default": False,
             "required": False,
             "description": (
                 "If True, URLDownloader attempts to determine filename from HTTP "
@@ -69,9 +68,9 @@ class URLDownloader(URLGetter):
                 "\t4. last part of 'url'.  \n"
                 "'prefetch_filename' is useful for URLs with redirects."
             ),
+            "default": False,
         },
         "CHECK_FILESIZE_ONLY": {
-            "default": False,
             "required": False,
             "description": (
                 "If True, a server's ETag and Last-Modified "
@@ -83,6 +82,7 @@ class URLDownloader(URLGetter):
                 "cause items to be needlessly re-downloaded. "
                 "Defaults to False."
             ),
+            "default": False,
         },
         "PKG": {
             "required": False,
