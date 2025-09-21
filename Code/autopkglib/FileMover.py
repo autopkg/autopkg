@@ -28,8 +28,14 @@ class FileMover(Processor):
     Requires version 0.2.9."""
 
     input_variables = {
-        "source": {"required": True, "description": "Source file"},
-        "target": {"required": True, "description": "Target file"},
+        "source": {
+            "required": True,
+            "description": "Full path to the file to be moved or renamed.",
+        },
+        "target": {
+            "required": True,
+            "description": "Full path where the file should be moved to.",
+        },
     }
     output_variables = {}
 

@@ -27,8 +27,14 @@ class FileCreator(Processor):
 
     description = __doc__
     input_variables = {
-        "file_path": {"required": True, "description": "Path to a file to create."},
-        "file_content": {"required": True, "description": "Contents to put in file."},
+        "file_path": {
+            "required": True,
+            "description": "Full path where the new file will be created.",
+        },
+        "file_content": {
+            "required": True,
+            "description": "Text content to write to the created file.",
+        },
         "file_mode": {
             "required": False,
             "description": "String. Numeric mode for file in octal format.",

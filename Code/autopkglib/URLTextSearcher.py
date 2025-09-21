@@ -39,7 +39,10 @@ class URLTextSearcher(URLGetter):
             "required": True,
             "description": "Regular expression (Python) to match against page.",
         },
-        "url": {"required": True, "description": "URL to download"},
+        "url": {
+            "required": True,
+            "description": "URL to search for the regex pattern.",
+        },
         "result_output_var_name": {
             "required": False,
             "description": (
