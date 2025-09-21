@@ -40,11 +40,13 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                 "Typically %pathname% points to a disk image downloaded in a "
                 "prior recipe step."
             ),
+            "default": "%pathname%/*.app",
         },
         "pkg_path": {
             "required": False,
             "description": "The pathname for the pkg to be created. If not set, "
             "defaults to %RECIPE_CACHE_DIR%/%app_name%-%version%.pkg",
+            "default": "%RECIPE_CACHE_DIR%/%app_name%-%version%.pkg",
         },
         "bundleid": {
             "required": False,
@@ -61,6 +63,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             "description": "Alternate key from which to get the app version. "
             "If the key does not exist in the app's Info.plist, a "
             "ProcessorError will be raised.",
+            "default": "CFBundleShortVersionString",
         },
         "force_pkg_build": {
             "required": False,
@@ -69,6 +72,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                 "a package already exists in the output directory with "
                 "the same identifier and version number. Defaults to False"
             ),
+            "default": False,
         },
     }
     output_variables = {

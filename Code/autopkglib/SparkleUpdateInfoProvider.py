@@ -59,6 +59,7 @@ class SparkleUpdateInfoProvider(URLGetter):
                 "appcast is using an alternate one. Defaults to "
                 "that used for 'vanilla' Sparkle appcasts."
             ),
+            "default": DEFAULT_XMLNS,
         },
         "curl_opts": {
             "required": False,
@@ -89,6 +90,7 @@ class SparkleUpdateInfoProvider(URLGetter):
                 "from the sparkle feed needs to be urlencoded. "
                 "Defaults to True."
             ),
+            "default": True,
         },
         "update_channel": {
             "required": False,

@@ -51,6 +51,7 @@ class FlatPkgUnpacker(DmgMounter):
                 "This means components of the package will not be "
                 "extracted such as scripts."
             ),
+            "default": False,
         },
         "destination_path": {
             "required": True,

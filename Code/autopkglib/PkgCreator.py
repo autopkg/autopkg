@@ -48,6 +48,7 @@ class PkgCreator(Processor):
                 "a package already exists in the output directory with "
                 "the same identifier and version number. Defaults to False"
             ),
+            "default": False,
         },
     }
     output_variables = {

@@ -79,6 +79,7 @@ class CodeSignatureVerifier(DmgMounter):
                 "recursively verified as to its full content. Note that this option "
                 "is ignored if the current system version is less than 10.9."
             ),
+            "default": True,
         },
         "strict_verification": {
             "required": False,

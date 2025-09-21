@@ -121,6 +121,7 @@ class MunkiImporter(Processor):
         "MUNKI_PKGINFO_FILE_EXTENSION": {
             "required": False,
             "description": "Extension for output pkginfo files. Default is 'plist'.",
+            "default": "plist",
         },
         "metadata_additions": {
             "required": False,
