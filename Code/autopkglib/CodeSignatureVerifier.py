@@ -32,7 +32,7 @@ RE_AUTHORITY_PKGUTIL = re.compile(r"\s+[1-9]+\. (?P<authority>.*)\n")
 class CodeSignatureVerifier(DmgMounter):
     """Verifies application bundle or installer package signature.
 
-    Requires version 0.3.1."""
+    Requires AutoPkg version 0.3.1."""
 
     input_variables = {
         "DISABLE_CODE_SIGNATURE_VERIFICATION": {

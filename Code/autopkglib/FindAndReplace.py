@@ -27,7 +27,7 @@ class FindAndReplace(Processor):
     Returns 'output_string' (or other variable specified by 'result_output_var_name')
     containing the result of the find/replace operation.
 
-    Requires version 2.7.6.
+    Requires AutoPkg version 2.7.6.
     """
 
     input_variables = {

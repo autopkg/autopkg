@@ -25,9 +25,8 @@ __all__ = ["GitHubReleasesInfoProvider"]
 
 class GitHubReleasesInfoProvider(Processor):
     description = (
-        "Get metadata from the latest release from a GitHub project"
-        " using the GitHub Releases API."
-        "\nRequires version 0.5.0."
+        "Get metadata from the latest release from a GitHub project using the GitHub Releases API."
+        "\nRequires AutoPkg version 0.5.0."
     )
     input_variables = {
         "asset_regex": {

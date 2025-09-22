@@ -30,7 +30,7 @@ class FileFinder(DmgMounter):
 
     Currently only supports glob filename patterns.
 
-    Requires version 0.2.3.
+    Requires AutoPkg version 0.2.3.
     """
 
     input_variables = {

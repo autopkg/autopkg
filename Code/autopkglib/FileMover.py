@@ -25,7 +25,7 @@ __all__ = ["FileMover"]
 class FileMover(Processor):
     """Moves/renames a file.
 
-    Requires version 0.2.9."""
+    Requires AutoPkg version 0.2.9."""
 
     input_variables = {
         "source": {

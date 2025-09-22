@@ -25,7 +25,7 @@ __all__ = ["FlatPkgPacker"]
 class FlatPkgPacker(Processor):
     """Flatten an expanded package using pkgutil.
 
-    Requires version 0.2.4.
+    Requires AutoPkg version 0.2.4.
     """
 
     description = __doc__

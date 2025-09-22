@@ -35,7 +35,7 @@ class PlistReader(DmgMounter):
     'CFBundleShortVersionString' to 'version'. This can be used as a replacement
     for both the AppDmgVersioner and Versioner processors.
 
-    Requires version 0.2.5."""
+    Requires AutoPkg version 0.2.5."""
 
     description = __doc__
     input_variables = {
