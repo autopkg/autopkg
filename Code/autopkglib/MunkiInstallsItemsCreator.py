@@ -31,6 +31,7 @@ __all__ = ["MunkiInstallsItemsCreator"]
 class MunkiInstallsItemsCreator(Processor):
     """Generates an installs array for a pkginfo file."""
 
+    description = __doc__
     input_variables = {
         "installs_item_paths": {
             "required": True,
@@ -67,7 +68,6 @@ class MunkiInstallsItemsCreator(Processor):
             "description": "Pkginfo dictionary containing installs array."
         }
     }
-    description = __doc__
 
     def create_installs_items(self) -> None:
         """Calls makepkginfo to create an installs array."""

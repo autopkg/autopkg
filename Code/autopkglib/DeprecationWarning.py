@@ -25,6 +25,7 @@ __all__ = ["DeprecationWarning"]
 class DeprecationWarning(Processor):
     """This processor outputs a warning that a recipe has been deprecated."""
 
+    description = __doc__
     input_variables = {
         "warning_message": {
             "required": False,
@@ -36,7 +37,6 @@ class DeprecationWarning(Processor):
             "description": "Description of interesting results."
         }
     }
-    description = __doc__
 
     def main(self) -> None:
         warning_message = self.env.get(

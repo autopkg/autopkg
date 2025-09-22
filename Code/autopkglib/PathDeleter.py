@@ -26,6 +26,7 @@ __all__ = ["PathDeleter"]
 class PathDeleter(Processor):
     """Deletes file paths."""
 
+    description = __doc__
     input_variables = {
         "path_list": {
             "required": True,
@@ -36,7 +37,6 @@ class PathDeleter(Processor):
         }
     }
     output_variables = {}
-    description = __doc__
 
     def main(self) -> None:
         # if recipe writer gave us a single string instead of a list of strings,

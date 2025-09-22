@@ -33,6 +33,7 @@ class FileFinder(DmgMounter):
     Requires AutoPkg version 0.2.3.
     """
 
+    description = __doc__
     input_variables = {
         "pattern": {
             "required": True,
@@ -52,8 +53,6 @@ class FileFinder(DmgMounter):
         "dmg_found_filename": {"description": "DMG-relative path of found filename"},
         "found_basename": {"description": "Basename of found filename"},
     }
-
-    description = __doc__
 
     def globfind(self, pattern):
         """If multiple files are found the last alphanumerically sorted found

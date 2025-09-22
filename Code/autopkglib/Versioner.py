@@ -42,7 +42,6 @@ class Versioner(DmgMounter):
     """Returns version information from a plist"""
 
     description = __doc__
-
     input_variables = {
         "input_plist_path": {
             "required": True,

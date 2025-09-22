@@ -26,9 +26,9 @@ class MunkiCatalogBuilder(Processor):
     """DEPRECATED. This processor now emits a warning and performs no function.
     Previously it rebuilt Munki catalogs."""
 
+    description = __doc__
     input_variables = {}
     output_variables = {}
-    description = __doc__
 
     def main(self) -> None:
         warning_message = self.env.get(

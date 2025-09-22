@@ -25,6 +25,7 @@ __all__ = ["MunkiOptionalReceiptEditor"]
 class MunkiOptionalReceiptEditor(Processor):
     """Modifies the receipts key in a Munki pkginfo."""
 
+    description = __doc__
     input_variables = {
         "pkginfo_repo_path": {
             "required": True,
@@ -36,8 +37,6 @@ class MunkiOptionalReceiptEditor(Processor):
         },
     }
     output_variables = {}
-
-    description = __doc__
 
     def main(self) -> None:
         if len(self.env["pkginfo_repo_path"]) < 1:

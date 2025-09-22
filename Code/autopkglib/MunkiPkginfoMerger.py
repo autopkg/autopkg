@@ -23,6 +23,7 @@ __all__ = ["MunkiPkginfoMerger"]
 class MunkiPkginfoMerger(Processor):
     """Merges two pkginfo dictionaries."""
 
+    description = __doc__
     input_variables = {
         "pkginfo": {"required": False, "description": "Dictionary of Munki pkginfo."},
         "additional_pkginfo": {
@@ -34,7 +35,6 @@ class MunkiPkginfoMerger(Processor):
         },
     }
     output_variables = {"pkginfo": {"description": "Merged pkginfo."}}
-    description = __doc__
 
     def main(self) -> None:
         if "pkginfo" not in self.env:

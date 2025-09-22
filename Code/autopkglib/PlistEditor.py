@@ -49,8 +49,6 @@ class PlistEditor(Processor):
     }
     output_variables = {}
 
-    __doc__ = description
-
     def read_plist(self, pathname):
         """reads a plist from pathname"""
         if not pathname:

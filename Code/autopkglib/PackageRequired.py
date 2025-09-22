@@ -27,6 +27,7 @@ class PackageRequired(Processor):
 
     Requires AutoPkg version 0.5.1."""
 
+    description = __doc__
     input_variables = {}
     output_variables = {}
 

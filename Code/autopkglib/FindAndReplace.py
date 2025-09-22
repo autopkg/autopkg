@@ -30,6 +30,7 @@ class FindAndReplace(Processor):
     Requires AutoPkg version 2.7.6.
     """
 
+    description = __doc__
     input_variables = {
         "input_string": {
             "required": True,
@@ -56,7 +57,6 @@ class FindAndReplace(Processor):
             "description": "The result of find/replace on the input string."
         }
     }
-    description = __doc__
 
     def main(self) -> None:
         """Main process."""

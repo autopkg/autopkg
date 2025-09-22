@@ -26,16 +26,13 @@ __all__ = ["BrewCaskInfoProvider"]
 
 
 class BrewCaskInfoProvider(Processor):
-    description = (
-        "ATTENTION: This processor is deprecated, may not work "
-        "as expected with all known Casks, and may be removed "
-        "in a future release of AutoPkg. Description follows: "
-        "Provides crowd-sourced URL and version info from thousands "
-        "of applications listed in brew-cask: "
-        "https://github.com/caskroom/homebrew-cask. See available "
-        "apps: https://github.com/caskroom/homebrew-cask/tree/"
-        "master/Casks"
-    )
+    """ATTENTION: This processor is deprecated, may not work as expected with all
+    known Casks, and may be removed in a future release of AutoPkg. Description
+    follows: Provides crowd-sourced URL and version info from thousands of
+    applications listed in brew-cask: https://github.com/caskroom/homebrew-cask.
+    See available apps: https://github.com/caskroom/homebrew-cask/tree/master/Casks"""
+
+    description = __doc__
     input_variables = {
         "cask_name": {
             "required": True,
@@ -56,8 +53,6 @@ class BrewCaskInfoProvider(Processor):
             )
         },
     }
-
-    __doc__ = description
 
     def parse_formula(self, formula):
         """Return a dict containing attributes of the formula, ie. 'url',

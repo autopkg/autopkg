@@ -24,10 +24,12 @@ __all__ = ["GitHubReleasesInfoProvider"]
 
 
 class GitHubReleasesInfoProvider(Processor):
-    description = (
-        "Get metadata from the latest release from a GitHub project using the GitHub Releases API."
-        "\nRequires AutoPkg version 0.5.0."
-    )
+    """Get metadata from the latest release from a GitHub project using the
+    GitHub Releases API.
+
+    Requires AutoPkg version 0.5.0."""
+
+    description = __doc__
     input_variables = {
         "asset_regex": {
             "required": False,
@@ -120,8 +122,6 @@ class GitHubReleasesInfoProvider(Processor):
         },
         "asset_created_at": {"description": ("The release time of the asset.")},
     }
-
-    __doc__ = description
 
     def get_releases(self, repo, latest_only=False):
         """Return a list of releases dicts for a given GitHub repo. repo must

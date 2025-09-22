@@ -29,7 +29,6 @@ class FlatPkgPacker(Processor):
     """
 
     description = __doc__
-
     input_variables = {
         "source_flatpkg_dir": {
             "description": "Path to an extracted flat package",
@@ -40,7 +39,6 @@ class FlatPkgPacker(Processor):
             "required": True,
         },
     }
-
     output_variables = {}
 
     def flatten(self, source_dir, dest_pkg):

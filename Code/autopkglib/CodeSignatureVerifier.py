@@ -34,6 +34,7 @@ class CodeSignatureVerifier(DmgMounter):
 
     Requires AutoPkg version 0.3.1."""
 
+    description = __doc__
     input_variables = {
         "DISABLE_CODE_SIGNATURE_VERIFICATION": {
             "required": False,
@@ -97,8 +98,6 @@ class CodeSignatureVerifier(DmgMounter):
         },
     }
     output_variables = {}
-
-    description = __doc__
 
     def codesign_verify(
         self,

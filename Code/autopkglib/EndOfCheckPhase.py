@@ -24,9 +24,9 @@ class EndOfCheckPhase(Processor):
     """This processor performs no action, but serves as a marker to signal where AutoPkg
     should stop when the -c/--check options are used."""
 
+    description = __doc__
     input_variables = {}
     output_variables = {}
-    description = __doc__
 
     def main(self) -> None:
         return

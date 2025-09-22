@@ -53,6 +53,7 @@ class SignToolVerifier(Processor):
     """Verifies an authenticode signed installer using the Microsoft SDK
     signtool executable."""
 
+    description = __doc__
     EXTENSIONS: list[str] = [".exe", ".msi"]
 
     # TODO: How much of this is needed to act as a drop-in replacement in an
@@ -86,8 +87,6 @@ class SignToolVerifier(Processor):
         },
     }
     output_variables: dict[str, Any] = {}
-
-    description: str = __doc__
 
     def codesign_verify(
         self,

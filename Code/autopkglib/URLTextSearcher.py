@@ -34,6 +34,7 @@ class URLTextSearcher(URLGetter):
 
     Requires AutoPkg version 1.4."""
 
+    description = __doc__
     input_variables = {
         "re_pattern": {
             "required": True,
@@ -84,8 +85,6 @@ class URLTextSearcher(URLGetter):
             )
         }
     }
-
-    description = __doc__
 
     def prepare_curl_cmd(self) -> list[str]:
         """Assemble curl command and return it."""

@@ -27,6 +27,7 @@ class FileMover(Processor):
 
     Requires AutoPkg version 0.2.9."""
 
+    description = __doc__
     input_variables = {
         "source": {
             "required": True,
@@ -38,8 +39,6 @@ class FileMover(Processor):
         },
     }
     output_variables = {}
-
-    description = __doc__
 
     def main(self) -> None:
         rename(self.env["source"], self.env["target"])

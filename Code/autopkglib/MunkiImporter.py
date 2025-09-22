@@ -30,6 +30,7 @@ __all__ = ["MunkiImporter"]
 class MunkiImporter(Processor):
     """Imports a pkg or dmg to the Munki repo."""
 
+    description = __doc__
     input_variables = {
         "MUNKI_REPO": {
             "required": True,
@@ -153,7 +154,6 @@ class MunkiImporter(Processor):
             "description": "Description of interesting results."
         },
     }
-    description = __doc__
 
     def _fetch_repo_library(
         self,

@@ -51,8 +51,6 @@ class Copier(DmgMounter):
     }
     output_variables = {}
 
-    __doc__ = description
-
     def copy(self, source_item, dest_item, overwrite=False):
         """Copies source_item to dest_item, overwriting if allowed"""
         # Remove destination if needed.
