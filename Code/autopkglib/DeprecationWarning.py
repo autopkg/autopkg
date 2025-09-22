@@ -13,8 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Processor that outputs a warning message. Intended to alert recipe users of
-upcoming removal of a recipe."""
+"""See docstring for DeprecationWarning class"""
 
 
 from autopkglib import Processor
@@ -24,7 +23,7 @@ __all__ = ["DeprecationWarning"]
 
 # pylint: disable=W0622
 class DeprecationWarning(Processor):
-    """This processor outputs a warning that the recipe has been deprecated."""
+    """This processor outputs a warning that a recipe has been deprecated."""
 
     input_variables = {
         "warning_message": {
