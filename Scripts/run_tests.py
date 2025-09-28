@@ -49,7 +49,7 @@ sys.path.insert(0, AUTOPKG_TOP)
 
 TESTS_DIR: str = os.path.join(AUTOPKG_TOP, "tests")
 TEST_SUITE: TestSuite = unittest.defaultTestLoader.discover(TESTS_DIR)
-RUNNER: TextTestRunner = TextTestRunner()
+RUNNER: TextTestRunner = TextTestRunner(verbosity=2)
 
 # Protect stdout from file descriptor errors during interpreter shutdown
 sys.stdout = SafeStdout(sys.stdout)
