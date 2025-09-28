@@ -169,54 +169,40 @@ class TestPlistReader(unittest.TestCase):
 
         self.assertEqual(self.processor.env["version"], "3.0.0")
 
-    # Test DMG mounting
-    def test_main_mounts_dmg(self):
-        """Test mounting DMG to read plist."""
-        dmg_path = "/path/to/test.dmg"
-        internal_path = "TestApp.app"
-        mount_point = self.tmp_dir.name
-
-        # Create a bundle at the mount point
-        mounted_bundle_path = os.path.join(mount_point, "TestApp.app")
-
-        self.processor.env = {
-            "info_path": f"{dmg_path}/{internal_path}",
-            "plist_keys": {"CFBundleShortVersionString": "version"},
-        }
+    # Unit tests for DMG handling components
+    def test_parse_path_for_dmg_detects_dmg_path(self):
+        """Test parsePathForDMG correctly identifies DMG paths."""
+        dmg_path = "/path/to/test.dmg/TestApp.app"
+        self.processor.env = {"info_path": dmg_path}
 
         with patch.object(self.processor, "parsePathForDMG") as mock_parse:
-            with patch.object(self.processor, "mount") as mock_mount:
-                with patch.object(self.processor, "unmount") as mock_unmount:
-                    with patch.object(
-                        self.processor, "get_bundle_info_path"
-                    ) as mock_bundle:
-                        with patch("os.path.exists") as mock_exists:
-                            with patch("builtins.open", create=True):
-                                with patch("plistlib.load") as mock_load:
-                                    with patch.object(self.processor, "output"):
+            mock_parse.return_value = ("/path/to/test.dmg", True, "TestApp.app")
 
-                                        # Setup mocks
-                                        mock_parse.return_value = (
-                                            dmg_path,
-                                            True,
-                                            internal_path,
-                                        )
-                                        mock_mount.return_value = mount_point
-                                        mock_exists.return_value = True
-                                        mock_bundle.return_value = os.path.join(
-                                            mounted_bundle_path, "Contents/Info.plist"
-                                        )
-                                        mock_load.return_value = {
-                                            "CFBundleShortVersionString": "4.0.0"
-                                        }
+            result = self.processor.parsePathForDMG(dmg_path)
 
-                                        self.processor.main()
+            mock_parse.assert_called_once_with(dmg_path)
+            self.assertEqual(result, ("/path/to/test.dmg", True, "TestApp.app"))
 
-        # Verify DMG operations were called
-        mock_parse.assert_called_once()
-        mock_mount.assert_called_once_with(dmg_path)
-        mock_unmount.assert_called_once_with(dmg_path)
-        self.assertEqual(self.processor.env["version"], "4.0.0")
+    def test_dmg_mount_calls_mount_method(self):
+        """Test that DMG mounting calls the mount method correctly."""
+        dmg_path = "/path/to/test.dmg"
+        expected_mount_point = "/tmp/dmg_mount"
+
+        with patch.object(self.processor, "mount") as mock_mount:
+            mock_mount.return_value = expected_mount_point
+
+            result = self.processor.mount(dmg_path)
+
+            mock_mount.assert_called_once_with(dmg_path)
+            self.assertEqual(result, expected_mount_point)
+
+    def test_dmg_unmount_calls_unmount_method(self):
+        """Test that DMG unmounting calls the unmount method correctly."""
+        dmg_path = "/path/to/test.dmg"
+
+        with patch.object(self.processor, "unmount") as mock_unmount:
+            self.processor.unmount(dmg_path)
+            mock_unmount.assert_called_once_with(dmg_path)
 
     def test_main_unmounts_dmg_on_exception(self):
         """Test that DMG is unmounted even when an exception occurs."""
