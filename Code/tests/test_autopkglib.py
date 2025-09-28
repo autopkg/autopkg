@@ -139,19 +139,17 @@ class TestAutoPkg(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch("autopkglib.sys")
-    def test_is_mac_returns_true_on_mac(self, mock_sys):
+    @patch("autopkglib.sys.platform", "Darwin-20.6.0")
+    def test_is_mac_returns_true_on_mac(self):
         """On macOS, is_mac() should return True."""
-        mock_sys.platform = "Darwin-somethingsomething"
         result = autopkglib.is_mac()
-        self.assertEqual(result, True)
+        self.assertTrue(result)
 
-    @patch("autopkglib.sys")
-    def test_is_mac_returns_false_on_not_mac(self, mock_sys):
+    @patch("autopkglib.sys.platform", "linux")
+    def test_is_mac_returns_false_on_not_mac(self):
         """On not-macOS, is_mac() should return False."""
-        mock_sys.platform = "Win32-somethingsomething"
         result = autopkglib.is_mac()
-        self.assertEqual(result, False)
+        self.assertFalse(result)
 
     @patch("autopkglib.sys")
     def test_is_windows_returns_true_on_windows(self, mock_sys):
