@@ -87,6 +87,7 @@ Similarly, thanks to @homebysix for doing a similar action for linting, ensuring
 
 ### Other Changes
 
+- New core processor MunkiOptionalReceiptEditor, based on @keeleysam's [MunkiPkginfoReceiptsEditor](https://github.com/autopkg/keeleysam-recipes/blob/master/GoogleTalkPlugin/MunkiPkginfoReceiptsEditor.py), which allows specifying which receipts are considered optional in Munki pkginfo files ([example](https://github.com/autopkg/recipes/blob/83305f7bcdc1270f1f2715548dae8013ce2848c0/munkitools/munkitools7.munki.recipe#L104-L114))
 - The make_new_release script is a lot easier to use (only really benefits maintainers, but hey)
 - Remove incompatibility notice non-macs by @jgstew in https://github.com/autopkg/autopkg/pull/795
 - Add automated UnitTests for AutoPkg with GitHub Actions by @jgstew in https://github.com/autopkg/autopkg/pull/796
