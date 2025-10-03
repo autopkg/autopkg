@@ -36,7 +36,7 @@ AUTOPKG_REPO = os.path.expanduser("~/Developer/autopkg")
 RECIPE_REPOS = os.path.expanduser("~/Developer/repo-lasso/repos/autopkg")
 
 # Control (known good) and experimental branch names
-CONTROL_BRANCH = "dev-2.7.x"
+CONTROL_BRANCH = "dev-2.x"
 EXPER_BRANCH = "unarchiver"
 
 # Types of recipes you wish to test (recommended: download, pkg)
