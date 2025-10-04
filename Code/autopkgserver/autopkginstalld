@@ -26,6 +26,7 @@ import stat
 import struct
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 from installer import Installer, InstallerError
@@ -222,10 +223,10 @@ def main(argv: list[str]) -> int:
     wheel_gid = 0
     admin_gid = 80
 
-    exepath = os.path.realpath(os.path.abspath(sys.argv[0]))
+    exepath = Path(sys.argv[0]).resolve()
     path_ok = True
     while True:
-        info = os.stat(exepath)
+        info = exepath.stat()
         if info.st_uid != root_uid:
             print(f"{exepath} must be owned by root.", file=sys.stderr)
             path_ok = False
@@ -235,8 +236,8 @@ def main(argv: list[str]) -> int:
         if info.st_mode & stat.S_IWOTH:
             print(f"{exepath} mustn't be world writeable.", file=sys.stderr)
             path_ok = False
-        exepath = os.path.dirname(exepath)
-        if exepath == "/":
+        exepath = exepath.parent
+        if exepath == Path("/"):
             break
 
     if not path_ok:
