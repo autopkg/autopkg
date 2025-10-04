@@ -34,7 +34,7 @@ class DeprecationWarning(Processor):
     }
     output_variables = {
         "deprecation_summary_result": {
-            "description": "Description of interesting results."
+            "description": "Summary of recipe deprecation warnings."
         }
     }
 
