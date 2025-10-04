@@ -1,8 +1,9 @@
 name: Update processor docs
 
 on:
-  create:
-    ref_type: tag
+  push:
+    tags: # Triggers on version tags like v1.2 or v1.2.3
+      - 'v([\d]+(\.[\d]+)*)'
 
 jobs:
   build:
