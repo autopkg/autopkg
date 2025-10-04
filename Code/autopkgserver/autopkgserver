@@ -163,6 +163,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
                 for key, keytype in list(chown_structure.items()):
                     if key not in chown_entry:
                         errors.append(f"chown entry is missing {key}")
+                        syntax_ok = False
                     else:
                         if not isinstance(chown_entry[key], keytype):
                             errors.append(
