@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file. This projec
 ## [2.7.7](https://github.com/autopkg/autopkg/compare/v2.7.6...HEAD) (Unreleased)
 
 - Added a method by which processors can be marked for deprecation, similar to what DeprecationWarning does for recipes.
+- Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
 - URLDownloaderPython: explicitly mark the sha1, md5, and sha256 hashing of downloaded files as non-security-related.
 - Unarchiver: when using Python native extractor, stop processing if archives have indicators of directory traversal attacks.
 - Various processors updated with `default` values that were previously implied or included only in the description.
 - Removed deprecated processor BrewCaskInfoProvider.
-- Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
+- Removed legacy launch.py component of autopkgserver, unused since AutoPkg 0.5.0.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 
