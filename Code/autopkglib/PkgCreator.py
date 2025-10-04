@@ -177,13 +177,12 @@ class PkgCreator(Processor):
             "id",
             "version",
             "infofile",
-            "options",
             "scripts",
         ):
             if key not in request:
                 if key in self.env:
                     request[key] = self.env[key]
-                elif key in ["infofile", "options", "scripts"]:
+                elif key in ["infofile", "scripts"]:
                     # these keys are optional, so empty string value is OK
                     request[key] = ""
                 elif key == "pkgtype":

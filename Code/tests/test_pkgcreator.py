@@ -40,7 +40,6 @@ class TestPkgCreator(unittest.TestCase):
                 "pkgdir": self.tmp_dir.name,
                 "infofile": "",
                 "resources": "",
-                "options": "",
                 "scripts": "",
                 "chown": [],
             },
@@ -125,8 +124,6 @@ class TestPkgCreator(unittest.TestCase):
         request = self.processor.env["pkg_request"]
         self.assertEqual(request["pkgtype"], "flat")
         self.assertEqual(request["infofile"], "")
-        self.assertEqual(request["resources"], "")
-        self.assertEqual(request["options"], "")
         self.assertEqual(request["scripts"], "")
         self.assertEqual(request["chown"], [])
 
