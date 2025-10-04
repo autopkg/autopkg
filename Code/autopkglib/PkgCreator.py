@@ -177,14 +177,13 @@ class PkgCreator(Processor):
             "id",
             "version",
             "infofile",
-            "resources",
             "options",
             "scripts",
         ):
             if key not in request:
                 if key in self.env:
                     request[key] = self.env[key]
-                elif key in ["infofile", "resources", "options", "scripts"]:
+                elif key in ["infofile", "options", "scripts"]:
                     # these keys are optional, so empty string value is OK
                     request[key] = ""
                 elif key == "pkgtype":
@@ -199,7 +198,7 @@ class PkgCreator(Processor):
 
         # Convert relative paths to absolute.
         for key, value in list(request.items()):
-            if key in ("pkgroot", "pkgdir", "infofile", "resources", "scripts"):
+            if key in ("pkgroot", "pkgdir", "infofile", "scripts"):
                 if value and not value.startswith("/"):
                     # search for it
                     request[key] = self.find_path_for_relpath(value)

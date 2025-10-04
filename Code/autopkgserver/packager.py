@@ -231,7 +231,7 @@ class Packager:
                 raise PackagerError(f'Invalid version component "{comp}"')
         self.log.debug("version ok")
 
-        # Make sure infofile and resources exist and can be read.
+        # Make sure infofile exists and can be read.
         if self.request["infofile"]:
             try:
                 with open(self.request["infofile"], "rb"):

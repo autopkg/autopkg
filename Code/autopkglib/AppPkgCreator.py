@@ -196,7 +196,6 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             "id": self.env["bundleid"],
             "version": self.env["version"],
             "infofile": "",
-            "resources": "",
             "chown": [{"path": "Applications", "user": "root", "group": "admin"}],
             "scripts": "",
         }

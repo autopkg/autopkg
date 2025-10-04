@@ -54,9 +54,6 @@ Request format:
 
     infofile        A path to an Info.plist file for the package.
 
-    resources       A path to a directory to be included as Resources in the
-                    package.
-
     chown           An array of dictionaries with paths, relative to the
                     pkgroot, and the desired owner. Keys:
 
@@ -92,7 +89,7 @@ from packager import Packager, PackagerError
 
 
 APPNAME = "autopkgserver"
-VERSION = "0.2"
+VERSION = "0.3"
 
 SOCKET = f"/var/run/{APPNAME}"
 
@@ -104,7 +101,6 @@ request_structure = {
     "id": str,
     "version": str,
     "infofile": str,
-    "resources": str,
     "chown": list,
     "scripts": str,
 }

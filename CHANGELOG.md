@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. This projec
 - Various processors updated with `default` values that were previously implied or included only in the description.
 - Removed deprecated processor BrewCaskInfoProvider.
 - Removed legacy launch.py component of autopkgserver, unused since AutoPkg 0.5.0.
+- Removed `resources` subkey of the PkgCreator `pkg_request` dictionary, which has not been used since AutoPkg changed from `packagemaker` to `pkgbuild` for packaging prior to v0.1.0.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 
