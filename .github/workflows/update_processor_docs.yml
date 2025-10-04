@@ -2,8 +2,8 @@ name: Update processor docs
 
 on:
   push:
-    tags: # Triggers on version tags like v1.2 or v1.2.3
-      - 'v([\d]+(\.[\d]+)*)'
+    tags: # Triggers when new version tags are pushed
+      - 'v*'
 
 jobs:
   build:
