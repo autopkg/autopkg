@@ -26,6 +26,7 @@ import stat
 import struct
 import sys
 import time
+from typing import Any
 
 from installer import Installer, InstallerError
 from itemcopier import ItemCopier, ItemCopierError
@@ -37,11 +38,11 @@ VERSION = "0.3"
 class RunHandler(socketserver.StreamRequestHandler):
     """Handler for autopkginstalld run requests"""
 
-    def verify_request_syntax(self, plist):
+    def verify_request_syntax(self, plist: dict[str, Any]) -> tuple[bool, list[str]]:
         """Verify the basic syntax of an installation request plist."""
 
         # Keep a list of error messages.
-        errors = []
+        errors: list[str] = []
 
         # Root should be a dictionary.
         if not isinstance(plist, dict):
@@ -57,7 +58,7 @@ class RunHandler(socketserver.StreamRequestHandler):
 
         return syntax_ok, errors
 
-    def getpeerid(self):
+    def getpeerid(self) -> tuple[int, tuple[int, ...]]:
         """
         Get peer credentials on a UNIX domain socket.
         Returns uid, gids.
@@ -91,7 +92,7 @@ class RunHandler(socketserver.StreamRequestHandler):
 
         return res[cr_uid], res[cr_groups : cr_groups + res[cr_ngroups]]
 
-    def handle(self):
+    def handle(self) -> None:
         """Handle an incoming run request."""
 
         try:
@@ -163,7 +164,11 @@ class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
     request_queue_size = 10
     timeout = 10
 
-    def __init__(self, socket_fd, RequestHandlerClass):
+    def __init__(
+        self,
+        socket_fd: int,
+        RequestHandlerClass: type[socketserver.BaseRequestHandler],
+    ) -> None:
         # Avoid initialization of UnixStreamServer as we need to open the
         # socket from a file descriptor instead of creating our own.
         self.socket = socket.fromfd(socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
@@ -173,7 +178,7 @@ class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
         )
         self.timed_out = False
 
-    def setup_logging(self):
+    def setup_logging(self) -> None:
         """Sets up logging to a file in /private/var/log/"""
         try:
             self.log = logging.getLogger(APPNAME)
@@ -199,11 +204,11 @@ class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
         except OSError as err:
             raise AutoPkgInstallDaemonError(f"Can't open log: {err.strerror}")
 
-    def handle_timeout(self):
+    def handle_timeout(self) -> None:
         self.timed_out = True
 
 
-def main(argv):
+def main(argv: list[str]) -> int:
     # Make sure we're launched as root
     if os.geteuid() != 0:
         print(f"{APPNAME} must be run as root.", file=sys.stderr)

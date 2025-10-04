@@ -80,6 +80,7 @@ import stat
 import struct
 import sys
 import time
+from typing import Any
 
 from packager import Packager, PackagerError
 
@@ -123,11 +124,11 @@ class PkgHandler(socketserver.StreamRequestHandler):
 
     re_uid_gid = re.compile(r"^AUTH:AUTHENTICATE (?P<uid>\d{1,10}):(?P<gid>\d{1,10})$")
 
-    def verify_request_syntax(self, plist):
+    def verify_request_syntax(self, plist: dict[str, Any]) -> tuple[bool, list[str]]:
         """Verify the basic syntax of request plist."""
 
         # Keep a list of error messages.
-        errors = []
+        errors: list[str] = []
 
         # Root should be a dictionary.
         if not isinstance(plist, dict):
@@ -171,7 +172,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
 
         return (syntax_ok, errors)
 
-    def getpeerid(self):
+    def getpeerid(self) -> tuple[int, tuple[int, ...]]:
         """
         Get peer credentials on a UNIX domain socket.
         Returns uid, gids.
@@ -205,7 +206,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
 
         return res[cr_uid], res[cr_groups : cr_groups + res[cr_ngroups]]
 
-    def handle(self):
+    def handle(self) -> None:
         """Handle an incoming packaging request."""
 
         try:
@@ -268,7 +269,11 @@ class AutoPkgServer(socketserver.UnixStreamServer):
     request_queue_size = 10
     timeout = 10
 
-    def __init__(self, socket_fd, RequestHandlerClass):
+    def __init__(
+        self,
+        socket_fd: int,
+        RequestHandlerClass: type[socketserver.BaseRequestHandler],
+    ) -> None:
         # Avoid initialization of UnixStreamServer as we need to open the
         # socket from a file descriptor instead of creating our own.
         self.socket = socket.fromfd(socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
@@ -282,7 +287,7 @@ class AutoPkgServer(socketserver.UnixStreamServer):
     #    """Override binding to inherit socket from launchd."""
     #
 
-    def setup_logging(self):
+    def setup_logging(self) -> None:
         try:
             self.log = logging.getLogger(APPNAME)
             self.log.setLevel(logging.DEBUG)
@@ -307,11 +312,11 @@ class AutoPkgServer(socketserver.UnixStreamServer):
         except OSError as err:
             raise AutoPkgServerError(f"Can't open log: {err.strerror}")
 
-    def handle_timeout(self):
+    def handle_timeout(self) -> None:
         self.timed_out = True
 
 
-def main(argv):
+def main(argv: list[str]) -> int:
     # Make sure we're launched as root
     if os.geteuid() != 0:
         print(f"{APPNAME} must be run as root.", file=sys.stderr)
