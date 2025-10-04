@@ -26,6 +26,7 @@ class MunkiOptionalReceiptEditor(Processor):
     """Modifies the receipts key in a Munki pkginfo."""
 
     description = __doc__
+    lifecycle = {"introduced": "2.7"}
     input_variables = {
         "pkginfo_repo_path": {
             "required": True,

@@ -15,7 +15,6 @@
 # limitations under the License.
 """See docstring for DeprecationWarning class"""
 
-
 from autopkglib import Processor
 
 __all__ = ["DeprecationWarning"]
@@ -26,6 +25,7 @@ class DeprecationWarning(Processor):
     """This processor outputs a warning that a recipe has been deprecated."""
 
     description = __doc__
+    lifecycle = {"introduced": "1.1"}
     input_variables = {
         "warning_message": {
             "required": False,

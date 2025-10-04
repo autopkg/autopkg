@@ -35,6 +35,7 @@ class MunkiSetDefaultCatalog(Processor):
     if one has been set. Typically this would be run as a preprocessor."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.4.2"}
     input_variables = {
         "pkginfo": {"required": False, "description": "Dictionary of Munki pkginfo."}
     }

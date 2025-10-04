@@ -25,6 +25,7 @@ class EndOfCheckPhase(Processor):
     should stop when the -c/--check options are used."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {}
     output_variables = {}
 

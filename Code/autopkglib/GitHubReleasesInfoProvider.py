@@ -27,9 +27,10 @@ class GitHubReleasesInfoProvider(Processor):
     """Get metadata from the latest release from a GitHub project using the
     GitHub Releases API.
 
-    Requires AutoPkg version 0.5.0."""
+    """
 
     description = __doc__
+    lifecycle = {"introduced": "0.5.0"}
     input_variables = {
         "asset_regex": {
             "required": False,

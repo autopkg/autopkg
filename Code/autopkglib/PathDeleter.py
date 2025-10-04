@@ -27,6 +27,7 @@ class PathDeleter(Processor):
     """Deletes file paths."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "path_list": {
             "required": True,

@@ -29,11 +29,10 @@ class FileFinder(DmgMounter):
     """Finds a filename for use in other Processors.
 
     Currently only supports glob filename patterns.
-
-    Requires AutoPkg version 0.2.3.
     """
 
     description = __doc__
+    lifecycle = {"introduced": "0.2.3"}
     input_variables = {
         "pattern": {
             "required": True,

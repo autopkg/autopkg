@@ -31,9 +31,11 @@ SUPPORTED_ADDITIONAL_PKGINFO_KEYS = ["description", "minimum_os_version"]
 
 
 class SparkleUpdateInfoProvider(URLGetter):
-    """Provides URL to the highest version number or latest update."""
+    # pylint: disable=invalid-name
+    """Provides URL and version information from a Sparkle feed."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "appcast_url": {
             "required": True,

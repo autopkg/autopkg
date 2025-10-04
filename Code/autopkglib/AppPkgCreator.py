@@ -31,6 +31,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
     """Calls autopkgserver to create a package from an application."""
 
     description = __doc__
+    lifecycle = {"introduced": "1.0"}
     input_variables = {
         "app_path": {
             "required": False,

@@ -25,7 +25,6 @@ from autopkglib import Processor, ProcessorError
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
 
-
 __all__ = ["PkgCreator"]
 
 
@@ -33,6 +32,7 @@ class PkgCreator(Processor):
     """Calls autopkgserver to create a package."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "pkg_request": {
             "required": True,

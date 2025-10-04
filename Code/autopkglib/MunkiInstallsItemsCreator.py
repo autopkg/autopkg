@@ -32,6 +32,7 @@ class MunkiInstallsItemsCreator(Processor):
     """Generates an installs array for a pkginfo file."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "installs_item_paths": {
             "required": True,

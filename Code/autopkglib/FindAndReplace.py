@@ -27,10 +27,10 @@ class FindAndReplace(Processor):
     Returns 'output_string' (or other variable specified by 'result_output_var_name')
     containing the result of the find/replace operation.
 
-    Requires AutoPkg version 2.7.6.
     """
 
     description = __doc__
+    lifecycle = {"introduced": "2.7.6"}
     input_variables = {
         "input_string": {
             "required": True,

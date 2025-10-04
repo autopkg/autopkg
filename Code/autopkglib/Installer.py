@@ -33,6 +33,7 @@ class Installer(DmgMounter):
     """Calls autopkginstalld to install a package."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.4.0"}
     input_variables = {
         "pkg_path": {
             "required": True,

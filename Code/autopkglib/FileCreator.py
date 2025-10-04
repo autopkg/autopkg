@@ -26,6 +26,7 @@ class FileCreator(Processor):
     """Create a file."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "file_path": {
             "required": True,

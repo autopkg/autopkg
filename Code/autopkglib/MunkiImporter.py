@@ -31,6 +31,7 @@ class MunkiImporter(Processor):
     """Imports a pkg or dmg to the Munki repo."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "MUNKI_REPO": {
             "required": True,

@@ -33,6 +33,7 @@ class FlatPkgUnpacker(DmgMounter):
     For xar it also optionally skips extracting the payload."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "flat_pkg_path": {
             "required": True,

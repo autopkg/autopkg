@@ -30,6 +30,7 @@ class StopProcessingIf(Processor):
     predicate comparison evaluates to true."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "predicate": {
             "required": True,

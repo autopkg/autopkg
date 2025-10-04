@@ -24,6 +24,7 @@ class MunkiPkginfoMerger(Processor):
     """Merges two pkginfo dictionaries."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "pkginfo": {"required": False, "description": "Dictionary of Munki pkginfo."},
         "additional_pkginfo": {

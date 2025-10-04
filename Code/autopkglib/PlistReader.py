@@ -33,11 +33,10 @@ class PlistReader(DmgMounter):
     processors that pre-define all their possible output variables.
     As it is often used for versioning, it defaults to extracting
     'CFBundleShortVersionString' to 'version'. This can be used as a replacement
-    for both the AppDmgVersioner and Versioner processors.
-
-    Requires AutoPkg version 0.2.5."""
+    for both the AppDmgVersioner and Versioner processors."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.2.5"}
     input_variables = {
         "info_path": {
             "required": True,

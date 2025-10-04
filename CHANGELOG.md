@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file. This projec
 - Unarchiver: when using Python native extractor, stop processing if archives have indicators of directory traversal attacks.
 - Various processors updated with `default` values that were previously implied or included only in the description.
 - Removed deprecated processor BrewCaskInfoProvider.
+- Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 

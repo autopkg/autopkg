@@ -29,6 +29,7 @@ class AppDmgVersioner(DmgMounter):
     """Extracts bundle ID and version of app inside dmg."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "dmg_path": {
             "required": True,

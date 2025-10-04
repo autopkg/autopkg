@@ -23,11 +23,10 @@ __all__ = ["PackageRequired"]
 
 
 class PackageRequired(Processor):
-    """Raises a ProcessorError if the PKG variable doesn't exist.
-
-    Requires AutoPkg version 0.5.1."""
+    """Raises a ProcessorError if the PKG variable doesn't exist."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.5.1"}
     input_variables = {}
     output_variables = {}
 

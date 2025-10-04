@@ -30,6 +30,7 @@ class URLDownloader(URLGetter):
     """Downloads a URL to the specified download_dir using curl."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "url": {"required": True, "description": "The URL to download."},
         "request_headers": {

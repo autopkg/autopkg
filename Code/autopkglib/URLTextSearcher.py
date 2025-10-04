@@ -30,11 +30,10 @@ __all__ = ["URLTextSearcher"]
 
 class URLTextSearcher(URLGetter):
     """Downloads a URL using curl and performs a regular expression match
-    on the text.
-
-    Requires AutoPkg version 1.4."""
+    on the text."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.2.9"}
     input_variables = {
         "re_pattern": {
             "required": True,

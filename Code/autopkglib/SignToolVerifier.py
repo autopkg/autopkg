@@ -54,6 +54,7 @@ class SignToolVerifier(Processor):
     signtool executable."""
 
     description = __doc__
+    lifecycle = {"introduced": "2.3"}
     EXTENSIONS: list[str] = [".exe", ".msi"]
 
     # TODO: How much of this is needed to act as a drop-in replacement in an

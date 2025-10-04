@@ -28,6 +28,7 @@ class DmgMounter(Processor):
     """Base class for Processors that need to mount disk images."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     DMG_EXTENSIONS = [".dmg", ".iso", ".DMG", ".ISO"]
 
     def __init__(self, data=None, infile=None, outfile=None):

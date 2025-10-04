@@ -27,6 +27,7 @@ class MunkiCatalogBuilder(Processor):
     Previously it rebuilt Munki catalogs."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0", "deprecated": "2.7.5"}
     input_variables = {}
     output_variables = {}
 

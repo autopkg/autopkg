@@ -29,6 +29,7 @@ class Copier(DmgMounter):
     """Copies source_path to destination_path."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "source_path": {
             "required": True,

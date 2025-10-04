@@ -31,6 +31,7 @@ class DmgCreator(Processor):
     """Creates a disk image from a directory."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "dmg_root": {
             "required": True,

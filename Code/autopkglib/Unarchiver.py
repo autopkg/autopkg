@@ -58,6 +58,7 @@ class Unarchiver(Processor):
     """Archive decompressor for zip and common tar-compressed formats."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "archive_path": {
             "required": False,

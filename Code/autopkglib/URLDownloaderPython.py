@@ -34,6 +34,7 @@ class URLDownloaderPython(URLDownloader):
     """
 
     description = __doc__
+    lifecycle = {"introduced": "2.4.1"}
     input_variables = {
         "url": {"required": True, "description": "The URL to download."},
         "download_dir": {
