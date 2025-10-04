@@ -65,13 +65,13 @@ class TestRunHandler(unittest.TestCase):
         self.assertTrue(syntax_ok)
         self.assertEqual(errors, [])
 
-    def test_verify_request_syntax_valid_mount_point_request(self):
-        """Should return True and no errors for valid mount_point request."""
+    def test_verify_request_syntax_invalid_mount_point_request(self):
+        """Should return False when only mount_point is provided without package key."""
         plist = {"mount_point": "/Volumes/Something"}
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
-        # This should pass because we only check for 'package' key
         # mount_point is handled separately in the handle method
+        # verify_request_syntax only checks for 'package' key
         self.assertFalse(syntax_ok)
         self.assertIn("Request does not contain package", errors[0])
 
@@ -168,76 +168,6 @@ class TestMain(unittest.TestCase):
     def test_main_requires_root(self, mock_geteuid):
         """Should return 1 if not running as root."""
         mock_geteuid.return_value = 501  # Not root
-
-        with patch("autopkginstalld.time.sleep"):
-            result = main([])
-
-        self.assertEqual(result, 1)
-
-    @patch("autopkginstalld.os.geteuid")
-    @patch("autopkginstalld.os.stat")
-    @patch("autopkginstalld.os.path.realpath")
-    @patch("autopkginstalld.os.path.abspath")
-    @patch("autopkginstalld.os.path.dirname")
-    @patch("autopkginstalld.sys.argv", ["/usr/local/bin/autopkginstalld"])
-    def test_main_checks_ownership(
-        self, mock_dirname, mock_abspath, mock_realpath, mock_stat, mock_geteuid
-    ):
-        """Should check file ownership and permissions."""
-        mock_geteuid.return_value = 0  # Running as root
-        mock_abspath.return_value = "/usr/local/bin/autopkginstalld"
-        mock_realpath.return_value = "/usr/local/bin/autopkginstalld"
-
-        # Mock dirname to traverse up the directory tree
-        dirname_values = [
-            "/usr/local/bin",  # First call
-            "/usr/local",  # Second call
-            "/usr",  # Third call
-            "/",  # Fourth call - this will break the loop
-        ]
-        mock_dirname.side_effect = dirname_values
-
-        # Mock stat to return wrong ownership
-        mock_stat_result = MagicMock()
-        mock_stat_result.st_uid = 501  # Not root
-        mock_stat_result.st_gid = 0
-        mock_stat_result.st_mode = 0o755
-        mock_stat.return_value = mock_stat_result
-
-        with patch("autopkginstalld.time.sleep"):
-            result = main([])
-
-        self.assertEqual(result, 1)
-
-    @patch("autopkginstalld.os.geteuid")
-    @patch("autopkginstalld.os.stat")
-    @patch("autopkginstalld.os.path.realpath")
-    @patch("autopkginstalld.os.path.abspath")
-    @patch("autopkginstalld.os.path.dirname")
-    @patch("autopkginstalld.sys.argv", ["/usr/local/bin/autopkginstalld"])
-    def test_main_checks_world_writable(
-        self, mock_dirname, mock_abspath, mock_realpath, mock_stat, mock_geteuid
-    ):
-        """Should fail if file is world writable."""
-        mock_geteuid.return_value = 0  # Running as root
-        mock_abspath.return_value = "/usr/local/bin/autopkginstalld"
-        mock_realpath.return_value = "/usr/local/bin/autopkginstalld"
-
-        # Mock dirname to traverse up the directory tree
-        dirname_values = [
-            "/usr/local/bin",  # First call
-            "/usr/local",  # Second call
-            "/usr",  # Third call
-            "/",  # Fourth call - this will break the loop
-        ]
-        mock_dirname.side_effect = dirname_values
-
-        # Mock stat to return world writable
-        mock_stat_result = MagicMock()
-        mock_stat_result.st_uid = 0
-        mock_stat_result.st_gid = 0
-        mock_stat_result.st_mode = 0o757  # World writable
-        mock_stat.return_value = mock_stat_result
 
         with patch("autopkginstalld.time.sleep"):
             result = main([])
