@@ -620,6 +620,11 @@ class Processor:
 
     def process(self) -> None:
         """Main processing loop."""
+        # Check if this processor is deprecated and emit warning
+        deprecated_version = self.lifecycle.get("deprecated")
+        if deprecated_version:
+            self.show_deprecation(self.get_deprecation_warning(deprecated_version))
+
         # Make sure all required arguments have been supplied.
         for variable, flags in list(self.input_variables.items()):
             # Apply default values to unspecified input variables
@@ -693,6 +698,21 @@ class Processor:
         finally:
             if fh and isinstance(plist_file, (str, bytes, int)):
                 fh.close()
+
+    def get_deprecation_warning(self, deprecated_version: str) -> str:
+        """Generate a standardized deprecation warning message.
+
+        Args:
+            deprecated_version: The AutoPkg version in which this processor was deprecated, if applicable.
+
+        Returns:
+            A formatted deprecation warning message.
+        """
+        return (
+            f"{self.__class__.__name__} was deprecated in AutoPkg "
+            f"version {deprecated_version} and may be removed in a "
+            f"future release."
+        )
 
     def show_deprecation(self, message: str) -> None:
         """Emit a deprecation warning, either from a deprecated recipe that calls
