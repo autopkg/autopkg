@@ -194,7 +194,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
         cr_ngroups = 2
         cr_groups = 3
 
-        xucred_fmt = "IIh%dI" % NGROUPS
+        xucred_fmt = f"IIh{NGROUPS}I"
         res = struct.unpack(
             xucred_fmt,
             self.request.getsockopt(0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)),
@@ -216,7 +216,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
             # Get uid and primary gid of connecting peer.
             uid, gids = self.getpeerid()
             gid = gids[0]
-            self.log.debug("Got packaging request from uid %d gid %d" % (uid, gid))
+            self.log.debug(f"Got packaging request from uid {uid} gid {gid}")
 
             # Receive a plist.
             plist_string = self.request.recv(8192)
@@ -377,12 +377,12 @@ def main(argv):
 
             # Keep running for at least 10 seconds make launchd happy.
             run_time = time.time() - start_time
-            server.log.info("run time: %fs" % run_time)
+            server.log.info(f"run time: {run_time}s")
             if run_time < 10.0:
                 # Only sleep for a short while in case new requests pop up.
                 sleep_time = min(1.0, 10.0 - run_time)
                 server.log.debug(
-                    "sleeping for %f seconds to make launchd happy" % sleep_time
+                    f"sleeping for {sleep_time} seconds to make launchd happy"
                 )
                 time.sleep(sleep_time)
             else:

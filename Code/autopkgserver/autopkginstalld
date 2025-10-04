@@ -80,7 +80,7 @@ class RunHandler(socketserver.StreamRequestHandler):
         cr_ngroups = 2
         cr_groups = 3
 
-        xucred_fmt = "IIh%dI" % NGROUPS
+        xucred_fmt = f"IIh{NGROUPS}I"
         res = struct.unpack(
             xucred_fmt,
             self.request.getsockopt(0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)),
@@ -102,7 +102,7 @@ class RunHandler(socketserver.StreamRequestHandler):
             # Get uid and primary gid of connecting peer.
             uid, gids = self.getpeerid()
             gid = gids[0]
-            self.log.debug("Got run request from uid %d gid %d" % (uid, gid))
+            self.log.debug(f"Got run request from uid {uid} gid {gid}")
 
             # Receive a plist.
             plist_string = self.request.recv(8192)
@@ -118,8 +118,8 @@ class RunHandler(socketserver.StreamRequestHandler):
 
             if "package" in plist:
                 self.log.info(
-                    "Dispatching Installer worker to process request for "
-                    "user %d" % uid
+                    f"Dispatching Installer worker to process request for "
+                    f"user {uid}"
                 )
                 try:
                     installer = Installer(self.log, self.request, plist)
@@ -130,8 +130,8 @@ class RunHandler(socketserver.StreamRequestHandler):
                     self.request.send(f"ERROR:{err}\n".encode())
             elif "mount_point" in plist:
                 self.log.info(
-                    "Dispatching ItemCopier worker to process request for "
-                    "user %d" % uid
+                    f"Dispatching ItemCopier worker to process request for "
+                    f"user {uid}"
                 )
                 try:
                     copier = ItemCopier(self.log, self.request, plist)
@@ -267,13 +267,11 @@ def main(argv):
 
         # Keep running for at least 10 seconds make launchd happy.
         run_time = time.time() - start_time
-        daemon.log.info("run time: %fs" % run_time)
+        daemon.log.info(f"run time: {run_time}s")
         if run_time < 10.0:
             # Only sleep for a short while in case new requests pop up.
             sleep_time = min(1.0, 10.0 - run_time)
-            daemon.log.debug(
-                "sleeping for %f seconds to make launchd happy" % sleep_time
-            )
+            daemon.log.debug(f"sleeping for {sleep_time} seconds to make launchd happy")
             time.sleep(sleep_time)
         else:
             break
