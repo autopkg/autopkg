@@ -219,7 +219,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
             # Get uid and primary gid of connecting peer.
             uid, gids = self.getpeerid()
             gid = gids[0]
-            self.log.debug(f"Got packaging request from uid {uid} gid {gid}")
+            self.log.debug("Got packaging request from uid %s gid %s", uid, gid)
 
             # Receive a plist.
             plist_string = self.request.recv(8192)
@@ -247,19 +247,19 @@ class PkgHandler(socketserver.StreamRequestHandler):
                 self.request.send(b"ERROR:Can't find pkgroot")
                 return
 
-            self.log.info(f"Dispatching worker to process request for user {uid}")
+            self.log.info("Dispatching worker to process request for user %s", uid)
             try:
                 pkgr = Packager(self.log, plist, name, uid, gid)
                 pkgpath = pkgr.package()
-                self.log.info(f"Package built at {pkgpath}")
+                self.log.info("Package built at %s", pkgpath)
                 print("Sending request")
                 self.request.send(f"OK:{pkgpath}\n".encode())
             except PackagerError as err:
-                self.log.error(f"Packaging failed: {err}")
+                self.log.error("Packaging failed: %s", err)
                 self.request.send(f"{err}\n".encode())
 
         except BaseException as err:
-            self.log.error(f"Caught exception: {err}")
+            self.log.error("Caught exception: %s", err)
             self.request.send(f"ERROR:Caught exception: {err}".encode())
             return
 
@@ -375,7 +375,7 @@ def main(argv: list[str]) -> int:
 
     # Wrap main loop in try/finally to unlink the socket when we exit.
     try:
-        server.log.info(f"{APPNAME} v{VERSION} starting")
+        server.log.info("%s v%s starting", APPNAME, VERSION)
 
         # Serve all pending requests until we time out.
         while True:
@@ -385,12 +385,12 @@ def main(argv: list[str]) -> int:
 
             # Keep running for at least 10 seconds make launchd happy.
             run_time = time.time() - start_time
-            server.log.info(f"run time: {run_time}s")
+            server.log.info("run time: %ss", run_time)
             if run_time < 10.0:
                 # Only sleep for a short while in case new requests pop up.
                 sleep_time = min(1.0, 10.0 - run_time)
                 server.log.debug(
-                    f"sleeping for {sleep_time} seconds to make launchd happy"
+                    "sleeping for %s seconds to make launchd happy", sleep_time
                 )
                 time.sleep(sleep_time)
             else:

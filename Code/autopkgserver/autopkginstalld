@@ -104,7 +104,7 @@ class RunHandler(socketserver.StreamRequestHandler):
             # Get uid and primary gid of connecting peer.
             uid, gids = self.getpeerid()
             gid = gids[0]
-            self.log.debug(f"Got run request from uid {uid} gid {gid}")
+            self.log.debug("Got run request from uid %s gid %s", uid, gid)
 
             # Receive a plist.
             plist_string = self.request.recv(8192)
@@ -120,34 +120,34 @@ class RunHandler(socketserver.StreamRequestHandler):
 
             if "package" in plist:
                 self.log.info(
-                    f"Dispatching Installer worker to process request for "
-                    f"user {uid}"
+                    "Dispatching Installer worker to process request for user %s",
+                    uid,
                 )
                 try:
                     installer = Installer(self.log, self.request, plist)
                     installer.install()
                     self.request.send(b"OK:DONE\n")
                 except InstallerError as err:
-                    self.log.error(f"Installing failed: {err}")
+                    self.log.error("Installing failed: %s", err)
                     self.request.send(f"ERROR:{err}\n".encode())
             elif "mount_point" in plist:
                 self.log.info(
-                    f"Dispatching ItemCopier worker to process request for "
-                    f"user {uid}"
+                    "Dispatching ItemCopier worker to process request for user %s",
+                    uid,
                 )
                 try:
                     copier = ItemCopier(self.log, self.request, plist)
                     copier.copy()
                     self.request.send(b"OK:DONE\n")
                 except ItemCopierError as err:
-                    self.log.error(f"Copying failed: {err}")
+                    self.log.error("Copying failed: %s", err)
                     self.request.send(f"ERROR:{err}\n".encode())
             else:
                 self.log.error("Unsupported request format")
                 self.request.send(b"ERROR:Unsupported request format")
 
         except BaseException as err:
-            self.log.error(f"Caught exception: {repr(err)}")
+            self.log.error("Caught exception: %r", err)
             self.request.send(f"ERROR:Caught exception: {repr(err)}".encode())
 
 
@@ -263,7 +263,7 @@ def main(argv: list[str]) -> int:
     # Create the daemon object.
     daemon = AutoPkgInstallDaemon(sock_fd, RunHandler)
     daemon.setup_logging()
-    daemon.log.info(f"{APPNAME} v{VERSION} starting")
+    daemon.log.info("%s v%s starting", APPNAME, VERSION)
 
     # Serve all pending requests until we time out.
     while True:
@@ -273,11 +273,13 @@ def main(argv: list[str]) -> int:
 
         # Keep running for at least 10 seconds make launchd happy.
         run_time = time.time() - start_time
-        daemon.log.info(f"run time: {run_time}s")
+        daemon.log.info("run time: %ss", run_time)
         if run_time < 10.0:
             # Only sleep for a short while in case new requests pop up.
             sleep_time = min(1.0, 10.0 - run_time)
-            daemon.log.debug(f"sleeping for {sleep_time} seconds to make launchd happy")
+            daemon.log.debug(
+                "sleeping for %s seconds to make launchd happy", sleep_time
+            )
             time.sleep(sleep_time)
         else:
             break
