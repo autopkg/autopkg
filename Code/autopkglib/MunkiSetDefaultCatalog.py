@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/autopkg/python
 #
 # Copyright 2014 Yoann Gini
 # Based on MunkiPkginfoMerger.py, copyright 2013 Greg Neagle
