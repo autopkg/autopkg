@@ -1,4 +1,3 @@
-
 # AutoPkg Change Log
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
@@ -9,6 +8,7 @@ All notable changes to this project will be documented in this file. This projec
 - URLDownloaderPython: explicitly mark the sha1, md5, and sha256 hashing of downloaded files as non-security-related.
 - Unarchiver: when using Python native extractor, stop processing if archives have indicators of directory traversal attacks.
 - Various processors updated with `default` values that were previously implied or included only in the description.
+- Removed deprecated processor BrewCaskInfoProvider.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 
