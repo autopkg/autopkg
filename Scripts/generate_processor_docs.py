@@ -122,6 +122,8 @@ def generate_sidebar(sidebar_path):
     section_indent = indent_length(processor_heading)
 
     past_processors_section = False
+    processors_start = None
+    processors_end = None
     for index, line in enumerate(current_sidebar_lines):
         if line == processor_heading:
             past_processors_section = True
@@ -131,9 +133,11 @@ def generate_sidebar(sidebar_path):
 
     # Build the new sidebar
     new_sidebar = ""
-    new_sidebar += "\n".join(current_sidebar_lines[0:processors_start]) + "\n"
+    if processors_start is not None:
+        new_sidebar += "\n".join(current_sidebar_lines[0:processors_start]) + "\n"
     new_sidebar += toc_string
-    new_sidebar += "\n".join(current_sidebar_lines[processors_end:]) + "\n"
+    if processors_end is not None:
+        new_sidebar += "\n".join(current_sidebar_lines[processors_end:]) + "\n"
 
     return new_sidebar
 
