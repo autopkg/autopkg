@@ -7,7 +7,7 @@ on:
       - ".github/workflows/TestGitHubReleasesInfoProvider.yaml"
       - "Code/autopkglib/GitHubReleasesInfoProvider.py"
       - "Code/autopkglib/github/**"
-      - "requirements.txt"
+      - ".github/workflows/requirements.txt"
 
 jobs:
   TestGitHubReleasesInfoProvider:
@@ -45,7 +45,7 @@ jobs:
             gh_actions_requirements.txt
 
       - name: Install requirements
-        run: pip install --requirement gh_actions_requirements.txt
+        run: pip install --requirement .github/workflows/requirements.txt
 
       - name: create empty config windows
         # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os

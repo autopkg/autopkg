@@ -8,7 +8,7 @@ on:
       - master
     paths:
       - "**.py"
-      - "requirements.txt"
+      - ".github/workflows/requirements.txt"
       - ".github/workflows/tests.yaml"
       - "Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml"
   pull_request:
@@ -16,7 +16,7 @@ on:
       - dev
     paths:
       - "**.py"
-      - "requirements.txt"
+      - ".github/workflows/requirements.txt"
       - ".github/workflows/tests.yaml"
       - "Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml"
 
@@ -52,7 +52,7 @@ jobs:
           echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
 
       - name: Install requirements
-        run: pip install --requirement gh_actions_requirements.txt
+        run: pip install --requirement .github/workflows/requirements.txt
 
       - name: create empty autopkg config file - Windows
         # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
