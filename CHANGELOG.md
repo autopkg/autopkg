@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. This projec
 - Removed `resources` subkey of the PkgCreator `pkg_request` dictionary, which has not been used since AutoPkg changed from `packagemaker` to `pkgbuild` for packaging prior to v0.1.0.
 - Removed `options` subkey of the PkgCreator `pkg_request` dictionary, which has never been used.
 - Added basic unit tests for autopkgserver and autopkginstalld.
+- Updated requirements.txt with the contents of new_requirements.txt, which has been used in production releases since AutoPkg 2.7, and removed new_requirements.txt.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 

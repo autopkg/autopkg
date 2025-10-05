@@ -2,153 +2,48 @@
 # Common Requirements
 # See below for *nix and MacOS requirements.
 #
-appdirs==1.4.3
-aspy.yaml==1.2.0
-attrs==19.1.0
-black==19.10b0
+appdirs==1.4.4
+attrs==21.4.0
+black==22.3.0
 certifi==2023.7.22
-cffi==1.13.1
-cfgv==2.0.0
-Click==7.0
-entrypoints==0.3
-flake8-bugbear==19.3.0
-flake8==3.8.3
-identify==1.4.3
-importlib-metadata==0.13
-isort==5.0.4
+cffi==1.15.0
+cfgv==3.3.1
+click==8.1.0
+distlib==0.3.4
+filelock==3.6.0
+flake8==4.0.1
+flake8-bugbear==22.3.23
+identify==2.4.12
+isort==5.12.0
 mccabe==0.6.1
-nodeenv==1.3.3
-pre-commit==2.5
-pycodestyle==2.6.0
-pycparser==2.19
-pyflakes==2.2.0
-PyYAML==5.4
-six==1.12.0
-tokenize-rt==3.2.0
-toml==0.10.0
-virtualenv==20.0.8
-zipp==0.5.1
+mypy-extensions==0.4.3
+nodeenv==1.6.0
+pathspec==0.9.0
+platformdirs==2.5.1
+pre-commit==2.17.0
+pycodestyle==2.8.0
+pycparser==2.21
+pyflakes==2.4.0
+PyYAML==6.0.1
+six==1.16.0
+tomli==2.0.1
+virtualenv==20.14.0
 #
 # *nix Requirements
 #
-xattr==0.9.6; sys_platform == 'darwin' or sys_platform == 'linux'
+xattr==0.9.7; sys_platform == 'darwin' or sys_platform == 'linux'
 #
 # MacOS Requirements
 #
-pyobjc-core==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Accounts==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-AddressBook==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-AdSupport==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-AppleScriptKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-AppleScriptObjC==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ApplicationServices==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-AuthenticationServices==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Automator==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-AVFoundation==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-AVKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-BusinessChat==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CalendarStore==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CFNetwork==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CloudKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Cocoa==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Collaboration==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ColorSync==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Contacts==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ContactsUI==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreAudio==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreAudioKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreBluetooth==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreData==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreHaptics==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreLocation==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreMedia==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreMediaIO==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreML==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreMotion==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreServices==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreSpotlight==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreText==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CoreWLAN==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-CryptoTokenKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-DeviceCheck==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-DictionaryServices==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-DiscRecording==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-DiscRecordingUI==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-DiskArbitration==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-DVDPlayback==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-EventKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ExceptionHandling==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ExecutionPolicy==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ExternalAccessory==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-FileProvider==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-FileProviderUI==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-FinderSync==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-FSEvents==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-GameCenter==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-GameController==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-GameKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-GameplayKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ImageCaptureCore==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-IMServicePlugIn==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-InputMethodKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-InstallerPlugins==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-InstantMessage==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Intents==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-IOSurface==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-iTunesLibrary==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-LatentSemanticMapping==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-LaunchServices==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-libdispatch==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-LinkPresentation==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-LocalAuthentication==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-MapKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-MediaAccessibility==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-MediaLibrary==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-MediaPlayer==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-MediaToolbox==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-MetalKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ModelIO==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-MultipeerConnectivity==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-NaturalLanguage==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-NetFS==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Network==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-NetworkExtension==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-NotificationCenter==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-OpenDirectory==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-OSAKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-OSLog==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-PencilKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Photos==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-PhotosUI==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-PreferencePanes==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-PubSub==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-PushKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Quartz==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-QuickLookThumbnailing==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SafariServices==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SceneKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ScreenSaver==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ScriptingBridge==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SearchKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Security==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SecurityFoundation==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SecurityInterface==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-ServiceManagement==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Social==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SoundAnalysis==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Speech==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SpriteKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-StoreKit==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SyncServices==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SystemConfiguration==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-SystemExtensions==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-UserNotifications==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-VideoSubscriberAccount==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-VideoToolbox==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-Vision==6.0.1; sys_platform == 'darwin'
-pyobjc-framework-WebKit==6.0.1; sys_platform == 'darwin'
-pyobjc==6.0.1; sys_platform == 'darwin'
+pyobjc-core==9.2; sys_platform == 'darwin'
+pyobjc-framework-CFNetwork==9.2; sys_platform == 'darwin'
+pyobjc-framework-LaunchServices==9.2; sys_platform == 'darwin'
+pyobjc-framework-OpenDirectory==9.2; sys_platform == 'darwin'
+pyobjc-framework-Quartz==9.2; sys_platform == 'darwin'
+pyobjc-framework-Security==9.2; sys_platform == 'darwin'
+pyobjc-framework-SystemConfiguration==9.2; sys_platform == 'darwin'
 #
 # Windows Requirements
 #
 generateDS==2.35.24; sys_platform == 'win32'
+--no-binary :all:

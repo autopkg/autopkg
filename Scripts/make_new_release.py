@@ -286,7 +286,7 @@ def main():
             "-k",
             "PYTHON_VERSION=3.10.4",
             "-k",
-            "REQUIREMENTS_FILENAME=new_requirements.txt",
+            "REQUIREMENTS_FILENAME=requirements.txt",
             "-k",
             "OS_VERSION=11",
             "-k",
