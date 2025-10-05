@@ -565,6 +565,404 @@ class TestProcessorBase(unittest.TestCase):
         self.assertIsInstance(processor.output_variables, dict)
         self.assertIn("deprecation_summary_result", processor.output_variables)
 
+    # Test lifecycle attribute
+    def test_lifecycle_default_empty_dict(self):
+        """Test that lifecycle attribute defaults to empty dict."""
+        processor = Processor()
+        self.assertEqual(processor.lifecycle, {})
+        self.assertIsInstance(processor.lifecycle, dict)
+
+    # Test lifecycle with deprecated version
+    def test_processor_with_deprecated_lifecycle(self):
+        """Test processor with deprecated lifecycle metadata."""
+
+        class DeprecatedProcessor(Processor):
+            """Test processor with deprecated lifecycle."""
+
+            description = "A deprecated processor"
+            input_variables = {}
+            output_variables = {}
+            lifecycle = {"deprecated": "1.0.0", "introduced": "0.5.0"}
+
+            def main(self):
+                pass
+
+        processor = DeprecatedProcessor(env={"verbose": 1})
+        self.assertEqual(processor.lifecycle.get("deprecated"), "1.0.0")
+        self.assertEqual(processor.lifecycle.get("introduced"), "0.5.0")
+
+    def test_processor_without_deprecated_lifecycle(self):
+        """Test processor without deprecated lifecycle metadata."""
+
+        class ActiveProcessor(Processor):
+            """Test processor without deprecation."""
+
+            description = "An active processor"
+            input_variables = {}
+            output_variables = {}
+            lifecycle = {"introduced": "2.0.0"}
+
+            def main(self):
+                pass
+
+        processor = ActiveProcessor(env={"verbose": 1})
+        self.assertIsNone(processor.lifecycle.get("deprecated"))
+        self.assertEqual(processor.lifecycle.get("introduced"), "2.0.0")
+
+    # Test get_deprecation_warning method
+    def test_get_deprecation_warning(self):
+        """Test get_deprecation_warning returns correct message."""
+
+        class TestProcessorForWarning(Processor):
+            """Test processor for deprecation warning."""
+
+            description = "Test processor"
+            input_variables = {}
+            output_variables = {}
+
+            def main(self):
+                pass
+
+        processor = TestProcessorForWarning()
+        message = processor.get_deprecation_warning("1.5.0")
+
+        expected = (
+            "TestProcessorForWarning was deprecated in AutoPkg version 1.5.0 "
+            "and may be removed in a future release."
+        )
+        self.assertEqual(message, expected)
+
+    # Test process method with deprecated processor
+    def test_process_shows_deprecation_warning_when_deprecated(self):
+        """Test that process() shows deprecation warning for deprecated processor."""
+
+        class DeprecatedProcessor(Processor):
+            """Test deprecated processor."""
+
+            description = "A deprecated processor"
+            input_variables = {}
+            output_variables = {}
+            lifecycle = {"deprecated": "1.2.0"}
+
+            def main(self):
+                pass
+
+        processor = DeprecatedProcessor(
+            env={"verbose": 1, "RECIPE_PATH": "/test.recipe"}
+        )
+
+        with patch.object(processor, "show_deprecation") as mock_show:
+            with patch.object(
+                processor, "get_deprecation_warning", return_value="Test warning"
+            ) as mock_get_warning:
+                processor.process()
+
+            mock_get_warning.assert_called_once_with("1.2.0")
+            mock_show.assert_called_once_with("Test warning")
+
+    def test_process_no_deprecation_warning_when_not_deprecated(self):
+        """Test that process() does not show deprecation warning for active processor."""
+
+        class ActiveProcessor(Processor):
+            """Test active processor."""
+
+            description = "An active processor"
+            input_variables = {}
+            output_variables = {}
+            lifecycle = {"introduced": "2.0.0"}
+
+            def main(self):
+                pass
+
+        processor = ActiveProcessor(env={"verbose": 1})
+
+        with patch.object(processor, "show_deprecation") as mock_show:
+            processor.process()
+
+        mock_show.assert_not_called()
+
+    def test_process_no_deprecation_warning_when_lifecycle_empty(self):
+        """Test that process() does not show deprecation warning when lifecycle is empty."""
+
+        class BasicProcessor(Processor):
+            """Test basic processor."""
+
+            description = "A basic processor"
+            input_variables = {}
+            output_variables = {}
+
+            def main(self):
+                pass
+
+        processor = BasicProcessor(env={"verbose": 1})
+
+        with patch.object(processor, "show_deprecation") as mock_show:
+            processor.process()
+
+        mock_show.assert_not_called()
+
+    def test_show_deprecation_with_different_recipe_names(self):
+        """Test show_deprecation with various recipe file extensions."""
+
+        test_cases = [
+            ("/path/to/MyRecipe.recipe", "MyRecipe"),
+            ("/path/to/MyRecipe.recipe.plist", "MyRecipe"),
+            ("/path/to/MyRecipe.recipe.yaml", "MyRecipe"),
+            ("/path/to/SomeApp.download.recipe", "SomeApp.download"),
+        ]
+
+        for recipe_path, expected_name in test_cases:
+            with self.subTest(recipe_path=recipe_path):
+                processor = TestProcessor(env={"RECIPE_PATH": recipe_path})
+                processor.output_variables = {}
+
+                with patch.object(processor, "output"):
+                    processor.show_deprecation("Warning")
+
+                summary = processor.env["deprecation_summary_result"]
+                self.assertEqual(summary["data"]["name"], expected_name)
+
+    # Test lifecycle metadata structure
+    def test_lifecycle_metadata_can_have_multiple_fields(self):
+        """Test that lifecycle can contain multiple metadata fields."""
+
+        class ExtendedLifecycleProcessor(Processor):
+            """Processor with extended lifecycle metadata."""
+
+            description = "Processor with extended lifecycle"
+            input_variables = {}
+            output_variables = {}
+            lifecycle = {
+                "introduced": "1.0.0",
+                "deprecated": "2.0.0",
+                "removed": "3.0.0",
+                "notes": "Use NewProcessor instead",
+            }
+
+            def main(self):
+                pass
+
+        processor = ExtendedLifecycleProcessor(env={"verbose": 1})
+        self.assertEqual(processor.lifecycle.get("introduced"), "1.0.0")
+        self.assertEqual(processor.lifecycle.get("deprecated"), "2.0.0")
+        self.assertEqual(processor.lifecycle.get("removed"), "3.0.0")
+        self.assertEqual(processor.lifecycle.get("notes"), "Use NewProcessor instead")
+
+    def test_process_calls_main_even_with_deprecation(self):
+        """Test that process() still calls main() even for deprecated processors."""
+
+        class DeprecatedProcessor(Processor):
+            """Deprecated processor."""
+
+            description = "Deprecated processor"
+            input_variables = {}
+            output_variables = {"test_output": {"description": "Test"}}
+            lifecycle = {"deprecated": "1.0.0"}
+
+            def main(self):
+                self.env["test_output"] = "success"
+
+        processor = DeprecatedProcessor(
+            env={"verbose": 1, "RECIPE_PATH": "/test.recipe"}
+        )
+
+        with patch.object(processor, "show_deprecation"):
+            env = processor.process()
+
+        # Verify main() was still called
+        self.assertEqual(env["test_output"], "success")
+
+    def test_process_deprecation_check_before_main(self):
+        """Test that deprecation check happens before main() is called."""
+
+        class OrderTestProcessor(Processor):
+            """Processor to test order of operations."""
+
+            description = "Order test processor"
+            input_variables = {}
+            output_variables = {}
+            lifecycle = {"deprecated": "1.0.0"}
+            call_order = []
+
+            def main(self):
+                self.__class__.call_order.append("main")
+
+        processor = OrderTestProcessor(
+            env={"verbose": 1, "RECIPE_PATH": "/test.recipe"}
+        )
+
+        def mock_show_deprecation(_msg):
+            OrderTestProcessor.call_order.append("deprecation")
+
+        with patch.object(
+            processor, "show_deprecation", side_effect=mock_show_deprecation
+        ):
+            processor.process()
+
+        # Verify deprecation check came before main
+        self.assertEqual(processor.call_order[0], "deprecation")
+        self.assertEqual(processor.call_order[1], "main")
+        OrderTestProcessor.call_order.clear()
+
+    # Test edge cases
+    def test_lifecycle_with_none_value(self):
+        """Test lifecycle with None as deprecated value."""
+
+        class TestProcessorNone(Processor):
+            """Test processor."""
+
+            description = "Test processor"
+            input_variables = {}
+            output_variables = {}
+            lifecycle = {"deprecated": None, "introduced": "1.0.0"}
+
+            def main(self):
+                pass
+
+        processor = TestProcessorNone(env={"verbose": 1})
+
+        with patch.object(processor, "show_deprecation") as mock_show:
+            processor.process()
+
+        # Should not show deprecation for None value
+        mock_show.assert_not_called()
+
+    def test_lifecycle_with_empty_string(self):
+        """Test lifecycle with empty string as deprecated value."""
+
+        class TestProcessorEmpty(Processor):
+            """Test processor."""
+
+            description = "Test processor"
+            input_variables = {}
+            output_variables = {}
+            lifecycle = {"deprecated": "", "introduced": "1.0.0"}
+
+            def main(self):
+                pass
+
+        processor = TestProcessorEmpty(env={"verbose": 1})
+
+        with patch.object(processor, "show_deprecation") as mock_show:
+            processor.process()
+
+        # Should not show deprecation for empty string
+        mock_show.assert_not_called()
+
+    def test_lifecycle_with_false_value(self):
+        """Test lifecycle with False as deprecated value."""
+
+        class TestProcessorFalse(Processor):
+            """Test processor."""
+
+            description = "Test processor"
+            input_variables = {}
+            output_variables = {}
+            lifecycle = {"deprecated": False, "introduced": "1.0.0"}
+
+            def main(self):
+                pass
+
+        processor = TestProcessorFalse(env={"verbose": 1})
+
+        with patch.object(processor, "show_deprecation") as mock_show:
+            processor.process()
+
+        # Should not show deprecation for False value
+        mock_show.assert_not_called()
+
+    # Integration tests
+    def test_real_world_deprecated_processor_workflow(self):
+        """Test complete workflow of a deprecated processor."""
+
+        class BrewCaskInfoProvider(Processor):
+            """Simulated deprecated processor."""
+
+            description = "Simulated BrewCaskInfoProvider"
+            input_variables = {
+                "cask_name": {
+                    "required": True,
+                    "description": "Cask name",
+                }
+            }
+            output_variables = {
+                "version": {
+                    "description": "Version",
+                }
+            }
+            lifecycle = {"deprecated": "0.6.0", "introduced": "0.2.5"}
+
+            def main(self):
+                self.env["version"] = "1.0.0"
+
+        env = {
+            "verbose": 1,
+            "RECIPE_PATH": "/recipes/test.recipe",
+            "cask_name": "firefox",
+        }
+        processor = BrewCaskInfoProvider(env=env)
+
+        with patch.object(processor, "output") as mock_output:
+            result_env = processor.process()
+
+        # Verify deprecation warning was shown
+        mock_output.assert_called()
+        warning_call = [
+            call for call in mock_output.call_args_list if "WARNING" in str(call)
+        ]
+        self.assertTrue(len(warning_call) > 0)
+
+        # Verify processor still worked
+        self.assertEqual(result_env["version"], "1.0.0")
+
+        # Verify deprecation summary was set
+        self.assertIn("deprecation_summary_result", result_env)
+
+    def test_non_deprecated_processor_workflow(self):
+        """Test complete workflow of a non-deprecated processor."""
+
+        class CURLDownloader(Processor):
+            """Simulated active processor."""
+
+            description = "Simulated CURLDownloader"
+            input_variables = {
+                "url": {
+                    "required": True,
+                    "description": "URL to download",
+                }
+            }
+            output_variables = {
+                "pathname": {
+                    "description": "Downloaded file path",
+                }
+            }
+            lifecycle = {"introduced": "0.5.1"}
+
+            def main(self):
+                self.env["pathname"] = "/tmp/file.dmg"
+
+        env = {
+            "verbose": 1,
+            "RECIPE_PATH": "/recipes/test.recipe",
+            "url": "https://example.com/file.dmg",
+        }
+        processor = CURLDownloader(env=env)
+
+        with patch.object(processor, "output") as mock_output:
+            result_env = processor.process()
+
+        # Verify no deprecation warning was shown
+        warning_calls = [
+            call for call in mock_output.call_args_list if "WARNING" in str(call)
+        ]
+        self.assertEqual(len(warning_calls), 0)
+
+        # Verify processor worked
+        self.assertEqual(result_env["pathname"], "/tmp/file.dmg")
+
+        # Verify no deprecation summary
+        self.assertNotIn("deprecation_summary_result", result_env)
+
 
 if __name__ == "__main__":
     unittest.main()
