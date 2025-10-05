@@ -539,7 +539,7 @@ class Processor:
     returns a new or updated property list that can be processed further.
     """
 
-    lifecycle = {}
+    lifecycle: dict = {}
 
     def __init__(self, env=None, infile=None, outfile=None):
         # super(Processor, self).__init__()
