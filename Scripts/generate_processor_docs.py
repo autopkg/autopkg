@@ -105,7 +105,7 @@ def indent_length(line_str):
 def generate_sidebar(sidebar_path):
     """Generate new _Sidebar.md contents."""
     # Generate the Processors section of the Sidebar
-    processor_heading = "  * **Processor Reference**"
+    processor_heading = "* **Processor Reference**"
     toc_string = ""
     toc_string += processor_heading + "\n"
     for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
@@ -113,7 +113,7 @@ def generate_sidebar(sidebar_path):
             continue
         page_name = f"Processor-{processor_name}"
         page_name.replace(" ", "-")
-        toc_string += f"      * [[{processor_name}|{page_name}]]\n"
+        toc_string += f"    * [[{processor_name}|{page_name}]]\n"
 
     with open(sidebar_path) as fdesc:
         current_sidebar_lines = fdesc.read().splitlines()
@@ -128,8 +128,22 @@ def generate_sidebar(sidebar_path):
         if line == processor_heading:
             past_processors_section = True
             processors_start = index
-        if (indent_length(line) <= section_indent) and past_processors_section:
-            processors_end = index
+        # Look for the next section at the same indent level (### Development)
+        # or end of the Processor Reference section
+        if past_processors_section and processors_start is not None:
+            # Check if we've reached a line with equal or less indentation
+            # and it's not a processor entry (which would start with 4 spaces)
+            if (
+                indent_length(line) <= section_indent
+                and index > processors_start
+                and not line.strip().startswith("*")
+            ):
+                processors_end = index
+                break
+            # Also check for the next major section (###)
+            if line.startswith("###") and index > processors_start:
+                processors_end = index
+                break
 
     # Build the new sidebar
     new_sidebar = ""
