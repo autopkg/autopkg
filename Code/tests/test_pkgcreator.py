@@ -39,7 +39,6 @@ class TestPkgCreator(unittest.TestCase):
                 "pkgtype": "flat",
                 "pkgdir": self.tmp_dir.name,
                 "infofile": "",
-                "resources": "",
                 "scripts": "",
                 "chown": [],
             },

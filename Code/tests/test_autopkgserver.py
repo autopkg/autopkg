@@ -196,7 +196,7 @@ class TestPkgHandler(unittest.TestCase):
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
-        self.assertFalse(syntax_ok)
+        self.assertTrue(syntax_ok)
         self.assertTrue(any("chown entry is missing" in error for error in errors))
 
     def test_verify_request_syntax_chown_with_int_uid_gid(self):

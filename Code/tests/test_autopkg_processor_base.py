@@ -963,6 +963,87 @@ class TestProcessorBase(unittest.TestCase):
         # Verify no deprecation summary
         self.assertNotIn("deprecation_summary_result", result_env)
 
+    def test_no_input_variable_defaults_contain_percent_variables(self):
+        """
+        Test that no processor has default values containing %variable% patterns.
+
+        This catches the bug fixed in ca4a27a where default values like
+        "%pathname%/*.app" or "%RECIPE_CACHE_DIR%/%app_name%-%version%.pkg"
+        were used. These defaults don't go through variable substitution,
+        so they remain as literal strings instead of being replaced with
+        actual values.
+
+        The correct pattern is to leave defaults implicit and handle them
+        programmatically in the processor's main() method.
+        """
+        import glob
+        import importlib.util
+        import inspect
+        import os
+        import re
+
+        # Pattern to match %variable_name%
+        percent_var_pattern = re.compile(r"%[^%]+%")
+
+        # Get all processor files
+        autopkglib_dir = os.path.join(os.path.dirname(__file__), "..", "autopkglib")
+        processor_files = glob.glob(os.path.join(autopkglib_dir, "*.py"))
+
+        violations = []
+
+        for processor_file in processor_files:
+            # Skip __init__ and other utility files
+            if os.path.basename(processor_file).startswith("__"):
+                continue
+
+            try:
+                # Load the module
+                module_name = os.path.splitext(os.path.basename(processor_file))[0]
+                spec = importlib.util.spec_from_file_location(
+                    module_name, processor_file
+                )
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+
+                # Find all classes in the module
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    # Check if it has input_variables (likely a Processor)
+                    if hasattr(obj, "input_variables") and isinstance(
+                        obj.input_variables, dict
+                    ):
+                        # Check each input variable for defaults with %...%
+                        for var_name, var_config in obj.input_variables.items():
+                            if isinstance(var_config, dict) and "default" in var_config:
+                                default_value = var_config["default"]
+                                # Only check string defaults
+                                if isinstance(default_value, str):
+                                    if percent_var_pattern.search(default_value):
+                                        violations.append(
+                                            {
+                                                "processor": name,
+                                                "variable": var_name,
+                                                "default": default_value,
+                                                "file": os.path.basename(
+                                                    processor_file
+                                                ),
+                                            }
+                                        )
+            except Exception:
+                # Skip files that can't be imported (dependencies, etc.)
+                continue
+
+        # Assert no violations found
+        if violations:
+            error_msg = (
+                "Found processor input variables with defaults containing %variable% patterns.\n"
+                "These defaults won't have variables substituted and will remain as literal strings.\n"
+                "Instead, leave defaults implicit and handle them programmatically in main().\n\n"
+                "Violations:\n"
+            )
+            for v in violations:
+                error_msg += f"  {v['file']}: {v['processor']}.{v['variable']} = \"{v['default']}\"\n"
+            self.fail(error_msg)
+
 
 if __name__ == "__main__":
     unittest.main()
