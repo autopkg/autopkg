@@ -380,7 +380,7 @@ class Packager:
 
     def random_string(self, length: int) -> str:
         rand = os.urandom(int((length + 1) / 2))
-        randstr = "".join(["%02x" % ord(c) for c in str(rand)])
+        randstr = rand.hex()
         return randstr[:length]
 
     def make_component_property_list(self) -> None:
