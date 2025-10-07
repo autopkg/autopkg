@@ -52,7 +52,12 @@ Request format:
 
     version         The package version.
 
-    infofile        A path to an Info.plist file for the package.
+    infofile        A path to a PackageInfo template file, which is passed to
+                    pkgbuild's undocumented --info flag. This merges additional
+                    package metadata (e.g., postinstall-action="restart") into
+                    the PackageInfo file pkgbuild generates. See
+                    http://s.sudre.free.fr/Stuff/Ivanhoe/FLAT.html for PackageInfo
+                    format examples.
 
     chown           An array of dictionaries with paths, relative to the
                     pkgroot, and the desired owner. Keys:
