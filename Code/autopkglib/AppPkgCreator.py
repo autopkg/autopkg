@@ -41,13 +41,11 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                 "Typically %pathname% points to a disk image downloaded in a "
                 "prior recipe step."
             ),
-            "default": "%pathname%/*.app",
         },
         "pkg_path": {
             "required": False,
             "description": "The pathname for the pkg to be created. If not set, "
             "defaults to %RECIPE_CACHE_DIR%/%app_name%-%version%.pkg",
-            "default": "%RECIPE_CACHE_DIR%/%app_name%-%version%.pkg",
         },
         "bundleid": {
             "required": False,
