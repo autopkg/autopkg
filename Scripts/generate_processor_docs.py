@@ -161,7 +161,7 @@ def main(_):
     usage = dedent(
         """%prog VERSION
 
-    ..where VERSION is the release version for which docs are being generated."""
+    ...where VERSION is the release version for which docs are being generated."""
     )
     parser = optparse.OptionParser(usage=usage)
     parser.description = (

@@ -6,10 +6,10 @@
 
 launchd_load()
 {
-    # most likely it's loaded..
-    echo "Attempting to unload $1.."
+    # most likely it's loaded...
+    echo "Attempting to unload $1..."
     /bin/launchctl unload "$1"
-    echo "Attempting to load $1.."
+    echo "Attempting to load $1..."
     /bin/launchctl load "$1"
 }
 
@@ -29,7 +29,7 @@ if [ -e "$INSTALL_DIR" ]; then
 fi
 for DAEMON in "$LAUNCH_DAEMON_PKGSERVER" "$LAUNCH_DAEMON_INSTALLD"; do
     if [ -e "$DAEMON" ]; then
-        echo "Removing Launch Daemon $(basename "$DAEMON").."
+        echo "Removing Launch Daemon $(basename "$DAEMON")..."
         rm -f "$DAEMON"
     fi
 done

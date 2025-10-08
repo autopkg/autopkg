@@ -87,7 +87,7 @@ class TestVersioner(unittest.TestCase):
         """Returns a path into the per testcase temporary directory.
         On POSIX-y platforms the paths are sensible. On Windows they will non-standard
         because they will use the format `C:/path/to/tmpdir/file.txt` instead of the
-        conventional `C:\\path\\....`. This is due to the interaction of code written
+        conventional `C:\\path\\...`. This is due to the interaction of code written
         only for macOS and code written to be cross-platform."""
         return posixpath.normpath(os.path.join(self.tmp_dir.name, *parts))
 

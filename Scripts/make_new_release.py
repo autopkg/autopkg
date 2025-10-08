@@ -167,7 +167,7 @@ def main():
         sys.exit("Option --token is required!")
     next_version = opts.next_version
     if opts.dry_run:
-        print("** Running in 'dry-run' mode..")
+        print("** Running in 'dry-run' mode...")
     publish_user, publish_repo = opts.user_repo.split("/")
     token = None
     if not opts.dry_run:
@@ -357,7 +357,7 @@ def main():
                 print()
 
     # increment version
-    print(f"** Incrementing version to {next_version}..")
+    print(f"** Incrementing version to {next_version}...")
     plist["Version"] = next_version
     with open(version_plist_path, "wb") as f:
         plistlib.dump(plist, f)

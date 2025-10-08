@@ -153,14 +153,14 @@ class Packager:
             if not mount_for_path:
                 self.log.debug(
                     "WARNING: Checking disk ownerships for path '%s' "
-                    "failed. Attempting to continue..",
+                    "failed. Attempting to continue...",
                     path,
                 )
                 return True
 
             # look for 'ignore ownerships' setting on the disk
             # if 'GlobalPermissionsEnabled' is true, ownerships are _not_ ignored
-            self.log.debug("Checking disk ownerships for mount '%s'..", mount_for_path)
+            self.log.debug("Checking disk ownerships for mount '%s'...", mount_for_path)
             out, err = cmd_output(
                 ["/usr/sbin/diskutil", "info", "-plist", mount_for_path]
             )
