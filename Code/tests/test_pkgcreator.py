@@ -276,31 +276,26 @@ class TestPkgCreator(unittest.TestCase):
     def test_send_request_success(self):
         """Test successful request sending."""
         mock_socket = MagicMock()
-        mock_socket.fileno.return_value = 1
+        mock_file = MagicMock()
+        mock_file.read.return_value = "OK:/path/to/package.pkg"
+        mock_socket.makefile.return_value.__enter__.return_value = mock_file
         self.processor.socket = mock_socket
 
-        with patch("os.fdopen") as mock_fdopen:
-            mock_file = MagicMock()
-            mock_file.read.return_value = "OK:/path/to/package.pkg"
-            mock_fdopen.return_value.__enter__.return_value = mock_file
+        result = self.processor.send_request({"test": "request"})
 
-            result = self.processor.send_request({"test": "request"})
-
-            self.assertEqual(result, "/path/to/package.pkg")
+        self.assertEqual(result, "/path/to/package.pkg")
+        mock_socket.makefile.assert_called_once_with(mode="r")
 
     def test_send_request_error(self):
         """Test error response from send_request."""
         mock_socket = MagicMock()
-        mock_socket.fileno.return_value = 1
+        mock_file = MagicMock()
+        mock_file.read.return_value = "ERROR:Package build failed"
+        mock_socket.makefile.return_value.__enter__.return_value = mock_file
         self.processor.socket = mock_socket
 
-        with patch("os.fdopen") as mock_fdopen:
-            mock_file = MagicMock()
-            mock_file.read.return_value = "ERROR:Package build failed"
-            mock_fdopen.return_value.__enter__.return_value = mock_file
-
-            with self.assertRaisesRegex(ProcessorError, "Package build failed"):
-                self.processor.send_request({"test": "request"})
+        with self.assertRaisesRegex(ProcessorError, "Package build failed"):
+            self.processor.send_request({"test": "request"})
 
     def test_disconnect(self):
         """Test disconnection from autopkgserver."""
