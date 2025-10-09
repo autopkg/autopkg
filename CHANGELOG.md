@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file. This projec
 - Added basic unit tests for autopkgserver and autopkginstalld.
 - Updated requirements.txt with the contents of new_requirements.txt, which has been used in production releases since AutoPkg 2.7, and removed new_requirements.txt.
 - Fixed `Bad file descriptor` error processor output during package builds.
+- Updated and resolved issues with manual `install.sh` script used for local testing of development builds of AutoPkg.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 
