@@ -22,7 +22,10 @@ if [ `id -u` -ne 0 ]; then
     exit 1
 fi
 
-# Remove previously installed version
+echo "Backing up Python3 framework"
+mv "$INSTALL_DIR/Python3" "/tmp/Python3"
+
+echo "Removing existing AutoPkg installation"
 if [ -e "$INSTALL_DIR" ]; then
     echo "Removing existing install"
     rm -rf "$INSTALL_DIR"
@@ -58,7 +61,7 @@ cp Code/autopkglib/*.py "$INSTALL_DIR/autopkglib/"
 cp Code/autopkglib/github/*.py "$INSTALL_DIR/autopkglib/github"
 cp Code/autopkglib/version.plist "$INSTALL_DIR/autopkglib/"
 
-echo "Copying server"
+echo "Copying autopkgserver"
 cp Code/autopkgserver/autopkgserver "$INSTALL_DIR/autopkgserver/"
 cp Code/autopkgserver/autopkginstalld "$INSTALL_DIR/autopkgserver/"
 cp Code/autopkgserver/*.py "$INSTALL_DIR/autopkgserver/"
@@ -68,6 +71,9 @@ cp Code/autopkgserver/autopkginstalld.plist "$LAUNCH_DAEMON_INSTALLD"
 echo "Setting permissions"
 find "$INSTALL_DIR" -type f -exec chmod 755 {} \;
 chown -hR root:wheel "$INSTALL_DIR"
+
+echo "Restoring Python3 framework"
+mv "/tmp/Python3" "$INSTALL_DIR/Python3"
 
 echo "Installing Launch Daemons"
 launchd_load "$LAUNCH_DAEMON_PKGSERVER"
