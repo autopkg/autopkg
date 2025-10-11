@@ -17,6 +17,13 @@ import sys
 import unittest
 from unittest import TestSuite, TextTestRunner
 
+try:
+    import coverage
+
+    COVERAGE_AVAILABLE = True
+except ImportError:
+    COVERAGE_AVAILABLE = False
+
 
 class SafeStdout:
     """Wrapper for stdout that handles file descriptor errors during shutdown."""
@@ -48,12 +55,27 @@ AUTOPKG_TOP: str = os.path.abspath(
 sys.path.insert(0, AUTOPKG_TOP)
 
 TESTS_DIR: str = os.path.join(AUTOPKG_TOP, "tests")
+
+# Start coverage collection if available
+if COVERAGE_AVAILABLE:
+    cov = coverage.Coverage(source=[AUTOPKG_TOP])
+    cov.start()
+
 TEST_SUITE: TestSuite = unittest.defaultTestLoader.discover(TESTS_DIR)
 RUNNER: TextTestRunner = TextTestRunner(verbosity=2)
 
 # Protect stdout from file descriptor errors during interpreter shutdown
 sys.stdout = SafeStdout(sys.stdout)
 
-if RUNNER.run(TEST_SUITE).wasSuccessful():
+result = RUNNER.run(TEST_SUITE)
+
+# Stop coverage and save results
+if COVERAGE_AVAILABLE:
+    cov.stop()
+    cov.save()
+    cov.html_report()
+    cov.xml_report()
+
+if result.wasSuccessful():
     sys.exit(0)
 sys.exit(1)
