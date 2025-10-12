@@ -489,7 +489,8 @@ def get_recipe_info(
         log(" " + output[1:-1])
         return True
     else:
-        log_err(f"No valid recipe found for {recipe_name}")
+        if not make_suggestions:
+            log_err(f"No valid recipe found for {recipe_name}")
         return False
 
 
