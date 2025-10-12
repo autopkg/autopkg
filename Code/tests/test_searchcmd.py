@@ -113,7 +113,7 @@ class TestSearchCmd(unittest.TestCase):
     @patch("autopkgcmd.searchcmd.check_search_cache")
     @patch("builtins.open", new_callable=mock_open)
     def test_search_with_too_many_results(self, mock_file, mock_check_cache):
-        """Test search_recipes with more than 100 results returns exit code 3."""
+        """Test search_recipes with more than 100 results shows warning."""
         # Mock check_search_cache to prevent network calls
         mock_check_cache.return_value = None
 
@@ -135,10 +135,14 @@ class TestSearchCmd(unittest.TestCase):
         ).encode()
 
         argv = ["autopkg", "search", "recipe"]
-        with patch("sys.stdout", new=StringIO()):
+        with patch("sys.stdout", new=StringIO()), patch(
+            "sys.stderr", new=StringIO()
+        ) as mock_stderr:
             result = search_recipes(argv)
 
-        self.assertEqual(result, 3)
+        # Should return 0 and print warning message
+        self.assertEqual(result, 0)
+        self.assertIn("more than 100 results", mock_stderr.getvalue())
 
     @patch("autopkgcmd.searchcmd.check_search_cache")
     @patch("builtins.open", new_callable=mock_open)
