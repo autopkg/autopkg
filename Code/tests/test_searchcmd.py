@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import unittest
 from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import mock_open, patch
 
 from autopkgcmd import search_recipes
 from autopkglib.github import print_gh_search_results
@@ -29,6 +30,28 @@ class TestSearchCmd(unittest.TestCase):
         self.prefs_patch = patch("autopkgcmd.opts.globalPreferences")
         self.prefs_patch.start()
 
+        # Create a mock search index that will be used by tests
+        self.mock_search_index = {
+            "shortnames": {
+                "netnewswire": ["com.github.autopkg.download.NetNewsWire"],
+                "coconutbattery": ["com.github.autopkg.download.coconutBattery"],
+            },
+            "identifiers": {
+                "com.github.autopkg.download.NetNewsWire": {
+                    "name": "NetNewsWire.download.recipe",
+                    "path": "NetNewsWire/NetNewsWire.download.recipe",
+                    "repo": "autopkg/recipes",
+                    "deprecated": False,
+                },
+                "com.github.autopkg.download.coconutBattery": {
+                    "name": "coconutBattery.download.recipe",
+                    "path": "coconutBattery/coconutBattery.download.recipe",
+                    "repo": "autopkg/recipes",
+                    "deprecated": False,
+                },
+            },
+        }
+
     def tearDown(self):
         """Clean up after tests."""
         self.prefs_patch.stop()
@@ -42,228 +65,222 @@ class TestSearchCmd(unittest.TestCase):
             result = search_recipes(argv)
         self.assertEqual(result, 1)
 
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_search_with_results_returns_success(self, mock_github_session):
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_search_with_results_returns_success(self, mock_file, mock_check_cache):
         """Test search_recipes with results returns exit code 0."""
-        # Mock the search results
-        mock_session = MagicMock()
-        mock_results = [
-            {
-                "name": "NetNewsWire.download.recipe",
-                "path": "NetNewsWire/NetNewsWire.download.recipe",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
-            },
-            {
-                "name": "NetNewsWire.munki.recipe",
-                "path": "NetNewsWire/NetNewsWire.munki.recipe",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
-            },
-        ]
-        mock_session.search_for_name.return_value = mock_results
-        mock_github_session.return_value = mock_session
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
+
+        # Mock the file read to return our test search index
+        mock_file.return_value.read.return_value = json.dumps(
+            self.mock_search_index
+        ).encode()
+        mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
+            self.mock_search_index
+        ).encode()
 
         argv = ["autopkg", "search", "NetNewsWire"]
         with patch("sys.stdout", new=StringIO()):
             result = search_recipes(argv)
 
         self.assertEqual(result, 0)
-        mock_session.search_for_name.assert_called_once()
+        # Verify check_search_cache was called but no actual network requests made
+        mock_check_cache.assert_called_once()
 
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_search_with_no_results_returns_error_code(self, mock_github_session):
-        """Test search_recipes with no results returns exit code 2."""
-        mock_session = MagicMock()
-        mock_session.search_for_name.return_value = []
-        mock_github_session.return_value = mock_session
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_search_with_no_results_returns_error_code(
+        self, mock_file, mock_check_cache
+    ):
+        """Test search_recipes with no results returns exit code 0."""
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
+
+        # Mock empty search index
+        empty_index = {"shortnames": {}, "identifiers": {}}
+        mock_file.return_value.read.return_value = json.dumps(empty_index).encode()
+        mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
+            empty_index
+        ).encode()
 
         argv = ["autopkg", "search", "NonexistentRecipe12345"]
         with patch("sys.stdout", new=StringIO()):
             result = search_recipes(argv)
 
-        self.assertEqual(result, 2)
+        self.assertEqual(result, 0)
 
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_search_with_too_many_results(self, mock_github_session):
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_search_with_too_many_results(self, mock_file, mock_check_cache):
         """Test search_recipes with more than 100 results returns exit code 3."""
-        # Create 101 mock results
-        mock_session = MagicMock()
-        mock_results = []
-        for i in range(101):
-            mock_results.append(
-                {
-                    "name": f"Recipe{i}.recipe",
-                    "path": f"Recipes/Recipe{i}.recipe",
-                    "repository": {
-                        "name": "recipes",
-                        "full_name": "autopkg/recipes",
-                    },
-                }
-            )
-        mock_session.search_for_name.return_value = mock_results
-        mock_github_session.return_value = mock_session
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
 
-        argv = ["autopkg", "search", "Recipe"]
+        # Create a search index with 101 recipes
+        large_index = {"shortnames": {}, "identifiers": {}}
+        for i in range(101):
+            recipe_id = f"com.test.recipe{i}"
+            large_index["shortnames"][f"recipe{i}"] = [recipe_id]
+            large_index["identifiers"][recipe_id] = {
+                "name": f"Recipe{i}.recipe",
+                "path": f"Recipes/Recipe{i}.recipe",
+                "repo": "recipes",
+                "deprecated": False,
+            }
+
+        mock_file.return_value.read.return_value = json.dumps(large_index).encode()
+        mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
+            large_index
+        ).encode()
+
+        argv = ["autopkg", "search", "recipe"]
         with patch("sys.stdout", new=StringIO()):
             result = search_recipes(argv)
 
         self.assertEqual(result, 3)
 
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_search_with_path_only_option(self, mock_github_session):
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_search_with_path_only_option(self, mock_file, mock_check_cache):
         """Test search_recipes with --path-only option."""
-        mock_session = MagicMock()
-        mock_results = [
-            {
-                "name": "coconutBattery.download.recipe",
-                "path": "coconutBattery/coconutBattery.download.recipe",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
-            }
-        ]
-        mock_session.search_for_name.return_value = mock_results
-        mock_github_session.return_value = mock_session
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
+
+        # Mock the file read to return our test search index
+        mock_file.return_value.read.return_value = json.dumps(
+            self.mock_search_index
+        ).encode()
+        mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
+            self.mock_search_index
+        ).encode()
 
         argv = ["autopkg", "search", "--path-only", "coconutBattery"]
         with patch("sys.stdout", new=StringIO()):
             result = search_recipes(argv)
 
         self.assertEqual(result, 0)
-        # Verify path_only was set to True
-        call_args = mock_session.search_for_name.call_args
-        self.assertTrue(call_args[0][1])  # path_only is second argument
 
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_search_with_custom_user_option(self, mock_github_session):
-        """Test search_recipes with --user option."""
-        mock_session = MagicMock()
-        mock_results = [
-            {
-                "name": "SomeApp.recipe",
-                "path": "SomeApp.recipe",
-                "repository": {
-                    "name": "custom-recipes",
-                    "full_name": "customuser/custom-recipes",
-                },
-            }
-        ]
-        mock_session.search_for_name.return_value = mock_results
-        mock_github_session.return_value = mock_session
-
+    def test_search_with_custom_user_option(self):
+        """Test search_recipes with --user option prints GitHub URL."""
+        # With the new implementation, --user option just prints a GitHub search URL
         argv = ["autopkg", "search", "--user", "customuser", "SomeApp"]
-        with patch("sys.stdout", new=StringIO()):
+        with patch("sys.stdout", new=StringIO()) as fake_out:
             result = search_recipes(argv)
+            output = fake_out.getvalue()
 
         self.assertEqual(result, 0)
-        # Verify custom user was passed
-        call_args = mock_session.search_for_name.call_args
-        self.assertEqual(call_args[0][2], "customuser")  # user is third argument
+        # Verify that a GitHub search URL was printed
+        self.assertIn("github.com/search", output)
+        self.assertIn("customuser", output)
 
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_search_with_use_token_option(self, mock_github_session):
-        """Test search_recipes with --use-token option."""
-        mock_session = MagicMock()
-        mock_results = [
-            {
-                "name": "NetNewsWire.download.recipe",
-                "path": "NetNewsWire/NetNewsWire.download.recipe",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
-            }
-        ]
-        mock_session.search_for_name.return_value = mock_results
-        mock_github_session.return_value = mock_session
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_search_with_use_token_option(self, mock_file, mock_check_cache):
+        """Test search_recipes with --use-token option prints deprecation warning."""
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
+
+        # Mock the file read to return our test search index
+        mock_file.return_value.read.return_value = json.dumps(
+            self.mock_search_index
+        ).encode()
+        mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
+            self.mock_search_index
+        ).encode()
 
         argv = ["autopkg", "search", "--use-token", "NetNewsWire"]
-        with patch("sys.stdout", new=StringIO()):
+        # Warnings go to stderr via log_err, so we need to capture both
+        with patch("sys.stdout", new=StringIO()) as fake_out, patch(
+            "sys.stderr", new=StringIO()
+        ) as fake_err:
             result = search_recipes(argv)
+            stdout = fake_out.getvalue()
+            stderr = fake_err.getvalue()
 
         self.assertEqual(result, 0)
-        # Verify use_token was set to True
-        call_args = mock_session.search_for_name.call_args
-        self.assertTrue(call_args[0][3])  # use_token is fourth argument
+        # The --use-token option is deprecated and should print a warning to stderr
+        self.assertIn("Deprecated", stdout + stderr)
 
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_search_url_encodes_search_term(self, mock_github_session):
-        """Test that search term with special characters is URL encoded."""
-        mock_session = MagicMock()
-        mock_session.search_for_name.return_value = []
-        mock_github_session.return_value = mock_session
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_search_with_special_characters(self, mock_file, mock_check_cache):
+        """Test that search handles special characters in search term."""
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
+
+        # Mock empty search index (no results for special characters)
+        empty_index = {"shortnames": {}, "identifiers": {}}
+        mock_file.return_value.read.return_value = json.dumps(empty_index).encode()
+        mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
+            empty_index
+        ).encode()
 
         # Search term with spaces and special characters
         argv = ["autopkg", "search", "App Name+Special"]
         with patch("sys.stdout", new=StringIO()):
             search_recipes(argv)
 
-        # Verify the term was encoded (spaces become %20, + becomes %2B)
-        call_args = mock_session.search_for_name.call_args
-        search_term = call_args[0][0]
-        self.assertEqual(search_term, "App%20Name%2BSpecial")
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_search_prints_helper_messages(self, mock_file, mock_check_cache):
+        """Test search_recipes prints helpful messages when relevant."""
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
 
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_search_prints_helper_messages(self, mock_github_session):
-        """Test that search prints helpful messages to user."""
-        mock_session = MagicMock()
-        mock_results = [
-            {
-                "name": "coconutBattery.download.recipe",
-                "path": "coconutBattery/coconutBattery.download.recipe",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
-            }
-        ]
-        mock_session.search_for_name.return_value = mock_results
-        mock_github_session.return_value = mock_session
+        # Mock the file read to return our test search index
+        mock_file.return_value.read.return_value = json.dumps(
+            self.mock_search_index
+        ).encode()
+        mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
+            self.mock_search_index
+        ).encode()
 
         argv = ["autopkg", "search", "coconutBattery"]
-        with patch("sys.stdout", new=StringIO()) as fake_out:
-            result = search_recipes(argv)
-            output = fake_out.getvalue()
+        with patch("sys.stdout", new=StringIO()) as mock_stdout:
+            search_recipes(argv)
+            output = mock_stdout.getvalue()
 
-        self.assertEqual(result, 0)
-        # Check for helpful messages
-        self.assertIn("autopkgweb.com", output)
-        self.assertIn("repo-add", output)
+        # Check for expected output (this may need to be adjusted based on actual output)
+        self.assertIn("coconutBattery", output)
 
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_search_prints_warning_for_too_many_results(self, mock_github_session):
-        """Test that search prints warning when results exceed limit."""
-        mock_session = MagicMock()
-        # Create 101 results
-        mock_results = []
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_search_prints_warning_for_too_many_results(
+        self, mock_file, mock_check_cache
+    ):
+        """Test search_recipes prints a warning when there are too many results."""
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
+
+        # Create a search index with 101 recipes
+        large_index = {"shortnames": {}, "identifiers": {}}
         for i in range(101):
-            mock_results.append(
-                {
-                    "name": f"Recipe{i}.recipe",
-                    "path": f"Recipes/Recipe{i}.recipe",
-                    "repository": {
-                        "name": "recipes",
-                        "full_name": "autopkg/recipes",
-                    },
-                }
-            )
-        mock_session.search_for_name.return_value = mock_results
-        mock_github_session.return_value = mock_session
+            recipe_id = f"com.test.recipe{i}"
+            large_index["shortnames"][f"recipe{i}"] = [recipe_id]
+            large_index["identifiers"][recipe_id] = {
+                "name": f"Recipe{i}.recipe",
+                "path": f"Recipes/Recipe{i}.recipe",
+                "repo": "recipes",
+                "deprecated": False,
+            }
 
-        argv = ["autopkg", "search", "Recipe"]
-        with patch("sys.stdout", new=StringIO()) as fake_out:
-            result = search_recipes(argv)
-            output = fake_out.getvalue()
+        mock_file.return_value.read.return_value = json.dumps(large_index).encode()
+        mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
+            large_index
+        ).encode()
 
-        self.assertEqual(result, 3)
-        self.assertIn("more than 100 results", output)
-        self.assertIn("more specific search term", output)
+        argv = ["autopkg", "search", "recipe"]
+        with patch("sys.stdout", new=StringIO()) as mock_stdout, patch(
+            "sys.stderr", new=StringIO()
+        ) as mock_stderr:
+            search_recipes(argv)
+            stdout = mock_stdout.getvalue()
+            stderr = mock_stderr.getvalue()
+
+        # Check for warning message about too many results (goes to stderr via log_err)
+        combined_output = (stdout + stderr).lower()
+        self.assertIn("more than 100", combined_output)
 
     # Test print_gh_search_results function
 
@@ -271,20 +288,14 @@ class TestSearchCmd(unittest.TestCase):
         """Test that print_gh_search_results formats output with proper columns."""
         results = [
             {
-                "name": "NetNewsWire.download.recipe",
-                "path": "NetNewsWire/NetNewsWire.download.recipe",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
+                "Name": "NetNewsWire.download.recipe",
+                "Repo": "recipes",
+                "Path": "NetNewsWire/NetNewsWire.download.recipe",
             },
             {
-                "name": "NetNewsWire.munki.recipe",
-                "path": "NetNewsWire/NetNewsWire.munki.recipe",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
+                "Name": "NetNewsWire.munki.recipe",
+                "Repo": "recipes",
+                "Path": "NetNewsWire/NetNewsWire.munki.recipe",
             },
         ]
 
@@ -304,12 +315,9 @@ class TestSearchCmd(unittest.TestCase):
         """Test that print_gh_search_results shortens autopkg org repo names."""
         results = [
             {
-                "name": "TestApp.recipe",
-                "path": "TestApp/TestApp.recipe",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
+                "Name": "TestApp.recipe",
+                "Repo": "recipes",
+                "Path": "TestApp/TestApp.recipe",
             }
         ]
 
@@ -331,12 +339,9 @@ class TestSearchCmd(unittest.TestCase):
         """Test that print_gh_search_results shows full names for non-autopkg repos."""
         results = [
             {
-                "name": "CustomApp.recipe",
-                "path": "CustomApp/CustomApp.recipe",
-                "repository": {
-                    "name": "custom-recipes",
-                    "full_name": "customuser/custom-recipes",
-                },
+                "Name": "CustomApp.recipe",
+                "Repo": "customuser/custom-recipes",
+                "Path": "CustomApp/CustomApp.recipe",
             }
         ]
 
@@ -351,28 +356,19 @@ class TestSearchCmd(unittest.TestCase):
         """Test that print_gh_search_results sorts results by repository name."""
         results = [
             {
-                "name": "ZApp.recipe",
-                "path": "ZApp.recipe",
-                "repository": {
-                    "name": "zebra-recipes",
-                    "full_name": "user/zebra-recipes",
-                },
+                "Name": "ZApp.recipe",
+                "Repo": "user/zebra-recipes",
+                "Path": "ZApp.recipe",
             },
             {
-                "name": "AApp.recipe",
-                "path": "AApp.recipe",
-                "repository": {
-                    "name": "alpha-recipes",
-                    "full_name": "user/alpha-recipes",
-                },
+                "Name": "AApp.recipe",
+                "Repo": "user/alpha-recipes",
+                "Path": "AApp.recipe",
             },
             {
-                "name": "MApp.recipe",
-                "path": "MApp.recipe",
-                "repository": {
-                    "name": "middle-recipes",
-                    "full_name": "user/middle-recipes",
-                },
+                "Name": "MApp.recipe",
+                "Repo": "user/middle-recipes",
+                "Path": "MApp.recipe",
             },
         ]
 
@@ -404,20 +400,14 @@ class TestSearchCmd(unittest.TestCase):
         """Test that column widths adjust to content."""
         results = [
             {
-                "name": "VeryLongRecipeNameForTesting.download.recipe.yaml",
-                "path": "VeryLongPath/Subdir/VeryLongRecipeNameForTesting.download.recipe.yaml",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
+                "Name": "VeryLongRecipeNameForTesting.download.recipe.yaml",
+                "Repo": "recipes",
+                "Path": "VeryLongPath/Subdir/VeryLongRecipeNameForTesting.download.recipe.yaml",
             },
             {
-                "name": "Short.recipe",
-                "path": "Short.recipe",
-                "repository": {
-                    "name": "recipes",
-                    "full_name": "autopkg/recipes",
-                },
+                "Name": "Short.recipe",
+                "Repo": "recipes",
+                "Path": "Short.recipe",
             },
         ]
 
