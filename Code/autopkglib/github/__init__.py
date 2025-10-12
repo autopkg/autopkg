@@ -21,9 +21,8 @@ import os
 import re
 import tempfile
 from typing import Any, List
-from urllib.parse import quote
 
-from autopkglib import RECIPE_EXTS, get_pref, log, log_err
+from autopkglib import get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
 
 BASE_URL = "https://api.github.com"
@@ -174,38 +173,63 @@ To save the token, paste it to the following prompt."""
         use_token: bool = False,
         results_limit: int = 100,
     ) -> list[dict]:
-        """Search GitHub for results for a given name."""
+        """Search GitHub for results for a given name.
 
-        # Include all supported recipe extensions in search.
-        # Compound extensions like ".recipe.yaml" aren't definable here,
-        # so further filtering of results is done below.
-        exts = "+".join("extension:" + ext.split(".")[-1] for ext in RECIPE_EXTS)
-        # Example value: "extension:recipe+extension:plist+extension:yaml"
+        Note: This method now uses a cached search index instead of the GitHub
+        Code Search API. The user, use_token, and results_limit parameters are
+        deprecated but kept for backward compatibility.
+        """
+        # Import here to avoid circular dependency
+        from autopkgcmd.searchcmd import get_search_results
 
-        query = f"q={quote(name)}+{exts}+user:{user}"
+        # Warn if non-default user is specified
+        if user != DEFAULT_SEARCH_USER:
+            log(
+                f"WARNING: Searching non-autopkg users/orgs ('{user}') is "
+                "no longer supported. Searching the autopkg org only."
+            )
 
-        if path_only:
-            query += "+in:path,filepath"
-        else:
-            query += "+in:path,file"
-        query += f"&per_page={results_limit}"
+        # Warn if token flag is used (no longer needed with cached index)
+        if use_token:
+            log("WARNING: --use-token flag is deprecated and no longer " "needed.")
 
-        results = self.code_search(query, use_token=use_token)
+        # Suppress unused parameter warning - kept for backward compatibility
+        _ = results_limit
 
-        if not results or not results.get("total_count"):
-            log("Nothing found.")
+        # Get results from cached index
+        results = get_search_results(name, path_only=path_only)
+
+        # Return empty list if no results
+        # (get_search_results already logs "Nothing found")
+        if not results:
             return []
 
-        # Filter out files from results that are not AutoPkg recipes.
-        results_items = [
-            item
-            for item in results["items"]
-            if any(item["name"].endswith(ext) for ext in RECIPE_EXTS)
-        ]
+        # Transform results to maintain backward compatibility with old format
+        # Old format had: name, path, repository{name, full_name}, html_url
+        # New format has: Name, Repo, Path
+        results_items = []
+        for item in results:
+            # Build a compatible result structure
+            repo_name = item["Repo"]
+            # Add back "autopkg/" prefix if it was stripped
+            if "/" not in repo_name:
+                full_repo = f"autopkg/{repo_name}"
+            else:
+                full_repo = repo_name
 
-        if not results_items:
-            log("Nothing found.")
-            return []
+            result_item = {
+                "name": item["Name"],
+                "path": item["Path"],
+                "repository": {
+                    "name": repo_name.split("/")[-1],  # Just the repo name
+                    "full_name": full_repo,  # owner/repo
+                },
+                "html_url": (
+                    f"https://github.com/{full_repo}/blob/master/" f"{item['Path']}"
+                ),
+            }
+            results_items.append(result_item)
+
         return results_items
 
     def code_search(self, query: str, use_token: bool = False) -> dict | None:
