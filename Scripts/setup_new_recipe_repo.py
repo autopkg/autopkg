@@ -275,7 +275,7 @@ Type 'yes' to proceed: """
     _, code = call_api(remove_member_endpoint, method="DELETE")
     if code != 204:
         print(
-            "Warning: Unexpected HTTP result on removing "
+            "WARNING: Unexpected HTTP result on removing "
             f"{auth_user} from new team.",
             file=sys.stderr,
         )

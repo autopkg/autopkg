@@ -18,12 +18,12 @@
 import plistlib
 import subprocess
 
-from autopkglib import APLooseVersion, Processor, ProcessorError, log
+from autopkglib import APLooseVersion, Processor, ProcessorError, log_err
 
 try:
     from Foundation import NSDictionary
 except ImportError:
-    log("WARNING: Failed 'from Foundation import NSDictionary' in " + __name__)
+    log_err("WARNING: Failed 'from Foundation import NSDictionary' in " + __name__)
 
 __all__ = ["MunkiInstallsItemsCreator"]
 

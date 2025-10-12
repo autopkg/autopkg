@@ -2341,7 +2341,7 @@ def run_recipes(argv):
                     summary_text = result.get("summary_text", "")
                     data = result.get("data")
                     if not data:
-                        log(
+                        log_err(
                             'WARNING: Cannot display summary result because "%s" '
                             "does not have a "
                             '"data" dictionary. See wiki for more information: '
