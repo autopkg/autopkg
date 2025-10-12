@@ -38,7 +38,7 @@ def check_search_cache(cache_path: str) -> None:
     headers = {"Authorization": f"Bearer {token}"} if token else {}
 
     # Retrieve metadata about search index file from GitHub API
-    cache_endpoint = "repos/autopkg/index/contents/index.json?ref=main"
+    cache_endpoint = "repos/autopkg/index/contents/v1/index.json?ref=main"
     headers["Accept"] = "application/vnd.github.v3+json"
     curl_cmd = api.prepare_curl_cmd()
     api.add_curl_headers(curl_cmd, headers)
