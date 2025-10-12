@@ -233,7 +233,10 @@ To save the token, paste it to the following prompt."""
         return results_items
 
     def code_search(self, query: str, use_token: bool = False) -> dict | None:
-        """Search GitHub code repos"""
+        """Search GitHub code repos.
+
+        DEPRECATED as of AutoPkg 2.9.0 in favor of cached search index. This function
+        will be removed in a future release."""
         if use_token:
             _ = self.get_or_setup_token()
         # Do the search, including text match metadata
