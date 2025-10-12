@@ -341,7 +341,7 @@ class CodeSignatureVerifier(DmgMounter):
                     self.process_installer_package(matched_input_path)
                 else:
                     self.output(
-                        "Warning: Installer package signature "
+                        "WARNING: Installer package signature "
                         "verification not supported on Mac OS X 10.6"
                     )
 
