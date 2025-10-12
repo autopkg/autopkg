@@ -2006,7 +2006,7 @@ def parse_recipe_list(filename):
     return recipe_list
 
 
-def run_recipes(argv):
+def run_recipes(argv):  # noqa: C901
     """Run one or more recipes. If called with 'install' verb, run .install
     recipe"""
     verb = argv[1]
