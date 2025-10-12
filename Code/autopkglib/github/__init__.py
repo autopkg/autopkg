@@ -327,7 +327,7 @@ def get_table_row(row_items, col_widths, header=False):
 
 
 def print_gh_search_results(results: List):
-    """Pretty print our GitHub search results"""
+    """Pretty print our GitHub search results."""
     if not results:
         return
     col_widths = [
@@ -339,3 +339,17 @@ def print_gh_search_results(results: List):
         print(get_table_row(result_item.values(), col_widths))
     print()
     print("To add a new recipe repo, use `autopkg repo-add <repo name>`")
+    print()
+    print(
+        "If you don't see the recipe you're looking for, try searching\n"
+        "https://autopkgweb.com/ (maintained by @jannheider)."
+    )
+
+    # Warn if we have too many results (likely not helpful)
+    results_limit = 100
+    if len(results) > results_limit:
+        print()
+        log_err(
+            "WARNING: Search yielded more than 100 results. Please try a "
+            "more specific search term."
+        )

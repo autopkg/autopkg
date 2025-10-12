@@ -222,23 +222,8 @@ def search_recipes(argv: list[str]) -> int:
         return 0
 
     # Retrieve search results and print them, sorted by repo
+    # (print_gh_search_results now includes autopkgweb recommendation and warnings)
     results = get_search_results(arguments[0], path_only=options.path_only)
     print_gh_search_results(results)
-
-    # Recommend autopkgweb as an additional search resource
-    log(
-        "\nIf you don't see the recipe you're looking for, try searching\n"
-        "https://autopkgweb.com/ (maintained by @jannheider)."
-    )
-
-    # Warn and exit non-zero if we exceed limit (likely not helpful results)
-    results_limit = 100
-    if len(results) > results_limit:
-        print()
-        log_err(
-            "WARNING: Search yielded more than 100 results. Please try a "
-            "more specific search term."
-        )
-        return 3
 
     return 0
