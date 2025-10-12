@@ -332,6 +332,7 @@ def get_table_row(row_items, col_widths, header=False):
 def print_gh_search_results(results: List):
     """Pretty print our GitHub search results."""
     if not results:
+        log_err("Nothing found.")
         return
     col_widths = [
         max([len(x[k]) for x in results] + [len(k)]) for k in results[0].keys()

@@ -130,7 +130,6 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
                 if normalize_keyword(keyword) in normalize_keyword(info[key]):
                     result_ids.append(identifier)
     if not result_ids:
-        log_err("Nothing found.")
         return []
     result_ids = list(set(result_ids))
 

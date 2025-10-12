@@ -393,12 +393,14 @@ class TestSearchCmd(unittest.TestCase):
         """Test that print_gh_search_results handles empty results gracefully."""
         results = []
 
-        with patch("sys.stdout", new=StringIO()) as fake_out:
+        with patch("sys.stdout", new=StringIO()) as fake_out, patch(
+            "sys.stderr", new=StringIO()
+        ) as fake_err:
             print_gh_search_results(results)
-            output = fake_out.getvalue()
+            output = fake_out.getvalue() + fake_err.getvalue()
 
-        # Should produce no output for empty results
-        self.assertEqual(output, "")
+        # Should print "Nothing found." for empty results
+        self.assertIn("Nothing found", output)
 
     def test_print_gh_search_results_calculates_column_widths_dynamically(self):
         """Test that column widths adjust to content."""
