@@ -2,20 +2,21 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [2.7.7](https://github.com/autopkg/autopkg/compare/v2.7.6...HEAD) (Unreleased)
+## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...HEAD) (Unreleased)
 
+- Completely redesigned `autopkg search` feature using a structured [search index](https://github.com/autopkg/index) of all recipes in the AutoPkg org. The index is cached locally for speed, and redownloaded only when changes are available. This should be faster and much more reliable than our previous search method.
+- Fixed `Bad file descriptor` error processor output during package builds.
+- Updated requirements.txt with the contents of new_requirements.txt, which has been used in production releases since AutoPkg 2.7, and removed new_requirements.txt.
 - Added a method by which processors can be marked for deprecation, similar to what DeprecationWarning does for recipes.
+- Added basic unit tests for autopkgserver and autopkginstalld.
+- Removed deprecated processor BrewCaskInfoProvider.
 - Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
 - URLDownloaderPython: explicitly mark the sha1, md5, and sha256 hashing of downloaded files as non-security-related.
 - Unarchiver: when using Python native extractor, stop processing if archives have indicators of directory traversal attacks.
 - Various processors updated with `default` values that were previously implied or included only in the description.
-- Removed deprecated processor BrewCaskInfoProvider.
-- Removed legacy launch.py component of autopkgserver, unused since AutoPkg 0.5.0.
 - Removed `resources` subkey of the PkgCreator `pkg_request` dictionary, which has not been used since AutoPkg changed from `packagemaker` to `pkgbuild` for packaging prior to v0.1.0.
 - Removed `options` subkey of the PkgCreator `pkg_request` dictionary, which has never been used.
-- Added basic unit tests for autopkgserver and autopkginstalld.
-- Updated requirements.txt with the contents of new_requirements.txt, which has been used in production releases since AutoPkg 2.7, and removed new_requirements.txt.
-- Fixed `Bad file descriptor` error processor output during package builds.
+- Removed legacy launch.py component of autopkgserver, unused since AutoPkg 0.5.0.
 - Updated and resolved issues with manual `install.sh` script used for local testing of development builds of AutoPkg.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
