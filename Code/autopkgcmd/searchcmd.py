@@ -122,8 +122,7 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
     else:
         searchable_keys: tuple[str, ...] = (
             "name",
-            "munki_display_name",
-            "jamf_display_name",
+            "app_display_name",
         )
     for identifier, info in search_index["identifiers"].items():
         if info.get("deprecated"):
