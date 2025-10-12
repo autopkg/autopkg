@@ -35,7 +35,7 @@ def check_search_cache(cache_path: str) -> None:
 
     # Use GitHub token if one exists
     token = GitHubSession().token
-    headers = {"Authentication": f"Bearer {token}"} if token else {}
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
 
     # Retrieve metadata about search index file from GitHub API
     cache_endpoint = "repos/autopkg/index/contents/index.json?ref=main"
