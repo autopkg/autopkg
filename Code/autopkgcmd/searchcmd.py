@@ -113,7 +113,7 @@ def check_search_cache(cache_path: str) -> None:
         "created: https://github.com/autopkg/autopkg/issues"
     )
     if cache_meta["size"] > (90 * 1024 * 1024):
-        print(search_index_size_msg % "nearing")
+        log_err(search_index_size_msg % "nearing")
     elif cache_meta["size"] > (100 * 1024 * 1024):
         log_err(search_index_size_msg % "greater than")
 
