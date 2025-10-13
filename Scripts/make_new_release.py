@@ -15,7 +15,6 @@
 # handling.
 """See docstring for main() function"""
 
-
 import json
 import optparse
 import os
@@ -284,7 +283,7 @@ def main():
             "AutoPkgGitMaster.pkg",
             "-vvvv",
             "-k",
-            "PYTHON_VERSION=3.10.4",
+            "PYTHON_VERSION=3.10.11",
             "-k",
             "REQUIREMENTS_FILENAME=requirements.txt",
             "-k",

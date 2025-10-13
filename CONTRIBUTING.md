@@ -24,7 +24,7 @@ mkdir -p /Users/Shared/Python3
 Now create your relocatable Python frameworks using the provided requirements.txt files:
 
 ```sh
-./make_relocatable_python_framework.py --python-version 3.10.4 --pip-requirements /path/to/requirements.txt --destination /Users/Shared/Python3/
+./make_relocatable_python_framework.py --python-version 3.10.11 --pip-requirements /path/to/requirements.txt --destination /Users/Shared/Python3/
 ```
 
 ### Symlink the frameworks
