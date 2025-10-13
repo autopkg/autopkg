@@ -31,16 +31,16 @@ jobs:
     steps:
       # only needed on self hosted windows runners:
       #   This has no effect on GitHub hosted Windows runners
-      - name: set powershell execution policy CurrentUser
+      - name: Set powershell execution policy CurrentUser
         if: runner.os == 'Windows'
         shell: cmd
         run: powershell -command "Set-ExecutionPolicy -Force -ExecutionPolicy RemoteSigned -Scope CurrentUser"
 
-      - name: checkout repo
-        uses: actions/checkout@v3
+      - name: Checkout repo
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v6
         with:
           python-version: 3.10.11
 
@@ -54,21 +54,24 @@ jobs:
       - name: Install requirements
         run: pip install --requirement .github/workflows/requirements.txt
 
-      - name: create empty autopkg config file - Windows
+      - name: Create empty autopkg config file - Windows
         # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
         if: runner.os == 'Windows'
         shell: cmd
         run: |
           if not exist "%USERPROFILE%/AppData/Local/Autopkg" mkdir "%USERPROFILE%/AppData/Local/Autopkg"
           if not exist "%USERPROFILE%/AppData/Local/Autopkg/config.json" echo {} > "%USERPROFILE%/AppData/Local/Autopkg/config.json"
-      - name: create empty autopkg config file - Linux
+
+      - name: Create empty autopkg config file - Linux
         if: runner.os == 'Linux'
         run: |
           cd ~ && mkdir -p .config/Autopkg
           cd ~ && echo {} > .config/Autopkg/config.json
-      - name: run unittests
+
+      - name: Run unittests
         run: python Scripts/run_tests.py
-      - name: run e2e tests
+
+      - name: Run e2e tests
         # cross platform options from: https://github.com/autopkg/autopkg/blob/master/Code/tests/e2e_tests.sh
         # e2e tests that hit the github apis will not work due to api limits unless it properly uses ".autopkg_gh_token"
         shell: bash
@@ -101,6 +104,7 @@ jobs:
           python Code/autopkg version
           echo "**Repo-delete:"
           python Code/autopkg repo-delete recipes --prefs tests/preferences.plist
-      - name: run integration recipe
+
+      - name: Run integration recipe
         # using recipe path to NOT rely on prefs or current working directory
         run: python Code/autopkg run -vv Code/tests/Test-Recipes/AutopkgCore.test.recipe.yaml
