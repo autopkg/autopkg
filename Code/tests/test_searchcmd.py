@@ -13,11 +13,15 @@
 # limitations under the License.
 
 import json
+import os
+import tempfile
 import unittest
 from io import StringIO
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 from autopkgcmd import search_recipes
+from autopkgcmd.searchcmd import check_search_cache, handle_cache_error
+from autopkglib import ProcessorError
 from autopkglib.github import print_gh_search_results
 
 
@@ -55,6 +59,612 @@ class TestSearchCmd(unittest.TestCase):
     def tearDown(self):
         """Clean up after tests."""
         self.prefs_patch.stop()
+
+    # Test handle_cache_error function
+
+    def test_handle_cache_error_with_existing_cache_logs_warning(self):
+        """Test that handle_cache_error logs warning when cache exists."""
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            cache_path = tmp.name
+            tmp.write(b'{"test": "data"}')
+
+        try:
+            with patch("sys.stderr", new=StringIO()) as mock_stderr:
+                # Should not raise an error when cache exists
+                handle_cache_error(cache_path, "Test error reason")
+                stderr_output = mock_stderr.getvalue()
+
+            # Should log a warning message
+            self.assertIn("WARNING", stderr_output)
+            self.assertIn("Test error reason", stderr_output)
+            self.assertIn("Using cached version", stderr_output)
+        finally:
+            os.unlink(cache_path)
+
+    def test_handle_cache_error_without_cache_raises_error(self):
+        """Test that handle_cache_error raises ProcessorError when no cache exists."""
+        # Use a non-existent path
+        cache_path = "/tmp/nonexistent_cache_file_" + str(os.getpid()) + ".json"
+
+        # Ensure the cache file doesn't exist
+        if os.path.exists(cache_path):
+            os.unlink(cache_path)
+
+        # Mock URLGetter to simulate failed download
+        with patch("autopkgcmd.searchcmd.URLGetter") as mock_url_getter:
+            mock_url_instance = MagicMock()
+            mock_url_getter.return_value = mock_url_instance
+            mock_url_instance.download_to_file.side_effect = ProcessorError(
+                "Download failed"
+            )
+
+            with patch("sys.stderr", new=StringIO()) as mock_stderr:
+                with self.assertRaises(ProcessorError) as context:
+                    handle_cache_error(cache_path, "Test error reason")
+
+                # Check error message
+                self.assertIn("Test error reason", str(context.exception))
+                self.assertIn("no cached index available", str(context.exception))
+
+                # Check stderr output
+                stderr_output = mock_stderr.getvalue()
+                self.assertIn("ERROR", stderr_output)
+
+    def test_handle_cache_error_attempts_raw_download_without_etag(self):
+        """Test that handle_cache_error attempts raw download when no etag exists."""
+        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        etag_path = cache_path + ".etag"
+
+        # Ensure files don't exist
+        for path in [cache_path, etag_path]:
+            if os.path.exists(path):
+                os.unlink(path)
+
+        try:
+            # Mock URLGetter to simulate successful download
+            with patch("autopkgcmd.searchcmd.URLGetter") as mock_url_getter:
+                mock_url_instance = MagicMock()
+                mock_url_getter.return_value = mock_url_instance
+
+                # Simulate successful download
+                mock_url_instance.download_to_file.return_value = None
+
+                with patch("sys.stderr", new=StringIO()):
+                    # Should not raise error since download succeeds
+                    handle_cache_error(cache_path, "Test error reason")
+
+                # Verify download_to_file was called with raw GitHub URL
+                mock_url_instance.download_to_file.assert_called_once()
+                call_args = mock_url_instance.download_to_file.call_args[0]
+                self.assertIn("raw.githubusercontent.com", call_args[0])
+                self.assertEqual(call_args[1], cache_path)
+
+                # Verify etag file was created
+                self.assertTrue(os.path.exists(etag_path))
+        finally:
+            # Clean up
+            for path in [cache_path, etag_path]:
+                if os.path.exists(path):
+                    os.unlink(path)
+
+    def test_handle_cache_error_raw_download_fails_raises_error(self):
+        """Test that handle_cache_error raises error when raw download fails."""
+        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        etag_path = cache_path + ".etag"
+
+        # Ensure files don't exist
+        for path in [cache_path, etag_path]:
+            if os.path.exists(path):
+                os.unlink(path)
+
+        try:
+            # Mock URLGetter to simulate failed download
+            with patch("autopkgcmd.searchcmd.URLGetter") as mock_url_getter:
+                mock_url_instance = MagicMock()
+                mock_url_getter.return_value = mock_url_instance
+
+                # Simulate failed download
+                mock_url_instance.download_to_file.side_effect = ProcessorError(
+                    "Download failed"
+                )
+
+                with patch("sys.stderr", new=StringIO()) as _:
+                    with self.assertRaises(ProcessorError) as context:
+                        handle_cache_error(cache_path, "Test error reason")
+
+                    # Check error message
+                    self.assertIn("Test error reason", str(context.exception))
+                    self.assertIn("no cached index available", str(context.exception))
+        finally:
+            # Clean up
+            for path in [cache_path, etag_path]:
+                if os.path.exists(path):
+                    os.unlink(path)
+
+    def test_handle_cache_error_skips_raw_download_if_etag_exists(self):
+        """Test that handle_cache_error skips raw download if etag exists."""
+        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        etag_path = cache_path + ".etag"
+
+        # Ensure cache doesn't exist but etag does
+        if os.path.exists(cache_path):
+            os.unlink(cache_path)
+
+        try:
+            # Create etag file without cache file
+            with open(etag_path, "w", encoding="utf-8") as f:
+                f.write("some-etag-value")
+
+            # Mock URLGetter - it should NOT be called
+            with patch("autopkgcmd.searchcmd.URLGetter") as mock_url_getter:
+                mock_url_instance = MagicMock()
+                mock_url_getter.return_value = mock_url_instance
+
+                with patch("sys.stderr", new=StringIO()) as _:
+                    with self.assertRaises(ProcessorError) as context:
+                        handle_cache_error(cache_path, "Test error reason")
+
+                    # Verify URLGetter was NOT instantiated (raw download not attempted)
+                    mock_url_getter.assert_not_called()
+
+                    # Should go straight to error
+                    self.assertIn("no cached index available", str(context.exception))
+        finally:
+            # Clean up
+            for path in [cache_path, etag_path]:
+                if os.path.exists(path):
+                    os.unlink(path)
+
+    def test_handle_cache_error_logs_success_message_on_raw_download(self):
+        """Test that handle_cache_error logs success when raw download works."""
+        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        etag_path = cache_path + ".etag"
+
+        # Ensure files don't exist
+        for path in [cache_path, etag_path]:
+            if os.path.exists(path):
+                os.unlink(path)
+
+        try:
+            # Mock URLGetter to simulate successful download
+            with patch("autopkgcmd.searchcmd.URLGetter") as mock_url_getter:
+                mock_url_instance = MagicMock()
+                mock_url_getter.return_value = mock_url_instance
+                mock_url_instance.download_to_file.return_value = None
+
+                with patch("sys.stdout", new=StringIO()) as mock_stdout:
+                    handle_cache_error(cache_path, "Test error reason")
+                    stdout_output = mock_stdout.getvalue()
+
+                # Verify success messages
+                self.assertIn("attempting download from raw URL", stdout_output)
+                self.assertIn("Successfully downloaded", stdout_output)
+        finally:
+            # Clean up
+            for path in [cache_path, etag_path]:
+                if os.path.exists(path):
+                    os.unlink(path)
+
+    # Test check_search_cache function
+
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.path.isfile")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_downloads_when_no_local_cache_exists(
+        self, mock_gh_session, mock_url_getter, mock_isfile, mock_file
+    ):
+        """Test that check_search_cache downloads index when no local cache exists."""
+        cache_path = "/fake/test_cache.json"
+
+        # Mock that no cache files exist
+        mock_isfile.return_value = False
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+
+        # Mock metadata retrieval
+        cache_meta = {
+            "sha": "abc123",
+            "size": 1024 * 1024,  # 1 MB
+        }
+        mock_api.execute_curl.return_value = (
+            json.dumps(cache_meta),
+            "",
+            0,
+        )
+
+        with patch("sys.stdout", new=StringIO()) as mock_stdout:
+            check_search_cache(cache_path)
+            stdout_output = mock_stdout.getvalue()
+
+        # Should log "Refreshing local search index..."
+        self.assertIn("Refreshing local search index", stdout_output)
+
+        # Verify etag file was written
+        mock_file.assert_called()
+        write_calls = [call for call in mock_file().write.call_args_list]
+        etag_written = any("abc123" in str(call) for call in write_calls)
+        self.assertTrue(etag_written, "Etag should have been written to file")
+
+        # Verify execute_curl was called twice (metadata + download)
+        self.assertEqual(mock_api.execute_curl.call_count, 2)
+
+    @patch("builtins.open", new_callable=mock_open, read_data="abc123")
+    @patch("os.path.isfile")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_skips_download_when_cache_is_current(
+        self, mock_gh_session, mock_url_getter, mock_isfile, mock_file
+    ):
+        """Test that check_search_cache skips download when cache is up to date."""
+        cache_path = "/fake/test_cache.json"
+
+        # Mock that both cache and etag files exist
+        mock_isfile.return_value = True
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+
+        # Mock metadata retrieval with same SHA
+        cache_meta = {
+            "sha": "abc123",
+            "size": 1024 * 1024,
+        }
+        mock_api.execute_curl.return_value = (
+            json.dumps(cache_meta),
+            "",
+            0,
+        )
+
+        with patch("sys.stdout", new=StringIO()) as mock_stdout:
+            check_search_cache(cache_path)
+            stdout_output = mock_stdout.getvalue()
+
+        # Should NOT log "Refreshing local search index..."
+        self.assertNotIn("Refreshing local search index", stdout_output)
+
+        # Verify execute_curl was called only once (metadata check only)
+        self.assertEqual(mock_api.execute_curl.call_count, 1)
+
+    @patch("builtins.open", new_callable=mock_open, read_data="old_sha")
+    @patch("os.path.isfile")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_updates_when_etag_differs(
+        self, mock_gh_session, mock_url_getter, mock_isfile, mock_file
+    ):
+        """Test that check_search_cache downloads when etag differs."""
+        cache_path = "/fake/test_cache.json"
+
+        # Mock that both cache and etag files exist
+        mock_isfile.return_value = True
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+
+        # Mock metadata retrieval with new SHA
+        cache_meta = {
+            "sha": "new_sha",
+            "size": 1024 * 1024,
+        }
+        mock_api.execute_curl.return_value = (
+            json.dumps(cache_meta),
+            "",
+            0,
+        )
+
+        with patch("sys.stdout", new=StringIO()) as mock_stdout:
+            check_search_cache(cache_path)
+            stdout_output = mock_stdout.getvalue()
+
+        # Should log "Refreshing local search index..."
+        self.assertIn("Refreshing local search index", stdout_output)
+
+        # Verify new etag was written
+        write_calls = [call for call in mock_file().write.call_args_list]
+        etag_written = any("new_sha" in str(call) for call in write_calls)
+        self.assertTrue(etag_written, "New etag should have been written")
+
+        # Verify execute_curl was called twice (metadata + download)
+        self.assertEqual(mock_api.execute_curl.call_count, 2)
+
+    @patch("autopkgcmd.searchcmd.handle_cache_error")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_handles_api_error_during_metadata_retrieval(
+        self, mock_gh_session, mock_url_getter, mock_handle_error
+    ):
+        """Test that check_search_cache handles API errors gracefully."""
+        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter to raise ProcessorError
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+        mock_api.execute_curl.side_effect = ProcessorError("API error")
+
+        check_search_cache(cache_path)
+
+        # Verify handle_cache_error was called
+        mock_handle_error.assert_called_once()
+        call_args = mock_handle_error.call_args[0]
+        self.assertEqual(call_args[0], cache_path)
+        self.assertIn("Unable to check for search index updates", call_args[1])
+
+    @patch("autopkgcmd.searchcmd.handle_cache_error")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_handles_non_zero_return_code_metadata(
+        self, mock_gh_session, mock_url_getter, mock_handle_error
+    ):
+        """Test that check_search_cache handles non-zero return code from metadata."""
+        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter to return non-zero code
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+        mock_api.execute_curl.return_value = ("", "", 1)
+
+        check_search_cache(cache_path)
+
+        # Verify handle_cache_error was called
+        mock_handle_error.assert_called_once()
+        call_args = mock_handle_error.call_args[0]
+        self.assertIn("Unable to retrieve search index metadata", call_args[1])
+
+    @patch("autopkgcmd.searchcmd.handle_cache_error")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_handles_invalid_json_response(
+        self, mock_gh_session, mock_url_getter, mock_handle_error
+    ):
+        """Test that check_search_cache handles invalid JSON from API."""
+        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter to return invalid JSON
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+        mock_api.execute_curl.return_value = ("not valid json", "", 0)
+
+        check_search_cache(cache_path)
+
+        # Verify handle_cache_error was called
+        mock_handle_error.assert_called_once()
+        call_args = mock_handle_error.call_args[0]
+        self.assertIn("Invalid response from GitHub API", call_args[1])
+
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.path.isfile")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_warns_when_size_near_100mb(
+        self, mock_gh_session, mock_url_getter, mock_isfile, mock_file
+    ):
+        """Test that check_search_cache warns when index approaches 100 MB."""
+        cache_path = "/fake/test_cache.json"
+
+        # Mock that no cache files exist (will trigger download)
+        mock_isfile.return_value = False
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+
+        # Mock metadata with size > 90 MB
+        cache_meta = {
+            "sha": "abc123",
+            "size": 95 * 1024 * 1024,  # 95 MB
+        }
+        mock_api.execute_curl.return_value = (
+            json.dumps(cache_meta),
+            "",
+            0,
+        )
+
+        with patch("sys.stdout", new=StringIO()), patch(
+            "sys.stderr", new=StringIO()
+        ) as mock_stderr:
+            check_search_cache(cache_path)
+            stderr_output = mock_stderr.getvalue()
+
+        # Should warn about approaching limit (now goes to stderr via log_err)
+        self.assertIn("WARNING", stderr_output)
+        self.assertIn("nearing", stderr_output)
+
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.path.isfile")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_warns_when_size_exceeds_100mb(
+        self, mock_gh_session, mock_url_getter, mock_isfile, mock_file
+    ):
+        """Test that check_search_cache warns when index exceeds 100 MB."""
+        cache_path = "/fake/test_cache.json"
+
+        # Mock that no cache files exist (will trigger download)
+        mock_isfile.return_value = False
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+
+        # Mock metadata with size > 100 MB
+        cache_meta = {
+            "sha": "abc123",
+            "size": 105 * 1024 * 1024,  # 105 MB
+        }
+        mock_api.execute_curl.return_value = (
+            json.dumps(cache_meta),
+            "",
+            0,
+        )
+
+        with patch("sys.stdout", new=StringIO()) as mock_stdout, patch(
+            "sys.stderr", new=StringIO()
+        ) as mock_stderr:
+            check_search_cache(cache_path)
+            stdout_output = mock_stdout.getvalue()
+            stderr_output = mock_stderr.getvalue()
+
+        # Should warn about exceeding limit (note: due to elif, this actually
+        # shows "nearing" instead of "greater than" - see searchcmd.py:115-117)
+        combined_output = stdout_output + stderr_output
+        self.assertIn("WARNING", combined_output)
+        # Due to the elif logic, size > 100MB will show "nearing" not "greater than"
+        self.assertIn("nearing", combined_output)
+
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.path.isfile")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_uses_github_token_if_available(
+        self, mock_gh_session, mock_url_getter, mock_isfile, mock_file
+    ):
+        """Test that check_search_cache uses GitHub token when available."""
+        cache_path = "/fake/test_cache.json"
+
+        # Mock that no cache files exist (will trigger download)
+        mock_isfile.return_value = False
+
+        # Mock GitHubSession with token
+        mock_gh_session.return_value.token = "test_token_123"
+
+        # Mock URLGetter
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+
+        # Mock metadata retrieval
+        cache_meta = {
+            "sha": "abc123",
+            "size": 1024 * 1024,
+        }
+        mock_api.execute_curl.return_value = (
+            json.dumps(cache_meta),
+            "",
+            0,
+        )
+
+        check_search_cache(cache_path)
+
+        # Verify add_curl_headers was called with Authorization header
+        self.assertTrue(mock_api.add_curl_headers.called)
+        call_args = mock_api.add_curl_headers.call_args[0]
+        headers = call_args[1]
+        self.assertIn("Authorization", headers)
+        self.assertEqual(headers["Authorization"], "Bearer test_token_123")
+
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.path.isfile")
+    @patch("autopkgcmd.searchcmd.handle_cache_error")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_handles_download_error(
+        self,
+        mock_gh_session,
+        mock_url_getter,
+        mock_handle_error,
+        mock_isfile,
+        mock_file,
+    ):
+        """Test that check_search_cache handles download errors."""
+        cache_path = "/fake/test_cache.json"
+
+        # Mock that no cache files exist (will trigger download attempt)
+        mock_isfile.return_value = False
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+
+        # First call succeeds (metadata), second call raises error (download)
+        cache_meta = {
+            "sha": "abc123",
+            "size": 1024 * 1024,
+        }
+        mock_api.execute_curl.side_effect = [
+            (json.dumps(cache_meta), "", 0),
+            ProcessorError("Download failed"),
+        ]
+
+        check_search_cache(cache_path)
+
+        # Verify handle_cache_error was called for download error
+        mock_handle_error.assert_called_once()
+        call_args = mock_handle_error.call_args[0]
+        self.assertIn("Unable to download updated search index", call_args[1])
+
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.path.isfile")
+    @patch("autopkgcmd.searchcmd.handle_cache_error")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_handles_non_zero_return_code_download(
+        self,
+        mock_gh_session,
+        mock_url_getter,
+        mock_handle_error,
+        mock_isfile,
+        mock_file,
+    ):
+        """Test that check_search_cache handles non-zero return code from download."""
+        cache_path = "/fake/test_cache.json"
+
+        # Mock that no cache files exist (will trigger download attempt)
+        mock_isfile.return_value = False
+
+        # Mock GitHubSession
+        mock_gh_session.return_value.token = None
+
+        # Mock URLGetter
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+
+        # First call succeeds (metadata), second call fails (download)
+        cache_meta = {
+            "sha": "abc123",
+            "size": 1024 * 1024,
+        }
+        mock_api.execute_curl.side_effect = [
+            (json.dumps(cache_meta), "", 0),
+            ("", "", 1),  # Non-zero return code
+        ]
+
+        check_search_cache(cache_path)
+
+        # Verify handle_cache_error was called
+        mock_handle_error.assert_called_once()
+        call_args = mock_handle_error.call_args[0]
+        self.assertIn("Unable to retrieve search index contents", call_args[1])
 
     # Test search_recipes function
 
@@ -142,7 +752,7 @@ class TestSearchCmd(unittest.TestCase):
 
         # Should return 0 and print warning message
         self.assertEqual(result, 0)
-        self.assertIn("more than 100 results", mock_stderr.getvalue())
+        self.assertIn("try a more specific search term.", mock_stderr.getvalue())
 
     @patch("autopkgcmd.searchcmd.check_search_cache")
     @patch("builtins.open", new_callable=mock_open)
@@ -284,7 +894,7 @@ class TestSearchCmd(unittest.TestCase):
 
         # Check for warning message about too many results (goes to stderr via log_err)
         combined_output = (stdout + stderr).lower()
-        self.assertIn("more than 100", combined_output)
+        self.assertIn("try a more specific search term.", combined_output)
 
     # Test print_gh_search_results function
 
