@@ -334,12 +334,18 @@ def print_gh_search_results(results: List):
     if not results:
         log_err("Nothing found.")
         return
+
+    # Limit results to print
+    results_limit = 100
+    limited_results = results[:results_limit]
+
     col_widths = [
-        max([len(x[k]) for x in results] + [len(k)]) for k in results[0].keys()
+        max([len(x[k]) for x in limited_results] + [len(k)])
+        for k in limited_results[0].keys()
     ]
     print()
-    print(get_table_row(results[0].keys(), col_widths, header=True))
-    for result_item in sorted(results, key=lambda x: x["Repo"].lower()):
+    print(get_table_row(limited_results[0].keys(), col_widths, header=True))
+    for result_item in sorted(limited_results, key=lambda x: x["Repo"].lower()):
         print(get_table_row(result_item.values(), col_widths))
     print()
     print("To add a new recipe repo, use `autopkg repo-add <repo name>`")
@@ -350,10 +356,9 @@ def print_gh_search_results(results: List):
     )
 
     # Warn if we have too many results (likely not helpful)
-    results_limit = 100
     if len(results) > results_limit:
         print()
         log_err(
-            "WARNING: Search yielded more than 100 results. Please try a "
-            "more specific search term."
+            f"WARNING: Only showing first {results_limit} out of {len(results)} "
+            "total results. Please try a more specific search term."
         )
