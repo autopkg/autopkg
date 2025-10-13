@@ -26,6 +26,10 @@ from autopkglib.github import (
 )
 from autopkglib.URLGetter import URLGetter
 
+# Search index location in autopkg/index repo
+SEARCH_INDEX_PATH = "v1/index.json"
+SEARCH_INDEX_BRANCH = "main"
+
 
 def handle_cache_error(cache_path: str, reason: str) -> None:
     """Handle errors when updating search cache.
@@ -40,6 +44,21 @@ def handle_cache_error(cache_path: str, reason: str) -> None:
     if os.path.isfile(cache_path):
         log_err(f"WARNING: {reason}. Using cached version.")
         return
+
+    # Try raw URL only if we don't have etag (never got metadata from API)
+    if not os.path.isfile(cache_path + ".etag"):
+        log("GitHub API unavailable, attempting download from raw URL...")
+        raw_url = (
+            f"https://raw.githubusercontent.com/autopkg/index/"
+            f"{SEARCH_INDEX_BRANCH}/{SEARCH_INDEX_PATH}"
+        )
+        try:
+            url = URLGetter()
+            url.download_to_file(raw_url, cache_path)
+            return
+        except ProcessorError:
+            pass  # Fall through to error below
+
     error_msg = f"{reason}, and no cached index available."
     log_err(f"ERROR: {error_msg}")
     raise ProcessorError(error_msg)
@@ -56,7 +75,9 @@ def check_search_cache(cache_path: str) -> None:
     headers = {"Authorization": f"Bearer {token}"} if token else {}
 
     # Retrieve metadata about search index file from GitHub API
-    cache_endpoint = "repos/autopkg/index/contents/v1/index.json?ref=main"
+    cache_endpoint = (
+        f"repos/autopkg/index/contents/{SEARCH_INDEX_PATH}?ref={SEARCH_INDEX_BRANCH}"
+    )
     headers["Accept"] = "application/vnd.github.v3+json"
     curl_cmd = api.prepare_curl_cmd()
     api.add_curl_headers(curl_cmd, headers)
@@ -70,7 +91,7 @@ def check_search_cache(cache_path: str) -> None:
 
     if returncode != 0:
         handle_cache_error(
-            cache_path, "Unable to retrieve search index metadata from GitHub API."
+            cache_path, "Unable to retrieve search index metadata from GitHub API"
         )
         return
 
