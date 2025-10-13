@@ -55,6 +55,10 @@ def handle_cache_error(cache_path: str, reason: str) -> None:
         try:
             url = URLGetter()
             url.download_to_file(raw_url, cache_path)
+            # Write a placeholder etag to prevent re-downloading raw URL
+            with open(cache_path + ".etag", "w", encoding="utf-8") as openfile:
+                openfile.write("Search index temporarily sourced from raw GitHub URL.")
+            log("Successfully downloaded search index from raw URL.")
             return
         except ProcessorError:
             pass  # Fall through to error below
