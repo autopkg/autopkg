@@ -121,8 +121,9 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_fetch.return_value = plistlib.dumps(recipe_plist)
 
         # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads, patch(
-            "sys.stdout", new_callable=StringIO
+        with (
+            patch("autopkg.plistlib.loads") as mock_loads,
+            patch("sys.stdout", new_callable=StringIO),
         ):
             mock_loads.return_value = recipe_plist
 
@@ -245,8 +246,9 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_fetch.side_effect = mock_fetch_side_effect
 
         # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads, patch(
-            "sys.stdout", new_callable=StringIO
+        with (
+            patch("autopkg.plistlib.loads") as mock_loads,
+            patch("sys.stdout", new_callable=StringIO),
         ):
             mock_loads.side_effect = [matching_plist]
 
@@ -330,9 +332,10 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_fetch.return_value = plistlib.dumps(recipe_plist)
 
         # Mock plistlib.loads and print
-        with patch("autopkg.plistlib.loads") as mock_loads, patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch("autopkg.plistlib.loads") as mock_loads,
+            patch("builtins.print") as mock_print,
+        ):
             mock_loads.return_value = recipe_plist
 
             result = autopkg.get_repository_from_identifier("com.test.recipe")
@@ -821,9 +824,10 @@ class TestAutoPkgRepos(unittest.TestCase):
         }
         mock_get_pref.return_value = mock_recipe_repos
 
-        with patch("os.path.abspath") as mock_abspath, patch(
-            "os.path.expanduser"
-        ) as mock_expanduser:
+        with (
+            patch("os.path.abspath") as mock_abspath,
+            patch("os.path.expanduser") as mock_expanduser,
+        ):
             mock_expanduser.return_value = "/Users/test/Repos/recipes"
             mock_abspath.return_value = "/Users/test/Repos/recipes"
 

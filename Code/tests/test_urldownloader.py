@@ -68,17 +68,13 @@ class TestURLDownloader(unittest.TestCase):
         else:
             storage_method = "store_headers"
 
-        with patch(
-            "autopkglib.URLDownloader.download_with_curl"
-        ) as mock_download, patch(
-            "autopkglib.URLDownloader.parse_headers"
-        ) as mock_parse_headers, patch(
-            "autopkglib.URLDownloader.create_temp_file"
-        ) as mock_create_temp, patch(
-            "autopkglib.URLDownloader.move_temp_file"
-        ), patch(
-            f"autopkglib.URLDownloader.{storage_method}"
-        ) as mock_store:
+        with (
+            patch("autopkglib.URLDownloader.download_with_curl") as mock_download,
+            patch("autopkglib.URLDownloader.parse_headers") as mock_parse_headers,
+            patch("autopkglib.URLDownloader.create_temp_file") as mock_create_temp,
+            patch("autopkglib.URLDownloader.move_temp_file"),
+            patch(f"autopkglib.URLDownloader.{storage_method}") as mock_store,
+        ):
 
             mock_create_temp.return_value = temp_file
             mock_download.return_value = ""
@@ -533,16 +529,12 @@ class TestURLDownloader(unittest.TestCase):
         else:
             storage_method = "store_headers"
 
-        with patch(
-            "autopkglib.URLDownloader.download_with_curl"
-        ) as mock_download, patch(
-            "autopkglib.URLDownloader.parse_headers"
-        ) as mock_parse_headers, patch(
-            "autopkglib.URLDownloader.create_temp_file"
-        ) as mock_create_temp, patch(
-            "autopkglib.URLDownloader.move_temp_file"
-        ) as mock_move, patch(
-            f"autopkglib.URLDownloader.{storage_method}"
+        with (
+            patch("autopkglib.URLDownloader.download_with_curl") as mock_download,
+            patch("autopkglib.URLDownloader.parse_headers") as mock_parse_headers,
+            patch("autopkglib.URLDownloader.create_temp_file") as mock_create_temp,
+            patch("autopkglib.URLDownloader.move_temp_file") as mock_move,
+            patch(f"autopkglib.URLDownloader.{storage_method}"),
         ):
 
             mock_create_temp.return_value = temp_file
