@@ -258,7 +258,7 @@ def search_recipes(argv: list[str]) -> int:
 
     # Parse arguments
     (options, arguments) = common_parse(parser, argv)
-    if len(arguments) < 1:
+    if len(arguments) < 1 or not arguments[0].strip():
         log_err("ERROR: No search query specified!")
         return 1
 
