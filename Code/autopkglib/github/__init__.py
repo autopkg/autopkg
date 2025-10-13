@@ -312,10 +312,17 @@ To save the token, paste it to the following prompt."""
 
 
 def get_table_row(row_items, col_widths, header=False):
-    """This function takes table row content (list of strings) and column
-    widths (list of integers) as input and outputs a string representing a
-    table row in Markdown, with normalized "pretty" spacing that is readable
-    when unrendered."""
+    """Format table row content (e.g. search results) with proper spacing for output.
+
+    Args:
+        row_items: Iterable of cell content (strings or values convertible to strings)
+        col_widths: List of integers specifying width for each column
+        header: If True, appends a separator line after the row for Markdown headers
+
+    Returns:
+        String representing a formatted table row with proper spacing.
+        If header=True, includes a separator line with dashes.
+    """
     output = ""
     header_sep = "\n"
     column_space = 4
