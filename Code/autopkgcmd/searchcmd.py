@@ -18,13 +18,31 @@ import re
 from urllib.parse import quote_plus
 
 from autopkgcmd.opts import common_parse, gen_common_parser
-from autopkglib import log, log_err
+from autopkglib import ProcessorError, log, log_err
 from autopkglib.github import (
     DEFAULT_SEARCH_USER,
     GitHubSession,
     print_gh_search_results,
 )
 from autopkglib.URLGetter import URLGetter
+
+
+def handle_cache_error(cache_path: str, reason: str) -> None:
+    """Handle errors when updating search cache.
+
+    Args:
+        cache_path: Path to the cached index file
+        reason: The reason for the error (will be appended with context)
+
+    Raises:
+        ProcessorError: If no cache exists and download fails
+    """
+    if os.path.isfile(cache_path):
+        log_err(f"WARNING: {reason}. Using cached version.")
+        return
+    error_msg = f"{reason}, and no cached index available."
+    log_err(f"ERROR: {error_msg}")
+    raise ProcessorError(error_msg)
 
 
 def check_search_cache(cache_path: str) -> None:
@@ -43,11 +61,24 @@ def check_search_cache(cache_path: str) -> None:
     curl_cmd = api.prepare_curl_cmd()
     api.add_curl_headers(curl_cmd, headers)
     curl_cmd.extend(["--url", f"https://api.github.com/{cache_endpoint}"])
-    stdout, _, returncode = api.execute_curl(curl_cmd)
-    if returncode != 0:
-        log_err("WARNING: Unable to retrieve search index metadata from GitHub API.")
+
+    try:
+        stdout, _, returncode = api.execute_curl(curl_cmd)
+    except ProcessorError:
+        handle_cache_error(cache_path, "Unable to check for search index updates")
         return
-    cache_meta = json.loads(stdout)
+
+    if returncode != 0:
+        handle_cache_error(
+            cache_path, "Unable to retrieve search index metadata from GitHub API."
+        )
+        return
+
+    try:
+        cache_meta = json.loads(stdout)
+    except json.JSONDecodeError:
+        handle_cache_error(cache_path, "Invalid response from GitHub API")
+        return
 
     # Warn if search index file is approaching 100 MB
     # https://docs.github.com/en/rest/repos/contents#size-limits
@@ -81,9 +112,17 @@ def check_search_cache(cache_path: str) -> None:
     curl_cmd.extend(
         ["--url", f"https://api.github.com/{cache_endpoint}", "-o", cache_path]
     )
-    stdout, _, returncode = api.execute_curl(curl_cmd)
+
+    try:
+        stdout, _, returncode = api.execute_curl(curl_cmd)
+    except ProcessorError:
+        handle_cache_error(cache_path, "Unable to download updated search index")
+        return
+
     if returncode != 0:
-        log_err("WARNING: Unable to retrieve search index contents from GitHub API.")
+        handle_cache_error(
+            cache_path, "Unable to retrieve search index contents from GitHub API"
+        )
         return
 
 
