@@ -3,40 +3,49 @@
 # See below for *nix and MacOS requirements.
 #
 appdirs==1.4.4
-attrs==21.4.0
-black==22.3.0
-certifi
-cffi==1.15.0
-cfgv==3.3.1
-click==8.1.0
-distlib==0.3.4
-filelock==3.6.0
-flake8==4.0.1
-flake8-bugbear==22.3.23
-identify==2.4.12
-isort==5.10.1
-mccabe==0.6.1
-mypy-extensions==0.4.3
-nodeenv==1.6.0
-pathspec==0.9.0
-platformdirs==2.5.1
-pre-commit==2.17.0
-pycodestyle==2.8.0
-pycparser==2.21
-pyflakes==2.4.0
-PyYAML==6.0
-six==1.16.0
-toml==0.10.2
-tomli==2.0.1
-virtualenv==20.14.0
+attrs==25.4.0
+black==25.9.0
+certifi==2025.10.5
+cffi==2.0.0
+cfgv==3.4.0
+click==8.3.0
+distlib==0.4.0
+filelock==3.20.0
+flake8==7.3.0
+flake8-bugbear==24.12.12
+identify==2.6.15
+isort==7.0.0
+lxml==6.0.2
+mccabe==0.7.0
+mypy-extensions==1.1.0
+nodeenv==1.9.1
+pathspec==0.12.1
+platformdirs==4.5.0
+pre-commit==4.3.0
+pycodestyle==2.14.0
+pycparser==2.23
+pyflakes==3.4.0
+pyyaml==6.0.3
+setuptools==80.9.0
+six==1.17.0
+tomli==2.3.0
+virtualenv==20.35.3
 #
 # *nix Requirements
 #
-xattr==0.9.9; sys_platform == 'darwin' or sys_platform == 'linux'
+xattr==1.2.0; sys_platform == 'darwin' or sys_platform == 'linux'
 #
 # MacOS Requirements
 #
-pyobjc==8.2; sys_platform == 'darwin'
+pyobjc-core==11.1; sys_platform == 'darwin'
+pyobjc-framework-CFNetwork==11.1; sys_platform == 'darwin'
+pyobjc-framework-LaunchServices==11.1; sys_platform == 'darwin'
+pyobjc-framework-OpenDirectory==11.1; sys_platform == 'darwin'
+pyobjc-framework-Quartz==11.1; sys_platform == 'darwin'
+pyobjc-framework-Security==11.1; sys_platform == 'darwin'
+pyobjc-framework-SystemConfiguration==11.1; sys_platform == 'darwin'
+#
 # Windows Requirements
 #
-generateDS==2.35.24; sys_platform == 'win32'
+generateDS==2.44.3; sys_platform == 'win32'
+--no-binary :all:
