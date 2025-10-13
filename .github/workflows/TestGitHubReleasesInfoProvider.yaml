@@ -12,6 +12,7 @@ on:
 jobs:
   TestGitHubReleasesInfoProvider:
     strategy:
+      fail-fast: false
       matrix:
         # https://ncorti.com/blog/howto-github-actions-build-matrix
         os: [ubuntu-latest, windows-latest, macos-latest]
