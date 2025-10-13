@@ -125,8 +125,6 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
             "app_display_name",
         )
     for identifier, info in search_index["identifiers"].items():
-        if info.get("deprecated"):
-            continue
         for key in searchable_keys:
             if info.get(key):
                 if normalize_keyword(keyword) in normalize_keyword(info[key]):
