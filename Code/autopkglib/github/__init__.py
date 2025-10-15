@@ -358,7 +358,7 @@ def print_gh_search_results(results: List):
     print("To add a new recipe repo, use `autopkg repo-add <repo name>`")
     print()
     print(
-        "If you don't see the recipe you're looking for, try searching\n"
+        "If you don't see the recipe you're looking for, try searching "
         "https://autopkgweb.com/ (maintained by @jannheider)."
     )
 
