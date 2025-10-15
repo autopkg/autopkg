@@ -218,9 +218,10 @@ def search_recipes(argv: list[str]) -> int:
     parser = gen_common_parser()
     parser.set_usage(
         f"Usage: %prog {verb} [options] search_term\n"
-        "Search for recipes on GitHub using a cached index file. The AutoPkg "
-        "organization at github.com/autopkg\nis the canonical 'repository' of "
-        "recipe repos, which is what is searched by\ndefault."
+        "Search for AutoPkg recipes hosted in the AutoPkg organization at\n"
+        "github.com/autopkg. Uses an index that is updated every 4 hours and\n"
+        "cached locally. Search term is matched against recipe names, app\n"
+        "names, and paths. Deprecated recipes are omitted from results."
     )
     parser.add_option(
         "-p",
@@ -228,11 +229,8 @@ def search_recipes(argv: list[str]) -> int:
         action="store_true",
         default=False,
         help=(
-            "Restrict search results to the recipe's path "
-            "only. Note that the search API currently does not "
-            "support fuzzy matches, so only exact directory or "
-            "filenames (minus the extensions) will be "
-            "returned."
+            "Restrict search results to the recipe's path only. Useful for\n"
+            "finding recipes in specific directories or repositories."
         ),
     )
     parser.add_option(
@@ -241,9 +239,9 @@ def search_recipes(argv: list[str]) -> int:
         action="store_true",
         default=False,
         help=(
-            "Used a public-scope GitHub token for a higher "
-            "rate limit. This option is deprecated and no longer "
-            "needed since AutoPkg 3.0+ uses a cached search index."
+            "Deprecated. GitHub personal access token will be used\n"
+            "automatically if one is provided. See this wiki page for details:\n"
+            "https://github.com/autopkg/autopkg/wiki/FAQ#how-do-i-provide-a-github-personal-access-token-to-autopkg"
         ),
     )
     parser.add_option(
@@ -251,8 +249,9 @@ def search_recipes(argv: list[str]) -> int:
         "--user",
         default=DEFAULT_SEARCH_USER,
         help=(
-            "Alternate GitHub user or organization whose repos to search. "
-            f"Defaults to '{DEFAULT_SEARCH_USER}'."
+            "Deprecated. GitHub user or organization to search, other than the\n"
+            "default 'autopkg' org. As of AutoPkg 2.9.0, this no longer\n"
+            "performs direct searches; instead, it provides a GitHub search URL."
         ),
     )
 
