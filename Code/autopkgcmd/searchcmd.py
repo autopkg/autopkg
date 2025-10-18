@@ -18,7 +18,7 @@ import re
 from urllib.parse import quote_plus
 
 from autopkgcmd.opts import common_parse, gen_common_parser
-from autopkglib import ProcessorError, log, log_err
+from autopkglib import RECIPE_EXTS, ProcessorError, log, log_err
 from autopkglib.github import (
     DEFAULT_SEARCH_USER,
     GitHubSession,
@@ -156,6 +156,14 @@ def normalize_keyword(keyword: str) -> str:
     for better matching."""
     # TODO: Consider implementing fuzzywuzzy or some other fuzzy search method
     keyword = keyword.lower()
+
+    # Remove recipe extensions to ensure we're searching the name only
+    for ext in RECIPE_EXTS:
+        if keyword.endswith(ext):
+            keyword = keyword[: -len(ext)]
+            break
+
+    # Remove spaces and common punctuation
     replacements = {" ": "", ".": "", ",": "", "-": ""}
     for old, new in replacements.items():
         keyword = keyword.replace(old, new)
