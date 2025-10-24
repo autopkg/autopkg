@@ -21,6 +21,7 @@ import copy
 import difflib
 import glob
 import hashlib
+import json
 import os
 import plistlib
 import pprint
@@ -582,6 +583,15 @@ def get_recipe_repo(git_path) -> str | None:
             return None
     return None
 
+def write_json_exit_on_fail(input_dict, path) -> None:
+    """Writes a dict to a new JSON file at path, exits the program
+    if the write fails."""
+    try:
+        with open(path, "w") as f:
+            json.dump(input_dict, f)
+    except (TypeError, RecursionError):
+        log_err(f"Failed to save JSON to {path}.")
+        sys.exit(-1)
 
 def write_plist_exit_on_fail(plist_dict, path) -> None:
     """Writes a dict to a new plist at path, exits the program
@@ -2080,6 +2090,11 @@ def run_recipes(argv):
         ),
     )
     parser.add_option(
+        "--report-json",
+        metavar="OUTPUT_PATH",
+        help=("File path to save run report JSON."),
+    )
+    parser.add_option(
         "--report-plist",
         metavar="OUTPUT_PATH",
         help=("File path to save run report plist."),
@@ -2182,6 +2197,10 @@ def run_recipes(argv):
             plistlib.dump(plist_serializer(run_results), f)
     except OSError as err:
         log_err(f"Can't write results to {current_run_results_plist}: {err.strerror}")
+
+    if options.report_json:
+        results_report = dict()
+        write_json_exit_on_fail(results_report, options.report_json)
 
     if options.report_plist:
         results_report = dict()
@@ -2406,6 +2425,13 @@ def run_recipes(argv):
 
     if not summary_results:
         log("\nNothing downloaded, packaged or imported.")
+
+    # save report JSON with the summary data
+    if options.report_json:
+        results_report["failures"] = failures
+        results_report["summary_results"] = summary_results
+        write_json_exit_on_fail(results_report, options.report_json)
+        log(f"\nReport JSON saved to {options.report_json}.")
 
     # save report plist with the summary data
     if options.report_plist:
