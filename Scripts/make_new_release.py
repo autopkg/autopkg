@@ -154,8 +154,7 @@ def main():
         "--recipe-branch",
         default="master",
         help=(
-            "A specific branch of autopkg-recipes repo clone. "
-            "Otherwise, clone master."
+            "A specific branch of autopkg-recipes repo clone. Otherwise, clone master."
         ),
     )
 
@@ -292,7 +291,11 @@ def main():
             "upgrade_pip=true",
         ]
     )
-    subprocess.run(args=cmd, text=True, check=True)
+    # Prevent user site-packages and pip cache from interfering with build
+    build_env = os.environ.copy()
+    build_env["PYTHONNOUSERSITE"] = "1"
+    build_env["PIP_NO_CACHE_DIR"] = "1"
+    subprocess.run(args=cmd, text=True, check=True, env=build_env)
     try:
         with open(report_plist_path, "rb") as f:
             report = plistlib.load(f)
