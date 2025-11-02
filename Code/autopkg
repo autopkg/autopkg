@@ -35,6 +35,7 @@ from urllib.parse import quote, urlparse
 
 import yaml
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
+from autopkgcmd.searchcmd import get_search_results
 from autopkglib import (
     RECIPE_EXTS,
     AutoPackager,
@@ -291,14 +292,10 @@ def locate_recipe(
                 repo_names = [parent_repo] if parent_repo else []
 
             if not repo_names:
-                results_items = GitHubSession().search_for_name(name)
+                results_items = get_search_results(name)
                 print_gh_search_results(results_items)
                 # make a list of unique repo names
-                repo_names = []
-                for item in results_items:
-                    repo_name = item["repository"]["name"]
-                    if repo_name not in repo_names:
-                        repo_names.append(repo_name)
+                repo_names = list(set([x["Repo"] for x in results_items]))
 
             if len(repo_names) == 1:
                 # we found results in a single repo, so offer to add it
@@ -323,8 +320,6 @@ def locate_recipe(
                         auto_pull=auto_pull,
                     )
             elif len(repo_names) > 1:
-                print()
-                print("To add a new recipe repo, use 'autopkg repo-add <repo name>'")
                 return None
 
     return recipe_file
@@ -494,7 +489,8 @@ def get_recipe_info(
         log(" " + output[1:-1])
         return True
     else:
-        log_err(f"No valid recipe found for {recipe_name}")
+        if not make_suggestions:
+            log_err(f"No valid recipe found for {recipe_name}")
         return False
 
 

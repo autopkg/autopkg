@@ -2478,7 +2478,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
         with patch("autopkg.load_recipe") as mock_load_recipe, patch(
             "autopkg.log_err"
-        ) as mock_log_err:
+        ) as _:
 
             mock_load_recipe.return_value = None  # Recipe not found
 
@@ -2492,9 +2492,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
                 make_suggestions=True,
                 search_github=True,
                 auto_pull=False,
-            )
-            mock_log_err.assert_called_once_with(
-                "No valid recipe found for NonExistentRecipe"
             )
 
     def test_get_recipe_info_with_multiline_description(self):
