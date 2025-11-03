@@ -15,6 +15,7 @@
 # handling.
 """See docstring for main() function"""
 
+import glob
 import json
 import optparse
 import os
@@ -291,11 +292,40 @@ def main():
             "upgrade_pip=true",
         ]
     )
-    # Prevent user site-packages and pip cache from interfering with build
-    build_env = os.environ.copy()
-    build_env["PYTHONNOUSERSITE"] = "1"
-    build_env["PIP_NO_CACHE_DIR"] = "1"
-    subprocess.run(args=cmd, text=True, check=True, env=build_env)
+
+    # Temporarily move user pip and pip cache to prevent interference with
+    # relocatable-python build process
+    site_packages = os.path.expanduser("~/Library/Python/3.10/lib/python/site-packages")
+    pip_cache_dir = os.path.expanduser("~/Library/Caches/pip")
+    temp_suffix = f".backup.{os.getpid()}"
+
+    moved_paths = []
+    # Move pip directories (handles any version)
+    paths_to_move = [pip_cache_dir]
+    if os.path.exists(site_packages):
+        paths_to_move.extend(glob.glob(os.path.join(site_packages, "pip")))
+        paths_to_move.extend(glob.glob(os.path.join(site_packages, "pip-*.dist-info")))
+
+    for path in paths_to_move:
+        if os.path.exists(path):
+            backup_path = path + temp_suffix
+            try:
+                os.rename(path, backup_path)
+                moved_paths.append((path, backup_path))
+                print(f"** Temporarily moved {path}")
+            except OSError:
+                pass  # If move fails, continue anyway
+
+    try:
+        subprocess.run(args=cmd, text=True, check=True)
+    finally:
+        # Restore moved paths
+        for original, backup in moved_paths:
+            try:
+                os.rename(backup, original)
+                print(f"** Restored {original}")
+            except OSError:
+                pass  # If restore fails, leave backup in place
     try:
         with open(report_plist_path, "rb") as f:
             report = plistlib.load(f)
