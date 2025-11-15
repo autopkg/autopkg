@@ -19,7 +19,7 @@ import json
 import os
 import ssl
 from hashlib import md5, sha1, sha256
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import certifi
 from autopkglib import ProcessorError
@@ -37,6 +37,13 @@ class URLDownloaderPython(URLDownloader):
     lifecycle = {"introduced": "2.4.1"}
     input_variables = {
         "url": {"required": True, "description": "The URL to download."},
+        "request_headers": {
+            "required": False,
+            "description": (
+                "Optional dictionary of headers to include with the download request. "
+                "Keys are header names and values are header values."
+            ),
+        },
         "download_dir": {
             "required": False,
             "description": (
@@ -278,8 +285,20 @@ class URLDownloaderPython(URLDownloader):
         if file_save_path:
             file_save = open(file_save_path, "wb")
 
+        # Build request, adding any provided request headers
+        request_headers = self.env.get("request_headers") or {}
+        if request_headers and not isinstance(request_headers, dict):
+            raise ProcessorError(
+                "request_headers must be a dictionary of header-name: value pairs"
+            )
+        # Normalise header keys to str (in case of non-str) and skip None values
+        normalised_headers = {
+            str(k): str(v) for k, v in request_headers.items() if v is not None
+        }
+        request_obj = Request(url, headers=normalised_headers)
+
         # get http headers
-        response = urlopen(url, context=self.ssl_context_certifi())
+        response = urlopen(request_obj, context=self.ssl_context_certifi())
         response_headers = response.info()
 
         self.env["download_changed"] = self.download_changed(response_headers)
