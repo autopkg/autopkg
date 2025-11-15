@@ -12,12 +12,12 @@ jobs:
 
     steps:
       - name: Clone this repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
         with:
           path: main
 
       - name: Clone wiki
-        uses: actions/checkout@v2
+        uses: actions/checkout@v5
         with:
           repository: autopkg/autopkg.wiki
           path: wiki

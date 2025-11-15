@@ -17,6 +17,7 @@
 """Core/shared autopkglib functions"""
 import glob
 import imp
+import importlib.resources
 import json
 import os
 import plistlib
@@ -30,7 +31,6 @@ from distutils.version import LooseVersion
 from typing import IO, Any, Union
 
 import appdirs
-import pkg_resources
 import yaml
 
 # Type for methods that accept either a filesystem path or a file-like object.
@@ -402,9 +402,9 @@ def find_recipe_by_identifier(identifier, search_dirs) -> str | None:
 def get_autopkg_version() -> str:
     """Gets the version number of autopkg"""
     try:
-        version_plist = plistlib.load(
-            pkg_resources.resource_stream(__name__, "version.plist")
-        )
+        version_file = importlib.resources.files(__name__).joinpath("version.plist")
+        with version_file.open("rb") as f:
+            version_plist = plistlib.load(f)
     except Exception as ex:
         log_err(f"Unable to get autopkg version: {ex}")
         return "UNKNOWN"
@@ -1017,9 +1017,9 @@ _PROCESSOR_NAMES = []
 
 def import_processors() -> None:
     processor_files: list[str] = [
-        os.path.splitext(name)[0]
-        for name in pkg_resources.resource_listdir(__name__, "")
-        if name.endswith(".py")
+        os.path.splitext(resource.name)[0]
+        for resource in importlib.resources.files(__name__).iterdir()
+        if resource.name.endswith(".py")
     ]
 
     # Warning! Fancy dynamic importing ahead!

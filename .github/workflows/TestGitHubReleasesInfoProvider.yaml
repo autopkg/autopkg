@@ -12,13 +12,14 @@ on:
 jobs:
   TestGitHubReleasesInfoProvider:
     strategy:
+      fail-fast: false
       matrix:
         # https://ncorti.com/blog/howto-github-actions-build-matrix
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       # only needed on self hosted windows runners:
-      - name: set powershell execution policy CurrentUser
+      - name: Set powershell execution policy CurrentUser
         if: runner.os == 'Windows'
         shell: cmd
         run: powershell -command "Set-ExecutionPolicy -Force -ExecutionPolicy RemoteSigned -Scope CurrentUser"
@@ -30,16 +31,13 @@ jobs:
           cd ~
           echo ${{ secrets.GITHUB_TOKEN }} > ".autopkg_gh_token"
 
-      - name: checkout this repo
-        uses: actions/checkout@v3
-
-      - name: checkout autopkg
-        uses: actions/checkout@v3
+      - name: Checkout this repo
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v6
         with:
-          python-version: 3.8
+          python-version: 3.10.11
           cache: "pip"
           cache-dependency-path: |
             .github/workflows/requirements.txt
@@ -47,7 +45,7 @@ jobs:
       - name: Install requirements
         run: pip install --requirement .github/workflows/requirements.txt
 
-      - name: create empty config windows
+      - name: Create empty config windows
         # https://stackoverflow.com/questions/57946173/github-actions-run-step-on-specific-os
         if: runner.os == 'Windows'
         shell: cmd
@@ -55,13 +53,13 @@ jobs:
           if not exist "%USERPROFILE%/AppData/Local/Autopkg" mkdir "%USERPROFILE%/AppData/Local/Autopkg"
           if not exist "%USERPROFILE%/AppData/Local/Autopkg/config.json" echo {} > "%USERPROFILE%/AppData/Local/Autopkg/config.json"
 
-      - name: create default autopkg config file Linux
+      - name: Create default autopkg config file Linux
         if: runner.os == 'Linux'
         run: |
           cd ~ && mkdir -p .config/Autopkg
           cd ~ && echo {} > .config/Autopkg/config.json
 
-      - name: create file
+      - name: Create file
         shell: bash
         run: |
           cat <<'EOFEOF' > GitHubReleasesInfoProvider.test.recipe.yaml
@@ -78,8 +76,10 @@ jobs:
                   asset_regex: .*64bit\.exe$
                   include_prereleases: False
           EOFEOF
-      - name: get file contents
+
+      - name: Get file contents
         shell: bash
         run: cat GitHubReleasesInfoProvider.test.recipe.yaml
-      - name: run integration recipe created in action
+
+      - name: Run integration recipe created in action
         run: python Code/autopkg run -vvvv GitHubReleasesInfoProvider.test.recipe.yaml
