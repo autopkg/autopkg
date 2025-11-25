@@ -176,7 +176,8 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
     from autopkglib import get_pref
 
     # Update and load local search index cache
-    cache_dir = get_pref("CACHE_DIR") or os.path.expanduser("~/Library/AutoPkg/Cache")
+    cache_dir = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
+    cache_dir = os.path.expanduser(cache_dir)
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0o755)
     cache_path = os.path.join(cache_dir, "search_index.json")
