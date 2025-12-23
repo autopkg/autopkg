@@ -2174,6 +2174,7 @@ def run_recipes(argv):
     cache_dir = os.path.expanduser(cache_dir)
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0o755)
+    set_pref("CACHE_DIR", os.path.abspath(cache_dir))
     current_run_results_plist = os.path.join(cache_dir, "autopkg_results.plist")
 
     run_results = []
