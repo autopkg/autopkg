@@ -217,7 +217,7 @@ class TestMunkiImporter(unittest.TestCase):
         self.assertIn("CustomName", actual_args)
         self.assertIn("--appname", actual_args)
         self.assertIn("CustomApp", actual_args)
-        self.assertIn("--uninstallpkg", actual_args)
+        self.assertIn("--uninstallerpkg", actual_args)
         self.assertIn("/path/to/uninstaller.pkg", actual_args)
         self.assertIn("--owner", actual_args)
         self.assertIn("root", actual_args)
