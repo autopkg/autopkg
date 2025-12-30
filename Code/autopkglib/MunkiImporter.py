@@ -320,7 +320,7 @@ class MunkiImporter(Processor):
         # uninstaller pkg will be copied later, this is just to suppress
         # makepkginfo stderr warning output
         if self.env.get("uninstaller_pkg_path"):
-            args.extend(["--uninstallpkg", self.env["uninstaller_pkg_path"]])
+            args.extend(["--uninstallerpkg", self.env["uninstaller_pkg_path"]])
         if self.env.get("additional_makepkginfo_options"):
             args.extend(self.env["additional_makepkginfo_options"])
 
