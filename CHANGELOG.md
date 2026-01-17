@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file. This projec
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...HEAD) (Unreleased)
 
+- New VariableSetter processor that allows setting environment variables for use as input to subsequent processors (#997, thanks to @MScottBlake).
 - Completely redesigned `autopkg search` feature using a structured [search index](https://github.com/autopkg/index) of all recipes in the AutoPkg org. The index is cached locally for speed, and redownloaded only when changes are available. This should be faster and much more reliable than our previous search method.
 - Updated included Python runtime to 3.10.11 (#990, thanks to @MScottBlake)
 - Updated requirements.txt with the contents of new_requirements.txt, which has been used in production releases since AutoPkg 2.7, and removed new_requirements.txt.
