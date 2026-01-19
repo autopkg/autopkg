@@ -37,7 +37,7 @@ class DmgMounter(Processor):
         """Helper method for working with paths that reference something
         inside a disk image"""
         for extension in self.DMG_EXTENSIONS:
-            (dmg_path, dmg, dmg_source_path) = pathname.partition(extension + "/")
+            dmg_path, dmg, dmg_source_path = pathname.partition(extension + "/")
             if dmg:
                 dmg_path += extension
                 return dmg_path, dmg, dmg_source_path
@@ -79,13 +79,13 @@ class DmgMounter(Processor):
             stderr=subprocess.PIPE,
             text=True,
         )
-        (stdout, stderr) = proc.communicate()
+        stdout, stderr = proc.communicate()
         if stderr:
             # some error with hdiutil. Print it, but try to continue anyway.
             # (APFS disk images generate extraneous output to stderr)
             self.output(f"hdiutil imageinfo error {stderr} with image {dmgpath}.")
 
-        (pliststr, stdout) = self.get_first_plist(stdout)
+        pliststr, stdout = self.get_first_plist(stdout)
         if pliststr:
             try:
                 plist = plistlib.loads(pliststr.encode())
@@ -124,7 +124,7 @@ class DmgMounter(Processor):
                 stdin=subprocess.PIPE,
                 text=True,
             )
-            (stdout, stderr) = proc.communicate(stdin)
+            stdout, stderr = proc.communicate(stdin)
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
@@ -133,7 +133,7 @@ class DmgMounter(Processor):
             raise ProcessorError(f"mounting {pathname} failed: {stderr}")
 
         # Read output plist.
-        (pliststr, stdout) = self.get_first_plist(stdout)
+        pliststr, stdout = self.get_first_plist(stdout)
         try:
             output = plistlib.loads(pliststr.encode())
         except Exception:
@@ -167,7 +167,7 @@ class DmgMounter(Processor):
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            (_, stderr) = proc.communicate()
+            _, stderr = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"

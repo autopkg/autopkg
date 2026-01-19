@@ -153,7 +153,7 @@ class Versioner(DmgMounter):
             path/to/disk.dmg/path/in/dmg/to/version.plist
         """
         # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(path)
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(path)
         if not dmg:
             raise ProcessorError(f"Expected DMG path, but '{path}' is not a DMG path.")
         try:

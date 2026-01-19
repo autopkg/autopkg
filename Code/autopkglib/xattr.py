@@ -15,6 +15,7 @@
 Wrapper module that provides a consistent xattr interface
 regardless of platform support.
 """
+
 from typing import Any
 
 __all__ = ["getxattr", "listxattr", "removexattr", "setxattr"]

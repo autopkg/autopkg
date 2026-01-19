@@ -146,7 +146,7 @@ class DmgCreator(Processor):
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
-            (_, stderr) = proc.communicate()
+            _, stderr = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"

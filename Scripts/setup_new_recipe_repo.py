@@ -20,7 +20,6 @@
 create a new team specifically for the duplicate repo, and assign the source
 repo author to this team."""
 
-
 import json
 import optparse
 import os

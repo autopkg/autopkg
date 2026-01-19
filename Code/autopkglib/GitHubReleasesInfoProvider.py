@@ -138,7 +138,7 @@ class GitHubReleasesInfoProvider(Processor):
         releases_uri = f"/repos/{repo}/releases"
         if latest_only:
             releases_uri += "/latest"
-        (releases, status) = github.call_api(releases_uri)
+        releases, status = github.call_api(releases_uri)
         if latest_only:
             # turn single item into a list of one item
             releases = [releases]

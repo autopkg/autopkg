@@ -79,13 +79,11 @@ class GitHubSession(URLGetter):
 
         token = self._get_token()
         if not token and not os.path.exists(TOKEN_LOCATION):
-            print(
-                """Create a new token in your GitHub settings page:
+            print("""Create a new token in your GitHub settings page:
 
     https://github.com/settings/tokens
 
-To save the token, paste it to the following prompt."""
-            )
+To save the token, paste it to the following prompt.""")
 
             token = input("Token: ")
             if token:
@@ -213,7 +211,7 @@ To save the token, paste it to the following prompt."""
         if use_token:
             _ = self.get_or_setup_token()
         # Do the search, including text match metadata
-        (results, code) = self.call_api(
+        results, code = self.call_api(
             "/search/code",
             query=query,
             accept="application/vnd.github.v3.text-match+json",

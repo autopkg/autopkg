@@ -20,8 +20,7 @@ class TestAutoPkg(unittest.TestCase):
 
     # Some globals for mocking
     good_json = json.dumps({"CACHE_DIR": "/path/to/cache"})
-    download_recipe = dedent(
-        """\
+    download_recipe = dedent("""\
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -72,11 +71,9 @@ class TestAutoPkg(unittest.TestCase):
             </array>
         </dict>
         </plist>
-    """
-    )
+    """)
     download_struct = plistlib.loads(download_recipe.encode("utf-8"))
-    munki_recipe = dedent(
-        """\
+    munki_recipe = dedent("""\
             <?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
             <plist version="1.0">
@@ -127,8 +124,7 @@ class TestAutoPkg(unittest.TestCase):
                 </array>
             </dict>
             </plist>
-        """
-    )
+        """)
     munki_struct = plistlib.loads(munki_recipe.encode("utf-8"))
 
     def setUp(self):

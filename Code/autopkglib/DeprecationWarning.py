@@ -16,7 +16,6 @@
 """Processor that outputs a warning message. Intended to alert recipe users of
 upcoming removal of a recipe."""
 
-
 import os
 
 from autopkglib import Processor, remove_recipe_extension

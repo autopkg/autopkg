@@ -39,8 +39,7 @@ TEST_APP_NAME: str = "TestApp.app"
 TEST_BUNDLE_ID: str = "com.example.testapp"
 TEST_VERSION: str = "1.0.0"
 
-TEST_INFO_PLIST: bytes = (
-    f"""<?xml version="1.0" encoding="UTF-8"?>
+TEST_INFO_PLIST: bytes = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -54,10 +53,8 @@ TEST_INFO_PLIST: bytes = (
     <string>TestApp</string>
 </dict>
 </plist>""".encode()
-)
 
-TEST_INCOMPLETE_INFO_PLIST: bytes = (
-    b"""<?xml version="1.0" encoding="UTF-8"?>
+TEST_INCOMPLETE_INFO_PLIST: bytes = b"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -65,7 +62,6 @@ TEST_INCOMPLETE_INFO_PLIST: bytes = (
     <string>TestApp</string>
 </dict>
 </plist>"""
-)
 
 
 class TestAppDmgVersioner(unittest.TestCase):

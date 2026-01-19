@@ -16,7 +16,6 @@
 """autopkg tool. Runs autopkg recipes and also handles other
 related tasks"""
 
-
 import copy
 import difflib
 import glob
@@ -523,7 +522,7 @@ def run_git(git_options_and_arguments, git_directory=None):
             cwd=git_directory,
             text=True,
         )
-        (cmd_out, cmd_err) = proc.communicate()
+        cmd_out, cmd_err = proc.communicate()
     except OSError as err:
         raise GitError from OSError(
             f"ERROR: git execution failed with error code {err.errno}: "
@@ -730,8 +729,7 @@ def repo_add(argv):
     """Add/update one or more repos of recipes"""
     verb = argv[1]
     parser = gen_common_parser()
-    parser.set_usage(
-        f"""Usage: %prog {verb} recipe_repo_url
+    parser.set_usage(f"""Usage: %prog {verb} recipe_repo_url
 Download one or more new recipe repos and add it to the search path.
 The 'recipe_repo_url' argument can be of the following forms:
 - repo (implies 'https://github.com/autopkg/repo')
@@ -739,8 +737,7 @@ The 'recipe_repo_url' argument can be of the following forms:
 - (http[s]://|git://|ssh://|user@server:)path/to/any/git/repo
 
 Example: '%prog repo-add recipes'
-..adds the autopkg/recipes repo from GitHub."""
-    )
+..adds the autopkg/recipes repo from GitHub.""")
     # Parse arguments
     arguments = common_parse(parser, argv)[1]
     if len(arguments) < 1:
@@ -883,9 +880,7 @@ def do_gh_repo_contents_fetch(
     if use_token:
         gh_session.setup_token()
     # Do the search, including text match metadata
-    (results, code) = gh_session.call_api(
-        f"/repos/autopkg/{repo}/contents/{quote(path)}"
-    )
+    results, code = gh_session.call_api(f"/repos/autopkg/{repo}/contents/{quote(path)}")
 
     if code == 403:
         log_err(
@@ -950,7 +945,7 @@ def get_info(argv):
             "Implies agreement to search GitHub."
         ),
     )
-    (options, arguments) = common_parse(parser, argv)
+    options, arguments = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -1002,7 +997,7 @@ def processor_info(argv):
 
     # Parse arguments
     add_search_and_override_dir_options(parser)
-    (options, arguments) = common_parse(parser, argv)
+    options, arguments = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -1060,7 +1055,7 @@ def make_suggestions_for(search_name):
     """Suggest existing recipes with names similar to search name."""
     # trim extension from the end if it exists
     search_name = remove_recipe_extension(search_name)
-    (search_name_base, search_name_ext) = os.path.splitext(search_name.lower())
+    search_name_base, search_name_ext = os.path.splitext(search_name.lower())
     recipe_names = [os.path.splitext(item["Name"]) for item in get_recipe_list()]
     recipe_names = list(set(recipe_names))
 
@@ -1863,7 +1858,7 @@ def make_override(argv):
             "Valid options include: 'plist' (default) or 'yaml'"
         ),
     )
-    (options, arguments) = common_parse(parser, argv)
+    options, arguments = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -2094,7 +2089,7 @@ def run_recipes(argv):
         help="Don't offer to search Github if a recipe can't be found.",
     )
     add_search_and_override_dir_options(parser)
-    (options, arguments) = common_parse(parser, argv)
+    options, arguments = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -2156,7 +2151,7 @@ def run_recipes(argv):
     # Add variables from commandline. These might override those from
     # environment variables and recipe_list
     for arg in options.variables:
-        (key, sep, value) = arg.partition("=")
+        key, sep, value = arg.partition("=")
         if sep != "=":
             log_err(f"Invalid variable [key=value]: {arg}")
             log_err(parser.get_usage())
@@ -2494,7 +2489,7 @@ def audit(argv):
         default=False,
         help="Output in plist format.",
     )
-    (options, arguments) = common_parse(parser, argv)
+    options, arguments = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -2652,7 +2647,7 @@ def new_recipe(argv):
             "Valid options include: 'plist' (default) or 'yaml'"
         ),
     )
-    (options, arguments) = common_parse(parser, argv)
+    options, arguments = common_parse(parser, argv)
 
     if len(arguments) != 1:
         log_err("Must specify exactly one recipe pathname!")

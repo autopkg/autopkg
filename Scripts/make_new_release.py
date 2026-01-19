@@ -15,7 +15,6 @@
 # handling.
 """See docstring for main() function"""
 
-
 import json
 import optparse
 import os

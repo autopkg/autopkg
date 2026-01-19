@@ -278,7 +278,7 @@ class Packager:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            (_, err) = p.communicate()
+            _, err = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"ditto execution failed with error code {e.errno}: {e.strerror}"
@@ -395,7 +395,7 @@ class Packager:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            (_, err) = p.communicate()
+            _, err = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
@@ -480,7 +480,7 @@ class Packager:
                 p = subprocess.Popen(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
                 )
-                (_, err) = p.communicate()
+                _, err = p.communicate()
             except OSError as e:
                 raise PackagerError(
                     f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"

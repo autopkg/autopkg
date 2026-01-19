@@ -382,7 +382,7 @@ class ChocolateyPackager(Processor):
             stderr=subprocess.STDOUT,
             text=True,
         )
-        (output, _) = proc.communicate()
+        output, _ = proc.communicate()
         self.log(output.splitlines(), 1)
         if proc.returncode != 0:
             raise ProcessorError(

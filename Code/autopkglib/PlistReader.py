@@ -126,7 +126,7 @@ class PlistReader(DmgMounter):
             # it will always be unmounted.
 
             # Check if we're trying to read something inside a dmg.
-            (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(path)
+            dmg_path, dmg, dmg_source_path = self.parsePathForDMG(path)
             if dmg:
                 mount_point = self.mount(dmg_path)
                 path = os.path.join(mount_point, dmg_source_path.lstrip("/"))

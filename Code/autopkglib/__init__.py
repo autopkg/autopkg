@@ -15,6 +15,7 @@
 # limitations under the License.
 
 """Core/shared autopkglib functions"""
+
 import glob
 import imp
 import json
@@ -606,7 +607,7 @@ class Processor:
             self.env = {}
 
         for arg in sys.argv[1:]:
-            (key, sep, value) = arg.partition("=")
+            key, sep, value = arg.partition("=")
             if sep != "=":
                 raise ProcessorError(f"Illegal argument '{arg}'")
             update_data(self.env, key, value)
@@ -642,7 +643,7 @@ class Processor:
             proc = subprocess.Popen(
                 command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
-            (stdout, stderr) = proc.communicate()
+            stdout, stderr = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"{command[0]} execution failed with error code "
