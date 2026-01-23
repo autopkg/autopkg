@@ -157,7 +157,7 @@ class GitHubReleasesInfoProvider(Processor):
                     break
                 all_releases.extend(releases)
                 self.output(f"Fetched page {page} with {len(releases)} release(s)")
-                if len(releases) < per_page: # Last page
+                if len(releases) < per_page:  # Last page
                     break
                 page += 1
 
