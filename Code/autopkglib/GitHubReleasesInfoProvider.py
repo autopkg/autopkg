@@ -138,12 +138,30 @@ class GitHubReleasesInfoProvider(Processor):
         releases_uri = f"/repos/{repo}/releases"
         if latest_only:
             releases_uri += "/latest"
-        (releases, status) = github.call_api(releases_uri)
-        if latest_only:
+            (releases, status) = github.call_api(releases_uri)
             # turn single item into a list of one item
             releases = [releases]
-        if status != 200:
-            raise ProcessorError(f"Unexpected GitHub API status code {status}.")
+            if status != 200:
+                raise ProcessorError(f"Unexpected GitHub API status code {status}.")
+        else:
+            all_releases = []
+            page = 1
+            per_page = 100  # Maximum allowed by GitHub API
+
+            while True:
+                paginated_uri = f"{releases_uri}?per_page={per_page}&page={page}"
+                (releases, status) = github.call_api(paginated_uri)
+                if status != 200:
+                    raise ProcessorError(f"Unexpected GitHub API status code {status}.")
+                if not releases:
+                    break
+                all_releases.extend(releases)
+                self.output(f"Fetched page {page} with {len(releases)} release(s)")
+                if len(releases) < per_page: # Last page
+                    break
+                page += 1
+
+            releases = all_releases
 
         if not releases:
             raise ProcessorError(f"No releases found for repo '{repo}'")
