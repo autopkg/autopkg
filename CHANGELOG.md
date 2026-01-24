@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. This projec
 - Completely redesigned `autopkg search` feature using a structured [search index](https://github.com/autopkg/index) of all recipes in the AutoPkg org. The index is cached locally for speed, and redownloaded only when changes are available. This should be faster and much more reliable than our previous search method.
 - Updated included Python runtime to 3.10.11 (#990, thanks to @MScottBlake)
 - Updated requirements.txt with the contents of new_requirements.txt, which has been used in production releases since AutoPkg 2.7, and removed new_requirements.txt.
+- Fixed incorrect count of recipes in results when using `audit` verb (#1004, thanks to @macprince for reporting)
 - Fixed `Bad file descriptor` error processor output during package builds.
 - Added a method by which processors can be marked for deprecation, similar to what DeprecationWarning does for recipes.
 - Added basic unit tests for autopkgserver and autopkginstalld.

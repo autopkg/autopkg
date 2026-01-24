@@ -2627,7 +2627,7 @@ def audit(argv):
         print(plistlib.dumps(audit_results))
     elif len(recipe_paths) > 1:
         log("\nSummary:")
-        log(f"    {len([audit_results.keys()])} recipes audited")
+        log(f"    {len(audit_results)} recipes audited")
         log(f"    {recipe_issue_count} recipes with audit issues")
         log(f"    {recipe_no_issue_count} recipes triggered no audit flags")
 
