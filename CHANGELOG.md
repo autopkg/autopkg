@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file. This projec
 - Fixed incorrect count of recipes in results when using `audit` verb (#1004, thanks to @macprince for reporting)
 - Fixed `Bad file descriptor` error processor output during package builds.
 - Added a method by which processors can be marked for deprecation, similar to what DeprecationWarning does for recipes.
+- GitHubReleasesInfoProvider now supports pagination, which should improve reliability for repos that have a large number of prereleases that bump the "latest" release off the first page of API results (#1005, thanks to @kirovreporting).
 - Added basic unit tests for autopkgserver and autopkginstalld.
 - Removed deprecated processor BrewCaskInfoProvider.
 - Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
