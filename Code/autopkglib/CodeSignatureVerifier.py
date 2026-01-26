@@ -30,10 +30,10 @@ RE_AUTHORITY_PKGUTIL = re.compile(r"\s+[1-9]+\. (?P<authority>.*)\n")
 
 
 class CodeSignatureVerifier(DmgMounter):
-    """Verifies application bundle or installer package signature.
+    """Verifies application bundle or installer package signature."""
 
-    Requires version 0.3.1."""
-
+    description = __doc__
+    lifecycle = {"introduced": "0.3.1"}
     input_variables = {
         "DISABLE_CODE_SIGNATURE_VERIFICATION": {
             "required": False,
@@ -79,6 +79,7 @@ class CodeSignatureVerifier(DmgMounter):
                 "recursively verified as to its full content. Note that this option "
                 "is ignored if the current system version is less than 10.9."
             ),
+            "default": True,
         },
         "strict_verification": {
             "required": False,
@@ -96,8 +97,6 @@ class CodeSignatureVerifier(DmgMounter):
         },
     }
     output_variables = {}
-
-    description = __doc__
 
     def codesign_verify(
         self,
@@ -342,7 +341,7 @@ class CodeSignatureVerifier(DmgMounter):
                     self.process_installer_package(matched_input_path)
                 else:
                     self.output(
-                        "Warning: Installer package signature "
+                        "WARNING: Installer package signature "
                         "verification not supported on Mac OS X 10.6"
                     )
 

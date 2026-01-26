@@ -18,12 +18,12 @@
 import plistlib
 import subprocess
 
-from autopkglib import APLooseVersion, Processor, ProcessorError, log
+from autopkglib import APLooseVersion, Processor, ProcessorError, log_err
 
 try:
     from Foundation import NSDictionary
 except ImportError:
-    log("WARNING: Failed 'from Foundation import NSDictionary' in " + __name__)
+    log_err("WARNING: Failed 'from Foundation import NSDictionary' in " + __name__)
 
 __all__ = ["MunkiInstallsItemsCreator"]
 
@@ -31,6 +31,8 @@ __all__ = ["MunkiInstallsItemsCreator"]
 class MunkiInstallsItemsCreator(Processor):
     """Generates an installs array for a pkginfo file."""
 
+    description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "installs_item_paths": {
             "required": True,
@@ -67,7 +69,6 @@ class MunkiInstallsItemsCreator(Processor):
             "description": "Pkginfo dictionary containing installs array."
         }
     }
-    description = __doc__
 
     def create_installs_items(self) -> None:
         """Calls makepkginfo to create an installs array."""

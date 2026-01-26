@@ -27,9 +27,10 @@ class FindAndReplace(Processor):
     Returns 'output_string' (or other variable specified by 'result_output_var_name')
     containing the result of the find/replace operation.
 
-    Requires version 2.7.6.
     """
 
+    description = __doc__
+    lifecycle = {"introduced": "2.7.6"}
     input_variables = {
         "input_string": {
             "required": True,
@@ -45,10 +46,10 @@ class FindAndReplace(Processor):
         },
         "result_output_var_name": {
             "required": False,
-            "default": "output_string",
             "description": "The name of the output variable containing the result of the "
             'find/replace operation. If not specified then a default of "output_string" will "'
             "be used.",
+            "default": "output_string",
         },
     }
     output_variables = {
@@ -56,7 +57,6 @@ class FindAndReplace(Processor):
             "description": "The result of find/replace on the input string."
         }
     }
-    description = __doc__
 
     def main(self) -> None:
         """Main process."""

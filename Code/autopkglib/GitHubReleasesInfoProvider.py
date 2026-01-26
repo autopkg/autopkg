@@ -28,11 +28,13 @@ class NoMatchingReleaseError(ProcessorError):
 
 
 class GitHubReleasesInfoProvider(Processor):
-    description = (
-        "Get metadata from the latest release from a GitHub project"
-        " using the GitHub Releases API."
-        "\nRequires version 0.5.0."
-    )
+    """Get metadata from the latest release from a GitHub project using the
+    GitHub Releases API.
+
+    """
+
+    description = __doc__
+    lifecycle = {"introduced": "0.5.0"}
     input_variables = {
         "asset_regex": {
             "required": False,
@@ -77,21 +79,20 @@ class GitHubReleasesInfoProvider(Processor):
         },
         "CURL_PATH": {
             "required": False,
-            "default": "/usr/bin/curl",
             "description": "Path to curl binary. Defaults to /usr/bin/curl.",
+            "default": "/usr/bin/curl",
         },
         "GITHUB_URL": {
             "required": False,
-            "default": "https://api.github.com",
             "description": (
                 "If your organization has an internal GitHub instance "
                 "set this value to your internal GitHub URL "
                 "ie. 'https://git.internal.corp.com/api/v3'"
             ),
+            "default": "https://api.github.com",
         },
         "GITHUB_TOKEN_PATH": {
             "required": False,
-            "default": "~/.autopkg_gh_token",
             "description": (
                 "Path to a file containing your GitHub token. "
                 "Can be a relative path or absolute path. "
@@ -99,6 +100,7 @@ class GitHubReleasesInfoProvider(Processor):
                 "NOTE: the AutoPkg preference 'GITHUB_TOKEN' "
                 "takes precedence over this value."
             ),
+            "default": "~/.autopkg_gh_token",
         },
         "GITHUB_RELEASES_PER_PAGE": {
             "required": False,
@@ -130,8 +132,6 @@ class GitHubReleasesInfoProvider(Processor):
         },
         "asset_created_at": {"description": ("The release time of the asset.")},
     }
-
-    __doc__ = description
 
     def get_releases(self, repo, page=1, per_page=30, latest_only=False):
         """Return a list of releases dicts for a given GitHub repo. repo must

@@ -17,6 +17,7 @@
 """Core/shared autopkglib functions"""
 import glob
 import imp
+import importlib.resources
 import json
 import os
 import plistlib
@@ -30,7 +31,6 @@ from distutils.version import LooseVersion
 from typing import IO, Any, Union
 
 import appdirs
-import pkg_resources
 import yaml
 
 # Type for methods that accept either a filesystem path or a file-like object.
@@ -402,9 +402,9 @@ def find_recipe_by_identifier(identifier, search_dirs) -> str | None:
 def get_autopkg_version() -> str:
     """Gets the version number of autopkg"""
     try:
-        version_plist = plistlib.load(
-            pkg_resources.resource_stream(__name__, "version.plist")
-        )
+        version_file = importlib.resources.files(__name__).joinpath("version.plist")
+        with version_file.open("rb") as f:
+            version_plist = plistlib.load(f)
     except Exception as ex:
         log_err(f"Unable to get autopkg version: {ex}")
         return "UNKNOWN"
@@ -539,6 +539,8 @@ class Processor:
     returns a new or updated property list that can be processed further.
     """
 
+    lifecycle: dict = {}
+
     def __init__(self, env=None, infile=None, outfile=None):
         # super(Processor, self).__init__()
         self.env = env
@@ -618,6 +620,11 @@ class Processor:
 
     def process(self) -> None:
         """Main processing loop."""
+        # Check if this processor is deprecated and emit warning
+        deprecated_version = self.lifecycle.get("deprecated")
+        if deprecated_version:
+            self.show_deprecation(self.get_deprecation_warning(deprecated_version))
+
         # Make sure all required arguments have been supplied.
         for variable, flags in list(self.input_variables.items()):
             # Apply default values to unspecified input variables
@@ -679,16 +686,55 @@ class Processor:
         If there is an error loading the file, the exception raised will be prefixed
         with `exception_text`.
         """
+        fh: IO | None = None
         try:
             if isinstance(plist_file, (str, bytes, int)):
-                fh: IO = open(plist_file, "rb")
+                fh = open(plist_file, "rb")
             else:
                 fh = plist_file
             return plistlib.load(fh)
         except Exception as err:
             raise ProcessorError(f"{exception_text}: {err}") from err
         finally:
-            fh.close()
+            if fh and isinstance(plist_file, (str, bytes, int)):
+                fh.close()
+
+    def get_deprecation_warning(self, deprecated_version: str) -> str:
+        """Generate a standardized deprecation warning message.
+
+        Args:
+            deprecated_version: The AutoPkg version in which this processor was deprecated, if applicable.
+
+        Returns:
+            A formatted deprecation warning message.
+        """
+        return (
+            f"{self.__class__.__name__} was deprecated in AutoPkg "
+            f"version {deprecated_version} and may be removed in a "
+            f"future release."
+        )
+
+    def show_deprecation(self, message: str) -> None:
+        """Emit a deprecation warning, either from a deprecated recipe that calls
+        the DeprecationWarning processor, or from a deprecated processor that calls
+        this method directly.
+
+        This both prints the warning to stdout and adds the deprecation to the
+        summary results from the autopkg run.
+        """
+        self.output(f"WARNING: {message}")
+        recipe_name = os.path.basename(self.env["RECIPE_PATH"])
+        recipe_name = remove_recipe_extension(recipe_name)
+        depr_summary_result = {
+            "summary_text": "The following recipes have deprecation warnings:",
+            "report_fields": ["name", "warning"],
+            "data": {"name": recipe_name, "warning": message},
+        }
+        if self.output_variables:
+            self.output_variables["deprecation_summary_result"] = depr_summary_result
+        else:
+            self.output_variables = {"deprecation_summary_result": depr_summary_result}
+        self.env["deprecation_summary_result"] = depr_summary_result
 
 
 # AutoPackager class definition
@@ -971,9 +1017,9 @@ _PROCESSOR_NAMES = []
 
 def import_processors() -> None:
     processor_files: list[str] = [
-        os.path.splitext(name)[0]
-        for name in pkg_resources.resource_listdir(__name__, "")
-        if name.endswith(".py")
+        os.path.splitext(resource.name)[0]
+        for resource in importlib.resources.files(__name__).iterdir()
+        if resource.name.endswith(".py")
     ]
 
     # Warning! Fancy dynamic importing ahead!

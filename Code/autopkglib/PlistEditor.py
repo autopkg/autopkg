@@ -27,6 +27,7 @@ class PlistEditor(Processor):
     plist."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "input_plist_path": {
             "required": False,
@@ -48,8 +49,6 @@ class PlistEditor(Processor):
         },
     }
     output_variables = {}
-
-    __doc__ = description
 
     def read_plist(self, pathname):
         """reads a plist from pathname"""

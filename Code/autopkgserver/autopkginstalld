@@ -1,4 +1,4 @@
-#!/Library/AutoPkg/Python3/Python.framework/Versions/Current/bin/python3
+#!/usr/local/autopkg/python
 #
 # Copyright 2014-2015 Greg Neagle
 # Based heavily on Per Olofsson's autopkgserver
@@ -26,22 +26,24 @@ import stat
 import struct
 import sys
 import time
+from pathlib import Path
+from typing import Any
 
 from installer import Installer, InstallerError
 from itemcopier import ItemCopier, ItemCopierError
 
 APPNAME = "autopkginstalld"
-VERSION = "0.2"
+VERSION = "0.3"
 
 
 class RunHandler(socketserver.StreamRequestHandler):
     """Handler for autopkginstalld run requests"""
 
-    def verify_request_syntax(self, plist):
+    def verify_request_syntax(self, plist: dict[str, Any]) -> tuple[bool, list[str]]:
         """Verify the basic syntax of an installation request plist."""
 
         # Keep a list of error messages.
-        errors = []
+        errors: list[str] = []
 
         # Root should be a dictionary.
         if not isinstance(plist, dict):
@@ -57,7 +59,7 @@ class RunHandler(socketserver.StreamRequestHandler):
 
         return syntax_ok, errors
 
-    def getpeerid(self):
+    def getpeerid(self) -> tuple[int, tuple[int, ...]]:
         """
         Get peer credentials on a UNIX domain socket.
         Returns uid, gids.
@@ -80,7 +82,7 @@ class RunHandler(socketserver.StreamRequestHandler):
         cr_ngroups = 2
         cr_groups = 3
 
-        xucred_fmt = "IIh%dI" % NGROUPS
+        xucred_fmt = f"IIh{NGROUPS}I"
         res = struct.unpack(
             xucred_fmt,
             self.request.getsockopt(0, LOCAL_PEERCRED, struct.calcsize(xucred_fmt)),
@@ -91,7 +93,7 @@ class RunHandler(socketserver.StreamRequestHandler):
 
         return res[cr_uid], res[cr_groups : cr_groups + res[cr_ngroups]]
 
-    def handle(self):
+    def handle(self) -> None:
         """Handle an incoming run request."""
 
         try:
@@ -102,7 +104,7 @@ class RunHandler(socketserver.StreamRequestHandler):
             # Get uid and primary gid of connecting peer.
             uid, gids = self.getpeerid()
             gid = gids[0]
-            self.log.debug("Got run request from uid %d gid %d" % (uid, gid))
+            self.log.debug("Got run request from uid %s gid %s", uid, gid)
 
             # Receive a plist.
             plist_string = self.request.recv(8192)
@@ -118,34 +120,34 @@ class RunHandler(socketserver.StreamRequestHandler):
 
             if "package" in plist:
                 self.log.info(
-                    "Dispatching Installer worker to process request for "
-                    "user %d" % uid
+                    "Dispatching Installer worker to process request for user %s",
+                    uid,
                 )
                 try:
                     installer = Installer(self.log, self.request, plist)
                     installer.install()
                     self.request.send(b"OK:DONE\n")
                 except InstallerError as err:
-                    self.log.error(f"Installing failed: {err}")
+                    self.log.error("Installing failed: %s", err)
                     self.request.send(f"ERROR:{err}\n".encode())
             elif "mount_point" in plist:
                 self.log.info(
-                    "Dispatching ItemCopier worker to process request for "
-                    "user %d" % uid
+                    "Dispatching ItemCopier worker to process request for user %s",
+                    uid,
                 )
                 try:
                     copier = ItemCopier(self.log, self.request, plist)
                     copier.copy()
                     self.request.send(b"OK:DONE\n")
                 except ItemCopierError as err:
-                    self.log.error(f"Copying failed: {err}")
+                    self.log.error("Copying failed: %s", err)
                     self.request.send(f"ERROR:{err}\n".encode())
             else:
                 self.log.error("Unsupported request format")
                 self.request.send(b"ERROR:Unsupported request format")
 
         except BaseException as err:
-            self.log.error(f"Caught exception: {repr(err)}")
+            self.log.error("Caught exception: %r", err)
             self.request.send(f"ERROR:Caught exception: {repr(err)}".encode())
 
 
@@ -163,7 +165,11 @@ class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
     request_queue_size = 10
     timeout = 10
 
-    def __init__(self, socket_fd, RequestHandlerClass):
+    def __init__(
+        self,
+        socket_fd: int,
+        RequestHandlerClass: type[socketserver.BaseRequestHandler],
+    ) -> None:
         # Avoid initialization of UnixStreamServer as we need to open the
         # socket from a file descriptor instead of creating our own.
         self.socket = socket.fromfd(socket_fd, socket.AF_UNIX, socket.SOCK_STREAM)
@@ -173,7 +179,7 @@ class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
         )
         self.timed_out = False
 
-    def setup_logging(self):
+    def setup_logging(self) -> None:
         """Sets up logging to a file in /private/var/log/"""
         try:
             self.log = logging.getLogger(APPNAME)
@@ -199,11 +205,11 @@ class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
         except OSError as err:
             raise AutoPkgInstallDaemonError(f"Can't open log: {err.strerror}")
 
-    def handle_timeout(self):
+    def handle_timeout(self) -> None:
         self.timed_out = True
 
 
-def main(argv):
+def main(argv: list[str]) -> int:
     # Make sure we're launched as root
     if os.geteuid() != 0:
         print(f"{APPNAME} must be run as root.", file=sys.stderr)
@@ -217,10 +223,10 @@ def main(argv):
     wheel_gid = 0
     admin_gid = 80
 
-    exepath = os.path.realpath(os.path.abspath(sys.argv[0]))
+    exepath = Path(sys.argv[0]).resolve()
     path_ok = True
     while True:
-        info = os.stat(exepath)
+        info = exepath.stat()
         if info.st_uid != root_uid:
             print(f"{exepath} must be owned by root.", file=sys.stderr)
             path_ok = False
@@ -230,8 +236,8 @@ def main(argv):
         if info.st_mode & stat.S_IWOTH:
             print(f"{exepath} mustn't be world writeable.", file=sys.stderr)
             path_ok = False
-        exepath = os.path.dirname(exepath)
-        if exepath == "/":
+        exepath = exepath.parent
+        if exepath == Path("/"):
             break
 
     if not path_ok:
@@ -257,7 +263,7 @@ def main(argv):
     # Create the daemon object.
     daemon = AutoPkgInstallDaemon(sock_fd, RunHandler)
     daemon.setup_logging()
-    daemon.log.info(f"{APPNAME} v{VERSION} starting")
+    daemon.log.info("%s v%s starting", APPNAME, VERSION)
 
     # Serve all pending requests until we time out.
     while True:
@@ -267,12 +273,12 @@ def main(argv):
 
         # Keep running for at least 10 seconds make launchd happy.
         run_time = time.time() - start_time
-        daemon.log.info("run time: %fs" % run_time)
+        daemon.log.info("run time: %ss", run_time)
         if run_time < 10.0:
             # Only sleep for a short while in case new requests pop up.
             sleep_time = min(1.0, 10.0 - run_time)
             daemon.log.debug(
-                "sleeping for %f seconds to make launchd happy" % sleep_time
+                "sleeping for %s seconds to make launchd happy", sleep_time
             )
             time.sleep(sleep_time)
         else:

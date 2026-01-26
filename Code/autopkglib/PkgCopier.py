@@ -28,6 +28,7 @@ class PkgCopier(Copier):
     """Copies source_pkg to pkg_path."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "source_pkg": {
             "required": True,

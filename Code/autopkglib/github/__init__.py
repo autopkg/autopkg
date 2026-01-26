@@ -20,10 +20,9 @@ import json
 import os
 import re
 import tempfile
-from typing import Any, Optional
-from urllib.parse import quote
+from typing import Any, List
 
-from autopkglib import RECIPE_EXTS, get_pref, log, log_err
+from autopkglib import get_pref, log, log_err
 from autopkglib.URLGetter import URLGetter
 
 BASE_URL = "https://api.github.com"
@@ -174,42 +173,70 @@ To save the token, paste it to the following prompt."""
         use_token: bool = False,
         results_limit: int = 100,
     ) -> list[dict]:
-        """Search GitHub for results for a given name."""
+        """Search GitHub for results for a given name.
 
-        # Include all supported recipe extensions in search.
-        # Compound extensions like ".recipe.yaml" aren't definable here,
-        # so further filtering of results is done below.
-        exts = "+".join("extension:" + ext.split(".")[-1] for ext in RECIPE_EXTS)
-        # Example value: "extension:recipe+extension:plist+extension:yaml"
+        Note: This method now uses a cached search index instead of the GitHub
+        Code Search API. The user, use_token, and results_limit parameters are
+        deprecated but kept for backward compatibility.
+        """
+        # Import here to avoid circular dependency
+        from autopkgcmd.searchcmd import get_search_results
 
-        query = f"q={quote(name)}+{exts}+user:{user}"
+        # Warn if non-default user is specified
+        if user != DEFAULT_SEARCH_USER:
+            log(
+                f"WARNING: Searching non-autopkg users/orgs ('{user}') is "
+                "no longer supported. Searching the autopkg org only."
+            )
 
-        if path_only:
-            query += "+in:path,filepath"
-        else:
-            query += "+in:path,file"
-        query += f"&per_page={results_limit}"
+        # Warn if token flag is used (no longer needed with cached index)
+        if use_token:
+            log("WARNING: --use-token flag is deprecated and no longer " "needed.")
 
-        results = self.code_search(query, use_token=use_token)
+        # Suppress unused parameter warning - kept for backward compatibility
+        _ = results_limit
 
-        if not results or not results.get("total_count"):
-            log("Nothing found.")
+        # Get results from cached index
+        results = get_search_results(name, path_only=path_only)
+
+        # Return empty list if no results
+        # (get_search_results already logs "Nothing found")
+        if not results:
             return []
 
-        # Filter out files from results that are not AutoPkg recipes.
-        results_items = [
-            item
-            for item in results["items"]
-            if any(item["name"].endswith(ext) for ext in RECIPE_EXTS)
-        ]
+        # Transform results to maintain backward compatibility with old format
+        # Old format had: name, path, repository{name, full_name}, html_url
+        # New format has: Name, Repo, Path
+        results_items = []
+        for item in results:
+            # Build a compatible result structure
+            repo_name = item["Repo"]
+            # Add back "autopkg/" prefix if it was stripped
+            if "/" not in repo_name:
+                full_repo = f"autopkg/{repo_name}"
+            else:
+                full_repo = repo_name
 
-        if not results_items:
-            log("Nothing found.")
-            return []
+            result_item = {
+                "name": item["Name"],
+                "path": item["Path"],
+                "repository": {
+                    "name": repo_name.split("/")[-1],  # Just the repo name
+                    "full_name": full_repo,  # owner/repo
+                },
+                "html_url": (
+                    f"https://github.com/{full_repo}/blob/master/" f"{item['Path']}"
+                ),
+            }
+            results_items.append(result_item)
+
         return results_items
 
     def code_search(self, query: str, use_token: bool = False) -> dict | None:
-        """Search GitHub code repos"""
+        """Search GitHub code repos.
+
+        DEPRECATED as of AutoPkg 2.9.0 in favor of cached search index. This function
+        will be removed in a future release."""
         if use_token:
             _ = self.get_or_setup_token()
         # Do the search, including text match metadata
@@ -239,7 +266,7 @@ To save the token, paste it to the following prompt."""
         self,
         endpoint: str,
         method: str = "GET",
-        query: Optional[str] = None,
+        query: str | None = None,
         data=None,
         headers=None,
         accept="application/vnd.github.v3+json",
@@ -284,28 +311,61 @@ To save the token, paste it to the following prompt."""
         return (resp_data, self.http_result_code)
 
 
-def print_gh_search_results(results_items) -> None:
-    """Pretty print our GitHub search results"""
-    if not results_items:
-        return
-    column_spacer = 4
-    max_name_length = max([len(r["name"]) for r in results_items]) + column_spacer
-    max_repo_length = (
-        max([len(r["repository"]["name"]) for r in results_items]) + column_spacer
-    )
-    spacers = (max_name_length, max_repo_length)
+def get_table_row(row_items, col_widths, header=False):
+    """Format table row content (e.g. search results) with proper spacing for output.
 
+    Args:
+        row_items: Iterable of cell content (strings or values convertible to strings)
+        col_widths: List of integers specifying width for each column
+        header: If True, appends a separator line after the row for Markdown headers
+
+    Returns:
+        String representing a formatted table row with proper spacing.
+        If header=True, includes a separator line with dashes.
+    """
+    output = ""
+    header_sep = "\n"
+    column_space = 4
+    for idx, cell in enumerate(row_items):
+        padding = col_widths[idx] - len(cell) + column_space
+        header_sep += "-" * len(cell) + " " * padding
+        output += f"{cell}{' ' * padding}"
+    if header:
+        return output + header_sep
+
+    return output
+
+
+def print_gh_search_results(results: List):
+    """Pretty print our GitHub search results."""
+    if not results:
+        log_err("Nothing found.")
+        return
+
+    # Limit results to print
+    results_limit = 100
+    limited_results = results[:results_limit]
+
+    col_widths = [
+        max([len(x[k]) for x in limited_results] + [len(k)])
+        for k in limited_results[0].keys()
+    ]
     print()
-    format_str = "%-{}s %-{}s %-40s".format(*spacers)
-    print(format_str % ("Name", "Repo", "Path"))
-    print(format_str % ("----", "----", "----"))
-    results_items.sort(key=lambda x: x["repository"]["name"])
-    for result in results_items:
-        repo = result["repository"]
-        name = result["name"]
-        path = result["path"]
-        if repo["full_name"].startswith("autopkg"):
-            repo_name = repo["name"]
-        else:
-            repo_name = repo["full_name"]
-        print(format_str % (name, repo_name, path))
+    print(get_table_row(limited_results[0].keys(), col_widths, header=True))
+    for result_item in sorted(limited_results, key=lambda x: x["Repo"].lower()):
+        print(get_table_row(result_item.values(), col_widths))
+    print()
+    print("To add a new recipe repo, use `autopkg repo-add <repo name>`")
+    print()
+    print(
+        "If you don't see the recipe you're looking for, try searching "
+        "https://autopkgweb.com/ (maintained by @jannheider)."
+    )
+
+    # Warn if we have too many results (likely not helpful)
+    if len(results) > results_limit:
+        print()
+        log_err(
+            f"WARNING: Only showing first {results_limit} out of {len(results)} "
+            "total results. Please try a more specific search term."
+        )

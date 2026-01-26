@@ -30,32 +30,34 @@ __all__ = ["MunkiImporter"]
 class MunkiImporter(Processor):
     """Imports a pkg or dmg to the Munki repo."""
 
+    description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "MUNKI_REPO": {
-            "description": "Path to a mounted Munki repo.",
             "required": True,
+            "description": "Path to a mounted Munki repo.",
         },
         "MUNKI_REPO_PLUGIN": {
+            "required": False,
             "description": (
                 "Munki repo plugin. Defaults to FileRepo. Munki must be installed and available "
                 " at MUNKILIB_DIR if a plugin other than FileRepo is specified."
             ),
-            "required": False,
             "default": "FileRepo",
         },
         "MUNKILIB_DIR": {
+            "required": False,
             "description": (
                 "Directory path that contains munkilib. Defaults to /usr/local/munki"
             ),
-            "required": False,
             "default": "/usr/local/munki",
         },
         "force_munki_repo_lib": {
+            "required": False,
             "description": (
                 "When True, munki code libraries will be utilized when the FileRepo plugin is "
                 "used. Munki must be installed and available at MUNKILIB_DIR"
             ),
-            "required": False,
             "default": False,
         },
         "pkg_path": {
@@ -119,16 +121,17 @@ class MunkiImporter(Processor):
             ),
         },
         "MUNKI_PKGINFO_FILE_EXTENSION": {
-            "description": "Extension for output pkginfo files. Default is 'plist'.",
             "required": False,
+            "description": "Extension for output pkginfo files. Default is 'plist'.",
+            "default": "plist",
         },
         "metadata_additions": {
+            "required": False,
             "description": (
                 "A dictionary that will be merged with the pkginfo _metadata.  "
                 "Unique keys will be added, but overlapping keys will replace "
                 "existing values."
             ),
-            "required": False,
         },
     }
     output_variables = {
@@ -152,7 +155,6 @@ class MunkiImporter(Processor):
             "description": "Description of interesting results."
         },
     }
-    description = __doc__
 
     def _fetch_repo_library(
         self,

@@ -39,11 +39,9 @@ DefaultValue = VariableSentinel()
 
 
 class ChocolateyPackager(Processor):
-    """
-    Run `choco.exe` to build a single Nuget package.
-    """
+    """Run `choco.exe` to build a single Nuget package."""
 
-    description: str = __doc__
+    description = __doc__
 
     # Input variables for Nuspec creation. These correspond to the schema referenced
     # `Scripts/regenerate_nuspec_ds.py`.

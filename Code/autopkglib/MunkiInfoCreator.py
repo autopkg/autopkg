@@ -30,6 +30,7 @@ class MunkiInfoCreator(Processor):
     """Creates a pkginfo file for a munki package."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "pkg_path": {
             "required": True,

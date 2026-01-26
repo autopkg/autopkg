@@ -31,6 +31,7 @@ class PkgExtractor(DmgMounter):
     to pkgroot."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "pkg_path": {"required": True, "description": "Path to a package."},
         "extract_root": {

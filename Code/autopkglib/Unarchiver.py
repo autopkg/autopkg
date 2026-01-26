@@ -58,6 +58,7 @@ class Unarchiver(Processor):
     """Archive decompressor for zip and common tar-compressed formats."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "archive_path": {
             "required": False,
@@ -109,6 +110,35 @@ class Unarchiver(Processor):
         # We found no known archive file extension if we got this far
         return None
 
+    def _validate_archive_members(
+        self, archive: Extractor, destination_path: str
+    ) -> None:
+        """Validate the contents of archives prior to extraction. If any indicators
+        of directory traversal attacks are present, stop processing and raise an error.
+        """
+        members: list = []
+        if hasattr(archive, "getmembers"):  # tarfile
+            members = archive.getmembers()
+            member_names = [member.name for member in members]
+        elif hasattr(archive, "namelist"):  # zipfile
+            member_names = archive.namelist()
+        else:
+            # Unknown archive type, can't validate
+            return
+
+        for name in member_names:
+            # Resolve the final path and ensure it's within destination
+            final_path = os.path.realpath(os.path.join(destination_path, name))
+            dest_real = os.path.realpath(destination_path)
+            if not (
+                final_path == dest_real or final_path.startswith(dest_real + os.sep)
+            ):
+                raise ProcessorError(
+                    f"Archive contains path '{name}' that would extract outside "
+                    f"destination directory (resolves to '{final_path}'). "
+                    "Extraction aborted for security."
+                )
+
     def _extract(self, fmt: str, archive_path: str, destination_path: str) -> None:
         if self.env["USE_PYTHON_NATIVE_EXTRACTOR"]:
             self._extract_native(fmt, archive_path, destination_path)
@@ -121,11 +151,15 @@ class Unarchiver(Processor):
         archivefile_class: ExtractorType = NATIVE_EXTRACTORS[fmt]
         archive: Extractor = archivefile_class(archive_path, mode="r")
         try:
-            archive.extractall(path=destination_path)
+            # Validate archive members for security before extraction
+            self._validate_archive_members(archive, destination_path)
+            archive.extractall(path=destination_path)  # nosec B202
         except Exception as ex:
             raise ProcessorError(
                 f"Unarchiving {archive_path} with <native extractor> failed: {ex}"
-            )
+            ) from ex
+        finally:
+            archive.close()
 
     def _extract_utility(
         self, fmt: str, archive_path: str, destination_path: str

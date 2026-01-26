@@ -25,7 +25,6 @@ from autopkglib import Processor, ProcessorError
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
 
-
 __all__ = ["PkgCreator"]
 
 
@@ -33,6 +32,7 @@ class PkgCreator(Processor):
     """Calls autopkgserver to create a package."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "pkg_request": {
             "required": True,
@@ -48,6 +48,7 @@ class PkgCreator(Processor):
                 "a package already exists in the output directory with "
                 "the same identifier and version number. Defaults to False"
             ),
+            "default": False,
         },
     }
     output_variables = {
@@ -176,14 +177,12 @@ class PkgCreator(Processor):
             "id",
             "version",
             "infofile",
-            "resources",
-            "options",
             "scripts",
         ):
             if key not in request:
                 if key in self.env:
                     request[key] = self.env[key]
-                elif key in ["infofile", "resources", "options", "scripts"]:
+                elif key in ["infofile", "scripts"]:
                     # these keys are optional, so empty string value is OK
                     request[key] = ""
                 elif key == "pkgtype":
@@ -198,7 +197,7 @@ class PkgCreator(Processor):
 
         # Convert relative paths to absolute.
         for key, value in list(request.items()):
-            if key in ("pkgroot", "pkgdir", "infofile", "resources", "scripts"):
+            if key in ("pkgroot", "pkgdir", "infofile", "scripts"):
                 if value and not value.startswith("/"):
                     # search for it
                     request[key] = self.find_path_for_relpath(value)
@@ -253,7 +252,7 @@ class PkgCreator(Processor):
     def send_request(self, request) -> str:
         """Send a packaging request to the autopkgserver"""
         self.socket.send(plistlib.dumps(request))
-        with os.fdopen(self.socket.fileno()) as fileref:
+        with self.socket.makefile(mode="r") as fileref:
             reply = fileref.read()
         if reply.startswith("OK:"):
             return reply.replace("OK:", "").rstrip()

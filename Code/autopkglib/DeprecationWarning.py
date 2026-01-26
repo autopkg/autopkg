@@ -13,21 +13,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Processor that outputs a warning message. Intended to alert recipe users of
-upcoming removal of a recipe."""
+"""See docstring for DeprecationWarning class"""
 
-
-import os
-
-from autopkglib import Processor, remove_recipe_extension
+from autopkglib import Processor
 
 __all__ = ["DeprecationWarning"]
 
 
 # pylint: disable=W0622
 class DeprecationWarning(Processor):
-    """This processor outputs a warning that the recipe has been deprecated."""
+    """This processor outputs a warning that a recipe has been deprecated."""
 
+    description = __doc__
+    lifecycle = {"introduced": "1.1"}
     input_variables = {
         "warning_message": {
             "required": False,
@@ -36,24 +34,16 @@ class DeprecationWarning(Processor):
     }
     output_variables = {
         "deprecation_summary_result": {
-            "description": "Description of interesting results."
+            "description": "Summary of recipe deprecation warnings."
         }
     }
-    description = __doc__
 
     def main(self) -> None:
         warning_message = self.env.get(
             "warning_message",
             "### This recipe has been deprecated. It may be removed soon. ###",
         )
-        self.output(warning_message)
-        recipe_name = os.path.basename(self.env["RECIPE_PATH"])
-        recipe_name = remove_recipe_extension(recipe_name)
-        self.env["deprecation_summary_result"] = {
-            "summary_text": "The following recipes have deprecation warnings:",
-            "report_fields": ["name", "warning"],
-            "data": {"name": recipe_name, "warning": warning_message},
-        }
+        self.show_deprecation(warning_message)
 
 
 if __name__ == "__main__":
