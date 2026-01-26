@@ -23,6 +23,10 @@ from autopkglib import APLooseVersion, Processor, ProcessorError
 __all__ = ["GitHubReleasesInfoProvider"]
 
 
+class NoMatchingReleaseError(ProcessorError):
+    """Raised when no release matches the regular expression."""
+
+
 class GitHubReleasesInfoProvider(Processor):
     """Get metadata from the latest release from a GitHub project using the
     GitHub Releases API.
@@ -98,6 +102,11 @@ class GitHubReleasesInfoProvider(Processor):
             ),
             "default": "~/.autopkg_gh_token",
         },
+        "GITHUB_RELEASES_PER_PAGE": {
+            "required": False,
+            "default": 30,
+            "description": "Number of releases to fetch per page, defaults to 30.",
+        },
     }
     output_variables = {
         "release_notes": {
@@ -124,7 +133,7 @@ class GitHubReleasesInfoProvider(Processor):
         "asset_created_at": {"description": ("The release time of the asset.")},
     }
 
-    def get_releases(self, repo, latest_only=False):
+    def get_releases(self, repo, page=1, per_page=30, latest_only=False):
         """Return a list of releases dicts for a given GitHub repo. repo must
         be of the form 'user/repo'"""
         releases = None
@@ -138,15 +147,17 @@ class GitHubReleasesInfoProvider(Processor):
         releases_uri = f"/repos/{repo}/releases"
         if latest_only:
             releases_uri += "/latest"
+        else:
+            releases_uri += f"?page={page}&per_page={per_page}"
         (releases, status) = github.call_api(releases_uri)
+        if status != 200:
+            raise ProcessorError(f"Unexpected GitHub API status code {status}.")
+        if not releases:
+            # Either there are no releases at all, or the previous page was the last one
+            raise ProcessorError(f"No releases found for repo '{repo}' on page {page}")
         if latest_only:
             # turn single item into a list of one item
             releases = [releases]
-        if status != 200:
-            raise ProcessorError(f"Unexpected GitHub API status code {status}.")
-
-        if not releases:
-            raise ProcessorError(f"No releases found for repo '{repo}'")
 
         return releases
 
@@ -185,7 +196,7 @@ class GitHubReleasesInfoProvider(Processor):
                     except re.error as e:
                         raise ProcessorError(f"Invalid regex: {e}")
         if not selected:
-            raise ProcessorError(
+            raise NoMatchingReleaseError(
                 "No release assets were found that satisfy the criteria."
             )
 
@@ -198,17 +209,27 @@ class GitHubReleasesInfoProvider(Processor):
         )
 
     def main(self) -> None:
-        # Get our list of releases
-        releases = self.get_releases(
-            self.env["github_repo"], latest_only=self.env.get("latest_only")
-        )
-        if self.env.get("sort_by_highest_tag_names"):
-            releases = sorted(
-                releases, key=lambda a: APLooseVersion(a["tag_name"]), reverse=True
+        # Iterate through our list of releases
+        page = 1
+        while True:
+            self.output(f"Fetching page {page} of GitHub releases")
+            releases = self.get_releases(
+                self.env["github_repo"],
+                latest_only=self.env.get("latest_only"),
+                page=page,
+                per_page=self.env.get("per_page", 30),
             )
-
-        # Store the first eligible asset
-        self.select_asset(releases, self.env.get("asset_regex"))
+            if self.env.get("sort_by_highest_tag_names"):
+                releases = sorted(
+                    releases, key=lambda a: APLooseVersion(a["tag_name"]), reverse=True
+                )
+            try:
+                # Stop searching if we've found the first eligible one
+                self.select_asset(releases, self.env.get("asset_regex"))
+                break
+            except NoMatchingReleaseError:
+                self.output(f"No releases found on page {page}")
+            page += 1
 
         # Record the url
         self.env["url"] = self.selected_asset["browser_download_url"]
