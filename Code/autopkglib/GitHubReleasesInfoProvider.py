@@ -103,7 +103,7 @@ class GitHubReleasesInfoProvider(Processor):
         "GITHUB_RELEASES_PER_PAGE": {
             "required": False,
             "default": 30,
-            "description": ("Number of releases to fetch per page. " "Defaults to 30."),
+            "description": "Number of releases to fetch per page, defaults to 30.",
         },
     }
     output_variables = {
