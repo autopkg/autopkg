@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. This projec
 - Fixed `Bad file descriptor` error processor output during package builds.
 - Added a method by which processors can be marked for deprecation, similar to what DeprecationWarning does for recipes.
 - GitHubReleasesInfoProvider now supports pagination, which should improve reliability for repos that have a large number of prereleases that bump the "latest" release off the first page of API results (#1005, thanks to @kirovreporting).
+- MunkiImporter: replace '--uninstallpkg' with '--uninstallerpkg' to maintain compatibility with recent versions of Munki's `makepkginfo`. (#1001, thanks to @PeetMcK).
 - Added basic unit tests for autopkgserver and autopkginstalld.
 - Removed deprecated processor BrewCaskInfoProvider.
 - Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
