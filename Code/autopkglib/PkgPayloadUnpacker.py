@@ -82,7 +82,7 @@ class PkgPayloadUnpacker(Processor):
             proc = subprocess.Popen(
                 dittocmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
-            (_, err_out) = proc.communicate()
+            _, err_out = proc.communicate()
         except OSError as err:
             error = (
                 f"ditto execution failed with error code {err.errno}: {err.strerror}"

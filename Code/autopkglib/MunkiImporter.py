@@ -329,7 +329,7 @@ class MunkiImporter(Processor):
             proc = subprocess.Popen(
                 args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
             )
-            (out, err_out) = proc.communicate()
+            out, err_out = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"makepkginfo execution failed with error code {err.errno}: "

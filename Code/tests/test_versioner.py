@@ -42,8 +42,7 @@ TEST_VERSION_DEFAULT: str = "1.2.3"
 TEST_VERSION_CUSTOM_KEY: str = "com.someapp.customversion"
 TEST_VERSION_CUSTOM: str = "3.2.1"
 
-TEST_VERSION_PLIST: bytes = (
-    f"""<?xml version="1.0" encoding="UTF-8"?>
+TEST_VERSION_PLIST: bytes = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -53,16 +52,13 @@ TEST_VERSION_PLIST: bytes = (
     <string>{TEST_VERSION_CUSTOM}</string>
 </dict>
 </plist>""".encode()
-)
 
-TEST_NO_VERSION_PLIST: bytes = (
-    b"""<?xml version="1.0" encoding="UTF-8"?>
+TEST_NO_VERSION_PLIST: bytes = b"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 </dict>
 </plist>"""
-)
 
 
 class TestVersioner(unittest.TestCase):

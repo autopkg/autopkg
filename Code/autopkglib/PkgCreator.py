@@ -103,7 +103,7 @@ class PkgCreator(Processor):
             proc = subprocess.Popen(
                 xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
-            (_, stderr) = proc.communicate()
+            _, stderr = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"xar execution failed with error code {err.errno}: {err.strerror}"

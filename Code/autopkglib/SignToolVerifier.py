@@ -120,7 +120,7 @@ class SignToolVerifier(Processor):
             stderr=subprocess.STDOUT,
             text=True,
         )
-        (output, _) = proc.communicate()
+        output, _ = proc.communicate()
 
         for line in output.replace("\n\n", "\n").replace("\n\n\n", "\n\n").splitlines():
             self.output(line)

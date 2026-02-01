@@ -233,7 +233,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         else:
             raise ProcessorError("No app_path or pathname specified.")
         # Check if we're trying to package something inside a dmg.
-        (dmg_path, dmg, dmg_app_path) = self.parsePathForDMG(app_path)
+        dmg_path, dmg, dmg_app_path = self.parsePathForDMG(app_path)
         try:
             if dmg:
                 # Mount dmg and return path inside.

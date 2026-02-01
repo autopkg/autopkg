@@ -29,8 +29,7 @@ class TestNuspecGenerator(unittest.TestCase):
         self.maxDiff = 100000
 
     def test_nuspec_generator_basic_rendering(self):
-        expected = dedent(
-            """\
+        expected = dedent("""\
 <package xmlns:mstns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd" xmlns:None="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd" >
     <metadata>
         <id>test</id>
@@ -41,8 +40,7 @@ class TestNuspecGenerator(unittest.TestCase):
         <dependencies/>
     </metadata>
 </package>
-        """
-        )
+        """)
         pkg = NuspecGenerator(
             id="test",
             title="Test software",
@@ -74,11 +72,9 @@ class TestNuspecGenerator(unittest.TestCase):
 
 class TestChocolateyInstallGenerator(unittest.TestCase):
 
-    COMMON_HEADER = dedent(
-        """\
+    COMMON_HEADER = dedent("""\
 $ErrorActionPreference = 'Stop'
-$toolsDir = "$(Split-Path -Parent $MyInvocation.MyCommand.Definition)\""""
-    )
+$toolsDir = "$(Split-Path -Parent $MyInvocation.MyCommand.Definition)\"""")
 
     def setUp(self):
         self.maxDiff = 100000
@@ -163,8 +159,7 @@ $toolsDir = "$(Split-Path -Parent $MyInvocation.MyCommand.Definition)\""""
                     object._validate()
 
     def test_basic_rendering(self):
-        expected = dedent(
-            f"""\
+        expected = dedent(f"""\
 {self.COMMON_HEADER}
 $file = Join-Path $toolsDir 'fake.installer.exe'
 $packageArgs = @{{
@@ -177,8 +172,7 @@ $packageArgs = @{{
 
 Install-ChocolateyInstallPackage @packageArgs
 
-            """
-        )
+            """)
 
         self.assertEqual(
             expected,

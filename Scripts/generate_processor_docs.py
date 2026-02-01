@@ -16,7 +16,6 @@
 """A utility to export info from autopkg processors and upload it as processor
 documentation for the GitHub autopkg wiki"""
 
-
 import imp
 import optparse
 import os
@@ -158,11 +157,9 @@ def generate_sidebar(sidebar_path):
 
 def main(_):
     """Do it all"""
-    usage = dedent(
-        """%prog VERSION
+    usage = dedent("""%prog VERSION
 
-    ...where VERSION is the release version for which docs are being generated."""
-    )
+    ...where VERSION is the release version for which docs are being generated.""")
     parser = optparse.OptionParser(usage=usage)
     parser.description = (
         "Generate GitHub Wiki documentation from the core processors present "

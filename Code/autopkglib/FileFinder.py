@@ -15,7 +15,6 @@
 # limitations under the License.
 """See docstring for FileFinder class"""
 
-
 import os.path
 from glob import glob
 
@@ -77,7 +76,7 @@ class FileFinder(DmgMounter):
         source_path = pattern
 
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(source_path)
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(source_path)
         try:
             if dmg:
                 # Mount dmg and copy path inside.

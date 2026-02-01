@@ -164,7 +164,7 @@ class CodeSignatureVerifier(DmgMounter):
             stderr=subprocess.PIPE,
             text=True,
         )
-        (output, error) = proc.communicate()
+        output, error = proc.communicate()
 
         # Log all output. codesign seems to output only
         # to stderr but check the stdout too
@@ -188,7 +188,7 @@ class CodeSignatureVerifier(DmgMounter):
         proc = subprocess.Popen(
             process, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
-        (output, error) = proc.communicate()
+        output, error = proc.communicate()
 
         # Log everything
         if output:
@@ -302,7 +302,7 @@ class CodeSignatureVerifier(DmgMounter):
             return
         # Check if we're trying to read something inside a dmg.
         input_path = self.env["input_path"]
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(input_path)
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(input_path)
         try:
             if dmg:
                 # Mount dmg and copy path inside.

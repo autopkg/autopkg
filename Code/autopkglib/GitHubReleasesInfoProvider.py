@@ -149,7 +149,7 @@ class GitHubReleasesInfoProvider(Processor):
             releases_uri += "/latest"
         else:
             releases_uri += f"?page={page}&per_page={per_page}"
-        (releases, status) = github.call_api(releases_uri)
+        releases, status = github.call_api(releases_uri)
         if status != 200:
             raise ProcessorError(f"Unexpected GitHub API status code {status}.")
         if not releases:
