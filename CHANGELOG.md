@@ -14,7 +14,7 @@ With this change, there may be bugs or differences in behavior from the previous
 
 ### VariableSetter processor
 
-A new VariableSetter processor allows setting arbitrary environment variables for use as input to subsequent processors (#997, thanks to @MScottBlake). We recommend using this processor instead of "overloading" variables into other processors like EndOfCheckPhase. Remember to set a `MinimumVersion` of 2.9.0 in any recipes that use VariableSetter.
+A new [VariableSetter](https://github.com/autopkg/autopkg/wiki/Processor-VariableSetter) processor allows setting arbitrary environment variables for use as input to subsequent processors (#997, thanks to @MScottBlake). We recommend using this processor instead of "overloading" variables into other processors like EndOfCheckPhase. Remember to set a `MinimumVersion` of 2.9.0 in any recipes that use VariableSetter.
 
 ### Other AutoPkg changes
 
