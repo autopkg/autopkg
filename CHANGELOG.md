@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file. This projec
 
 AutoPkg 2.9.0 introduces a completely redesigned `autopkg search` feature using a structured [search index](https://github.com/autopkg/index) of all recipes in the AutoPkg org.
 
-This index is updated on GitHub multiple times per day. A local cache is downloaded, and the full index is redownloaded only when changes are available. This should be faster and much more reliable than our previous search method, especially when performing multiple searches back to back.
+This index is updated on GitHub every 4 hours. A local cache is downloaded, and the full index is redownloaded only when changes are available. This should be faster and much more reliable than our previous search method, especially when performing multiple searches back to back. This new method should also work better in the absence of a GitHub personal access token at `~/.autopkg_gh_token`.
 
 With this change, there may be bugs or differences in behavior from the previous search method. If you encounter issues with `autopkg search` or have suggestions for improvement, please file an issue on GitHub.
 
@@ -35,11 +35,11 @@ A new [VariableSetter](https://github.com/autopkg/autopkg/wiki/Processor-Variabl
 
 ### Other core processor changes
 
+- Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
 - GitHubReleasesInfoProvider: now supports pagination, which should improve reliability for repos that have a large number of prereleases that bump the "latest" release off the first page of API results (#1005, thanks to @kirovreporting).
 - MunkiImporter: replace '--uninstallpkg' with '--uninstallerpkg' to maintain compatibility with recent versions of Munki's `makepkginfo`. (#1001, thanks to @PeetMcK).
 - Officially deprecated processors CURLTextSearcher and CURLDownloader. Use URLTextSearcher and URLDownloader instead.
 - Removed deprecated processor BrewCaskInfoProvider.
-- Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
 - URLDownloaderPython: explicitly mark the sha1, md5, and sha256 hashing of downloaded files as non-security-related.
 - URLDownloaderPython: add new input variable `request_headers`, matching the same functionality in URLDownloader (#986, thanks to @smithjw)
 - Unarchiver: when using Python native extractor, stop processing if archives have indicators of directory traversal attacks.
