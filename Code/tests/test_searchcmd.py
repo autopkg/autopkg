@@ -20,7 +20,12 @@ from io import StringIO
 from unittest.mock import MagicMock, mock_open, patch
 
 from autopkgcmd import search_recipes
-from autopkgcmd.searchcmd import check_search_cache, handle_cache_error
+from autopkgcmd.searchcmd import (
+    check_search_cache,
+    get_search_results,
+    handle_cache_error,
+    normalize_keyword,
+)
 from autopkglib import ProcessorError
 from autopkglib.github import print_gh_search_results
 
@@ -665,6 +670,177 @@ class TestSearchCmd(unittest.TestCase):
         mock_handle_error.assert_called_once()
         call_args = mock_handle_error.call_args[0]
         self.assertIn("Unable to retrieve search index contents", call_args[1])
+
+    # Test normalize_keyword function
+
+    def test_normalize_keyword_converts_to_lowercase(self):
+        """Test that normalize_keyword converts strings to lowercase."""
+        self.assertEqual(normalize_keyword("Firefox"), "firefox")
+        self.assertEqual(normalize_keyword("NetNewsWire"), "netnewswire")
+        self.assertEqual(normalize_keyword("ALLCAPS"), "allcaps")
+
+    def test_normalize_keyword_removes_recipe_extension(self):
+        """Test that normalize_keyword removes .recipe extension."""
+        self.assertEqual(normalize_keyword("Firefox.recipe"), "firefox")
+        self.assertEqual(normalize_keyword("App.recipe"), "app")
+
+    def test_normalize_keyword_removes_recipe_plist_extension(self):
+        """Test that normalize_keyword removes .recipe.plist extension."""
+        self.assertEqual(normalize_keyword("Firefox.recipe.plist"), "firefox")
+        self.assertEqual(normalize_keyword("App.recipe.plist"), "app")
+
+    def test_normalize_keyword_removes_recipe_yaml_extension(self):
+        """Test that normalize_keyword removes .recipe.yaml extension."""
+        self.assertEqual(normalize_keyword("Firefox.recipe.yaml"), "firefox")
+        self.assertEqual(normalize_keyword("App.recipe.yaml"), "app")
+
+    def test_normalize_keyword_removes_spaces(self):
+        """Test that normalize_keyword removes spaces."""
+        self.assertEqual(normalize_keyword("Google Chrome"), "googlechrome")
+        self.assertEqual(normalize_keyword("My App Name"), "myappname")
+
+    def test_normalize_keyword_removes_periods(self):
+        """Test that normalize_keyword removes periods."""
+        self.assertEqual(normalize_keyword("app.name"), "appname")
+        self.assertEqual(normalize_keyword("test.app.name"), "testappname")
+
+    def test_normalize_keyword_removes_commas(self):
+        """Test that normalize_keyword removes commas."""
+        self.assertEqual(normalize_keyword("app,name"), "appname")
+        self.assertEqual(normalize_keyword("test,app,name"), "testappname")
+
+    def test_normalize_keyword_removes_dashes(self):
+        """Test that normalize_keyword removes dashes."""
+        self.assertEqual(normalize_keyword("app-name"), "appname")
+        self.assertEqual(normalize_keyword("my-test-app"), "mytestapp")
+
+    def test_normalize_keyword_handles_combination_of_removals(self):
+        """Test that normalize_keyword handles multiple transformations."""
+        self.assertEqual(normalize_keyword("Google-Chrome.recipe"), "googlechrome")
+        self.assertEqual(normalize_keyword("My App-Name.recipe.yaml"), "myappname")
+        self.assertEqual(normalize_keyword("Test.App,Name"), "testappname")
+
+    def test_normalize_keyword_handles_empty_string(self):
+        """Test that normalize_keyword handles empty string."""
+        self.assertEqual(normalize_keyword(""), "")
+
+    def test_normalize_keyword_handles_already_normalized(self):
+        """Test that normalize_keyword handles already normalized strings."""
+        self.assertEqual(normalize_keyword("firefox"), "firefox")
+        self.assertEqual(normalize_keyword("appname"), "appname")
+
+    # Test get_search_results function
+
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("os.path.exists")
+    @patch("os.makedirs")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_get_search_results_successfully_retries_after_corrupted_cache(
+        self, mock_file, mock_makedirs, mock_exists, mock_check_cache
+    ):
+        """Test that get_search_results successfully retries and returns results after corrupted cache."""
+        cache_path = "/fake/cache/search_index.json"
+
+        # Mock cache directory exists
+        mock_exists.return_value = True
+
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
+
+        # First read raises JSONDecodeError (corrupted), second read succeeds
+        valid_index = json.dumps(
+            {
+                "shortnames": {"firefox": ["com.github.autopkg.download.Firefox"]},
+                "identifiers": {
+                    "com.github.autopkg.download.Firefox": {
+                        "name": "Firefox.download.recipe",
+                        "path": "Firefox/Firefox.download.recipe",
+                        "repo": "autopkg/recipes",
+                        "deprecated": False,
+                    }
+                },
+            }
+        ).encode()
+
+        mock_file.return_value.__enter__.return_value.read.side_effect = [
+            b"corrupted json {",  # First read - corrupted
+            valid_index,  # Second read - valid
+        ]
+
+        with patch("autopkglib.get_pref") as mock_pref:
+            mock_pref.return_value = "/fake/cache"
+            with patch("os.remove") as mock_remove:
+                with patch("sys.stderr", new=StringIO()):
+                    results = get_search_results("Firefox")
+
+        # Should successfully return results after retry
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["Name"], "Firefox.download.recipe")
+        self.assertEqual(results[0]["Repo"], "recipes")
+
+        # Verify that retry was attempted and cache was removed
+        mock_remove.assert_called_once_with(cache_path)
+        # Verify check_search_cache was called to re-download
+        self.assertEqual(mock_check_cache.call_count, 2)
+
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("os.path.exists")
+    @patch("os.makedirs")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_get_search_results_returns_empty_on_persistent_corruption(
+        self, mock_file, mock_makedirs, mock_exists, mock_check_cache
+    ):
+        """Test that get_search_results returns empty list if retry also fails."""
+        # Mock cache directory exists
+        mock_exists.return_value = True
+
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
+
+        # Both reads raise JSONDecodeError
+        mock_file.return_value.__enter__.return_value.read.side_effect = [
+            b"corrupted json {",  # First read - corrupted
+            b"still corrupted",  # Second read - still corrupted
+        ]
+
+        with patch("autopkglib.get_pref") as mock_pref:
+            mock_pref.return_value = "/fake/cache"
+            with patch("os.remove"):
+                with patch("sys.stderr", new=StringIO()):
+                    results = get_search_results("Firefox")
+
+        # Should return empty list after failed retry
+        self.assertEqual(results, [])
+
+    @patch("autopkgcmd.searchcmd.check_search_cache")
+    @patch("os.path.exists")
+    @patch("os.makedirs")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_get_search_results_handles_remove_error_during_retry(
+        self, mock_file, mock_makedirs, mock_exists, mock_check_cache
+    ):
+        """Test that get_search_results handles errors when removing corrupted cache."""
+        # Mock cache directory exists
+        mock_exists.return_value = True
+
+        # Mock check_search_cache to prevent network calls
+        mock_check_cache.return_value = None
+
+        # First read raises JSONDecodeError
+        mock_file.return_value.__enter__.return_value.read.side_effect = [
+            b"corrupted json {",  # First read - corrupted
+        ]
+
+        with patch("autopkglib.get_pref") as mock_pref:
+            mock_pref.return_value = "/fake/cache"
+            with patch("os.remove") as mock_remove:
+                # Simulate error when trying to remove file
+                mock_remove.side_effect = OSError("Permission denied")
+                with patch("sys.stderr", new=StringIO()):
+                    results = get_search_results("Firefox")
+
+        # Should handle the error and return empty list
+        self.assertEqual(results, [])
 
     # Test search_recipes function
 
