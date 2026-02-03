@@ -206,7 +206,6 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
                 search_index = json.load(retryfile)
         except Exception:
             return []
-        return []
 
     # Perform the search against shortnames
     result_ids = []
