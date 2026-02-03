@@ -126,8 +126,14 @@ def check_search_cache(cache_path: str) -> None:
             return
 
     # Write etag file
-    with open(cache_path + ".etag", "w", encoding="utf-8") as openfile:
-        openfile.write(cache_meta["sha"])
+    try:
+        with open(cache_path + ".etag", "w", encoding="utf-8") as openfile:
+            openfile.write(cache_meta["sha"])
+    except PermissionError:
+        log_err(
+            "ERROR: Unable to save search index cache. "
+            f"Please check permissions at {cache_path}.etag and try again."
+        )
 
     # Write cache file
     log("Refreshing local search index...")
