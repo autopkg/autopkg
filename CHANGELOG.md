@@ -4,7 +4,8 @@ All notable changes to this project will be documented in this file. This projec
 
 ## [2.9.1](https://github.com/autopkg/autopkg/compare/v2.9.0...HEAD) (Unreleased)
 
-Nothing yet.
+- Updated virtualenv to 20.36.1.
+- Updated GitHub Actions workflow to use filelock 3.20.3.
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
