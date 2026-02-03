@@ -29,67 +29,70 @@ class VariableSetter(Processor):
     be used as input for other processors.
 
     Examples:
-        Yaml Recipe:
-        ```yaml
-        - Processor: URLDownloader
-        Arguments:
-            url: https://example.com/foo.app
-        - Processor: VariableSetter
-        Arguments:
-            app_path: "%pathname%"
-            app_version: "%version%"
-        - Processor: URLDownloader
-        Arguments:
-            url: https://example.com/foo.pkg
-        - Processor: VariableSetter
-        Arguments:
-            pkg_path: "%pathname%"
-            pkg_version: "%version%"
-        ```
 
-        Plist Recipe:
-        ```xml
+    Yaml Recipe:
+
+    ```yaml
+    - Processor: URLDownloader
+    Arguments:
+        url: https://example.com/foo.app
+    - Processor: VariableSetter
+    Arguments:
+        app_path: "%pathname%"
+        app_version: "%version%"
+    - Processor: URLDownloader
+    Arguments:
+        url: https://example.com/foo.pkg
+    - Processor: VariableSetter
+    Arguments:
+        pkg_path: "%pathname%"
+        pkg_version: "%version%"
+    ```
+
+    Plist Recipe:
+
+    ```xml
+    <dict>
+        <key>Processor</key>
+        <string>URLDownloader</string>
+        <key>Arguments</key>
         <dict>
-            <key>Processor</key>
-            <string>URLDownloader</string>
-            <key>Arguments</key>
-            <dict>
-                <key>url</key>
-                <string>https://example.com/foo.app</string>
-            </dict>
+            <key>url</key>
+            <string>https://example.com/foo.app</string>
         </dict>
+    </dict>
+    <dict>
+        <key>Processor</key>
+        <string>VariableSetter</string>
+        <key>Arguments</key>
         <dict>
-            <key>Processor</key>
-            <string>VariableSetter</string>
-            <key>Arguments</key>
-            <dict>
-                <key>app_path</key>
-                <string>%pathname%</string>
-                <key>app_version</key>
-                <string>%version%</string>
-            </dict>
+            <key>app_path</key>
+            <string>%pathname%</string>
+            <key>app_version</key>
+            <string>%version%</string>
         </dict>
+    </dict>
+    <dict>
+        <key>Processor</key>
+        <string>URLDownloader</string>
+        <key>Arguments</key>
         <dict>
-            <key>Processor</key>
-            <string>URLDownloader</string>
-            <key>Arguments</key>
-            <dict>
-                <key>url</key>
-                <string>https://example.com/foo.pkg</string>
-            </dict>
+            <key>url</key>
+            <string>https://example.com/foo.pkg</string>
         </dict>
+    </dict>
+    <dict>
+        <key>Processor</key>
+        <string>VariableSetter</string>
+        <key>Arguments</key>
         <dict>
-            <key>Processor</key>
-            <string>VariableSetter</string>
-            <key>Arguments</key>
-            <dict>
-                <key>pkg_path</key>
-                <string>%pathname%</string>
-                <key>pkg_version</key>
-                <string>%version%</string>
-            </dict>
+            <key>pkg_path</key>
+            <string>%pathname%</string>
+            <key>pkg_version</key>
+            <string>%version%</string>
         </dict>
-        ```
+    </dict>
+    ```
     """
 
     description = __doc__
