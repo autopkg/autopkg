@@ -188,8 +188,25 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
         os.makedirs(cache_dir, 0o755)
     cache_path = os.path.join(cache_dir, "search_index.json")
     check_search_cache(cache_path)
-    with open(cache_path, "rb") as openfile:
-        search_index = json.load(openfile)
+    try:
+        with open(cache_path, "rb") as openfile:
+            search_index = json.load(openfile)
+    except json.JSONDecodeError:
+        # If the index is corrupted, delete it and try downloading again
+        try:
+            log_err(
+                f"Invalid search index cache at {cache_path}. Deleting and retrying..."
+            )
+            os.remove(cache_path)
+        except Exception:
+            pass
+        check_search_cache(cache_path)
+        try:
+            with open(cache_path, "rb") as retryfile:
+                search_index = json.load(retryfile)
+        except Exception:
+            return []
+        return []
 
     # Perform the search against shortnames
     result_ids = []
