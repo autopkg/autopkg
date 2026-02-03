@@ -126,12 +126,12 @@ class TestCodeSignatureVerifier(unittest.TestCase):
             with patch.object(self.processor, "output") as mock_output:
                 # Simulate the warning that would be logged
                 mock_output(
-                    "Warning: Installer package signature verification not supported on Mac OS X 10.6"
+                    "WARNING: Installer package signature verification not supported on Mac OS X 10.6"
                 )
 
         # Verify the warning would be logged
         mock_output.assert_called_with(
-            "Warning: Installer package signature verification not supported on Mac OS X 10.6"
+            "WARNING: Installer package signature verification not supported on Mac OS X 10.6"
         )
 
     # Test codesign verification

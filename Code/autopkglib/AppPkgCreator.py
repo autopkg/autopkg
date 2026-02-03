@@ -31,6 +31,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
     """Calls autopkgserver to create a package from an application."""
 
     description = __doc__
+    lifecycle = {"introduced": "1.0"}
     input_variables = {
         "app_path": {
             "required": False,
@@ -61,6 +62,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             "description": "Alternate key from which to get the app version. "
             "If the key does not exist in the app's Info.plist, a "
             "ProcessorError will be raised.",
+            "default": "CFBundleShortVersionString",
         },
         "force_pkg_build": {
             "required": False,
@@ -69,6 +71,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                 "a package already exists in the output directory with "
                 "the same identifier and version number. Defaults to False"
             ),
+            "default": False,
         },
     }
     output_variables = {
@@ -191,7 +194,6 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             "id": self.env["bundleid"],
             "version": self.env["version"],
             "infofile": "",
-            "resources": "",
             "chown": [{"path": "Applications", "user": "root", "group": "admin"}],
             "scripts": "",
         }
@@ -231,7 +233,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         else:
             raise ProcessorError("No app_path or pathname specified.")
         # Check if we're trying to package something inside a dmg.
-        (dmg_path, dmg, dmg_app_path) = self.parsePathForDMG(app_path)
+        dmg_path, dmg, dmg_app_path = self.parsePathForDMG(app_path)
         try:
             if dmg:
                 # Mount dmg and return path inside.

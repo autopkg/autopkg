@@ -31,6 +31,7 @@ class PkgExtractor(DmgMounter):
     to pkgroot."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "pkg_path": {"required": True, "description": "Path to a package."},
         "extract_root": {
@@ -77,7 +78,7 @@ class PkgExtractor(DmgMounter):
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            (_, stderr) = proc.communicate()
+            _, stderr = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"ditto execution failed with error code {err.errno}: {err.strerror}"
@@ -87,7 +88,7 @@ class PkgExtractor(DmgMounter):
 
     def main(self) -> None:
         # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(self.env["pkg_path"])
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(self.env["pkg_path"])
         try:
             if dmg:
                 # Mount dmg and copy path inside.

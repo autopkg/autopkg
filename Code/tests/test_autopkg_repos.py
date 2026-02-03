@@ -17,6 +17,7 @@ import os
 import plistlib
 import sys
 import unittest
+from io import StringIO
 from unittest.mock import Mock, patch
 
 # Add the Code directory to the Python path to resolve autopkg dependencies
@@ -120,7 +121,9 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_fetch.return_value = plistlib.dumps(recipe_plist)
 
         # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads:
+        with patch("autopkg.plistlib.loads") as mock_loads, patch(
+            "sys.stdout", new_callable=StringIO
+        ):
             mock_loads.return_value = recipe_plist
 
             result = autopkg.get_repository_from_identifier("com.test.recipe")
@@ -242,7 +245,9 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_fetch.side_effect = mock_fetch_side_effect
 
         # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads:
+        with patch("autopkg.plistlib.loads") as mock_loads, patch(
+            "sys.stdout", new_callable=StringIO
+        ):
             mock_loads.side_effect = [matching_plist]
 
             result = autopkg.get_repository_from_identifier("com.test.recipe")
@@ -877,21 +882,34 @@ class TestAutoPkgRepos(unittest.TestCase):
         )
         mock_log.assert_called()
 
+    @patch("autopkg.save_pref_or_warn")
+    @patch("autopkg.get_pref")
+    @patch("autopkg.get_search_dirs")
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")
     @patch("autopkg.log_err")
     def test_repo_add_no_arguments(
-        self, mock_log_err, mock_gen_parser, mock_common_parse
+        self,
+        mock_log_err,
+        mock_gen_parser,
+        mock_common_parse,
+        mock_get_search_dirs,
+        mock_get_pref,
+        mock_save_pref,
     ):
         """Test repo_add with no repository arguments."""
         mock_parser = Mock()
         mock_gen_parser.return_value = mock_parser
         mock_common_parse.return_value = (Mock(), [])
+        mock_get_search_dirs.return_value = []
+        mock_get_pref.return_value = {}
 
         result = autopkg.repo_add([None, "repo-add"])
 
         self.assertEqual(result, -1)
         mock_log_err.assert_called_once_with("Need at least one recipe repo URL!")
+        # These should not be called since we return early due to no arguments
+        mock_save_pref.assert_not_called()
 
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")
@@ -899,10 +917,14 @@ class TestAutoPkgRepos(unittest.TestCase):
     @patch("autopkg.get_pref")
     @patch("autopkg.expand_repo_url")
     @patch("autopkg.get_recipe_repo")
+    @patch("autopkg.save_pref_or_warn")
+    @patch("autopkg.log")
     @patch("autopkg.log_err")
     def test_repo_add_file_uri_error(
         self,
         mock_log_err,
+        mock_log,
+        mock_save_pref,
         mock_get_recipe_repo,
         mock_expand_repo_url,
         mock_get_pref,
@@ -924,6 +946,8 @@ class TestAutoPkgRepos(unittest.TestCase):
             "add to your local Recipes folder instead."
         )
         mock_get_recipe_repo.assert_not_called()
+        # Verify preferences were saved (even though no repos were added)
+        mock_save_pref.assert_called()
 
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")
@@ -988,14 +1012,20 @@ class TestAutoPkgRepos(unittest.TestCase):
 
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")
+    @patch("autopkg.get_pref")
+    @patch("autopkg.get_search_dirs")
     @patch("autopkg.get_repo_info")
     @patch("autopkg.expand_repo_url")
+    @patch("autopkg.save_pref_or_warn")
     @patch("autopkg.log_err")
     def test_repo_delete_repo_not_found(
         self,
         mock_log_err,
+        mock_save_pref,
         mock_expand_repo_url,
         mock_get_repo_info,
+        mock_get_search_dirs,
+        mock_get_pref,
         mock_gen_parser,
         mock_common_parse,
     ):
@@ -1005,12 +1035,16 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_common_parse.return_value = (Mock(), ["nonexistent"])
         mock_expand_repo_url.return_value = "https://github.com/autopkg/nonexistent"
         mock_get_repo_info.return_value = {}
+        mock_get_pref.return_value = {}
+        mock_get_search_dirs.return_value = []
 
         autopkg.repo_delete([None, "repo-delete", "nonexistent"])
 
         mock_log_err.assert_called_with(
             "ERROR: Can't find an installed repo for https://github.com/autopkg/nonexistent"
         )
+        # Verify preferences were still saved even though repo wasn't found
+        mock_save_pref.assert_called()
 
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")
@@ -1018,6 +1052,7 @@ class TestAutoPkgRepos(unittest.TestCase):
     @patch("autopkg.get_search_dirs")
     @patch("autopkg.get_repo_info")
     @patch("autopkg.expand_repo_url")
+    @patch("autopkg.save_pref_or_warn")
     @patch("autopkg.log")
     @patch("autopkg.log_err")
     @patch("shutil.rmtree")
@@ -1026,6 +1061,7 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_rmtree,
         mock_log_err,
         mock_log,
+        mock_save_pref,
         mock_expand_repo_url,
         mock_get_repo_info,
         mock_get_search_dirs,
@@ -1050,6 +1086,8 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_log_err.assert_called_with(
             "ERROR: Could not remove /repo/path: Permission denied"
         )
+        # Verify preferences were still saved even though rmtree failed
+        mock_save_pref.assert_called()
 
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")

@@ -27,6 +27,8 @@ __all__ = ["PkgPayloadUnpacker"]
 class PkgPayloadUnpacker(Processor):
     """Unpacks a package payload."""
 
+    description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "pkg_payload_path": {
             "required": True,
@@ -45,7 +47,6 @@ class PkgPayloadUnpacker(Processor):
         },
     }
     output_variables = {}
-    description = __doc__
 
     def unpack_pkg_payload(self) -> None:
         """Uses ditto or aa to unpack a package payload into destination_path"""
@@ -81,7 +82,7 @@ class PkgPayloadUnpacker(Processor):
             proc = subprocess.Popen(
                 dittocmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
-            (_, err_out) = proc.communicate()
+            _, err_out = proc.communicate()
         except OSError as err:
             error = (
                 f"ditto execution failed with error code {err.errno}: {err.strerror}"

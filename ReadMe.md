@@ -34,7 +34,7 @@ AutoPkg requires macOS, and Git is highly recommended to have installed so that 
 
 AutoPkg is tested on the current macOS release. It may work on older releases, but is not actively tested on older releases.
 
-Git can be installed via Apple's command-line developer tools package, which can be prompted for installation by simply typing 'git' in a Terminal window (OS X 10.9 or later).
+Git can be installed via Apple's command-line developer tools package, which can be prompted for installation by simply typing 'git' in a Terminal window.
 
 Since AutoPkg 2.0, Python 2 is no longer supported. The installer linked above contains a bundled version of Python 3 and all needed dependencies.
 

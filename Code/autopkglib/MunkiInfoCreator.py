@@ -30,6 +30,7 @@ class MunkiInfoCreator(Processor):
     """Creates a pkginfo file for a munki package."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "pkg_path": {
             "required": True,
@@ -82,7 +83,7 @@ class MunkiInfoCreator(Processor):
                 proc = subprocess.Popen(
                     args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
                 )
-                (stdout, stderr) = proc.communicate()
+                stdout, stderr = proc.communicate()
             except OSError as err:
                 raise ProcessorError(
                     f"makepkginfo execution failed with error code {err.errno}: "

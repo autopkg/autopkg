@@ -27,19 +27,19 @@ UnarchiverModule: Any = get_processor_module(Unarchiver)
 class TestUnarchiver(unittest.TestCase):
     def setUp(self):
         self.maxDiff = 100000
-        self.tempdir = TemporaryDirectory()
+        self.tmp_dir = TemporaryDirectory()
         self.default_archive_path = (
-            f"{self.tempdir.name}/archive_path/is/irrelevant.zip"
+            f"{self.tmp_dir.name}/archive_path/is/irrelevant.zip"
         )
         self.default_destination_path = (
-            f"{self.tempdir.name}/destination_path/is/irrelevant"
+            f"{self.tmp_dir.name}/destination_path/is/irrelevant"
         )
         self.processor_env: dict[str, Any] = {
             "archive_path": self.default_archive_path,
             "destination_path": self.default_destination_path,
             "purge_destination": False,
             "archive_format": None,
-            "RECIPE_CACHE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
             "NAME": "destination_path/FAILURE",
         }
         self.processor = Unarchiver(env=deepcopy(self.processor_env))
@@ -51,7 +51,7 @@ class TestUnarchiver(unittest.TestCase):
         self.process_mock = self.popen_mock.return_value
 
         self.addCleanup(unittest.mock.patch.stopall)
-        self.addCleanup(self.tempdir.cleanup)
+        self.addCleanup(self.tmp_dir.cleanup)
 
     @unittest.mock.patch.object(UnarchiverModule, "is_mac", return_value=True)
     def test_default_extractor_selection_macos(self, _mock):

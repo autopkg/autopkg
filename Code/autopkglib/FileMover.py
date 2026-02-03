@@ -23,17 +23,21 @@ __all__ = ["FileMover"]
 
 
 class FileMover(Processor):
-    """Moves/renames a file.
-
-    Requires version 0.2.9."""
-
-    input_variables = {
-        "source": {"description": "Source file", "required": True},
-        "target": {"description": "Target file", "required": True},
-    }
-    output_variables = {}
+    """Moves/renames a file."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.2.9"}
+    input_variables = {
+        "source": {
+            "required": True,
+            "description": "Full path to the file to be moved or renamed.",
+        },
+        "target": {
+            "required": True,
+            "description": "Full path where the file should be moved to.",
+        },
+    }
+    output_variables = {}
 
     def main(self) -> None:
         rename(self.env["source"], self.env["target"])

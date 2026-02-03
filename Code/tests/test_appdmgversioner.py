@@ -39,8 +39,7 @@ TEST_APP_NAME: str = "TestApp.app"
 TEST_BUNDLE_ID: str = "com.example.testapp"
 TEST_VERSION: str = "1.0.0"
 
-TEST_INFO_PLIST: bytes = (
-    f"""<?xml version="1.0" encoding="UTF-8"?>
+TEST_INFO_PLIST: bytes = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -54,10 +53,8 @@ TEST_INFO_PLIST: bytes = (
     <string>TestApp</string>
 </dict>
 </plist>""".encode()
-)
 
-TEST_INCOMPLETE_INFO_PLIST: bytes = (
-    b"""<?xml version="1.0" encoding="UTF-8"?>
+TEST_INCOMPLETE_INFO_PLIST: bytes = b"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -65,7 +62,6 @@ TEST_INCOMPLETE_INFO_PLIST: bytes = (
     <string>TestApp</string>
 </dict>
 </plist>"""
-)
 
 
 class TestAppDmgVersioner(unittest.TestCase):
@@ -73,21 +69,21 @@ class TestAppDmgVersioner(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff: int = 100000
-        self.tempdir = TemporaryDirectory()
+        self.tmp_dir = TemporaryDirectory()
         self.good_env: dict[str, Any] = {
             "dmg_path": "/path/to/test.dmg",
-            "RECIPE_CACHE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
         }
         self.bad_env: dict[str, Any] = {}
         self.processor = AppDmgVersioner(data=deepcopy(self.good_env))
-        self.addCleanup(self.tempdir.cleanup)
+        self.addCleanup(self.tmp_dir.cleanup)
 
     def tearDown(self):
         pass
 
     def _mkpath(self, *parts: str) -> str:
         """Returns a path into the per testcase temporary directory."""
-        return os.path.join(self.tempdir.name, *parts)
+        return os.path.join(self.tmp_dir.name, *parts)
 
     def test_missing_dmg_path_raises(self):
         """The processor should raise an exception if dmg_path is missing."""

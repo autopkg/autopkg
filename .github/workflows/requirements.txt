@@ -48,4 +48,3 @@ pyobjc-framework-SystemConfiguration==11.1; sys_platform == 'darwin'
 # Windows Requirements
 #
 generateDS==2.44.3; sys_platform == 'win32'
---no-binary :all:
