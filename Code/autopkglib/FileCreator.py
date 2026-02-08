@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Processor that creates a file"""
+"""See docstring for FileCreator class"""
 
 import os
 
@@ -26,9 +26,16 @@ class FileCreator(Processor):
     """Create a file."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
-        "file_path": {"required": True, "description": "Path to a file to create."},
-        "file_content": {"required": True, "description": "Contents to put in file."},
+        "file_path": {
+            "required": True,
+            "description": "Full path where the new file will be created.",
+        },
+        "file_content": {
+            "required": True,
+            "description": "Text content to write to the created file.",
+        },
         "file_mode": {
             "required": False,
             "description": "String. Numeric mode for file in octal format.",

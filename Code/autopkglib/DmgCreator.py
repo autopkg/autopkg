@@ -31,6 +31,7 @@ class DmgCreator(Processor):
     """Creates a disk image from a directory."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "dmg_root": {
             "required": True,
@@ -40,12 +41,14 @@ class DmgCreator(Processor):
         "dmg_format": {
             "required": False,
             "description": (f"The dmg format. Defaults to {DEFAULT_DMG_FORMAT}."),
+            "default": DEFAULT_DMG_FORMAT,
         },
         "dmg_filesystem": {
             "required": False,
             "description": (
                 f"The dmg filesystem. Defaults to {DEFAULT_DMG_FILESYSTEM}."
             ),
+            "default": DEFAULT_DMG_FILESYSTEM,
         },
         "dmg_zlib_level": {
             "required": False,
@@ -55,6 +58,7 @@ class DmgCreator(Processor):
                 "beyond which very little space savings is "
                 "gained."
             ),
+            "default": DEFAULT_ZLIB_LEVEL,
         },
         "dmg_megabytes": {
             "required": False,
@@ -146,7 +150,7 @@ class DmgCreator(Processor):
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
-            (_, stderr) = proc.communicate()
+            _, stderr = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"hdiutil execution failed with error code {err.errno}: {err.strerror}"

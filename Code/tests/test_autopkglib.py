@@ -20,8 +20,7 @@ class TestAutoPkg(unittest.TestCase):
 
     # Some globals for mocking
     good_json = json.dumps({"CACHE_DIR": "/path/to/cache"})
-    download_recipe = dedent(
-        """\
+    download_recipe = dedent("""\
         <?xml version="1.0" encoding="UTF-8"?>
         <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
         <plist version="1.0">
@@ -72,11 +71,9 @@ class TestAutoPkg(unittest.TestCase):
             </array>
         </dict>
         </plist>
-    """
-    )
+    """)
     download_struct = plistlib.loads(download_recipe.encode("utf-8"))
-    munki_recipe = dedent(
-        """\
+    munki_recipe = dedent("""\
             <?xml version="1.0" encoding="UTF-8"?>
             <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
             <plist version="1.0">
@@ -127,8 +124,7 @@ class TestAutoPkg(unittest.TestCase):
                 </array>
             </dict>
             </plist>
-        """
-    )
+        """)
     munki_struct = plistlib.loads(munki_recipe.encode("utf-8"))
 
     def setUp(self):
@@ -139,19 +135,17 @@ class TestAutoPkg(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch("autopkglib.sys")
-    def test_is_mac_returns_true_on_mac(self, mock_sys):
+    @patch("autopkglib.sys.platform", "Darwin-20.6.0")
+    def test_is_mac_returns_true_on_mac(self):
         """On macOS, is_mac() should return True."""
-        mock_sys.platform = "Darwin-somethingsomething"
         result = autopkglib.is_mac()
-        self.assertEqual(result, True)
+        self.assertTrue(result)
 
-    @patch("autopkglib.sys")
-    def test_is_mac_returns_false_on_not_mac(self, mock_sys):
+    @patch("autopkglib.sys.platform", "linux")
+    def test_is_mac_returns_false_on_not_mac(self):
         """On not-macOS, is_mac() should return False."""
-        mock_sys.platform = "Win32-somethingsomething"
         result = autopkglib.is_mac()
-        self.assertEqual(result, False)
+        self.assertFalse(result)
 
     @patch("autopkglib.sys")
     def test_is_windows_returns_true_on_windows(self, mock_sys):

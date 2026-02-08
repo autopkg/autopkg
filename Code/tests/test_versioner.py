@@ -42,8 +42,7 @@ TEST_VERSION_DEFAULT: str = "1.2.3"
 TEST_VERSION_CUSTOM_KEY: str = "com.someapp.customversion"
 TEST_VERSION_CUSTOM: str = "3.2.1"
 
-TEST_VERSION_PLIST: bytes = (
-    f"""<?xml version="1.0" encoding="UTF-8"?>
+TEST_VERSION_PLIST: bytes = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -53,16 +52,13 @@ TEST_VERSION_PLIST: bytes = (
     <string>{TEST_VERSION_CUSTOM}</string>
 </dict>
 </plist>""".encode()
-)
 
-TEST_NO_VERSION_PLIST: bytes = (
-    b"""<?xml version="1.0" encoding="UTF-8"?>
+TEST_NO_VERSION_PLIST: bytes = b"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 </dict>
 </plist>"""
-)
 
 
 class TestVersioner(unittest.TestCase):
@@ -70,15 +66,15 @@ class TestVersioner(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff: int = 100000
-        self.tempdir = TemporaryDirectory()
+        self.tmp_dir = TemporaryDirectory()
         self.good_env: dict[str, Any] = {
             "input_plist_path": "dummy_path",
             "plist_version_key": TEST_VERSION_DEFAULT_KEY,
-            "RECIPE_CACHE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
         }
         self.bad_env: dict[str, Any] = {}
         self.processor = Versioner(data=deepcopy(self.good_env))
-        self.addCleanup(self.tempdir.cleanup)
+        self.addCleanup(self.tmp_dir.cleanup)
 
     def tearDown(self):
         pass
@@ -87,9 +83,9 @@ class TestVersioner(unittest.TestCase):
         """Returns a path into the per testcase temporary directory.
         On POSIX-y platforms the paths are sensible. On Windows they will non-standard
         because they will use the format `C:/path/to/tmpdir/file.txt` instead of the
-        conventional `C:\\path\\....`. This is due to the interaction of code written
+        conventional `C:\\path\\...`. This is due to the interaction of code written
         only for macOS and code written to be cross-platform."""
-        return posixpath.normpath(os.path.join(self.tempdir.name, *parts))
+        return posixpath.normpath(os.path.join(self.tmp_dir.name, *parts))
 
     def _run_direct_plist(
         self, plist: bytes, mock_dmg: mock.Mock, mock_plist: mock.Mock

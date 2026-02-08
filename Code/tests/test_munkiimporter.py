@@ -2,9 +2,9 @@
 
 import os
 import plistlib
-import tempfile
 import unittest
 from copy import deepcopy
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 from autopkglib import ProcessorError
@@ -15,9 +15,9 @@ class TestMunkiImporter(unittest.TestCase):
     """Test class for MunkiImporter Processor."""
 
     def setUp(self):
-        self.tempdir = tempfile.TemporaryDirectory()
-        self.munki_repo = os.path.join(self.tempdir.name, "munki_repo")
-        self.pkg_path = os.path.join(self.tempdir.name, "TestApp-1.0.0.pkg")
+        self.tmp_dir = TemporaryDirectory()
+        self.munki_repo = os.path.join(self.tmp_dir.name, "munki_repo")
+        self.pkg_path = os.path.join(self.tmp_dir.name, "TestApp-1.0.0.pkg")
 
         # Create basic munki repo structure
         os.makedirs(os.path.join(self.munki_repo, "pkgs"))
@@ -45,7 +45,7 @@ class TestMunkiImporter(unittest.TestCase):
         self.processor.env = deepcopy(self.good_env)
 
     def tearDown(self):
-        self.tempdir.cleanup()
+        self.tmp_dir.cleanup()
 
     def _create_mock_pkginfo(
         self, name="TestApp", version="1.0.0", hash_value="abc123"
@@ -217,7 +217,7 @@ class TestMunkiImporter(unittest.TestCase):
         self.assertIn("CustomName", actual_args)
         self.assertIn("--appname", actual_args)
         self.assertIn("CustomApp", actual_args)
-        self.assertIn("--uninstallpkg", actual_args)
+        self.assertIn("--uninstallerpkg", actual_args)
         self.assertIn("/path/to/uninstaller.pkg", actual_args)
         self.assertIn("--owner", actual_args)
         self.assertIn("root", actual_args)
@@ -427,7 +427,7 @@ class TestMunkiImporter(unittest.TestCase):
     @patch("subprocess.Popen")
     def test_main_copies_uninstaller_when_provided(self, mock_popen):
         """Test that main() copies uninstaller package when provided."""
-        uninstaller_path = os.path.join(self.tempdir.name, "uninstaller.pkg")
+        uninstaller_path = os.path.join(self.tmp_dir.name, "uninstaller.pkg")
         self.processor.env["uninstaller_pkg_path"] = uninstaller_path
 
         # Mock subprocess result

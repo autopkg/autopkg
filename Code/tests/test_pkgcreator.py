@@ -29,7 +29,7 @@ class TestPkgCreator(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff: int = 100000
-        self.tempdir = TemporaryDirectory()
+        self.tmp_dir = TemporaryDirectory()
         self.good_env: dict[str, Any] = {
             "pkg_request": {
                 "pkgroot": "/path/to/root",
@@ -37,15 +37,13 @@ class TestPkgCreator(unittest.TestCase):
                 "id": "com.example.testpackage",
                 "version": "1.0.0",
                 "pkgtype": "flat",
-                "pkgdir": self.tempdir.name,
+                "pkgdir": self.tmp_dir.name,
                 "infofile": "",
-                "resources": "",
-                "options": "",
                 "scripts": "",
                 "chown": [],
             },
-            "RECIPE_CACHE_DIR": self.tempdir.name,
-            "RECIPE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
+            "RECIPE_DIR": self.tmp_dir.name,
         }
         self.minimal_env: dict[str, Any] = {
             "pkg_request": {
@@ -54,18 +52,18 @@ class TestPkgCreator(unittest.TestCase):
                 "id": "com.example.testpackage",
                 "version": "1.0.0",
             },
-            "RECIPE_CACHE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
         }
         self.bad_env: dict[str, Any] = {}
         self.processor = PkgCreator(env=deepcopy(self.good_env))
-        self.addCleanup(self.tempdir.cleanup)
+        self.addCleanup(self.tmp_dir.cleanup)
 
     def tearDown(self):
         pass
 
     def _mkpath(self, *parts: str) -> str:
         """Returns a path into the per testcase temporary directory."""
-        return os.path.join(self.tempdir.name, *parts)
+        return os.path.join(self.tmp_dir.name, *parts)
 
     def test_missing_pkg_request_raises(self):
         """The processor should raise an exception if pkg_request is missing."""
@@ -79,7 +77,7 @@ class TestPkgCreator(unittest.TestCase):
         bad_request = {"pkgname": "test", "id": "com.test", "version": "1.0"}
         self.processor.env = {
             "pkg_request": bad_request,
-            "RECIPE_CACHE_DIR": self.tempdir.name,
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
         }
         with self.assertRaisesRegex(ProcessorError, "Request key pkgroot missing"):
             self.processor.main()
@@ -125,8 +123,6 @@ class TestPkgCreator(unittest.TestCase):
         request = self.processor.env["pkg_request"]
         self.assertEqual(request["pkgtype"], "flat")
         self.assertEqual(request["infofile"], "")
-        self.assertEqual(request["resources"], "")
-        self.assertEqual(request["options"], "")
         self.assertEqual(request["scripts"], "")
         self.assertEqual(request["chown"], [])
 
@@ -280,31 +276,26 @@ class TestPkgCreator(unittest.TestCase):
     def test_send_request_success(self):
         """Test successful request sending."""
         mock_socket = MagicMock()
-        mock_socket.fileno.return_value = 1
+        mock_file = MagicMock()
+        mock_file.read.return_value = "OK:/path/to/package.pkg"
+        mock_socket.makefile.return_value.__enter__.return_value = mock_file
         self.processor.socket = mock_socket
 
-        with patch("os.fdopen") as mock_fdopen:
-            mock_file = MagicMock()
-            mock_file.read.return_value = "OK:/path/to/package.pkg"
-            mock_fdopen.return_value.__enter__.return_value = mock_file
+        result = self.processor.send_request({"test": "request"})
 
-            result = self.processor.send_request({"test": "request"})
-
-            self.assertEqual(result, "/path/to/package.pkg")
+        self.assertEqual(result, "/path/to/package.pkg")
+        mock_socket.makefile.assert_called_once_with(mode="r")
 
     def test_send_request_error(self):
         """Test error response from send_request."""
         mock_socket = MagicMock()
-        mock_socket.fileno.return_value = 1
+        mock_file = MagicMock()
+        mock_file.read.return_value = "ERROR:Package build failed"
+        mock_socket.makefile.return_value.__enter__.return_value = mock_file
         self.processor.socket = mock_socket
 
-        with patch("os.fdopen") as mock_fdopen:
-            mock_file = MagicMock()
-            mock_file.read.return_value = "ERROR:Package build failed"
-            mock_fdopen.return_value.__enter__.return_value = mock_file
-
-            with self.assertRaisesRegex(ProcessorError, "Package build failed"):
-                self.processor.send_request({"test": "request"})
+        with self.assertRaisesRegex(ProcessorError, "Package build failed"):
+            self.processor.send_request({"test": "request"})
 
     def test_disconnect(self):
         """Test disconnection from autopkgserver."""

@@ -73,7 +73,7 @@ class Installer:
             self.log.info("install request completed.")
             return True
         except BaseException as err:
-            self.log.error(f"Install failed: {err}")
+            self.log.error("Install failed: %s", err)
             raise InstallerError(f"ERROR:{err}\n")
 
     def install(self) -> None:

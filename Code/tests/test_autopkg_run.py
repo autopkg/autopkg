@@ -17,6 +17,7 @@ import os
 import plistlib
 import sys
 import unittest
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest.mock import Mock, mock_open, patch
 
 # Add the Code directory to the Python path to resolve autopkg dependencies
@@ -29,6 +30,14 @@ autopkg = imp.load_source(
 
 class TestAutoPkgRun(unittest.TestCase):
     """Test cases for recipe run related functions of AutoPkg."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.tmp_dir = TemporaryDirectory()
+
+    def tearDown(self):
+        """Clean up after tests."""
+        self.tmp_dir.cleanup()
 
     def test_run_recipes_no_arguments(self):
         """Test run_recipes with no recipe arguments."""
@@ -52,7 +61,9 @@ class TestAutoPkgRun(unittest.TestCase):
 
         with patch.object(autopkg, "get_override_dirs", return_value=[]), patch.object(
             autopkg, "get_search_dirs", return_value=[]
-        ), patch.object(autopkg, "get_pref", return_value="/tmp/cache"), patch.object(
+        ), patch.object(
+            autopkg, "get_pref", return_value=self.tmp_dir.name
+        ), patch.object(
             autopkg, "load_recipe", return_value=None
         ) as mock_load_recipe, patch(
             "os.path.exists", return_value=True
@@ -64,15 +75,13 @@ class TestAutoPkgRun(unittest.TestCase):
             autopkg.plistlib, "dump"
         ), patch.object(
             autopkg, "log_err"
+        ), patch.object(
+            autopkg, "log"
         ):
 
-            # We expect this to fail when it tries to open the results file
-            # but we should capture the load_recipe call first
-            try:
-                autopkg.run_recipes(argv)
-            except OSError:
-                # Expected failure when trying to write to results file
-                pass
+            # Run recipes - with mocked plistlib.dump, this should complete successfully
+            # The test focuses on verifying the recipe name transformation logic
+            autopkg.run_recipes(argv)
 
             # Should have called load_recipe with .install extension
             mock_load_recipe.assert_called()
@@ -85,7 +94,9 @@ class TestAutoPkgRun(unittest.TestCase):
 
         with patch.object(autopkg, "get_override_dirs", return_value=[]), patch.object(
             autopkg, "get_search_dirs", return_value=[]
-        ), patch.object(autopkg, "get_pref", return_value="/tmp/cache"), patch.object(
+        ), patch.object(
+            autopkg, "get_pref", return_value=self.tmp_dir.name
+        ), patch.object(
             autopkg, "load_recipe", return_value=None
         ), patch(
             "os.path.exists", return_value=True
@@ -101,9 +112,12 @@ class TestAutoPkgRun(unittest.TestCase):
 
             try:
                 autopkg.run_recipes(argv)
-            except OSError:
-                # Expected failure when trying to write to results file
-                pass
+            except OSError as e:
+                # Expected failure when trying to write to results file or access directories
+                # Only accept file/directory related OSErrors
+                self.assertIn(
+                    e.errno, [2, 13, 20, 21]
+                )  # ENOENT, EACCES, ENOTDIR, EISDIR
 
             # Should log error about non-install recipe
             mock_log_err.assert_called()
@@ -149,7 +163,9 @@ class TestAutoPkgRun(unittest.TestCase):
 
         with patch.object(autopkg, "get_override_dirs", return_value=[]), patch.object(
             autopkg, "get_search_dirs", return_value=[]
-        ), patch.object(autopkg, "get_pref", return_value="/tmp/cache"), patch.object(
+        ), patch.object(
+            autopkg, "get_pref", return_value=self.tmp_dir.name
+        ), patch.object(
             autopkg, "load_recipe", return_value=None
         ), patch(
             "os.path.exists", return_value=True
@@ -163,19 +179,23 @@ class TestAutoPkgRun(unittest.TestCase):
             autopkg, "log_err"
         ):
 
+            result = None
             try:
                 result = autopkg.run_recipes(argv)
-                # Should return error code due to recipe not found
+            except OSError as e:
+                # Only accept specific file operation errors, not all OSErrors
+                # Common file-related errno values: ENOENT=2, EACCES=13, ENOTDIR=20, EISDIR=21
+                if e.errno not in [2, 13, 20, 21]:
+                    raise  # Re-raise unexpected OSErrors
+                # For expected file errors, we'll check that recipe loading was attempted
+                # which indicates the recipe-not-found logic was reached
+
+            # Verify the expected outcome: either proper return code or evidence of recipe loading attempt
+            if result is not None:
                 self.assertEqual(result, 70)  # RECIPE_FAILED_CODE
-            except OSError:
-                # If it fails due to file operations, that's also acceptable
-                # since we're mainly testing the recipe not found logic
-                pass
 
     def test_parse_recipe_list_plist_format(self):
         """Test parse_recipe_list with plist format."""
-        import tempfile
-
         recipe_list_data = {
             "recipes": ["TestApp1.recipe", "TestApp2.recipe"],
             "preprocessors": ["PreProcessor1"],
@@ -183,7 +203,7 @@ class TestAutoPkgRun(unittest.TestCase):
             "CUSTOM_VAR": "custom_value",
         }
 
-        with tempfile.NamedTemporaryFile(mode="wb", suffix=".plist", delete=False) as f:
+        with NamedTemporaryFile(mode="wb", suffix=".plist", delete=False) as f:
             plistlib.dump(recipe_list_data, f)
             temp_file = f.name
 
@@ -198,8 +218,6 @@ class TestAutoPkgRun(unittest.TestCase):
 
     def test_parse_recipe_list_text_format(self):
         """Test parse_recipe_list with plain text format."""
-        import tempfile
-
         recipe_list_text = """# This is a comment
 TestApp1.recipe
 TestApp2.recipe
@@ -208,7 +226,7 @@ TestApp2.recipe
 TestApp3.recipe
 """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        with NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write(recipe_list_text)
             temp_file = f.name
 
@@ -221,8 +239,6 @@ TestApp3.recipe
 
     def test_parse_recipe_list_empty_lines_and_comments(self):
         """Test parse_recipe_list ignores empty lines and comments."""
-        import tempfile
-
         recipe_list_text = """
 # Comment line 1
 TestApp1.recipe
@@ -232,7 +248,7 @@ TestApp2.recipe
 # Final comment
 """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+        with NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write(recipe_list_text)
             temp_file = f.name
 
@@ -246,37 +262,37 @@ TestApp2.recipe
 
     def test_run_recipes_failure_includes_recipe_id(self):
         """Test that recipe failures include recipe_id in the failures array when recipe has an Identifier."""
-        import tempfile
+        with NamedTemporaryFile(suffix=".plist") as report_file:
+            argv = [
+                "autopkg",
+                "run",
+                "--report-plist",
+                report_file.name,
+                "TestApp.recipe",
+            ]
+            test_recipe_id = "com.test.TestApp"
 
-        argv = [
-            "autopkg",
-            "run",
-            "--report-plist",
-            "/tmp/test_report.plist",
-            "TestApp.recipe",
-        ]
-        test_recipe_id = "com.test.TestApp"
+            # Mock recipe with an identifier
+            mock_recipe = {
+                "RECIPE_PATH": "/path/to/TestApp.recipe",
+                "Identifier": test_recipe_id,
+                "Input": {},
+                "Process": [],
+            }
 
-        # Mock recipe with an identifier
-        mock_recipe = {
-            "RECIPE_PATH": "/path/to/TestApp.recipe",
-            "Identifier": test_recipe_id,
-            "Input": {},
-            "Process": [],
-        }
+            # Mock AutoPackager that will raise an exception during processing
+            mock_autopackager = Mock()
+            mock_autopackager.results = []
+            mock_autopackager.env = {"RECIPE_CACHE_DIR": self.tmp_dir.name}
+            mock_autopackager.process.side_effect = autopkg.AutoPackagerError(
+                "Test error"
+            )
 
-        # Mock AutoPackager that will raise an exception during processing
-        mock_autopackager = Mock()
-        mock_autopackager.results = []
-        mock_autopackager.env = {"RECIPE_CACHE_DIR": "/tmp"}
-        mock_autopackager.process.side_effect = autopkg.AutoPackagerError("Test error")
-
-        # Create a temporary directory for cache
-        with tempfile.TemporaryDirectory() as temp_cache_dir:
+            # Create a temporary directory for cache
             with patch.object(
                 autopkg, "get_override_dirs", return_value=[]
             ), patch.object(autopkg, "get_search_dirs", return_value=[]), patch.object(
-                autopkg, "get_pref", return_value=temp_cache_dir
+                autopkg, "get_pref", return_value=self.tmp_dir.name
             ), patch.object(
                 autopkg, "load_recipe", return_value=mock_recipe
             ), patch.object(

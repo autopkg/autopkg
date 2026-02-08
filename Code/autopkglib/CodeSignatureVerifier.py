@@ -30,10 +30,10 @@ RE_AUTHORITY_PKGUTIL = re.compile(r"\s+[1-9]+\. (?P<authority>.*)\n")
 
 
 class CodeSignatureVerifier(DmgMounter):
-    """Verifies application bundle or installer package signature.
+    """Verifies application bundle or installer package signature."""
 
-    Requires version 0.3.1."""
-
+    description = __doc__
+    lifecycle = {"introduced": "0.3.1"}
     input_variables = {
         "DISABLE_CODE_SIGNATURE_VERIFICATION": {
             "required": False,
@@ -79,6 +79,7 @@ class CodeSignatureVerifier(DmgMounter):
                 "recursively verified as to its full content. Note that this option "
                 "is ignored if the current system version is less than 10.9."
             ),
+            "default": True,
         },
         "strict_verification": {
             "required": False,
@@ -96,8 +97,6 @@ class CodeSignatureVerifier(DmgMounter):
         },
     }
     output_variables = {}
-
-    description = __doc__
 
     def codesign_verify(
         self,
@@ -165,7 +164,7 @@ class CodeSignatureVerifier(DmgMounter):
             stderr=subprocess.PIPE,
             text=True,
         )
-        (output, error) = proc.communicate()
+        output, error = proc.communicate()
 
         # Log all output. codesign seems to output only
         # to stderr but check the stdout too
@@ -189,7 +188,7 @@ class CodeSignatureVerifier(DmgMounter):
         proc = subprocess.Popen(
             process, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
-        (output, error) = proc.communicate()
+        output, error = proc.communicate()
 
         # Log everything
         if output:
@@ -303,7 +302,7 @@ class CodeSignatureVerifier(DmgMounter):
             return
         # Check if we're trying to read something inside a dmg.
         input_path = self.env["input_path"]
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(input_path)
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(input_path)
         try:
             if dmg:
                 # Mount dmg and copy path inside.
@@ -342,7 +341,7 @@ class CodeSignatureVerifier(DmgMounter):
                     self.process_installer_package(matched_input_path)
                 else:
                     self.output(
-                        "Warning: Installer package signature "
+                        "WARNING: Installer package signature "
                         "verification not supported on Mac OS X 10.6"
                     )
 

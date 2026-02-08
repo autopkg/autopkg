@@ -1,8 +1,54 @@
-## [2.7.7](https://github.com/autopkg/autopkg/compare/v2.7.6...HEAD) (Unreleased)
-
 # AutoPkg Change Log
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
+
+## [2.9.1](https://github.com/autopkg/autopkg/compare/v2.9.0...HEAD) (Unreleased)
+
+Nothing yet.
+
+## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
+
+### Redesigned search
+
+AutoPkg 2.9.0 introduces a completely redesigned `autopkg search` feature using a structured [search index](https://github.com/autopkg/index) of all recipes in the AutoPkg org.
+
+This index is updated on GitHub every 4 hours. A local cache is downloaded, and the full index is redownloaded only when changes are available. This should be faster and much more reliable than our previous search method, especially when performing multiple searches back to back. This new method should also work better in the absence of a GitHub personal access token at `~/.autopkg_gh_token`.
+
+With this change, there may be bugs or differences in behavior from the previous search method. If you encounter issues with `autopkg search` or have suggestions for improvement, please file an issue on GitHub.
+
+### VariableSetter processor
+
+A new [VariableSetter](https://github.com/autopkg/autopkg/wiki/Processor-VariableSetter) processor allows setting arbitrary environment variables for use as input to subsequent processors (#997, thanks to @MScottBlake). We recommend using this processor instead of "overloading" variables into other processors like EndOfCheckPhase. Remember to set a `MinimumVersion` of 2.9.0 in any recipes that use VariableSetter.
+
+### Other AutoPkg changes
+
+- Updated included Python runtime to 3.10.11 (#990, thanks to @MScottBlake)
+- Updated requirements.txt with the contents of new_requirements.txt, which has been used in production releases since AutoPkg 2.7, and removed new_requirements.txt. This should reduce false positives from security vulnerability and dependency update scanners.
+- Fixed incorrect count of recipes in results when using `audit` verb (#1004, thanks to @macprince for reporting)
+- Fixed `Bad file descriptor` error processor output during package builds.
+- Fixed issue where tilde paths in `CACHE_DIR` preference weren't properly expanded.
+- Fixed bug that made temporary package filenames less random.
+- Added a method by which processors can be marked for deprecation, similar to what DeprecationWarning does for recipes.
+- Added basic unit tests for autopkgserver and autopkginstalld.
+- Removed `resources` subkey of the PkgCreator `pkg_request` dictionary, which has not been used since AutoPkg changed from `packagemaker` to `pkgbuild` for packaging prior to v0.1.0.
+- Removed `options` subkey of the PkgCreator `pkg_request` dictionary, which has never been used.
+- Moved from deprecated `pkg_resources` to `importlib.resources` for better Python 3.10+ compatibility.
+- Removed legacy launch.py component of autopkgserver, unused since AutoPkg 0.5.0.
+- Updated and resolved issues with manual `install.sh` script used for local testing of development builds of AutoPkg.
+- Updated GitHub Actions workflows with newer action versions and improved job handling.
+
+### Other core processor changes
+
+- Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
+- GitHubReleasesInfoProvider: now supports pagination, which should improve reliability for repos that have a large number of prereleases that bump the "latest" release off the first page of API results (#1005, thanks to @kirovreporting).
+- MunkiImporter: replace '--uninstallpkg' with '--uninstallerpkg' to maintain compatibility with recent versions of Munki's `makepkginfo`. (#1001, thanks to @PeetMcK).
+- Officially deprecated processors CURLTextSearcher and CURLDownloader. Use URLTextSearcher and URLDownloader instead.
+- Removed deprecated processor BrewCaskInfoProvider.
+- URLDownloaderPython: explicitly mark the sha1, md5, and sha256 hashing of downloaded files as non-security-related.
+- URLDownloaderPython: add new input variable `request_headers`, matching the same functionality in URLDownloader (#986, thanks to @smithjw)
+- Unarchiver: when using Python native extractor, stop processing if archives have indicators of directory traversal attacks.
+- Added extensive unit tests for URLDownloader, PlistReader integration, packager, and Processor base class.
+- Various processors updated with `default` values that were previously implied or included only in the description.
 
 ## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
 
@@ -81,6 +127,7 @@ Similarly, thanks to @homebysix for doing a similar action for linting, ensuring
 
 ### Other Changes
 
+- New core processor MunkiOptionalReceiptEditor, based on @keeleysam's [MunkiPkginfoReceiptsEditor](https://github.com/autopkg/keeleysam-recipes/blob/master/GoogleTalkPlugin/MunkiPkginfoReceiptsEditor.py), which allows specifying which receipts are considered optional in Munki pkginfo files ([example](https://github.com/autopkg/recipes/blob/83305f7bcdc1270f1f2715548dae8013ce2848c0/munkitools/munkitools7.munki.recipe#L104-L114))
 - The make_new_release script is a lot easier to use (only really benefits maintainers, but hey)
 - Remove incompatibility notice non-macs by @jgstew in https://github.com/autopkg/autopkg/pull/795
 - Add automated UnitTests for AutoPkg with GitHub Actions by @jgstew in https://github.com/autopkg/autopkg/pull/796

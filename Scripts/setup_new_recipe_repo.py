@@ -20,7 +20,6 @@
 create a new team specifically for the duplicate repo, and assign the source
 repo author to this team."""
 
-
 import json
 import optparse
 import os
@@ -189,7 +188,7 @@ def main():
     print(f"Using source repo: user {source_repo_user}, repo {source_repo_name}")
     destination_repo_name = opts.destination_repo_name or source_repo_user + "-recipes"
     dest_org = opts.destination_org
-    print(f"Will clone to {dest_org}/{destination_repo_name}..")
+    print(f"Will clone to {dest_org}/{destination_repo_name}...")
     global TOKEN
     TOKEN = opts.token
 
@@ -221,7 +220,7 @@ def main():
 
     # Get the existing repos of the destination user or org
     dest_repos = []
-    print(f"Fetching {dest_org}'s public repos..")
+    print(f"Fetching {dest_org}'s public repos...")
     dest_repos_result, code = call_api(f"/users/{dest_org}/repos")
     if dest_repos_result:
         dest_repos = [r["name"] for r in dest_repos_result]
@@ -257,7 +256,7 @@ Type 'yes' to proceed: """
     _, code = call_api(f"/orgs/{dest_org}/repos", method="POST", data=new_repo_data)
 
     # Create new team in the org for use with this repo
-    print(f"Creating new team: {new_team_name}..")
+    print(f"Creating new team: {new_team_name}...")
     new_team_data = {
         "name": new_team_name,
         "permission": opts.permission_level,
@@ -275,14 +274,14 @@ Type 'yes' to proceed: """
     _, code = call_api(remove_member_endpoint, method="DELETE")
     if code != 204:
         print(
-            "Warning: Unexpected HTTP result on removing "
+            "WARNING: Unexpected HTTP result on removing "
             f"{auth_user} from new team.",
             file=sys.stderr,
         )
 
     # Add the user to the new team
     # https://developer.github.com/v3/orgs/teams/#add-team-membership
-    print(f"Adding {new_team_member} to new team..")
+    print(f"Adding {new_team_member} to new team...")
     user_add_team_endpoint = "/teams/{}/memberships/{}".format(
         new_team["id"], new_team_member
     )

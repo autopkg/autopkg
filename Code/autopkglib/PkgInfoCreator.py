@@ -29,6 +29,7 @@ class PkgInfoCreator(Processor):
     """Creates an PackageInfo file for a package."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "template_path": {"required": True, "description": "An Info.plist template."},
         "version": {"required": True, "description": "Version of the package."},

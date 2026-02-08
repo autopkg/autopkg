@@ -15,11 +15,11 @@
 import os
 import subprocess
 import sys
-import tempfile
 import unittest
 import unittest.mock
 from copy import deepcopy
 from io import BytesIO
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from autopkglib import find_binary
@@ -57,7 +57,7 @@ class TestChocolateyPackager(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = 100000
-        self.test_dir: tempfile.TemporaryDirectory = tempfile.TemporaryDirectory()
+        self.test_dir = TemporaryDirectory()
         self.common_nuspec_vars: VarDict = {
             "id": "a-package",
             "version": "1.4.4",

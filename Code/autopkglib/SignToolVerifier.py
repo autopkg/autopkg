@@ -53,6 +53,8 @@ class SignToolVerifier(Processor):
     """Verifies an authenticode signed installer using the Microsoft SDK
     signtool executable."""
 
+    description = __doc__
+    lifecycle = {"introduced": "2.3"}
     EXTENSIONS: list[str] = [".exe", ".msi"]
 
     # TODO: How much of this is needed to act as a drop-in replacement in an
@@ -87,8 +89,6 @@ class SignToolVerifier(Processor):
     }
     output_variables: dict[str, Any] = {}
 
-    description: str = __doc__
-
     def codesign_verify(
         self,
         signtool_path: str,
@@ -120,7 +120,7 @@ class SignToolVerifier(Processor):
             stderr=subprocess.STDOUT,
             text=True,
         )
-        (output, _) = proc.communicate()
+        output, _ = proc.communicate()
 
         for line in output.replace("\n\n", "\n").replace("\n\n\n", "\n\n").splitlines():
             self.output(line)

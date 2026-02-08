@@ -12,15 +12,13 @@ from autopkglib.URLTextSearcher import NO_MATCH_MESSAGE, URLTextSearcher
 class TestURLTextSearcher(unittest.TestCase):
     """Test class for URLTextSearcher Processor."""
 
-    web_page = dedent(
-        """
+    web_page = dedent("""
         foo
         <a href="http://someserver.url/first.dmg">first</a>
         bar
         <a href="http://someserver.url/second.dmg">second</a>
         drak
-        """
-    )
+        """)
 
     def setUp(self):
         self.good_env = {

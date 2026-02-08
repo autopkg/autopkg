@@ -44,7 +44,7 @@ class TestPreferences(unittest.TestCase):
     PRIMARY_NON_MACOS_PLATFORMS = ["Linux", "Windows"]
 
     def setUp(self):
-        self._workdir = TemporaryDirectory()
+        self.tmp_dir = TemporaryDirectory()
         self.mock_platform = patch("autopkglib.sys.platform").start()
         # Force loading to go through the file-backed path by default.
         self.mock_platform.return_value = "__HighlyUnlikely-Platform-Name__"
@@ -63,10 +63,10 @@ class TestPreferences(unittest.TestCase):
 
         self.mock_appdirs = patch("autopkglib.appdirs").start()
         # Ensure we don't accidentally load real config and muck up tests.
-        self.mock_appdirs.user_config_dir.return_value = self._workdir.name
+        self.mock_appdirs.user_config_dir.return_value = self.tmp_dir.name
 
         self.addCleanup(patch.stopall)
-        self.addCleanup(self._workdir.cleanup)
+        self.addCleanup(self.tmp_dir.cleanup)
 
     def tearDown(self):
         pass

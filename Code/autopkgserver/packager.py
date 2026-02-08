@@ -93,7 +93,7 @@ class Packager:
             )
             out, err = p.communicate()
             if err:
-                self.log.debug(f"WARNING: errors from command '{', '.join(cmd)}':")
+                self.log.debug("WARNING: errors from command '%s':", ", ".join(cmd))
                 self.log.debug(err.decode())
             return (out, err)
 
@@ -136,7 +136,7 @@ class Packager:
                 mounts.remove("/")
                 mounts.append("/")
             if mounts:
-                self.log.debug(f"Found mounted volumes: {', '.join(mounts)}")
+                self.log.debug("Found mounted volumes: %s", ", ".join(mounts))
             else:
                 self.log.debug(
                     "WARNING: No mountpoints could be determined for "
@@ -152,14 +152,15 @@ class Packager:
                     break
             if not mount_for_path:
                 self.log.debug(
-                    f"WARNING: Checking disk ownerships for path '{path}' "
-                    "failed. Attempting to continue.."
+                    "WARNING: Checking disk ownerships for path '%s' "
+                    "failed. Attempting to continue...",
+                    path,
                 )
                 return True
 
             # look for 'ignore ownerships' setting on the disk
             # if 'GlobalPermissionsEnabled' is true, ownerships are _not_ ignored
-            self.log.debug(f"Checking disk ownerships for mount '{mount_for_path}'..")
+            self.log.debug("Checking disk ownerships for mount '%s'...", mount_for_path)
             out, err = cmd_output(
                 ["/usr/sbin/diskutil", "info", "-plist", mount_for_path]
             )
@@ -173,8 +174,8 @@ class Packager:
             if "GlobalPermissionsEnabled" not in du_info:
                 self.log.debug(
                     "WARNING: Couldn't read 'ignore ownerships' "
-                    f"setting for mount point '{mount_for_path}'. Attempting to "
-                    "continue."
+                    "setting for mount point '%s'. Attempting to continue.",
+                    mount_for_path,
                 )
                 return True
 
@@ -231,7 +232,7 @@ class Packager:
                 raise PackagerError(f'Invalid version component "{comp}"')
         self.log.debug("version ok")
 
-        # Make sure infofile and resources exist and can be read.
+        # Make sure infofile exists and can be read.
         if self.request["infofile"]:
             try:
                 with open(self.request["infofile"], "rb"):
@@ -278,7 +279,7 @@ class Packager:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            (_, err) = p.communicate()
+            _, err = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"ditto execution failed with error code {e.errno}: {e.strerror}"
@@ -289,7 +290,7 @@ class Packager:
                 f"{self.tmp_pkgroot}: {' '.join(str(err).split())}"
             )
 
-        self.log.info(f"Package root copied to {self.tmp_pkgroot}")
+        self.log.info("Package root copied to %s", self.tmp_pkgroot)
 
     def apply_chown(self) -> None:
         """Change owner and group, and permissions if the 'mode' key was set."""
@@ -339,8 +340,10 @@ class Packager:
                 raise PackagerError(f"Invalid gid {gid}")
 
             self.log.info(
-                f"Setting owner and group of {entry['path']} to {entry['user']}:"
-                f"{entry['group']}"
+                "Setting owner and group of %s to %s:%s",
+                entry["path"],
+                entry["user"],
+                entry["group"],
             )
 
             # If an absolute path is passed in entry["path"], os.path.join
@@ -354,7 +357,9 @@ class Packager:
             if os.path.isfile(chownpath):
                 os.lchown(chownpath, uid, gid)
                 if chmod_present:
-                    self.log.info(f"Setting mode of {entry['path']} to {entry['mode']}")
+                    self.log.info(
+                        "Setting mode of %s to %s", entry["path"], entry["mode"]
+                    )
                     os.lchmod(chownpath, int(entry["mode"], 8))
             else:
                 for dirpath, dirnames, filenames in os.walk(chownpath):
@@ -375,7 +380,7 @@ class Packager:
 
     def random_string(self, length: int) -> str:
         rand = os.urandom(int((length + 1) / 2))
-        randstr = "".join(["%02x" % ord(c) for c in str(rand)])
+        randstr = rand.hex()
         return randstr[:length]
 
     def make_component_property_list(self) -> None:
@@ -395,7 +400,7 @@ class Packager:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            (_, err) = p.communicate()
+            _, err = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
@@ -480,7 +485,7 @@ class Packager:
                 p = subprocess.Popen(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
                 )
-                (_, err) = p.communicate()
+                _, err = p.communicate()
             except OSError as e:
                 raise PackagerError(
                     f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
@@ -495,7 +500,7 @@ class Packager:
             os.rename(temppkgpath, pkgpath)
             os.chown(pkgpath, self.uid, self.gid)
 
-            self.log.info(f"Created package at {pkgpath}")
+            self.log.info("Created package at %s", pkgpath)
             return pkgpath
 
         finally:
@@ -505,7 +510,9 @@ class Packager:
             except OSError as e:
                 if e.errno != 2:
                     self.log.warn(
-                        f"Can't remove temporary package at {temppkgpath}: {e.strerror}"
+                        "Can't remove temporary package at %s: %s",
+                        temppkgpath,
+                        e.strerror,
                     )
 
     def cleanup(self) -> None:

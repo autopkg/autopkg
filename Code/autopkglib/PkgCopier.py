@@ -28,6 +28,7 @@ class PkgCopier(Copier):
     """Copies source_pkg to pkg_path."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "source_pkg": {
             "required": True,
@@ -59,7 +60,7 @@ class PkgCopier(Copier):
             del self.env["pkg_copier_summary_result"]
 
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(self.env["source_pkg"])
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(self.env["source_pkg"])
         try:
             if dmg:
                 # Mount dmg and copy path inside.
