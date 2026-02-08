@@ -585,6 +585,7 @@ def get_recipe_repo(git_path) -> str | None:
             return None
     return None
 
+
 def write_json_exit_on_fail(input_dict, path) -> None:
     """Writes a dict to a new JSON file at path, exits the program
     if the write fails."""
@@ -594,6 +595,7 @@ def write_json_exit_on_fail(input_dict, path) -> None:
     except (TypeError, RecursionError):
         log_err(f"Failed to save JSON to {path}.")
         sys.exit(-1)
+
 
 def write_plist_exit_on_fail(plist_dict, path) -> None:
     """Writes a dict to a new plist at path, exits the program
