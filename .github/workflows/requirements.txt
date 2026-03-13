@@ -4,7 +4,7 @@
 #
 appdirs==1.4.4
 attrs==25.4.0
-black==25.9.0
+black==26.3.1
 certifi==2025.10.5
 cffi==2.0.0
 cfgv==3.4.0
@@ -19,7 +19,7 @@ lxml==6.0.2
 mccabe==0.7.0
 mypy-extensions==1.1.0
 nodeenv==1.9.1
-pathspec==0.12.1
+pathspec==1.0.4
 platformdirs==4.5.0
 pre-commit==4.3.0
 pycodestyle==2.14.0
