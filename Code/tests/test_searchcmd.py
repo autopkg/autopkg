@@ -89,7 +89,10 @@ class TestSearchCmd(unittest.TestCase):
     def test_handle_cache_error_without_cache_raises_error(self):
         """Test that handle_cache_error raises ProcessorError when no cache exists."""
         # Use a non-existent path
-        cache_path = "/tmp/nonexistent_cache_file_" + str(os.getpid()) + ".json"
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(
+            cache_dir, "nonexistent_cache_file_" + str(os.getpid()) + ".json"
+        )
 
         # Ensure the cache file doesn't exist
         if os.path.exists(cache_path):
@@ -117,7 +120,8 @@ class TestSearchCmd(unittest.TestCase):
 
     def test_handle_cache_error_attempts_raw_download_without_etag(self):
         """Test that handle_cache_error attempts raw download when no etag exists."""
-        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
         etag_path = cache_path + ".etag"
 
         # Ensure files don't exist
@@ -154,7 +158,8 @@ class TestSearchCmd(unittest.TestCase):
 
     def test_handle_cache_error_raw_download_fails_raises_error(self):
         """Test that handle_cache_error raises error when raw download fails."""
-        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
         etag_path = cache_path + ".etag"
 
         # Ensure files don't exist
@@ -188,7 +193,8 @@ class TestSearchCmd(unittest.TestCase):
 
     def test_handle_cache_error_skips_raw_download_if_etag_exists(self):
         """Test that handle_cache_error skips raw download if etag exists."""
-        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
         etag_path = cache_path + ".etag"
 
         # Ensure cache doesn't exist but etag does
@@ -222,7 +228,8 @@ class TestSearchCmd(unittest.TestCase):
 
     def test_handle_cache_error_logs_success_message_on_raw_download(self):
         """Test that handle_cache_error logs success when raw download works."""
-        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
         etag_path = cache_path + ".etag"
 
         # Ensure files don't exist
@@ -393,7 +400,8 @@ class TestSearchCmd(unittest.TestCase):
         self, mock_gh_session, mock_url_getter, mock_handle_error
     ):
         """Test that check_search_cache handles API errors gracefully."""
-        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
 
         # Mock GitHubSession
         mock_gh_session.return_value.token = None
@@ -418,7 +426,8 @@ class TestSearchCmd(unittest.TestCase):
         self, mock_gh_session, mock_url_getter, mock_handle_error
     ):
         """Test that check_search_cache handles non-zero return code from metadata."""
-        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
 
         # Mock GitHubSession
         mock_gh_session.return_value.token = None
@@ -442,7 +451,8 @@ class TestSearchCmd(unittest.TestCase):
         self, mock_gh_session, mock_url_getter, mock_handle_error
     ):
         """Test that check_search_cache handles invalid JSON from API."""
-        cache_path = "/tmp/test_cache_" + str(os.getpid()) + ".json"
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
 
         # Mock GitHubSession
         mock_gh_session.return_value.token = None
@@ -739,7 +749,10 @@ class TestSearchCmd(unittest.TestCase):
         self, mock_file, mock_makedirs, mock_exists, mock_check_cache
     ):
         """Test that get_search_results successfully retries and returns results after corrupted cache."""
-        cache_path = os.path.join("/fake", "cache", "search_index.json")
+        # Use a normalized path to avoid mixed separators on Windows
+        cache_path = os.path.normpath(
+            os.path.join("fake", "cache", "search_index.json")
+        )
 
         # Mock cache directory exists
         mock_exists.return_value = True
@@ -768,7 +781,7 @@ class TestSearchCmd(unittest.TestCase):
         ]
 
         with patch("autopkglib.get_pref") as mock_pref:
-            mock_pref.return_value = "/fake/cache"
+            mock_pref.return_value = os.path.normpath(os.path.join("fake", "cache"))
             with patch("os.remove") as mock_remove:
                 with patch("sys.stderr", new=StringIO()):
                     results = get_search_results("Firefox")
