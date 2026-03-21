@@ -739,7 +739,7 @@ class TestSearchCmd(unittest.TestCase):
         self, mock_file, mock_makedirs, mock_exists, mock_check_cache
     ):
         """Test that get_search_results successfully retries and returns results after corrupted cache."""
-        cache_path = "/fake/cache/search_index.json"
+        cache_path = os.path.join("/fake", "cache", "search_index.json")
 
         # Mock cache directory exists
         mock_exists.return_value = True

@@ -364,7 +364,7 @@ class TestPlistReader(unittest.TestCase):
         result = self.processor.find_bundle(search_dir)
         # Should return one of the bundles (order may vary based on glob)
         self.assertIsNotNone(result)
-        self.assertTrue(result.endswith("Contents/Info.plist"))
+        self.assertTrue(result.endswith(os.path.join("Contents", "Info.plist")))
 
     @unittest.skipUnless(sys.platform == "darwin", "App bundles are macOS-only")
     def test_find_bundle_ignores_symlinks_without_extensions(self):

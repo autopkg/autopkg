@@ -14,6 +14,7 @@
 
 import json
 import os
+import sys
 import tempfile
 import unittest
 from hashlib import md5, sha1, sha256
@@ -246,6 +247,9 @@ class TestURLDownloader(unittest.TestCase):
 
     # ETag functionality tests (works with both xattr and .info.json)
 
+    @unittest.skipUnless(
+        sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
+    )
     def test_produce_etag_headers_from_stored_metadata(self):
         """Test that produce_etag_headers reads from metadata storage (xattr or .info.json)."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
@@ -302,6 +306,9 @@ class TestURLDownloader(unittest.TestCase):
 
         self.assertEqual(headers, {})
 
+    @unittest.skipUnless(
+        sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
+    )
     def test_produce_etag_headers_partial_metadata(self):
         """Test produce_etag_headers with partial metadata (only ETag, no Last-Modified)."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")

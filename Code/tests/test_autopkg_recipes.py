@@ -2993,9 +2993,11 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_isdir.return_value = True
 
             def glob_side_effect(pattern):
-                if "/recipes/" in pattern:
+                # Handle both Unix and Windows path separators
+                pattern_normalized = pattern.replace("\\", "/")
+                if "/recipes/" in pattern_normalized:
                     return ["/recipes/TestApp.recipe"]
-                elif "/overrides/" in pattern:
+                elif "/overrides/" in pattern_normalized:
                     return ["/overrides/TestApp.recipe"]
                 return []
 

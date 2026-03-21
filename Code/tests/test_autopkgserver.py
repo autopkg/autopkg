@@ -18,33 +18,48 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Mock the imports before importing the module
-sys.modules["packager"] = MagicMock()
-sys.modules["launch2"] = MagicMock()
+# Only load the module on Darwin, otherwise create empty module
+if sys.platform == "darwin":
+    # Mock the imports before importing the module
+    sys.modules["packager"] = MagicMock()
+    sys.modules["launch2"] = MagicMock()
 
-# Load autopkgserver as a module by reading and executing it
-autopkgserver_path = Path(__file__).parent.parent / "autopkgserver" / "autopkgserver"
-with open(autopkgserver_path, "r", encoding="utf-8") as f:
-    autopkgserver_code = f.read()
+    # Load autopkgserver as a module by reading and executing it
+    autopkgserver_path = (
+        Path(__file__).parent.parent / "autopkgserver" / "autopkgserver"
+    )
+    with open(autopkgserver_path, "r", encoding="utf-8") as f:
+        autopkgserver_code = f.read()
 
-# Create a module
-autopkgserver = types.ModuleType("autopkgserver")
-autopkgserver.__file__ = str(autopkgserver_path)
-sys.modules["autopkgserver"] = autopkgserver
+    # Create a module
+    autopkgserver = types.ModuleType("autopkgserver")
+    autopkgserver.__file__ = str(autopkgserver_path)
+    sys.modules["autopkgserver"] = autopkgserver
 
-# Execute the code in the module's namespace
-exec(autopkgserver_code, autopkgserver.__dict__)
+    # Execute the code in the module's namespace
+    exec(autopkgserver_code, autopkgserver.__dict__)
 
-# Import what we need
-APPNAME = autopkgserver.APPNAME
-SOCKET = autopkgserver.SOCKET
-VERSION = autopkgserver.VERSION
-AutoPkgServer = autopkgserver.AutoPkgServer
-AutoPkgServerError = autopkgserver.AutoPkgServerError
-PkgHandler = autopkgserver.PkgHandler
-chown_structure = autopkgserver.chown_structure
-main = autopkgserver.main
-request_structure = autopkgserver.request_structure
+    # Import what we need
+    APPNAME = autopkgserver.APPNAME
+    SOCKET = autopkgserver.SOCKET
+    VERSION = autopkgserver.VERSION
+    AutoPkgServer = autopkgserver.AutoPkgServer
+    AutoPkgServerError = autopkgserver.AutoPkgServerError
+    PkgHandler = autopkgserver.PkgHandler
+    chown_structure = autopkgserver.chown_structure
+    main = autopkgserver.main
+    request_structure = autopkgserver.request_structure
+else:
+    # Create dummy objects for non-Darwin platforms
+    APPNAME = "autopkgserver"
+    SOCKET = "/tmp/autopkgserver"
+    VERSION = "0.0.0"
+    AutoPkgServer = MagicMock
+    AutoPkgServerError = Exception
+    PkgHandler = MagicMock
+    chown_structure = {}
+    main = MagicMock
+    request_structure = {}
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")

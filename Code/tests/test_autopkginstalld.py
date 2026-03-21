@@ -18,33 +18,43 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Mock the imports before importing the module
-sys.modules["installer"] = MagicMock()
-sys.modules["itemcopier"] = MagicMock()
-sys.modules["launch2"] = MagicMock()
+# Only load the module on Darwin, otherwise create empty module
+if sys.platform == "darwin":
+    # Mock the imports before importing the module
+    sys.modules["installer"] = MagicMock()
+    sys.modules["itemcopier"] = MagicMock()
+    sys.modules["launch2"] = MagicMock()
 
-# Load autopkginstalld as a module by reading and executing it
-autopkginstalld_path = (
-    Path(__file__).parent.parent / "autopkgserver" / "autopkginstalld"
-)
-with open(autopkginstalld_path, "r", encoding="utf-8") as f:
-    autopkginstalld_code = f.read()
+    # Load autopkginstalld as a module by reading and executing it
+    autopkginstalld_path = (
+        Path(__file__).parent.parent / "autopkgserver" / "autopkginstalld"
+    )
+    with open(autopkginstalld_path, "r", encoding="utf-8") as f:
+        autopkginstalld_code = f.read()
 
-# Create a module
-autopkginstalld = types.ModuleType("autopkginstalld")
-autopkginstalld.__file__ = str(autopkginstalld_path)
-sys.modules["autopkginstalld"] = autopkginstalld
+    # Create a module
+    autopkginstalld = types.ModuleType("autopkginstalld")
+    autopkginstalld.__file__ = str(autopkginstalld_path)
+    sys.modules["autopkginstalld"] = autopkginstalld
 
-# Execute the code in the module's namespace
-exec(autopkginstalld_code, autopkginstalld.__dict__)
+    # Execute the code in the module's namespace
+    exec(autopkginstalld_code, autopkginstalld.__dict__)
 
-# Import what we need
-APPNAME = autopkginstalld.APPNAME
-VERSION = autopkginstalld.VERSION
-AutoPkgInstallDaemon = autopkginstalld.AutoPkgInstallDaemon
-AutoPkgInstallDaemonError = autopkginstalld.AutoPkgInstallDaemonError
-RunHandler = autopkginstalld.RunHandler
-main = autopkginstalld.main
+    # Import what we need
+    APPNAME = autopkginstalld.APPNAME
+    VERSION = autopkginstalld.VERSION
+    AutoPkgInstallDaemon = autopkginstalld.AutoPkgInstallDaemon
+    AutoPkgInstallDaemonError = autopkginstalld.AutoPkgInstallDaemonError
+    RunHandler = autopkginstalld.RunHandler
+    main = autopkginstalld.main
+else:
+    # Create dummy objects for non-Darwin platforms
+    APPNAME = "autopkginstalld"
+    VERSION = "0.0.0"
+    AutoPkgInstallDaemon = MagicMock
+    AutoPkgInstallDaemonError = Exception
+    RunHandler = MagicMock
+    main = MagicMock
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")

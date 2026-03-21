@@ -18,12 +18,17 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
 
-# Load packager module directly from file to avoid mocking issues
-autopkgserver_path = Path(__file__).parent.parent / "autopkgserver" / "packager.py"
-spec = importlib.util.spec_from_file_location("packager", autopkgserver_path)
-packager_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(packager_module)
-Packager = packager_module.Packager
+# Only load the module on Darwin, otherwise create dummy
+if sys.platform == "darwin":
+    # Load packager module directly from file to avoid mocking issues
+    autopkgserver_path = Path(__file__).parent.parent / "autopkgserver" / "packager.py"
+    spec = importlib.util.spec_from_file_location("packager", autopkgserver_path)
+    packager_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(packager_module)
+    Packager = packager_module.Packager
+else:
+    # Create dummy Packager for non-Darwin platforms
+    Packager = MagicMock
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Uses Unix grp module")
