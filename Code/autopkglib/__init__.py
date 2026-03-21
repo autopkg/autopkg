@@ -591,7 +591,7 @@ class Processor:
         plist_safe = {}
 
         for env_key in self.env:
-            if not self.env[env_key] is None:
+            if self.env[env_key] is not None:
                 plist_safe[env_key] = self.env[env_key]
 
         try:
