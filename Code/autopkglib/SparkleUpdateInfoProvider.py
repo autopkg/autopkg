@@ -313,8 +313,7 @@ class SparkleUpdateInfoProvider(URLGetter):
                     pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
             for copied_key in pkginfo.keys():
                 self.output(
-                    f"Copied key {copied_key} from Sparkle feed to additional "
-                    "pkginfo."
+                    f"Copied key {copied_key} from Sparkle feed to additional pkginfo."
                 )
         return pkginfo
 

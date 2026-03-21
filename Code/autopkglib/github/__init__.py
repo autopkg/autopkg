@@ -189,7 +189,7 @@ To save the token, paste it to the following prompt.""")
 
         # Warn if token flag is used (no longer needed with cached index)
         if use_token:
-            log("WARNING: --use-token flag is deprecated and no longer " "needed.")
+            log("WARNING: --use-token flag is deprecated and no longer needed.")
 
         # Suppress unused parameter warning - kept for backward compatibility
         _ = results_limit
@@ -223,7 +223,7 @@ To save the token, paste it to the following prompt.""")
                     "full_name": full_repo,  # owner/repo
                 },
                 "html_url": (
-                    f"https://github.com/{full_repo}/blob/master/" f"{item['Path']}"
+                    f"https://github.com/{full_repo}/blob/master/{item['Path']}"
                 ),
             }
             results_items.append(result_item)

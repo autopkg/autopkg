@@ -226,7 +226,7 @@ class Packager:
             raise PackagerError("Version too long")
         components = self.request["version"].split(".")
         if len(components) < 1:
-            raise PackagerError(f"Invalid version \"{self.request['version']}\"")
+            raise PackagerError(f'Invalid version "{self.request["version"]}"')
         for comp in components:
             if not self.re_version.search(comp):
                 raise PackagerError(f'Invalid version component "{comp}"')

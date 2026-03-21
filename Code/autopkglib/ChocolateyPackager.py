@@ -111,8 +111,7 @@ class ChocolateyPackager(Processor):
         "icon": {
             "required": False,
             "description": (
-                "Not sure, but probably something to do with the icon of the "
-                "package."
+                "Not sure, but probably something to do with the icon of the package."
             ),
         },
         "license": {"required": False, "description": ("Licensing information.")},
@@ -165,7 +164,7 @@ class ChocolateyPackager(Processor):
         "installer_checksum_type": {
             "required": False,
             "description": (
-                "One of the valid checksum types: " f"{', '.join(CHOCO_CHECKSUM_TYPES)}"
+                f"One of the valid checksum types: {', '.join(CHOCO_CHECKSUM_TYPES)}"
             ),
             "default": "sha512",
         },

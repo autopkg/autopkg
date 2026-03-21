@@ -116,8 +116,7 @@ class MunkiImporter(Processor):
         "uninstaller_pkg_path": {
             "required": False,
             "description": (
-                "Path to an uninstaller pkg, supported for Adobe "
-                "installer_type items."
+                "Path to an uninstaller pkg, supported for Adobe installer_type items."
             ),
         },
         "MUNKI_PKGINFO_FILE_EXTENSION": {
@@ -143,8 +142,7 @@ class MunkiImporter(Processor):
         },
         "pkg_repo_path": {
             "description": (
-                "The repo path where the pkg was written. "
-                "Empty if item not imported."
+                "The repo path where the pkg was written. Empty if item not imported."
             )
         },
         "munki_info": {
@@ -305,8 +303,8 @@ class MunkiImporter(Processor):
         )
 
         self.output(f"Using repo lib: {library.__class__.__name__}")
-        self.output(f'        plugin: {self.env["MUNKI_REPO_PLUGIN"]}')
-        self.output(f'          repo: {self.env["MUNKI_REPO"]}')
+        self.output(f"        plugin: {self.env['MUNKI_REPO_PLUGIN']}")
+        self.output(f"          repo: {self.env['MUNKI_REPO']}")
 
         # clear any pre-existing summary result
         if "munki_importer_summary_result" in self.env:
@@ -377,7 +375,7 @@ class MunkiImporter(Processor):
         # if pkginfo has an installs item
         if "installs" in pkginfo and self.env.get("version_comparison_key"):
             for item in pkginfo["installs"]:
-                if not self.env["version_comparison_key"] in item:
+                if self.env["version_comparison_key"] not in item:
                     raise ProcessorError(
                         "version_comparison_key "
                         f"'{self.env['version_comparison_key']}' could not be "
@@ -504,10 +502,10 @@ class MunkiImporter(Processor):
             },
         }
 
-        self.output(f'Copied pkginfo to: {self.env["pkginfo_repo_path"]}')
-        self.output(f'           pkg to: {self.env["pkg_repo_path"]}')
+        self.output(f"Copied pkginfo to: {self.env['pkginfo_repo_path']}")
+        self.output(f"           pkg to: {self.env['pkg_repo_path']}")
         if self.env.get("extract_icon"):
-            self.output(f'          icon to: {self.env["icon_repo_path"]}')
+            self.output(f"          icon to: {self.env['icon_repo_path']}")
 
 
 if __name__ == "__main__":

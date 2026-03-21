@@ -55,15 +55,13 @@ class URLTextSearcher(URLGetter):
         "request_headers": {
             "required": False,
             "description": (
-                "Optional dictionary of headers to include with "
-                "the download request."
+                "Optional dictionary of headers to include with the download request."
             ),
         },
         "curl_opts": {
             "required": False,
             "description": (
-                "Optional array of curl options to include with "
-                "the download request."
+                "Optional array of curl options to include with the download request."
             ),
         },
         "re_flags": {

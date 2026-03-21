@@ -73,8 +73,7 @@ class GitHubReleasesInfoProvider(Processor):
         "curl_opts": {
             "required": False,
             "description": (
-                "Optional array of curl options to include with "
-                "the download request."
+                "Optional array of curl options to include with the download request."
             ),
         },
         "CURL_PATH": {
