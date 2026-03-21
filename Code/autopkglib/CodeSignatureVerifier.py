@@ -18,6 +18,7 @@
 import os.path
 import re
 import subprocess
+import sys
 from distutils.version import StrictVersion
 from glob import glob
 
@@ -110,6 +111,13 @@ class CodeSignatureVerifier(DmgMounter):
         Runs 'codesign --verify --verbose <path>'. Returns True if
         codesign exited with 0 and False otherwise.
         """
+        # Code signature verification is only supported on macOS
+        if sys.platform != "darwin":
+            raise ProcessorError(
+                "Code signature verification is only supported on macOS. "
+                "The 'codesign' utility is not available on this platform."
+            )
+
         if not codesign_additional_arguments:
             codesign_additional_arguments = []
 

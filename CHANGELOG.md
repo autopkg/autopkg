@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file. This projec
 - Updated filelock to 3.20.3
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
 - Replace deprecated imp module with importlib
+- CodeSignatureVerifier now returns a ProcessorError if executed on a platform other than macOS
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
