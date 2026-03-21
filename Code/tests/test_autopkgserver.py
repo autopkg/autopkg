@@ -47,6 +47,7 @@ main = autopkgserver.main
 request_structure = autopkgserver.request_structure
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestPkgHandler(unittest.TestCase):
     """Test class for PkgHandler."""
 
@@ -218,6 +219,7 @@ class TestPkgHandler(unittest.TestCase):
         self.assertEqual(errors, [])
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestAutoPkgServer(unittest.TestCase):
     """Test class for AutoPkgServer."""
 
@@ -285,6 +287,7 @@ class TestAutoPkgServer(unittest.TestCase):
         self.assertIn("Can't open log", str(ctx.exception))
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestMain(unittest.TestCase):
     """Test class for main function."""
 
@@ -299,6 +302,7 @@ class TestMain(unittest.TestCase):
         self.assertEqual(result, 1)
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestConstants(unittest.TestCase):
     """Test class for module constants."""
 

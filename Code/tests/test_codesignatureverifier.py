@@ -22,6 +22,7 @@ from autopkglib import ProcessorError
 from autopkglib.CodeSignatureVerifier import CodeSignatureVerifier
 
 
+@unittest.skipUnless(sys.platform == "darwin", "macOS codesign utility only")
 class TestCodeSignatureVerifier(unittest.TestCase):
     """Test cases for CodeSignatureVerifier processor."""
 

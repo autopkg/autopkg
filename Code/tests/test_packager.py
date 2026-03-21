@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -25,6 +26,7 @@ spec.loader.exec_module(packager_module)
 Packager = packager_module.Packager
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Uses Unix grp module")
 class TestPackager(unittest.TestCase):
     """Test class for Packager."""
 

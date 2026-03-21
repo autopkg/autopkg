@@ -47,6 +47,7 @@ RunHandler = autopkginstalld.RunHandler
 main = autopkginstalld.main
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestRunHandler(unittest.TestCase):
     """Test class for RunHandler."""
 
@@ -94,6 +95,7 @@ class TestRunHandler(unittest.TestCase):
         self.assertIn("Request does not contain package", errors[0])
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestAutoPkgInstallDaemon(unittest.TestCase):
     """Test class for AutoPkgInstallDaemon."""
 
@@ -161,6 +163,7 @@ class TestAutoPkgInstallDaemon(unittest.TestCase):
         self.assertIn("Can't open log", str(ctx.exception))
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestMain(unittest.TestCase):
     """Test class for main function."""
 
@@ -175,6 +178,7 @@ class TestMain(unittest.TestCase):
         self.assertEqual(result, 1)
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestConstants(unittest.TestCase):
     """Test class for module constants."""
 

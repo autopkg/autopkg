@@ -2,6 +2,7 @@
 
 import os
 import plistlib
+import sys
 import unittest
 from copy import deepcopy
 from tempfile import TemporaryDirectory
@@ -11,6 +12,7 @@ from autopkglib import ProcessorError
 from autopkglib.MunkiImporter import MunkiImporter
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Munki is macOS-only")
 class TestMunkiImporter(unittest.TestCase):
     """Test class for MunkiImporter Processor."""
 

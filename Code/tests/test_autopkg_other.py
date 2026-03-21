@@ -1890,6 +1890,7 @@ class TestAutoPkgOther(unittest.TestCase):
             mock_run_recipes.assert_called_once_with(argv)
             self.assertEqual(result, 0)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Uses os.getuid (Unix-only)")
     def test_main_root_warning_mac(self):
         """Test main() shows warning when running as root on macOS."""
         argv = ["autopkg", "version"]
@@ -1910,6 +1911,7 @@ class TestAutoPkgOther(unittest.TestCase):
             ]
             self.assertGreater(len(warning_calls), 0)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Uses os.getuid (Unix-only)")
     def test_main_no_root_warning_non_root(self):
         """Test main() doesn't show root warning when not running as root."""
         argv = ["autopkg", "version"]

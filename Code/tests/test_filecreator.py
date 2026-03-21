@@ -2,6 +2,7 @@
 
 import os
 import plistlib
+import sys
 import tempfile
 import unittest
 
@@ -41,6 +42,7 @@ class TestFileCreator(unittest.TestCase):
             content = f.read()
         self.assertEqual(content, "Hello world")
 
+    @unittest.skipUnless(sys.platform == "darwin", "Unix file permissions")
     def test_file_permissions(self):
         """Test that FileCreator sets file permissions correctly."""
         env_with_mode = self.good_env.copy()

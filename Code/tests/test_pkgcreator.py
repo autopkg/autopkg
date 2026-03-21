@@ -14,6 +14,7 @@
 
 import os.path
 import socket
+import sys
 import unittest
 from copy import deepcopy
 from tempfile import TemporaryDirectory
@@ -252,6 +253,7 @@ class TestPkgCreator(unittest.TestCase):
         self.assertFalse(result)
         mock_unlink.assert_called_with(pkg_path)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Uses AF_UNIX sockets")
     @patch("socket.socket")
     def test_connect_success(self, mock_socket):
         """Test successful connection to autopkgserver."""
@@ -263,6 +265,7 @@ class TestPkgCreator(unittest.TestCase):
         mock_socket.assert_called_with(socket.AF_UNIX, socket.SOCK_STREAM)
         mock_sock.connect.assert_called_once()
 
+    @unittest.skipUnless(sys.platform == "darwin", "Uses AF_UNIX sockets")
     @patch("socket.socket")
     def test_connect_failure(self, mock_socket):
         """Test connection failure to autopkgserver."""

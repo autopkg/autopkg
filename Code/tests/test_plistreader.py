@@ -14,6 +14,7 @@
 
 import os
 import plistlib
+import sys
 import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -290,6 +291,7 @@ class TestPlistReader(unittest.TestCase):
         self.assertIn("No bundle found in dmg", str(context.exception))
 
     # Test bundle detection methods
+    @unittest.skipUnless(sys.platform == "darwin", "App bundles are macOS-only")
     def test_get_bundle_info_path_valid_bundle(self):
         """Test get_bundle_info_path with valid bundle."""
         bundle_path, info_plist_path = self._create_bundle()
@@ -328,6 +330,7 @@ class TestPlistReader(unittest.TestCase):
 
         self.assertIn("cannot be parsed", str(context.exception))
 
+    @unittest.skipUnless(sys.platform == "darwin", "App bundles are macOS-only")
     def test_find_bundle_single_bundle(self):
         """Test find_bundle with a single bundle in directory."""
         search_dir = os.path.join(self.tmp_dir.name, "search")
@@ -363,6 +366,7 @@ class TestPlistReader(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertTrue(result.endswith("Contents/Info.plist"))
 
+    @unittest.skipUnless(sys.platform == "darwin", "App bundles are macOS-only")
     def test_find_bundle_ignores_symlinks_without_extensions(self):
         """Test find_bundle ignores symlinks without extensions."""
         search_dir = os.path.join(self.tmp_dir.name, "search")
@@ -386,6 +390,7 @@ class TestPlistReader(unittest.TestCase):
         result = self.processor.find_bundle(search_dir)
         self.assertEqual(result, info_plist_path)
 
+    @unittest.skipUnless(sys.platform == "darwin", "App bundles are macOS-only")
     def test_find_bundle_allows_symlinks_with_extensions(self):
         """Test find_bundle allows symlinks with extensions."""
         search_dir = os.path.join(self.tmp_dir.name, "search")
