@@ -21,6 +21,8 @@ from autopkglib import ProcessorError
 from autopkglib.MunkiInstallsItemsCreator import MunkiInstallsItemsCreator
 
 try:
+    from Foundation import NSDictionary  # noqa: F401
+
     HAS_FOUNDATION = True
 except ImportError:
     HAS_FOUNDATION = False
@@ -318,8 +320,6 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
     @unittest.skipUnless(HAS_FOUNDATION, "Foundation not available")
     def test_version_comparison_key_dict(self):
         """Test setting version_comparison_key as dictionary for specific paths."""
-        from Foundation import NSDictionary
-
         version_keys = NSDictionary.dictionaryWithDictionary_(
             {"/Applications/TestApp.app": "CFBundleShortVersionString"}
         )
@@ -357,8 +357,6 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
     @unittest.skipUnless(HAS_FOUNDATION, "Foundation not available")
     def test_version_comparison_key_dict_no_match(self):
         """Test version_comparison_key dictionary with no matching path."""
-        from Foundation import NSDictionary
-
         version_keys = NSDictionary.dictionaryWithDictionary_(
             {"/Applications/OtherApp.app": "CFBundleVersion"}
         )
