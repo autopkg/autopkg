@@ -1,10 +1,11 @@
 name: Linting
 
 on:
-  pull_request_target:
-    types: [opened, reopened]
-  push:
-    branches: [main, master, dev]
+  # Temporarily disabled; using pre-commit.ci instead
+  # pull_request_target:
+  #   types: [opened, reopened]
+  # push:
+  #   branches: [main, master, dev]
   workflow_dispatch:
 
 jobs:
