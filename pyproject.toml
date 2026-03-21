@@ -1,0 +1,30 @@
+[tool.ruff]
+line-length = 88
+exclude = [
+    ".git",
+    ".hg",
+    "Code/nupkg/generated/*",
+]
+
+[tool.ruff.lint]
+select = ["B", "C90", "E", "F", "W"]
+ignore = [
+    "B904",  # Allow raising exceptions without `from` clause
+    "E402",  # module level import not at top of file
+    "E501",  # line too long (handled by formatter and B950)
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 65
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B017", "B018"]
+"Code/tests/*" = ["B017", "B018"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.ruff.lint.isort]
+known-third-party = ["appdirs", "certifi", "xattr"]
