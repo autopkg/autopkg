@@ -47,7 +47,7 @@ def handle_cache_error(cache_path: str, reason: str) -> None:
 
     # Try raw URL only if we don't have etag (never got metadata from API)
     if not os.path.isfile(cache_path + ".etag"):
-        log("GitHub API unavailable, attempting download from raw URL...")
+        log("GitHub API call failed, attempting download from raw URL...")
         raw_url = (
             f"https://raw.githubusercontent.com/autopkg/index/"
             f"{SEARCH_INDEX_BRANCH}/{SEARCH_INDEX_PATH}"
@@ -103,6 +103,11 @@ def check_search_cache(cache_path: str) -> None:
         cache_meta = json.loads(stdout)
     except json.JSONDecodeError:
         handle_cache_error(cache_path, "Invalid response from GitHub API")
+        return
+
+    status = int(cache_meta.get("status", "0"))
+    if status >= 400:
+        handle_cache_error(cache_path, cache_meta.get("message", f"Error {status}"))
         return
 
     # Warn if search index file is approaching 100 MB

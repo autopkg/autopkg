@@ -4,8 +4,9 @@ All notable changes to this project will be documented in this file. This projec
 
 ## [2.9.1](https://github.com/autopkg/autopkg/compare/v2.9.0...HEAD) (Unreleased)
 
-- Updated virtualenv to 20.36.1.
-- Updated filelock to 3.20.3.
+- Updated virtualenv to 20.36.1
+- Updated filelock to 3.20.3
+- Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
