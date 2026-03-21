@@ -172,12 +172,12 @@ class TestVersioner(unittest.TestCase):
             result: dict[str, Any] = self.processor.process()
             mock_zip.assert_not_called()
             mock_exists.assert_called_once_with(
-                os.path.normpath(os.path.join(mount_path, "dir/version.plist"))
+                os.path.normpath(os.path.join(mount_path, "dir", "version.plist"))
             )
             mock_mount.assert_called_once_with(dmg_path)
             mock_unmount.assert_called_once_with(dmg_path)
             mock_plist.assert_called_once_with(
-                os.path.normpath(os.path.join(mount_path, "dir/version.plist")), "rb"
+                os.path.normpath(os.path.join(mount_path, "dir", "version.plist")), "rb"
             )
             self.assertIn("version", result)
             self.assertEqual(TEST_VERSION_DEFAULT, result["version"])
