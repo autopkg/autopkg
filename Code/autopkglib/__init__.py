@@ -17,8 +17,8 @@
 """Core/shared autopkglib functions"""
 
 import glob
-import imp
 import importlib.resources
+import importlib.util
 import json
 import os
 import plistlib
@@ -1109,7 +1109,11 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             if os.path.exists(processor_filename):
                 try:
                     # attempt to import the module
-                    _tmp = imp.load_source(processor_name, processor_filename)
+                    spec = importlib.util.spec_from_file_location(
+                        processor_name, processor_filename
+                    )
+                    _tmp = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(_tmp)
                     # look for an attribute with the step Processor name
                     _processor = getattr(_tmp, processor_name)
                     # add the processor to autopkglib's namespace
