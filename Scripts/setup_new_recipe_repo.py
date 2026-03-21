@@ -167,8 +167,7 @@ def main():
 
     if len(args) == 0:
         sys.exit(
-            "You must provide a repo in the form of 'user/repo' as the "
-            "only argument!"
+            "You must provide a repo in the form of 'user/repo' as the only argument!"
         )
     if opts.permission_level not in permission_levels:
         sys.exit(
@@ -274,8 +273,7 @@ Type 'yes' to proceed: """
     _, code = call_api(remove_member_endpoint, method="DELETE")
     if code != 204:
         print(
-            "WARNING: Unexpected HTTP result on removing "
-            f"{auth_user} from new team.",
+            f"WARNING: Unexpected HTTP result on removing {auth_user} from new team.",
             file=sys.stderr,
         )
 

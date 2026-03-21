@@ -528,8 +528,7 @@ def run_git(git_options_and_arguments, git_directory=None):
         cmd_out, cmd_err = proc.communicate()
     except OSError as err:
         raise GitError from OSError(
-            f"ERROR: git execution failed with error code {err.errno}: "
-            f"{err.strerror}"
+            f"ERROR: git execution failed with error code {err.errno}: {err.strerror}"
         )
     if proc.returncode != 0:
         raise GitError(f"ERROR: {cmd_err}")
@@ -678,8 +677,7 @@ def add_search_and_override_dir_options(parser):
         action="append",
         default=[],
         help=(
-            "Directory to search for recipe overrides. Can be "
-            "specified multiple times."
+            "Directory to search for recipe overrides. Can be specified multiple times."
         ),
     )
 
@@ -2004,8 +2002,7 @@ def run_recipes(argv):  # noqa: C901
     parser = gen_common_parser()
     if verb == "install":
         parser.set_usage(
-            f"Usage: %prog {verb} [options] [itemname ...]\n"
-            "Install one or more items."
+            f"Usage: %prog {verb} [options] [itemname ...]\nInstall one or more items."
         )
     else:
         parser.set_usage(
@@ -2073,8 +2070,7 @@ def run_recipes(argv):  # noqa: C901
         "--pkg",
         metavar="PKG_OR_DMG",
         help=(
-            "Path to a pkg or dmg to provide to a recipe. "
-            "Downloading will be skipped."
+            "Path to a pkg or dmg to provide to a recipe. Downloading will be skipped."
         ),
     )
     parser.add_option(
