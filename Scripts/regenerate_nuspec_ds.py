@@ -21,20 +21,19 @@ and creates a wrapper library using the `generateDS` utility.
 import os
 import sys
 
-# isort: off
 # Ensure that we can find autopkglib no matter where we run this.
 AUTOPKG_TOP: str = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "Code")
 )
 sys.path.insert(0, AUTOPKG_TOP)
-# isort: on
 
-import ssl
-import subprocess
-from argparse import ArgumentParser
-from urllib.request import urlopen
+# These imports must come after sys.path modification
+import ssl  # noqa: E402
+import subprocess  # noqa: E402
+from argparse import ArgumentParser  # noqa: E402
+from urllib.request import urlopen  # noqa: E402
 
-from autopkglib import find_binary
+from autopkglib import find_binary  # noqa: E402
 
 SCHEMA_SOURCE_URL: str = (
     "https://raw.githubusercontent.com/NuGet/NuGet.Client"
