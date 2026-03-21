@@ -220,7 +220,6 @@ class TestPlistReader(unittest.TestCase):
             with patch.object(self.processor, "mount") as mock_mount:
                 with patch.object(self.processor, "unmount") as mock_unmount:
                     with patch("os.path.exists") as mock_exists:
-
                         # Setup mocks to trigger an exception
                         mock_parse.return_value = (dmg_path, True, internal_path)
                         mock_mount.return_value = mount_point

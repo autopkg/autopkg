@@ -431,7 +431,6 @@ class TestSparkleUpdateInfoProvider(unittest.TestCase):
             with patch.object(
                 self.processor, "download_with_curl", return_value=b"content"
             ) as mock_download:
-
                 result = self.processor.fetch_content("https://example.com")
 
                 self.assertEqual(result, b"content")

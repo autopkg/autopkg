@@ -1041,7 +1041,7 @@ class TestProcessorBase(unittest.TestCase):
                 "Violations:\n"
             )
             for v in violations:
-                error_msg += f"  {v['file']}: {v['processor']}.{v['variable']} = \"{v['default']}\"\n"
+                error_msg += f'  {v["file"]}: {v["processor"]}.{v["variable"]} = "{v["default"]}"\n'
             self.fail(error_msg)
 
 

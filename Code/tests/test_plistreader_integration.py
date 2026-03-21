@@ -59,7 +59,6 @@ class TestDMGPlistIntegration(unittest.TestCase):
                         self.processor, "get_bundle_info_path"
                     ) as mock_bundle:
                         with patch.object(self.processor, "output"):
-
                             # Setup mocks for DMG operations
                             mock_parse.return_value = (dmg_path, True, internal_path)
                             mock_mount.return_value = mount_point
@@ -102,7 +101,6 @@ class TestDMGPlistIntegration(unittest.TestCase):
                     self.processor, "unmount", side_effect=mock_unmount_side_effect
                 ) as mock_unmount:
                     with patch.object(self.processor, "output"):
-
                         mock_parse.return_value = (dmg_path, True, "TestApp.app")
 
                         # This should raise an exception but still call unmount for cleanup
