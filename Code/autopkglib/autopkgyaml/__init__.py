@@ -15,6 +15,27 @@
 # limitations under the License.
 """Helper to deal with YAML serialization"""
 
+import yaml
+
+
+class AutoPkgYAMLLoader(yaml.FullLoader):
+    """YAML loader that treats floats as strings.
+
+    Float-looking values like MinimumVersion: 2.3 or VERSION: 1.0 should
+    always be strings in AutoPkg recipes, matching the behavior of plist
+    recipes. Integers are left as-is since processors such as VersionSplitter
+    use bare integer arguments (e.g. index: 1) that require a native int type.
+    """
+
+    pass
+
+
+# Strip the float implicit resolver so float-looking scalars load as strings
+AutoPkgYAMLLoader.yaml_implicit_resolvers = {
+    k: [(tag, regexp) for tag, regexp in v if tag != "tag:yaml.org,2002:float"]
+    for k, v in yaml.FullLoader.yaml_implicit_resolvers.copy().items()
+}
+
 
 def autopkg_str_representer(dumper, data):
     """Makes every multiline string a block literal"""

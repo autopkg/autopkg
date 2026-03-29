@@ -33,6 +33,7 @@ from typing import IO, Any, Union
 
 import appdirs
 import yaml
+from autopkglib.autopkgyaml import AutoPkgYAMLLoader
 
 # Type for methods that accept either a filesystem path or a file-like object.
 FileOrPath = Union[IO, str, bytes, int]
@@ -343,7 +344,7 @@ def recipe_from_file(filename) -> VarDict | None:
         try:
             # try to read it as yaml
             with open(filename, "rb") as f:
-                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+                recipe_dict = yaml.load(f, Loader=AutoPkgYAMLLoader)
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")

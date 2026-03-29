@@ -17,6 +17,7 @@ import importlib.util
 import os
 import plistlib
 import sys
+import textwrap
 import unittest
 import unittest.mock
 from io import StringIO
@@ -3560,6 +3561,52 @@ class TestAutoPkgRecipes(unittest.TestCase):
                         recipe = args[0]
                         self.assertEqual(recipe["Input"]["NAME"], expected_name)
                         self.assertEqual(recipe["Identifier"], f"local.{expected_name}")
+
+
+class TestYAMLFloatProtection(unittest.TestCase):
+    """Test that YAML recipes load float-looking values as strings."""
+
+    def test_yaml_floats_loaded_as_strings(self):
+        """Unquoted floats in YAML recipes should be loaded as strings."""
+        import tempfile
+
+        from autopkglib import recipe_from_file
+
+        yaml_content = textwrap.dedent("""\
+            Description: Test float protection
+            Identifier: com.test.floatprotection
+            MinimumVersion: 2.3
+            Input:
+              NAME: TestApp
+              VERSION: 1.0
+              BUILD: 42
+              COMPLEX_VERSION: 10.10
+            Process:
+              - Processor: FileCreator
+                Arguments:
+                  file_path: test.txt
+                  index: 1
+        """)
+        with tempfile.NamedTemporaryFile(
+            suffix=".recipe.yaml", mode="w", delete=False
+        ) as f:
+            f.write(yaml_content)
+            f.flush()
+            recipe = recipe_from_file(f.name)
+
+        try:
+            # Float-looking values must load as strings
+            self.assertIsInstance(recipe["MinimumVersion"], str)
+            self.assertEqual(recipe["MinimumVersion"], "2.3")
+            self.assertIsInstance(recipe["Input"]["VERSION"], str)
+            self.assertEqual(recipe["Input"]["VERSION"], "1.0")
+            self.assertIsInstance(recipe["Input"]["COMPLEX_VERSION"], str)
+            self.assertEqual(recipe["Input"]["COMPLEX_VERSION"], "10.10")
+            # Bare integers must remain as int (processors like VersionSplitter require this)
+            self.assertIsInstance(recipe["Input"]["BUILD"], int)
+            self.assertIsInstance(recipe["Process"][0]["Arguments"]["index"], int)
+        finally:
+            os.unlink(f.name)
 
 
 if __name__ == "__main__":
