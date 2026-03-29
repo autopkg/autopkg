@@ -3580,8 +3580,7 @@ class TestYAMLFloatProtection(unittest.TestCase):
 
         from autopkglib import recipe_from_file
 
-        yaml_content = textwrap.dedent(
-            """\
+        yaml_content = textwrap.dedent("""\
             Description: Test float protection
             Identifier: com.test.floatprotection
             MinimumVersion: 2.3
@@ -3595,8 +3594,7 @@ class TestYAMLFloatProtection(unittest.TestCase):
                 Arguments:
                   file_path: test.txt
                   index: 1
-        """
-        )
+        """)
         with tempfile.NamedTemporaryFile(
             suffix=".recipe.yaml", mode="w", delete=False
         ) as f:
