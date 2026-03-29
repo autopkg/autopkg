@@ -33,6 +33,7 @@ from typing import IO, Any, Union
 
 import appdirs
 import yaml
+from autopkglib.autopkgyaml import AutoPkgYAMLLoader
 
 # Type for methods that accept either a filesystem path or a file-like object.
 FileOrPath = Union[IO, str, bytes, int]
@@ -386,21 +387,20 @@ def remove_recipe_extension(name) -> str:
 def recipe_from_file(filename) -> VarDict | None:
     """Create a recipe dictionary from a file. Handle exceptions and log.
 
-    YAML recipes are parsed with ``yaml.safe_load`` (not ``FullLoader``).
-    Recipe documents are always plain mappings of primitives, so the safe
-    loader is sufficient for every legitimate recipe in the ecosystem.
-    This is a deliberate defence against arbitrary-code-execution via
-    crafted YAML tags (CVE-2020-14343-class issues) — doubly important
-    now that the recipe map backport causes every ``.recipe.yaml`` in
-    ``RECIPE_SEARCH_DIRS`` to be parsed during every map build and
-    lookup, not just when the user explicitly invokes the recipe."""
+    YAML recipes are parsed with ``AutoPkgYAMLLoader`` (based on
+    ``SafeLoader``). This prevents arbitrary-code-execution via crafted YAML
+    tags (CVE-2020-14343-class issues) — doubly important now that the recipe
+    map backport causes every ``.recipe.yaml`` in ``RECIPE_SEARCH_DIRS`` to be
+    parsed during every map build and lookup, not just when the user explicitly
+    invokes the recipe. Float-looking scalars (e.g. ``VERSION: 1.0``) are
+    loaded as strings to match plist recipe behavior."""
     if not os.path.isfile(filename):
         return
 
     if filename.endswith(".yaml"):
         try:
             with open(filename, "rb") as f:
-                recipe_dict = yaml.safe_load(f)
+                recipe_dict = yaml.load(f, Loader=AutoPkgYAMLLoader)
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")
