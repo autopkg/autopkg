@@ -1855,16 +1855,22 @@ def make_override(argv):
     parser.add_option(
         "--format",
         action="store",
-        default="plist",
+        default=None,
         help=(
             "The format of the recipe override to be created. "
-            "Valid options include: 'plist' (default) or 'yaml'"
+            "Valid options include: 'plist' (default) or 'yaml'. "
+            "Can also be set globally via the 'RECIPE_OVERRIDE_FORMAT' preference."
         ),
     )
     options, arguments = common_parse(parser, argv)
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
+
+    # Resolve format: CLI arg > preference > default
+    override_format = (
+        options.format or get_pref("RECIPE_OVERRIDE_FORMAT") or "plist"
+    ).lower()
 
     if len(arguments) != 1:
         log_err("Need exactly one recipe to override!")
@@ -1948,7 +1954,7 @@ def make_override(argv):
             return -1
 
     # set file path for override
-    if options.format == "yaml":
+    if override_format == "yaml":
         override_file = os.path.join(override_dir, f"{override_name}.recipe.yaml")
     else:
         override_file = os.path.join(override_dir, f"{override_name}.recipe")
@@ -1965,7 +1971,7 @@ def make_override(argv):
         os.unlink(override_file)
 
     # write override to file
-    if options.format == "yaml":
+    if override_format == "yaml":
         with open(override_file, "wb") as f:
             yaml.dump(override_dict, f, Dumper=AutoPkgDumper, encoding="utf-8")
     else:
