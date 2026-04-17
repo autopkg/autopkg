@@ -1975,7 +1975,8 @@ def make_override(argv):
 
 def parse_recipe_list(filename):
     """Parses a recipe list. This can be either a simple list of recipes to run,
-    or a plist containing recipes and other key/value pairs"""
+    a plist containing recipes and other key/value pairs, or a YAML file with
+    a 'recipes' key listing recipe identifiers."""
     recipe_list = {}
     try:
         with open(filename, "rb") as f:
@@ -1985,13 +1986,24 @@ def parse_recipe_list(filename):
             pass
         return plist
     except Exception:
-        # file does not appear to be a plist containing a dictionary;
-        # read it as a plaintext list of recipes
-        with open(filename) as file_desc:
-            data = file_desc.read()
-        recipe_list["recipes"] = [
-            line for line in data.splitlines() if line and not line.startswith("#")
-        ]
+        pass
+
+    # Try YAML format
+    if filename.endswith((".yaml", ".yml")):
+        try:
+            with open(filename) as f:
+                data = yaml.safe_load(f)
+            if isinstance(data, dict) and "recipes" in data:
+                return data
+        except Exception:
+            pass
+
+    # Fall back to plaintext list of recipes
+    with open(filename) as file_desc:
+        data = file_desc.read()
+    recipe_list["recipes"] = [
+        line for line in data.splitlines() if line and not line.startswith("#")
+    ]
     return recipe_list
 
 

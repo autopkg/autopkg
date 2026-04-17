@@ -22,6 +22,7 @@ import subprocess
 import tempfile
 
 from autopkglib import Processor, ProcessorError
+from autopkglib.autopkgyaml import parse_munki_data, save_munki_file
 
 __all__ = ["MunkiInfoCreator"]
 
@@ -99,8 +100,8 @@ class MunkiInfoCreator(Processor):
             if temp_path is not None:
                 shutil.rmtree(temp_path)
 
-        # Read output plist.
-        output = plistlib.loads(stdout)
+        # Read output (plist or YAML depending on Munki configuration).
+        output = parse_munki_data(stdout)
 
         # Set version and name.
         if "version" in self.env:
@@ -111,8 +112,7 @@ class MunkiInfoCreator(Processor):
         # Save info.
         self.env["munki_info"] = output
         if "info_path" in self.env:
-            with open(self.env["info_path"], "wb") as f:
-                plistlib.dump(output, f)
+            save_munki_file(output, self.env["info_path"])
 
 
 if __name__ == "__main__":

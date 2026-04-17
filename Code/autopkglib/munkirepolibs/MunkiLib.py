@@ -48,7 +48,7 @@ class MunkiLib:
     # includes '/pkgsinfo' in uploaded path
     def copy_pkginfo_to_repo(self, pkginfo, file_extension="plist") -> str:
         uploaded_path = self.munkiimportlib.copy_pkginfo_to_repo(
-            self.repo, pkginfo, self.repo_subdirectory
+            self.repo, pkginfo, self.repo_subdirectory, file_extension=file_extension
         )
 
         return self._full_path(uploaded_path)
