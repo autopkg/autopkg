@@ -30,7 +30,6 @@ from datetime import datetime
 
 import yaml
 
-
 # ---------------------------------------------------------------------------
 # Loader: strip the float implicit resolver so version-like scalars
 # (e.g. `version: 10.10`, `MinimumVersion: 2.3`) are parsed as strings
@@ -211,16 +210,19 @@ def _normalize_yaml_types(data, parent_key=None):
 
 class _LiteralStr(str):
     """Marker for strings that should use yaml literal block style (|)."""
+
     pass
 
 
 class _FoldedStr(str):
     """Marker for strings that should use yaml folded block style (>)."""
+
     pass
 
 
 class _QuotedStr(str):
     """Marker for strings that must be quoted (version numbers etc)."""
+
     pass
 
 
@@ -329,6 +331,7 @@ def _prepare_list(parent_key, lst):
 
 class MunkiPkginfoDumper(yaml.SafeDumper):
     """yaml dumper configured for Munki pkginfo output."""
+
     pass
 
 

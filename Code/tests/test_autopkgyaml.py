@@ -25,18 +25,18 @@ from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from autopkglib.autopkgyaml import (
+    _INSTALLS_HEAD_KEYS,
+    _PKGINFO_HEAD_KEYS,
+    _RECEIPT_HEAD_KEYS,
     STRING_KEYS,
     _clean_float_to_str,
     _normalize_yaml_types,
     _sorted_keys,
-    _PKGINFO_HEAD_KEYS,
-    _RECEIPT_HEAD_KEYS,
-    _INSTALLS_HEAD_KEYS,
     detect_munki_format,
     dump_pkginfo_yaml,
     dumps_pkginfo_yaml,
-    is_yaml_path,
     is_plist_path,
+    is_yaml_path,
     load_munki_file,
     load_pkginfo_yaml,
     loads_pkginfo_yaml,
@@ -97,11 +97,7 @@ class TestVersionStringQuoting(unittest.TestCase):
         can recover the trailing zero."""
         # Note: deliberately UNQUOTED in the source yaml to exercise the
         # loader-level fix. Quoted '10.10' would be safe even without it.
-        yaml_input = (
-            "name: TestApp\n"
-            "version: 10.10\n"
-            "minimum_os_version: 10.10\n"
-        )
+        yaml_input = "name: TestApp\n" "version: 10.10\n" "minimum_os_version: 10.10\n"
         loaded = loads_pkginfo_yaml(yaml_input)
         self.assertIsInstance(loaded["version"], str)
         self.assertEqual(loaded["version"], "10.10")
@@ -341,9 +337,7 @@ class TestFileRoundTrip(unittest.TestCase):
     }
 
     def test_yaml_roundtrip(self):
-        with tempfile.NamedTemporaryFile(
-            suffix=".yaml", delete=False, mode="w"
-        ) as f:
+        with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False, mode="w") as f:
             path = f.name
         try:
             save_munki_file(self.SAMPLE_PKGINFO, path)
@@ -361,9 +355,7 @@ class TestFileRoundTrip(unittest.TestCase):
             os.unlink(path)
 
     def test_plist_roundtrip(self):
-        with tempfile.NamedTemporaryFile(
-            suffix=".plist", delete=False, mode="wb"
-        ) as f:
+        with tempfile.NamedTemporaryFile(suffix=".plist", delete=False, mode="wb") as f:
             path = f.name
         try:
             save_munki_file(self.SAMPLE_PKGINFO, path)
@@ -454,9 +446,7 @@ class TestAutoPkgLibYamlCatalog(unittest.TestCase):
             # Munki writes yaml catalogs at the same extensionless path as
             # plist catalogs (see munki/munki#1261). Format is detected by
             # content inspection on read.
-            with open(
-                os.path.join(catalogs_path, "all"), "w", encoding="utf-8"
-            ) as f:
+            with open(os.path.join(catalogs_path, "all"), "w", encoding="utf-8") as f:
                 yaml.dump(catalog, f)
 
             from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib

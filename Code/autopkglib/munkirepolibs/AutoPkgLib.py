@@ -3,11 +3,7 @@ import plistlib
 import shutil
 
 from autopkglib import ProcessorError
-from autopkglib.autopkgyaml import (
-    dump_pkginfo_yaml,
-    is_yaml_path,
-    load_munki_file,
-)
+from autopkglib.autopkgyaml import dump_pkginfo_yaml, is_yaml_path, load_munki_file
 
 
 class AutoPkgLib:
