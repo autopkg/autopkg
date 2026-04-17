@@ -3,6 +3,11 @@ import plistlib
 import shutil
 
 from autopkglib import ProcessorError
+from autopkglib.autopkgyaml import (
+    dump_pkginfo_yaml,
+    is_yaml_path,
+    load_munki_file,
+)
 
 
 class AutoPkgLib:
@@ -12,7 +17,10 @@ class AutoPkgLib:
 
     def make_catalog_db(self) -> dict:
         """Reads the 'all' catalog and returns a dict we can use like a
-        database"""
+        database.  Supports both plist and YAML catalog formats; format
+        is detected by content inspection, since Munki writes catalogs at
+        the same extensionless path regardless of underlying format
+        (matches munki/munki#1261)."""
 
         all_items_path = os.path.join(self.munki_repo, "catalogs", "all")
         if not os.path.exists(all_items_path):
@@ -20,9 +28,8 @@ class AutoPkgLib:
             catalogitems = []
         else:
             try:
-                with open(all_items_path, "rb") as f:
-                    catalogitems = plistlib.load(f)
-            except OSError as err:
+                catalogitems = load_munki_file(all_items_path)
+            except Exception as err:
                 raise ProcessorError(
                     f"Error reading 'all' catalog from Munki repo: {err}"
                 )
@@ -208,8 +215,12 @@ class AutoPkgLib:
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
         try:
-            with open(pkginfo_path, "wb") as f:
-                plistlib.dump(pkginfo, f)
+            if is_yaml_path(pkginfo_path):
+                with open(pkginfo_path, "w", encoding="utf-8") as f:
+                    dump_pkginfo_yaml(pkginfo, f)
+            else:
+                with open(pkginfo_path, "wb") as f:
+                    plistlib.dump(pkginfo, f)
         except OSError as err:
             raise ProcessorError(
                 f"Could not write pkginfo {pkginfo_path}: {err.strerror}"

@@ -242,6 +242,75 @@ TestApp2.recipe
         finally:
             os.unlink(temp_file)
 
+    def test_parse_recipe_list_yaml_format(self):
+        """Test parse_recipe_list with yaml format."""
+        recipe_list_yaml = """# AutoPkg Recipe List
+recipes:
+  - local.munki.Chrome
+  - local.munki.Firefox
+  - local.munki.MicrosoftEdge
+"""
+
+        with NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(recipe_list_yaml)
+            temp_file = f.name
+
+        try:
+            result = autopkg.parse_recipe_list(temp_file)
+            expected_recipes = [
+                "local.munki.Chrome",
+                "local.munki.Firefox",
+                "local.munki.MicrosoftEdge",
+            ]
+            self.assertEqual(result["recipes"], expected_recipes)
+        finally:
+            os.unlink(temp_file)
+
+    def test_parse_recipe_list_yaml_with_metadata(self):
+        """Test parse_recipe_list with yaml format including extra keys."""
+        recipe_list_yaml = """recipes:
+  - local.munki.Chrome
+  - local.munki.Firefox
+preprocessors:
+  - io.github.hjuutilainen.recipes.Recipe Robot
+postprocessors:
+  - com.github.autopkg.postprocessors.Summary
+CUSTOM_VAR: custom_value
+"""
+
+        with NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(recipe_list_yaml)
+            temp_file = f.name
+
+        try:
+            result = autopkg.parse_recipe_list(temp_file)
+            self.assertEqual(
+                result["recipes"], ["local.munki.Chrome", "local.munki.Firefox"]
+            )
+            self.assertEqual(
+                result["preprocessors"],
+                ["io.github.hjuutilainen.recipes.Recipe Robot"],
+            )
+            self.assertEqual(result["CUSTOM_VAR"], "custom_value")
+        finally:
+            os.unlink(temp_file)
+
+    def test_parse_recipe_list_yml_extension(self):
+        """Test parse_recipe_list recognizes .yml extension."""
+        recipe_list_yaml = """recipes:
+  - local.munki.Chrome
+"""
+
+        with NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+            f.write(recipe_list_yaml)
+            temp_file = f.name
+
+        try:
+            result = autopkg.parse_recipe_list(temp_file)
+            self.assertEqual(result["recipes"], ["local.munki.Chrome"])
+        finally:
+            os.unlink(temp_file)
+
     def test_run_recipes_failure_includes_recipe_id(self):
         """Test that recipe failures include recipe_id in the failures array when recipe has an Identifier."""
         with NamedTemporaryFile(suffix=".plist") as report_file:

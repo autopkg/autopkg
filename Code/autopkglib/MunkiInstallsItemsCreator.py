@@ -19,6 +19,7 @@ import plistlib
 import subprocess
 
 from autopkglib import APLooseVersion, Processor, ProcessorError, log_err
+from autopkglib.autopkgyaml import parse_munki_data
 
 try:
     from Foundation import NSDictionary
@@ -94,8 +95,8 @@ class MunkiInstallsItemsCreator(Processor):
         if proc.returncode != 0:
             raise ProcessorError(f"creating pkginfo failed: {err.decode()}")
 
-        # Get pkginfo from output plist.
-        pkginfo = plistlib.loads(out)
+        # Get pkginfo from output (plist or YAML).
+        pkginfo = parse_munki_data(out)
         installs_array = pkginfo.get("installs", [])
 
         if faux_root:

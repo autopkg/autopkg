@@ -18,6 +18,7 @@
 import plistlib
 
 from autopkglib import Processor, ProcessorError
+from autopkglib.autopkgyaml import load_munki_file, save_munki_file
 
 __all__ = ["MunkiOptionalReceiptEditor"]
 
@@ -44,8 +45,7 @@ class MunkiOptionalReceiptEditor(Processor):
             self.output("No pkginfo_repo_path specified, skipping")
             return
 
-        with open(self.env["pkginfo_repo_path"], "rb") as f:
-            pkginfo = plistlib.load(f)
+        pkginfo = load_munki_file(self.env["pkginfo_repo_path"])
 
         receipts_modified = []
         if "receipts" in pkginfo.keys():
@@ -62,8 +62,7 @@ class MunkiOptionalReceiptEditor(Processor):
 
         if len(receipts_modified) > 0:
             self.output(f"Writing pkginfo to {self.env['pkginfo_repo_path']}")
-            with open(self.env["pkginfo_repo_path"], "wb") as f:
-                plistlib.dump(pkginfo, f)
+            save_munki_file(pkginfo, self.env["pkginfo_repo_path"])
         else:
             self.output("No receipts modified, nothing to do")
 

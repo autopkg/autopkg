@@ -21,6 +21,7 @@ import subprocess
 from datetime import datetime
 
 from autopkglib import Processor, ProcessorError
+from autopkglib.autopkgyaml import parse_munki_data
 from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
 from autopkglib.munkirepolibs.MunkiLib import MunkiLib
 
@@ -121,7 +122,7 @@ class MunkiImporter(Processor):
         },
         "MUNKI_PKGINFO_FILE_EXTENSION": {
             "required": False,
-            "description": "Extension for output pkginfo files. Default is 'plist'.",
+            "description": "Extension for output pkginfo files. Default is 'plist'. Set to 'yaml' to write pkginfo in YAML format.",
             "default": "plist",
         },
         "metadata_additions": {
@@ -342,8 +343,8 @@ class MunkiImporter(Processor):
                 f"{err_out.decode()}"
             )
 
-        # Get pkginfo from output plist.
-        pkginfo = plistlib.loads(out)
+        # Get pkginfo from output plist (or YAML if Munki is configured for it).
+        pkginfo = parse_munki_data(out)
 
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:

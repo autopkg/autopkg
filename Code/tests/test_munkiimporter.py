@@ -530,5 +530,47 @@ class TestMunkiImporter(unittest.TestCase):
         self.assertIn("data", summary)
 
 
+class TestAutoPkgLibCatalogDb(unittest.TestCase):
+    """Tests for AutoPkgLib.make_catalog_db yaml catalog reading."""
+
+    def setUp(self):
+        self.tmp_dir = TemporaryDirectory()
+        self.munki_repo = os.path.join(self.tmp_dir.name, "munki_repo")
+        os.makedirs(os.path.join(self.munki_repo, "pkgs"))
+        os.makedirs(os.path.join(self.munki_repo, "pkgsinfo"))
+        os.makedirs(os.path.join(self.munki_repo, "catalogs"))
+
+    def tearDown(self):
+        self.tmp_dir.cleanup()
+
+    def _make_pkginfo(self, name="TestApp", version="1.0.0", hash_value="abc123"):
+        return {
+            "name": name,
+            "version": version,
+            "catalogs": ["testing"],
+            "installer_item_hash": hash_value,
+            "installer_item_location": f"apps/{name}-{version}.pkg",
+            "installer_item_size": 1024,
+        }
+
+    def test_yaml_catalog_is_read(self):
+        """catalogs/all written as yaml (extensionless, matching munki/munki#1261)
+        is read via content inspection."""
+        from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
+
+        items = [self._make_pkginfo(name="Audacity", hash_value="yamlCat1")]
+        with open(
+            os.path.join(self.munki_repo, "catalogs", "all"), "w", encoding="utf-8"
+        ) as f:
+            import yaml
+
+            yaml.dump(items, f)
+
+        lib = AutoPkgLib(self.munki_repo, "apps")
+        db = lib.make_catalog_db()
+
+        self.assertIn("yamlCat1", db["hashes"])
+
+
 if __name__ == "__main__":
     unittest.main()
