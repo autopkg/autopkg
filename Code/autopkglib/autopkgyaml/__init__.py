@@ -355,8 +355,8 @@ MunkiPkginfoDumper.add_representer(
 def dump_pkginfo_yaml(pkginfo, f):
     """Serialize a Munki pkginfo dict to yaml and write to file handle *f*.
 
-    *f* must be open for writing in text mode (or binary mode — both work
-    since we encode to UTF-8)."""
+    *f* must be open for writing in text mode; unicode output is enabled
+    via ``allow_unicode=True``."""
     prepared = _prepare_dict(pkginfo)
     yaml.dump(
         prepared,
@@ -396,7 +396,7 @@ def load_pkginfo_yaml(f):
     runs _normalize_yaml_types as a defence-in-depth pass for any
     integer-shaped scalars that should also be strings."""
     data = yaml.load(f, Loader=AutoPkgYAMLLoader)
-    if isinstance(data, dict):
+    if isinstance(data, (dict, list)):
         _normalize_yaml_types(data)
     return data
 
@@ -410,7 +410,7 @@ def loads_pkginfo_yaml(data):
     if isinstance(data, bytes):
         data = data.decode("utf-8")
     result = yaml.load(data, Loader=AutoPkgYAMLLoader)
-    if isinstance(result, dict):
+    if isinstance(result, (dict, list)):
         _normalize_yaml_types(result)
     return result
 
@@ -476,7 +476,7 @@ def load_munki_file(file_path):
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 data = yaml.load(f, Loader=AutoPkgYAMLLoader)
-            if isinstance(data, dict):
+            if isinstance(data, (dict, list)):
                 _normalize_yaml_types(data)
             return data
         except Exception:
@@ -491,7 +491,7 @@ def load_munki_file(file_path):
             # Fall back to yaml
             with open(file_path, "r", encoding="utf-8") as f:
                 data = yaml.load(f, Loader=AutoPkgYAMLLoader)
-            if isinstance(data, dict):
+            if isinstance(data, (dict, list)):
                 _normalize_yaml_types(data)
             return data
 
@@ -517,6 +517,6 @@ def parse_munki_data(data_bytes):
         pass
     text = data_bytes.decode("utf-8") if isinstance(data_bytes, bytes) else data_bytes
     result = yaml.load(text, Loader=AutoPkgYAMLLoader)
-    if isinstance(result, dict):
+    if isinstance(result, (dict, list)):
         _normalize_yaml_types(result)
     return result

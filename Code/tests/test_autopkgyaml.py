@@ -432,30 +432,39 @@ class TestAutoPkgLibYamlCatalog(unittest.TestCase):
             catalogs_path = os.path.join(repo_path, "catalogs")
             os.makedirs(catalogs_path)
 
-            # Write a yaml catalog
-            catalog = [
-                {
-                    "name": "Firefox",
-                    "version": "126.0",
-                    "installer_item_hash": "abc123",
-                    "installer_item_location": "apps/Firefox-126.0.dmg",
-                },
-            ]
-            import yaml
+            # Write a yaml catalog. Include an unquoted int-shaped version
+            # (`version: 14`) to exercise STRING_KEYS normalization on a
+            # list-root yaml document.
+            yaml_text = (
+                "- name: Firefox\n"
+                "  version: '126.0'\n"
+                "  installer_item_hash: abc123\n"
+                "  installer_item_location: apps/Firefox-126.0.dmg\n"
+                "- name: Xcode\n"
+                "  version: 14\n"
+                "  installer_item_hash: xyz789\n"
+                "  installer_item_location: apps/Xcode-14.dmg\n"
+            )
 
             # Munki writes yaml catalogs at the same extensionless path as
             # plist catalogs (see munki/munki#1261). Format is detected by
             # content inspection on read.
             with open(os.path.join(catalogs_path, "all"), "w", encoding="utf-8") as f:
-                yaml.dump(catalog, f)
+                f.write(yaml_text)
 
             from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
 
             lib = AutoPkgLib(repo_path, "")
             pkgdb = lib.make_catalog_db()
             self.assertIn("abc123", pkgdb["hashes"])
-            self.assertEqual(len(pkgdb["items"]), 1)
+            self.assertIn("xyz789", pkgdb["hashes"])
+            self.assertEqual(len(pkgdb["items"]), 2)
             self.assertEqual(pkgdb["items"][0]["name"], "Firefox")
+            # Int-shaped versions must be normalized back to str so catalog
+            # keys (name-version, etc.) stay consistent across yaml/plist.
+            xcode_item = next(i for i in pkgdb["items"] if i["name"] == "Xcode")
+            self.assertIsInstance(xcode_item["version"], str)
+            self.assertEqual(xcode_item["version"], "14")
 
     def test_read_plist_catalog(self):
         with tempfile.TemporaryDirectory() as tmpdir:
