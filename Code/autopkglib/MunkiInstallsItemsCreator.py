@@ -15,7 +15,6 @@
 # limitations under the License.
 """See docstring for MunkiInstallsItemsCreator class"""
 
-import plistlib
 import subprocess
 
 from autopkglib import APLooseVersion, Processor, ProcessorError, log_err

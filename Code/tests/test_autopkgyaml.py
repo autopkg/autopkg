@@ -18,7 +18,6 @@ import plistlib
 import sys
 import tempfile
 import unittest
-from collections import OrderedDict
 from datetime import datetime
 
 # Ensure the Code directory is on the path
@@ -28,17 +27,14 @@ from autopkglib.autopkgyaml import (
     _INSTALLS_HEAD_KEYS,
     _PKGINFO_HEAD_KEYS,
     _RECEIPT_HEAD_KEYS,
-    STRING_KEYS,
     _clean_float_to_str,
     _normalize_yaml_types,
     _sorted_keys,
     detect_munki_format,
-    dump_pkginfo_yaml,
     dumps_pkginfo_yaml,
     is_plist_path,
     is_yaml_path,
     load_munki_file,
-    load_pkginfo_yaml,
     loads_pkginfo_yaml,
     parse_munki_data,
     save_munki_file,

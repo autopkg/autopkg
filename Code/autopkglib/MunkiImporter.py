@@ -16,7 +16,6 @@
 """See docstring for MunkiImporter class"""
 
 import os
-import plistlib
 import subprocess
 from datetime import datetime
 

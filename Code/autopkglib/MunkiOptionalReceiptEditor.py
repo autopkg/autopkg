@@ -15,8 +15,6 @@
 # limitations under the License.
 """See docstring for MunkiOptionalReceiptEditor class"""
 
-import plistlib
-
 from autopkglib import Processor, ProcessorError
 from autopkglib.autopkgyaml import load_munki_file, save_munki_file
 

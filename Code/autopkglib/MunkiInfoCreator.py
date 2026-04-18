@@ -16,7 +16,6 @@
 """See docstring for MunkiInfoCreator class"""
 
 import os.path
-import plistlib
 import shutil
 import subprocess
 import tempfile
