@@ -238,6 +238,199 @@ def get_repository_from_identifier(identifier: str):
     return correct_item["repository"]["name"]
 
 
+# Cache used by the override fast path. When _fast_locate_override_by_name
+# parses an override, it stashes the parsed dict here keyed by absolute
+# path so load_recipe can reuse later it rather than re-parsing the same file.
+# Entries are consumed (popped) by load_recipe.
+_FAST_PATH_CACHE: dict = {}
+
+
+def _merge_child_into_parent(parent, child, child_path=None):
+    """Mirrors the child-into-parent merge logic from load_recipe.
+
+    Used by _try_assemble_from_trust_info. Mutates ``parent`` in place and
+    returns it. Intentionally a straight port of the existing merge block
+    in load_recipe so both paths produce structurally identical results.
+    """
+    parent["Identifier"] = get_identifier(child)
+    parent["Description"] = child.get("Description", parent.get("Description", ""))
+    for key in list(child.get("Input", {}).keys()):
+        parent.setdefault("Input", {})[key] = child["Input"][key]
+
+    # take the highest of the two MinimumVersion keys, if they exist
+    for candidate in (parent, child):
+        if "MinimumVersion" not in candidate:
+            candidate["MinimumVersion"] = "0"
+    if version_equal_or_greater(child["MinimumVersion"], parent["MinimumVersion"]):
+        parent["MinimumVersion"] = child["MinimumVersion"]
+
+    parent["Process"] = parent.get("Process", []) + child.get("Process", [])
+
+    if parent.get("RECIPE_PATH"):
+        if "PARENT_RECIPES" not in parent:
+            parent["PARENT_RECIPES"] = []
+        parent["PARENT_RECIPES"] = [parent["RECIPE_PATH"]] + parent["PARENT_RECIPES"]
+    if child_path is not None:
+        parent["RECIPE_PATH"] = child_path
+    elif child.get("RECIPE_PATH"):
+        parent["RECIPE_PATH"] = child["RECIPE_PATH"]
+
+    return parent
+
+
+def _try_assemble_from_trust_info(
+    name,
+    override_recipe,
+    override_path,
+    parent_trust_info,
+    preprocessors,
+    postprocessors,
+):
+    """Build a fully-merged recipe from an override using the trust-info paths.
+
+    Rather than calling locate_recipe/load_recipe recursively for each
+    parent (fresh filesystem scan/parse every time), read each parent's
+    absolute path directly from ParentRecipeTrustInfo.
+
+    Returns the merged recipe dict on success, or None on ANY failure so that
+    the caller falls through to the existing path maintaining current behaviour.
+    Failures include:
+      - Any parent path missing on disk
+      - Any parent file failing to parse/validate
+      - Identifier on disk not matching what trust info recorded
+      - The ParentRecipe chain not fully resolvable via trust-info entries
+    """
+    parents = parent_trust_info.get("parent_recipes") or {}
+    if not parents:
+        return None
+
+    # Parse every parent exactly once, keyed by identifier.
+    parent_dicts_by_id = {}
+    for identifier, meta in parents.items():
+        path = meta.get("path") if isinstance(meta, dict) else None
+        if not path:
+            return None
+        expanded = os.path.expanduser(path)
+        if not os.path.isfile(expanded):
+            return None
+        parsed = recipe_from_file(expanded)
+        if parsed is None or not valid_recipe_dict(parsed):
+            return None
+        if get_identifier(parsed) != identifier:
+            # Trust info is stale for this file; bail to the existing path.
+            return None
+        parsed["RECIPE_PATH"] = expanded
+        parent_dicts_by_id[identifier] = parsed
+
+    # Resolve the chain by walking ParentRecipe/Recipe links from the
+    # override up to the root parent. Stricter than trusting the dict order
+    # and attempts to catch partial/broken trust-info entries early.
+    chain = []
+    current_parent_id = get_identifier_from_override(override_recipe)
+    seen = set()
+    while current_parent_id:
+        if current_parent_id in seen:
+            return None  # cycle
+        seen.add(current_parent_id)
+        parent = parent_dicts_by_id.get(current_parent_id)
+        if parent is None:
+            return None  # trust info doesn't cover this link
+        chain.append(parent)
+        next_id = parent.get("ParentRecipe")
+        if not next_id:
+            rec = parent.get("Recipe")
+            if isinstance(rec, dict):
+                next_id = rec.get("identifier")
+        current_parent_id = next_id
+
+    # Chain is ordered nearest-ancestor -> root. Merge starting from the
+    # root and fold each descendant on top, matching how load_recipe
+    # resolves the chain recursively (deepest recurse returns first).
+    chain.reverse()
+    merged = chain[0]
+    for child in chain[1:]:
+        merged = _merge_child_into_parent(merged, child)
+
+    # Finally fold the override itself as the top-most child.
+    merged = _merge_child_into_parent(merged, override_recipe, override_path)
+
+    # Preserve trust info and the override's ParentRecipe pointer, matching
+    # the tail handling in load_recipe.
+    merged["ParentRecipeTrustInfo"] = parent_trust_info
+    override_parent = override_recipe.get("ParentRecipe") or override_recipe.get(
+        "Recipe"
+    )
+    if override_parent:
+        merged["ParentRecipe"] = override_parent
+    merged["Identifier"] = get_identifier(override_recipe)
+    merged["name"] = name
+
+    # preprocessors / postprocessors: identical to load_recipe tail.
+    if preprocessors:
+        pre_steps = [{"Processor": p} for p in preprocessors]
+        merged["Process"] = pre_steps + merged.get("Process", [])
+    if postprocessors:
+        post_steps = [{"Processor": p} for p in postprocessors]
+        merged["Process"] = merged.get("Process", []) + post_steps
+
+    return merged
+
+
+def _fast_locate_override_by_name(name, override_dirs):
+    """Direct filename lookup in override_dirs, bypassing the glob/parse scan.
+
+    Treats ``name`` as a filename stem (with or without a recipe extension)
+    and checks for a matching file at the top level of each override dir
+    and one level deep, matching the existing find_recipe_by_name scan
+    depth. Returns (path, recipe_dict) on hit, or None on any miss so the
+    caller can fall through to the existing slow path.
+
+    In practice this hits for short recipe names (``Google_Chrome.jamf``)
+    and for identifier strings when an override is deliberately filed
+    under its identifier (``local.jamf.Google_Chrome.recipe.yaml``).
+    File-path inputs are rejected up-front; they are handled by the
+    existing os.path.isfile branch in locate_recipe.
+
+    Populates _FAST_PATH_CACHE so load_recipe can reuse the parsed dict
+    without re-parsing.
+    """
+    if not override_dirs or not name:
+        return None
+    # Anything with a path separator is a file path; handled by the
+    # existing os.path.isfile branch in locate_recipe.
+    if os.sep in name or "/" in name:
+        return None
+    base = remove_recipe_extension(name)
+    for d in override_dirs:
+        nd = os.path.abspath(os.path.expanduser(d))
+        if not os.path.isdir(nd):
+            continue
+        # Top level
+        for ext in RECIPE_EXTS:
+            p = os.path.join(nd, f"{base}{ext}")
+            if os.path.isfile(p):
+                rd = recipe_from_file(p)
+                if rd is not None and valid_override_dict(rd):
+                    _FAST_PATH_CACHE[p] = rd
+                    return p, rd
+        # One level deep (matches existing glob behaviour in find_recipe_by_name)
+        try:
+            entries = sorted(os.scandir(nd), key=lambda e: e.name)
+        except OSError:
+            continue
+        for entry in entries:
+            if not entry.is_dir():
+                continue
+            for ext in RECIPE_EXTS:
+                p = os.path.join(entry.path, f"{base}{ext}")
+                if os.path.isfile(p):
+                    rd = recipe_from_file(p)
+                    if rd is not None and valid_override_dict(rd):
+                        _FAST_PATH_CACHE[p] = rd
+                        return p, rd
+    return None
+
+
 def locate_recipe(
     name,
     override_dirs,
@@ -262,6 +455,13 @@ def locate_recipe(
         # and attempt to open the file specified by name
         if valid_recipe_file(name):
             recipe_file = name
+
+    if not recipe_file:
+        # Fast path: direct filename lookup in override_dirs. Falls through
+        # on any miss or uncertainty to the existing slow path below.
+        fast_hit = _fast_locate_override_by_name(name, override_dirs)
+        if fast_hit is not None:
+            recipe_file, _ = fast_hit
 
     if not recipe_file:
         # name wasn't a filename. Let's search our local repos.
@@ -356,8 +556,10 @@ def load_recipe(
     )
 
     if recipe_file:
-        # read it
-        recipe = recipe_from_file(recipe_file)
+        # read it (or reuse the already-parsed dict stashed by the fast path)
+        recipe = _FAST_PATH_CACHE.pop(recipe_file, None) or recipe_from_file(
+            recipe_file
+        )
 
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
@@ -365,6 +567,22 @@ def load_recipe(
             override_parent = recipe.get("ParentRecipe") or recipe.get("Recipe")
         else:
             parent_trust_info = None
+
+        # Fast path: if this override has usable trust info, build the merged
+        # recipe directly from the paths it records rather than recursively
+        # searching for each parent. Returns early on success; any failure
+        # falls through to the existing recursive load_recipe logic below.
+        if parent_trust_info and recipe.get("ParentRecipe"):
+            fast_recipe = _try_assemble_from_trust_info(
+                name,
+                recipe,
+                recipe_file,
+                parent_trust_info,
+                preprocessors,
+                postprocessors,
+            )
+            if fast_recipe is not None:
+                return fast_recipe
 
         # does it refer to another recipe?
         if recipe.get("ParentRecipe") or recipe.get("Recipe"):
