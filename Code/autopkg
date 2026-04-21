@@ -187,19 +187,37 @@ def _path_under_dirs(path: str, dirs) -> bool:
 
 
 def _dirs_match_prefs(caller_search_dirs, caller_override_dirs) -> bool:
-    """Return True when the caller-supplied dirs are equivalent to the
-    currently-configured pref dirs (the dirs the persisted recipe map was
-    built from). When this is True it is safe to use the map for
-    resolution; when False the caller has supplied an explicit scope
-    (e.g. ``autopkg run -d /tmp/test-repo Foo``) and the map would
-    silently ignore that scope.
+    """Return True when the caller-supplied dirs fully include the
+    pref-configured baseline the persisted recipe map was built from.
+    When this is True it is safe to use the map: any recipe the map
+    knows about lives in a directory the caller would have scanned
+    anyway.
+
+    When this is False the caller has NARROWED the scope (e.g.,
+    ``autopkg run -d /tmp/test-repo Foo`` without also passing the
+    pref dirs), and the map could point at a recipe the caller
+    explicitly excluded. Fall back to an on-disk scan of the caller's
+    exact scope in that case.
+
+    Superset semantics matter for the recursive ``load_recipe`` call:
+    when resolving a parent recipe, the recursion appends the child's
+    directory to ``recipe_dirs``, making the caller's dirs a strict
+    superset of the prefs. The map is still safe (and vastly faster)
+    in that case.
 
     This is the guard for GitHub issues #886, #894, #908 and #918."""
-    pref_search = _normalize_dirs(get_search_dirs())
-    pref_override = _normalize_dirs(get_override_dirs())
-    return (
-        _normalize_dirs(caller_search_dirs) == pref_search
-        and _normalize_dirs(caller_override_dirs) == pref_override
+    pref_search = set(_normalize_dirs(get_search_dirs()))
+    pref_override = set(_normalize_dirs(get_override_dirs()))
+    caller_search = set(_normalize_dirs(caller_search_dirs))
+    caller_override = set(_normalize_dirs(caller_override_dirs))
+    # If the caller didn't supply anything for a category, they implicitly
+    # accept the pref baseline for that category.
+    if not caller_search_dirs:
+        caller_search = pref_search
+    if not caller_override_dirs:
+        caller_override = pref_override
+    return pref_search.issubset(caller_search) and pref_override.issubset(
+        caller_override
     )
 
 
@@ -428,11 +446,13 @@ def load_recipe(
         override_dirs = []
     if recipe_dirs is None:
         recipe_dirs = []
-    # Populate globalRecipeMap before resolution. read_recipe_map() loads
-    # the persisted cache when valid and auto-rebuilds on first miss;
-    # subsequent calls within the same process are cheap (one file read,
-    # no rebuild) so the recursive load for parent recipes is fine.
-    read_recipe_map()
+    # Populate globalRecipeMap before resolution, but only if it hasn't
+    # already been loaded in this process. Without this guard, every
+    # recursive load_recipe for a parent recipe would re-read the
+    # recipe_map.json from disk and re-validate it, costing 4+ disk
+    # reads on a 3-parent chain for no benefit.
+    if not globalRecipeMap.get("identifiers"):
+        read_recipe_map()
     recipe = None
     recipe_file = locate_recipe(
         name,

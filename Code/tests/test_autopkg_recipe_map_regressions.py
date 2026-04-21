@@ -203,6 +203,40 @@ class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCa
             os.path.join(self.primary_dir, "Primary.recipe"),
         )
 
+    def test_superset_cli_dirs_still_uses_map(self):
+        """Caller supplies prefs + an extra dir (the recursive
+        load_recipe pattern, where a parent-recipe lookup appends the
+        child's dir). _dirs_match_prefs should accept the superset and
+        use the map, not fall back to the full-tree on-disk scan.
+
+        This is the fix that prevented the parent-chain recursion from
+        silently bypassing the map and paying the full O(N) scan cost
+        on every parent resolution."""
+        extra_dir = os.path.join(self.tmpdir, "extra")
+        superset = [self.primary_dir, extra_dir]
+        # On-disk scanner should NOT be called because the map has the
+        # answer and the caller's dirs include the full pref baseline.
+        with patch("autopkg.find_recipe_by_identifier_on_disk") as mock_on_disk:
+            result = autopkg.find_recipe("com.example.primary", search_dirs=superset)
+        self.assertEqual(result, os.path.join(self.primary_dir, "Primary.recipe"))
+        mock_on_disk.assert_not_called()
+
+    def test_narrowed_cli_dirs_still_bypasses_map(self):
+        """Caller supplies dirs that EXCLUDE at least one pref dir.
+        The map could point at a recipe the caller explicitly excluded,
+        so the map must still be bypassed (the #886/#894/#908/#918
+        contract). Negative complement to the superset test above."""
+        # `self.scoped_dir` is NOT in the configured prefs. Caller passes
+        # only the scoped dir, which is a narrowed scope. The map's entry
+        # for `com.example.primary` (in self.primary_dir) must not be
+        # returned because self.primary_dir isn't in the caller's set.
+        result = autopkg.find_recipe(
+            "com.example.primary", search_dirs=[self.scoped_dir]
+        )
+        # No recipe with that identifier exists in self.scoped_dir, so
+        # the result is None — the map entry was correctly ignored.
+        self.assertIsNone(result)
+
 
 class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
     """Regression tests for issue #894: shared-processor recipes in the
