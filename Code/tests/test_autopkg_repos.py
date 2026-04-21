@@ -33,6 +33,20 @@ sys.modules["autopkg"] = autopkg
 class TestAutoPkgRepos(unittest.TestCase):
     """Test cases for repository-related functions of AutoPkg."""
 
+    def setUp(self):
+        """Silence recipe-map side effects triggered by repo-add/repo-delete/
+        repo-update. Tests that care about the map patch it explicitly."""
+        self._recipe_map_patches = [
+            patch("autopkg.calculate_recipe_map"),
+            patch("autopkg.read_recipe_map"),
+        ]
+        for patcher in self._recipe_map_patches:
+            patcher.start()
+
+    def tearDown(self):
+        for patcher in self._recipe_map_patches:
+            patcher.stop()
+
     def test_expand_single_autopkg_org_urls(self):
         """Expand single part short repo URLs in the AutoPkg org on GitHub"""
         url = autopkg.expand_repo_url("recipes")

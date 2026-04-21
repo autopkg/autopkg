@@ -140,11 +140,21 @@ DEFAULT_SEARCH_DIRS = [".", DEFAULT_USER_LIBRARY_DIR, DEFAULT_LIBRARY_DIR]
 
 
 def autopkg_user_folder() -> str:
-    """Return the absolute path to the user's AutoPkg folder, creating it
-    and its immediate subfolders on demand. This is used as the canonical
-    location for the recipe map and related caches."""
+    """Return the absolute path to the user's AutoPkg folder.
+
+    The folder is created on demand when possible, but we fail soft on
+    permission or read-only errors so callers running in sandboxed or
+    mocked environments (notably the test suite, which routinely patches
+    ``os.path.expanduser`` to point at ``/``) are not crashed by a
+    housekeeping operation."""
     folder = os.path.abspath(os.path.expanduser(DEFAULT_USER_LIBRARY_DIR))
-    os.makedirs(folder, exist_ok=True)
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except OSError:
+        # Soft-fail: callers that need the directory will surface the
+        # error themselves when they try to write. Tests mock expanduser
+        # and we don't want that to blow up unrelated behaviour.
+        pass
     return folder
 
 
@@ -703,13 +713,26 @@ def calculate_recipe_map(
         write_recipe_map_to_disk()
 
 
+def _recipe_map_path() -> str:
+    """Return the absolute, expanded path to the recipe map file on disk.
+
+    ``DEFAULT_RECIPE_MAP`` is stored unexpanded (with a leading ``~``) so
+    tests can monkey-patch ``os.path.expanduser``; resolve it lazily here."""
+    return os.path.abspath(os.path.expanduser(DEFAULT_RECIPE_MAP))
+
+
 def write_recipe_map_to_disk() -> None:
-    """Persist ``globalRecipeMap`` to ``DEFAULT_RECIPE_MAP`` as sorted JSON."""
+    """Persist ``globalRecipeMap`` to the recipe-map file as sorted JSON.
+
+    Failures to write (permission denied, read-only filesystem, etc.) are
+    logged but not raised — the in-memory map is still usable for the
+    lifetime of the process."""
     # Ensure the containing directory exists so the first invocation on a
-    # fresh install doesn't fail.
+    # fresh install doesn't fail. autopkg_user_folder() is itself
+    # permission-tolerant.
     autopkg_user_folder()
     try:
-        with open(DEFAULT_RECIPE_MAP, "w") as f:
+        with open(_recipe_map_path(), "w") as f:
             json.dump(
                 globalRecipeMap,
                 f,
@@ -722,11 +745,11 @@ def write_recipe_map_to_disk() -> None:
 
 
 def handle_reading_recipe_map_file() -> dict[str, dict[str, str]]:
-    """Read ``DEFAULT_RECIPE_MAP`` from disk. Returns an empty dict on any
-    I/O or JSON error — callers are expected to treat that as a signal to
-    rebuild the map."""
+    """Read the recipe map from disk. Returns an empty dict on any I/O or
+    JSON error — callers are expected to treat that as a signal to rebuild
+    the map."""
     try:
-        with open(DEFAULT_RECIPE_MAP) as f:
+        with open(_recipe_map_path()) as f:
             return json.load(f)
     except FileNotFoundError:
         # Silent: this is the normal case on a fresh install and the caller

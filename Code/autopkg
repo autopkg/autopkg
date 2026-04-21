@@ -36,15 +36,21 @@ import yaml
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
 from autopkgcmd.searchcmd import get_search_results
 from autopkglib import (
+    DEFAULT_RECIPE_MAP,
     RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
+    calculate_recipe_map,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
     find_binary,
+    find_identifier_from_name,
+    find_name_from_identifier,
+    find_recipe_by_id_in_map,
     find_recipe_by_identifier,
     find_recipe_by_identifier_on_disk,
+    find_recipe_by_name_in_map,
     find_recipe_by_name_on_disk,
     get_all_prefs,
     get_autopkg_version,
@@ -53,11 +59,13 @@ from autopkglib import (
     get_pref,
     get_processor,
     get_search_dirs,
+    globalRecipeMap,
     is_mac,
     log,
     log_err,
     plist_serializer,
     processor_names,
+    read_recipe_map,
     recipe_from_file,
     remove_recipe_extension,
     set_pref,
@@ -128,9 +136,22 @@ def find_recipe_by_name(name, search_dirs) -> str | None:
     return find_recipe_by_name_on_disk(name, search_dirs)
 
 
-def find_recipe(id_or_name, search_dirs) -> str | None:
-    """find a recipe based on a string that might be an identifier
-    or a name"""
+def find_recipe(id_or_name, search_dirs=None, skip_overrides=False) -> str | None:
+    """Find a recipe based on a string that might be an identifier or a name.
+
+    Consults the recipe map first (cheap, O(1)) and then falls back to an
+    on-disk scan of ``search_dirs`` if one was provided. The on-disk scan is
+    retained so callers that pass explicit ``search_dirs`` (e.g. temporary
+    directories during a parent-recipe load) still work without the map
+    needing to be rebuilt."""
+    # Map-first
+    result = find_recipe_by_id_in_map(
+        id_or_name, skip_overrides=skip_overrides
+    ) or find_recipe_by_name_in_map(id_or_name, skip_overrides=skip_overrides)
+    if result:
+        return result
+    if not search_dirs:
+        return None
     return find_recipe_by_identifier_on_disk(
         id_or_name, search_dirs
     ) or find_recipe_by_name_on_disk(id_or_name, search_dirs)
@@ -212,7 +233,17 @@ def locate_recipe(
             recipe_file = name
 
     if not recipe_file:
-        # name wasn't a filename. Let's search our local repos.
+        # name wasn't a filename. Consult the recipe map (with on-disk
+        # fallback) for O(1) resolution.
+        recipe_file = find_recipe(name, override_dirs + recipe_dirs)
+
+    if not recipe_file:
+        # Map miss. Force a full rebuild including '.' in case the recipe
+        # is in a cwd-local directory the cached map excluded, then try
+        # again. calculate_recipe_map is cheap enough that doing this once
+        # per unresolved name is acceptable, and dramatically improves UX
+        # for users who just cloned a new repo.
+        calculate_recipe_map(skip_cwd=False)
         recipe_file = find_recipe(name, override_dirs + recipe_dirs)
 
     if not recipe_file and make_suggestions:
@@ -293,6 +324,10 @@ def load_recipe(
         override_dirs = []
     if recipe_dirs is None:
         recipe_dirs = []
+    # Populate the recipe map before attempting resolution. With the
+    # auto-create UX, a missing map is a non-fatal condition; read_recipe_map
+    # will rebuild it on the fly if needed.
+    read_recipe_map(rebuild=True)
     recipe = None
     recipe_file = locate_recipe(
         name,
@@ -671,8 +706,13 @@ Example: '%prog repo-add recipes'
         log_err("Need at least one recipe repo URL!")
         return -1
 
+    # Read the existing map (if any) before modifying prefs so that the
+    # rebuild below sees a consistent baseline.
+    read_recipe_map(allow_continuing=True)
+
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
+    added_repo_dirs: list[str] = []
     for repo_url in arguments:
         if "file://" in repo_url:
             log_err(
@@ -688,10 +728,20 @@ Example: '%prog repo-add recipes'
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
+            added_repo_dirs.append(new_recipe_repo_dir)
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
     save_pref_or_warn("RECIPE_SEARCH_DIRS", recipe_search_dirs)
+
+    # Rebuild the recipe map so the newly added repos are immediately
+    # available without requiring a separate `generate-recipe-map` step.
+    if added_repo_dirs:
+        calculate_recipe_map(extra_search_dirs=added_repo_dirs)
+        # calculate_recipe_map does not persist when extra_search_dirs are
+        # supplied (the extras may be temporary). For repo-add they are NOT
+        # temporary, so recalculate without extras to write a clean map.
+        calculate_recipe_map()
 
     log("Updated search path:")
     for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
@@ -714,8 +764,13 @@ def repo_delete(argv):
         log_err("Need at least one recipe repo path or URL!")
         return -1
 
+    # Read the existing map (if any) before mutating prefs so we can
+    # rebuild it cleanly below.
+    read_recipe_map(allow_continuing=True)
+
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     recipe_search_dirs = get_search_dirs()
+    removed_any = False
 
     for path_or_url in arguments:
         path_or_url = expand_repo_url(path_or_url)
@@ -737,10 +792,15 @@ def repo_delete(argv):
         else:
             # last, remove from RECIPE_REPOS
             del recipe_repos[repo_path]
+            removed_any = True
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
     save_pref_or_warn("RECIPE_SEARCH_DIRS", recipe_search_dirs)
+
+    # Recipes that were in the deleted repo(s) must not linger in the map.
+    if removed_any:
+        calculate_recipe_map()
 
 
 def repo_list(argv):
@@ -797,6 +857,11 @@ def repo_update(argv):
             log(run_git(["pull"], git_directory=repo_dir))
         except GitError as err:
             log_err(err)
+
+    # Repo contents changed on disk; refresh the map so new or renamed
+    # recipes are discoverable without another manual rebuild.
+    if repo_dirs:
+        calculate_recipe_map()
 
 
 def do_gh_repo_contents_fetch(
@@ -1896,6 +1961,9 @@ def make_override(argv):
         with open(override_file, "wb") as f:
             plistlib.dump(plist_serializer(override_dict), f)
     log(f"Override file saved to {override_file}")
+    # Refresh the recipe map so the newly created override is discoverable
+    # immediately without a separate `generate-recipe-map` step.
+    calculate_recipe_map()
     return 0
 
 
@@ -2549,6 +2617,76 @@ def audit(argv):
         log(f"    {recipe_no_issue_count} recipes triggered no audit flags")
 
 
+def generate_recipe_map(argv):
+    """Build and persist the recipe map cache.
+
+    The recipe map is normally rebuilt implicitly by repo-add, repo-delete,
+    repo-update, make-override, new-recipe and (on miss) any recipe-loading
+    verb. This verb exists primarily for fresh installs and CI/CD
+    pipelines that want to pay the scan cost once, up-front, before any
+    recipes are run.
+    """
+    verb = argv[1]
+    parser = gen_common_parser()
+    parser.set_usage(
+        f"Usage: %prog {verb} [options]\n"
+        "Build the recipe map cache now. Useful for fresh installs and\n"
+        "CI/CD environments that want to avoid paying the scan cost on\n"
+        "the first recipe run."
+    )
+    add_search_and_override_dir_options(parser)
+    parser.add_option(
+        "--include-cwd",
+        action="store_true",
+        help=(
+            "Also include the current working directory in the map. By "
+            "default '.' is excluded to avoid surprising behaviour when "
+            "running from arbitrary locations."
+        ),
+    )
+    options, _arguments = common_parse(parser, argv)
+
+    extra_search_dirs = list(options.search_dirs or [])
+    extra_override_dirs = list(options.override_dirs or [])
+
+    calculate_recipe_map(
+        extra_search_dirs=extra_search_dirs or None,
+        extra_override_dirs=extra_override_dirs or None,
+        skip_cwd=not options.include_cwd,
+    )
+
+    # calculate_recipe_map does not persist when extra dirs were provided
+    # (the extras are considered transient). If the user asked to include
+    # extra dirs we still want them in the on-disk cache so CI bootstraps
+    # are self-contained: recalculate once more without the extras and
+    # merge the additions back in.
+    if extra_search_dirs or extra_override_dirs:
+        # Re-run without extras to get a clean persisted baseline, then
+        # layer the extras on top before writing.
+        calculate_recipe_map(skip_cwd=not options.include_cwd)
+        calculate_recipe_map(
+            extra_search_dirs=extra_search_dirs or None,
+            extra_override_dirs=extra_override_dirs or None,
+            skip_cwd=not options.include_cwd,
+        )
+        # Explicitly write because calculate_recipe_map won't when extras
+        # are provided.
+        from autopkglib import write_recipe_map_to_disk as _write
+
+        _write()
+
+    counts = {k: len(v) for k, v in globalRecipeMap.items()}
+    resolved = os.path.abspath(os.path.expanduser(DEFAULT_RECIPE_MAP))
+    log(
+        f"Recipe map written to {resolved}:\n"
+        f"  identifiers:           {counts.get('identifiers', 0)}\n"
+        f"  shortnames:            {counts.get('shortnames', 0)}\n"
+        f"  overrides:             {counts.get('overrides', 0)}\n"
+        f"  overrides-identifiers: {counts.get('overrides-identifiers', 0)}"
+    )
+    return 0
+
+
 def new_recipe(argv):
     """Makes a new recipe template"""
     verb = argv[1]
@@ -2610,6 +2748,13 @@ def new_recipe(argv):
         log(f"Saved new recipe to {filename}")
     except Exception as err:
         log_err(f"Failed to write recipe: {err}")
+        return
+
+    # Refresh the recipe map so the newly created recipe is discoverable.
+    # We include the recipe's directory as an extra search dir in case the
+    # caller wrote to somewhere outside the configured RECIPE_SEARCH_DIRS.
+    recipe_dir = os.path.dirname(os.path.abspath(filename)) or "."
+    calculate_recipe_map(extra_search_dirs=[recipe_dir])
 
 
 def main(argv):
@@ -2638,6 +2783,14 @@ def main(argv):
         "list-processors": {
             "function": list_processors,
             "help": "List available core Processors",
+        },
+        "generate-recipe-map": {
+            "function": generate_recipe_map,
+            "help": (
+                "Build the recipe map cache. Useful for fresh installs "
+                "and CI/CD environments that want to pay the scan cost "
+                "up-front."
+            ),
         },
         "make-override": {"function": make_override, "help": "Make a recipe override"},
         "new-recipe": {"function": new_recipe, "help": "Make a new template recipe"},

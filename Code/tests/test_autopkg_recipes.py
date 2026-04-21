@@ -38,10 +38,25 @@ class TestAutoPkgRecipes(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures with a temporary directory."""
         self.tmp_dir = TemporaryDirectory()
+        # The recipe-map port made several verbs (new_recipe,
+        # make_override, locate_recipe) trigger map rebuilds via
+        # calculate_recipe_map/read_recipe_map. Those would otherwise
+        # walk the real user's RECIPE_SEARCH_DIRS during unit tests,
+        # slowing the suite down enormously and leaking state from the
+        # developer's machine. Silence them at the class level; tests
+        # that care about the map will patch it explicitly.
+        self._recipe_map_patches = [
+            patch("autopkg.calculate_recipe_map"),
+            patch("autopkg.read_recipe_map"),
+        ]
+        for patcher in self._recipe_map_patches:
+            patcher.start()
 
     def tearDown(self):
         """Clean up test fixtures."""
         self.tmp_dir.cleanup()
+        for patcher in self._recipe_map_patches:
+            patcher.stop()
 
     def test_recipe_has_step_processor_with_processor(self):
         """Test recipe_has_step_processor when recipe contains the specified processor."""

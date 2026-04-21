@@ -33,6 +33,20 @@ sys.modules["autopkg"] = autopkg
 class TestAutoPkgOther(unittest.TestCase):
     """Test cases for miscellaneous core functions of AutoPkg."""
 
+    def setUp(self):
+        """Silence recipe-map side effects (see test_autopkg_recipes for
+        rationale)."""
+        self._recipe_map_patches = [
+            patch("autopkg.calculate_recipe_map"),
+            patch("autopkg.read_recipe_map"),
+        ]
+        for patcher in self._recipe_map_patches:
+            patcher.start()
+
+    def tearDown(self):
+        for patcher in self._recipe_map_patches:
+            patcher.stop()
+
     def test_display_help_basic_functionality(self):
         """Test display_help with basic subcommands."""
         argv = ["autopkg"]
