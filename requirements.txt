@@ -15,7 +15,7 @@ flake8==7.3.0
 flake8-bugbear==24.12.12
 identify==2.6.15
 isort==7.0.0
-lxml==6.0.2
+lxml==6.1.0
 mccabe==0.7.0
 mypy-extensions==1.1.0
 nodeenv==1.9.1
