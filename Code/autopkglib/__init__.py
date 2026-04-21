@@ -1736,6 +1736,17 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
                 shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
                     processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
                 )
+            # Re-validate the map-returned path is actually a recipe before
+            # adding its directory to the Python import path below. The map
+            # lookup only stat's the file (for speed); this call site feeds
+            # `spec.loader.exec_module`, so we want a structural check here
+            # even when it costs a parse. An attacker who can write to
+            # recipe_map.json cannot point us at an arbitrary directory
+            # just by having a file there — the file must parse as a recipe.
+            if shared_processor_recipe_path and not valid_recipe_file(
+                shared_processor_recipe_path
+            ):
+                shared_processor_recipe_path = None
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
                     os.path.dirname(shared_processor_recipe_path)

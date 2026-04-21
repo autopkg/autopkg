@@ -466,7 +466,20 @@ def load_recipe(
     if recipe_file:
         # read it
         recipe = recipe_from_file(recipe_file)
+        if recipe is None:
+            # Map entry pointed at a file that exists but isn't a
+            # readable recipe (stale entry, truncated mid-write by a
+            # concurrent generate-recipe-map, or tampered). Fall
+            # through to the make_suggestions / search_github path as
+            # if we never found it.
+            log_err(
+                f"WARNING: {recipe_file} from recipe map is not a "
+                "readable recipe; the map may be stale. Run "
+                "`autopkg generate-recipe-map` to rebuild."
+            )
+            recipe_file = None
 
+    if recipe_file:
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
             parent_trust_info = recipe.get("ParentRecipeTrustInfo")
