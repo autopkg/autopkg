@@ -44,11 +44,15 @@ from autopkglib import (
     extract_processor_name_with_recipe_identifier,
     find_binary,
     find_recipe_by_identifier,
+    find_recipe_by_identifier_on_disk,
+    find_recipe_by_name_on_disk,
     get_all_prefs,
     get_autopkg_version,
     get_identifier,
+    get_override_dirs,
     get_pref,
     get_processor,
+    get_search_dirs,
     is_mac,
     log,
     log_err,
@@ -57,6 +61,11 @@ from autopkglib import (
     recipe_from_file,
     remove_recipe_extension,
     set_pref,
+    valid_override_dict,
+    valid_override_file,
+    valid_recipe_dict,
+    valid_recipe_dict_with_keys,
+    valid_recipe_file,
     version_equal_or_greater,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
@@ -113,79 +122,18 @@ def builds_a_package(recipe) -> bool:
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
-    """Attempts to read a dict and ensures the keys in
-    keys_to_verify exist. Returns False on any failure, True otherwise."""
-    if recipe_dict:
-        for key in keys_to_verify:
-            if key not in recipe_dict:
-                return False
-        # if we get here, we found all the keys
-        return True
-    return False
-
-
-def valid_recipe_dict(recipe_dict) -> bool:
-    """Returns True if recipe dict is a valid recipe,
-    otherwise returns False"""
-    return (
-        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
-        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
-        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
-    )
-
-
-def valid_recipe_file(filename) -> bool:
-    """Returns True if filename contains a valid recipe,
-    otherwise returns False"""
-    recipe_dict = recipe_from_file(filename)
-    return valid_recipe_dict(recipe_dict)
-
-
-def valid_override_dict(recipe_dict) -> bool:
-    """Returns True if the recipe is a valid override,
-    otherwise returns False"""
-    return valid_recipe_dict_with_keys(
-        recipe_dict, ["Input", "ParentRecipe"]
-    ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
-
-
-def valid_override_file(filename) -> bool:
-    """Returns True if filename contains a valid override,
-    otherwise returns False"""
-    override_dict = recipe_from_file(filename)
-    return valid_override_dict(override_dict)
-
-
 def find_recipe_by_name(name, search_dirs) -> str | None:
-    """Search search_dirs for a recipe by file/directory naming rules"""
-    # drop extension from the end of the name because we're
-    # going to add it back on...
-    name = remove_recipe_extension(name)
-    # search by "Name", using file/directory hierarchy rules
-    for directory in search_dirs:
-        # TODO: Combine with similar code in get_recipe_list()
-        # and find_recipe_by_identifier()
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
-        patterns.extend(
-            [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
-        )
-        for pattern in patterns:
-            matches = glob.glob(pattern)
-            for match in matches:
-                if valid_recipe_file(match):
-                    return match
-
-    return None
+    """Legacy helper retained for call-site compatibility. Defers to the
+    canonical on-disk scanner now defined in autopkglib."""
+    return find_recipe_by_name_on_disk(name, search_dirs)
 
 
 def find_recipe(id_or_name, search_dirs) -> str | None:
     """find a recipe based on a string that might be an identifier
     or a name"""
-    return find_recipe_by_identifier(id_or_name, search_dirs) or find_recipe_by_name(
+    return find_recipe_by_identifier_on_disk(
         id_or_name, search_dirs
-    )
+    ) or find_recipe_by_name_on_disk(id_or_name, search_dirs)
 
 
 def get_identifier_from_override(override) -> str:
@@ -635,28 +583,6 @@ def save_pref_or_warn(key, value):
         set_pref(key, value)
     except PreferenceError as err:
         log_err(f"WARNING: {err}")
-
-
-def get_search_dirs() -> list[str]:
-    """Return search dirs from preferences or default list"""
-    default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
-
-    dirs: list[str] = get_pref("RECIPE_SEARCH_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
-
-
-def get_override_dirs() -> list[str]:
-    """Return override dirs from preferences or default list"""
-    default = ["~/Library/AutoPkg/RecipeOverrides"]
-
-    dirs: list[str] = get_pref("RECIPE_OVERRIDE_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
 
 
 def add_search_and_override_dir_options(parser):

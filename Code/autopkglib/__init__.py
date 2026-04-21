@@ -124,6 +124,29 @@ RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 # Supported recipe extensions
 RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
 
+# Default filesystem locations used by autopkg. These mirror the post-3.x
+# layout so that the recipe map backport can find the same paths that the
+# dev-3.x code expects.
+DEFAULT_USER_LIBRARY_DIR = "~/Library/AutoPkg"
+DEFAULT_LIBRARY_DIR = "/Library/AutoPkg"
+DEFAULT_USER_OVERRIDES_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeOverrides")
+DEFAULT_USER_RECIPES_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "Recipes")
+DEFAULT_USER_CACHE_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "Cache")
+DEFAULT_USER_REPOS_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeRepos")
+# Canonical on-disk location of the recipe map
+DEFAULT_RECIPE_MAP = os.path.join(DEFAULT_USER_LIBRARY_DIR, "recipe_map.json")
+DEFAULT_GH_TOKEN = os.path.join(DEFAULT_USER_LIBRARY_DIR, "gh_token")
+DEFAULT_SEARCH_DIRS = [".", DEFAULT_USER_LIBRARY_DIR, DEFAULT_LIBRARY_DIR]
+
+
+def autopkg_user_folder() -> str:
+    """Return the absolute path to the user's AutoPkg folder, creating it
+    and its immediate subfolders on demand. This is used as the canonical
+    location for the recipe map and related caches."""
+    folder = os.path.abspath(os.path.expanduser(DEFAULT_USER_LIBRARY_DIR))
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
 
 class PreferenceError(Exception):
     """Preference exception"""
@@ -381,11 +404,76 @@ def get_identifier_from_recipe_file(filename) -> str | None:
     return get_identifier(recipe_dict)
 
 
-def find_recipe_by_identifier(identifier, search_dirs) -> str | None:
-    """Search search_dirs for a recipe with the given
-    identifier"""
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
+    """Attempts to read a dict and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise."""
+    if recipe_dict:
+        for key in keys_to_verify:
+            if key not in recipe_dict:
+                return False
+        # if we get here, we found all the keys
+        return True
+    return False
+
+
+def valid_recipe_dict(recipe_dict) -> bool:
+    """Returns True if recipe dict is a valid recipe,
+    otherwise returns False"""
+    return (
+        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
+    )
+
+
+def valid_recipe_file(filename) -> bool:
+    """Returns True if filename contains a valid recipe,
+    otherwise returns False"""
+    recipe_dict = recipe_from_file(filename)
+    return valid_recipe_dict(recipe_dict)
+
+
+def valid_override_dict(recipe_dict) -> bool:
+    """Returns True if the recipe is a valid override,
+    otherwise returns False"""
+    return valid_recipe_dict_with_keys(
+        recipe_dict, ["Input", "ParentRecipe"]
+    ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+
+
+def valid_override_file(filename) -> bool:
+    """Returns True if filename contains a valid override,
+    otherwise returns False"""
+    override_dict = recipe_from_file(filename)
+    return valid_override_dict(override_dict)
+
+
+def get_search_dirs() -> list[str]:
+    """Return search dirs from preferences or default list"""
+    dirs: list[str] = get_pref("RECIPE_SEARCH_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or list(DEFAULT_SEARCH_DIRS)
+
+
+def get_override_dirs() -> list[str]:
+    """Return override dirs from preferences or default list"""
+    default = [DEFAULT_USER_OVERRIDES_DIR]
+
+    dirs: list[str] = get_pref("RECIPE_OVERRIDE_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or default
+
+
+def find_recipe_by_identifier_on_disk(identifier, search_dirs) -> str | None:
+    """Search search_dirs on disk for a recipe with the given identifier.
+
+    This is the legacy on-disk scan used as a fallback when the recipe map
+    cannot resolve a recipe."""
     for directory in search_dirs:
-        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
         patterns.extend(
@@ -398,6 +486,36 @@ def find_recipe_by_identifier(identifier, search_dirs) -> str | None:
                     return match
 
     return None
+
+
+def find_recipe_by_name_on_disk(name, search_dirs) -> str | None:
+    """Search search_dirs on disk for a recipe by file/directory naming rules.
+
+    This is the legacy on-disk scan used as a fallback when the recipe map
+    cannot resolve a recipe."""
+    # drop extension from the end of the name because we're
+    # going to add it back on...
+    name = remove_recipe_extension(name)
+    # search by "Name", using file/directory hierarchy rules
+    for directory in search_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
+        )
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                if valid_recipe_file(match):
+                    return match
+
+    return None
+
+
+# Backwards-compatible alias. The dev-3.x port will replace this with a
+# recipe-map-based implementation; for now point callers at the on-disk
+# scanner so existing behaviour is preserved.
+find_recipe_by_identifier = find_recipe_by_identifier_on_disk
 
 
 def get_autopkg_version() -> str:
