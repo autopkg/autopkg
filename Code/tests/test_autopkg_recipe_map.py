@@ -76,18 +76,29 @@ class _RecipeMapIsolationMixin:
         self.tmpdir = tempfile.mkdtemp(prefix="autopkg_recipe_map_test_")
         self.addCleanup(self._cleanup_tmp)
 
-        self._saved_map = dict(autopkglib.globalRecipeMap)
-        self._saved_default = autopkglib.DEFAULT_RECIPE_MAP
-        autopkglib.globalRecipeMap = {
-            "identifiers": {},
-            "shortnames": {},
-            "overrides": {},
-            "overrides-identifiers": {},
+        # Mutate globalRecipeMap IN PLACE rather than rebinding the
+        # module attribute — the invariant established in commit f6b4f2e
+        # requires object-identity stability so `from autopkglib import
+        # globalRecipeMap` importers always see the live dict.
+        self._saved_map = {
+            key: dict(value) if isinstance(value, dict) else value
+            for key, value in autopkglib.globalRecipeMap.items()
         }
+        self._saved_default = autopkglib.DEFAULT_RECIPE_MAP
+        autopkglib.globalRecipeMap.clear()
+        autopkglib.globalRecipeMap.update(
+            {
+                "identifiers": {},
+                "shortnames": {},
+                "overrides": {},
+                "overrides-identifiers": {},
+            }
+        )
         autopkglib.DEFAULT_RECIPE_MAP = os.path.join(self.tmpdir, "recipe_map.json")
 
     def tearDown(self):
-        autopkglib.globalRecipeMap = self._saved_map
+        autopkglib.globalRecipeMap.clear()
+        autopkglib.globalRecipeMap.update(self._saved_map)
         autopkglib.DEFAULT_RECIPE_MAP = self._saved_default
 
     def _cleanup_tmp(self):
@@ -108,14 +119,16 @@ class TestRecipeMapLookups(_RecipeMapIsolationMixin, unittest.TestCase):
         self.override_path = os.path.join(self.tmpdir, "Override.recipe")
         _write_plist_recipe(self.override_path, SAMPLE_OVERRIDE)
 
-        autopkglib.globalRecipeMap = {
-            "identifiers": {SAMPLE_RECIPE["Identifier"]: self.recipe_path},
-            "shortnames": {"Sample": self.recipe_path},
-            "overrides": {"Override": self.override_path},
-            "overrides-identifiers": {
-                SAMPLE_OVERRIDE["Identifier"]: self.override_path
-            },
-        }
+        # Populate in place (see _RecipeMapIsolationMixin setUp for
+        # why identity matters).
+        autopkglib.globalRecipeMap["identifiers"].update(
+            {SAMPLE_RECIPE["Identifier"]: self.recipe_path}
+        )
+        autopkglib.globalRecipeMap["shortnames"].update({"Sample": self.recipe_path})
+        autopkglib.globalRecipeMap["overrides"].update({"Override": self.override_path})
+        autopkglib.globalRecipeMap["overrides-identifiers"].update(
+            {SAMPLE_OVERRIDE["Identifier"]: self.override_path}
+        )
 
     def test_find_by_id_prefers_override(self):
         """An override identifier beats a stock recipe identifier."""
@@ -146,7 +159,7 @@ class TestRecipeMapLookups(_RecipeMapIsolationMixin, unittest.TestCase):
             SAMPLE_RECIPE["Identifier"]
         ] = "/nonexistent/path.recipe"
         # Override identifier still resolves though...
-        autopkglib.globalRecipeMap["overrides-identifiers"] = {}
+        autopkglib.globalRecipeMap["overrides-identifiers"].clear()
         self.assertIsNone(
             autopkglib.find_recipe_by_identifier_in_map(SAMPLE_RECIPE["Identifier"])
         )
@@ -219,12 +232,12 @@ class TestRecipeMapPersistence(_RecipeMapIsolationMixin, unittest.TestCase):
     def test_write_is_sorted_for_stable_diffs(self):
         """The file should use sort_keys=True so repeated regenerations
         produce byte-identical output."""
-        autopkglib.globalRecipeMap = {
-            "identifiers": {"com.example.b": "/b.recipe", "com.example.a": "/a.recipe"},
-            "shortnames": {"B": "/b.recipe", "A": "/a.recipe"},
-            "overrides": {},
-            "overrides-identifiers": {},
-        }
+        autopkglib.globalRecipeMap["identifiers"].update(
+            {"com.example.b": "/b.recipe", "com.example.a": "/a.recipe"}
+        )
+        autopkglib.globalRecipeMap["shortnames"].update(
+            {"B": "/b.recipe", "A": "/a.recipe"}
+        )
         autopkglib.write_recipe_map_to_disk()
         with open(autopkglib.DEFAULT_RECIPE_MAP) as f:
             text = f.read()
@@ -598,17 +611,34 @@ class TestGenerateRecipeMapVerb(_RecipeMapIsolationMixin, unittest.TestCase):
             autopkg.generate_recipe_map,
         )
 
-    def test_generates_and_persists_map(self):
-        """Invoking the verb with explicit search/override dirs must
-        produce a persisted recipe map covering those dirs."""
+    def test_refuses_transient_cli_dirs(self):
+        """Transient --search-dir / --override-dir flags are refused
+        because persisting them into recipe_map.json would pollute
+        every later pref-scoped run. The verb must return a non-zero
+        exit code and NOT write the map."""
         rc = self._run(
             [],
             options_kwargs={
                 "search_dirs": [self.recipes_dir],
                 "override_dirs": [self.overrides_dir],
             },
-            # No background prefs — test only the CLI-supplied dirs.
             prefs={"RECIPE_SEARCH_DIRS": [], "RECIPE_OVERRIDE_DIRS": []},
+        )
+        self.assertEqual(rc, 1, "Verb must refuse transient CLI dirs.")
+        self.assertFalse(
+            os.path.exists(autopkglib.DEFAULT_RECIPE_MAP),
+            "Verb must NOT persist when refusing.",
+        )
+
+    def test_persists_pref_scoped_map_with_schema_version(self):
+        """Happy path: no CLI dirs, prefs configured. Verb builds the
+        pref-scoped map and writes it to disk with a schema_version."""
+        rc = self._run(
+            [],
+            prefs={
+                "RECIPE_SEARCH_DIRS": [self.recipes_dir],
+                "RECIPE_OVERRIDE_DIRS": [self.overrides_dir],
+            },
         )
         self.assertEqual(rc, 0)
         self.assertTrue(os.path.exists(autopkglib.DEFAULT_RECIPE_MAP))

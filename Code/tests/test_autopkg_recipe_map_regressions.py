@@ -1008,7 +1008,7 @@ class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
         )
 
 
-class TestLoadRecipeTolerartesStaleMapEntry(_RecipeMapIsolation, unittest.TestCase):
+class TestLoadRecipeToleratesStaleMapEntry(_RecipeMapIsolation, unittest.TestCase):
     """Review finding: ``load_recipe`` must not crash with
     ``AttributeError`` when the recipe map returns a path to a file
     that exists but isn't parseable (stale entry, truncated mid-write

@@ -136,7 +136,11 @@ DEFAULT_USER_REPOS_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeRepos")
 # Canonical on-disk location of the recipe map
 DEFAULT_RECIPE_MAP = os.path.join(DEFAULT_USER_LIBRARY_DIR, "recipe_map.json")
 DEFAULT_GH_TOKEN = os.path.join(DEFAULT_USER_LIBRARY_DIR, "gh_token")
-DEFAULT_SEARCH_DIRS = [".", DEFAULT_USER_LIBRARY_DIR, DEFAULT_LIBRARY_DIR]
+DEFAULT_SEARCH_DIRS = [
+    ".",
+    DEFAULT_USER_RECIPES_DIR,
+    os.path.join(DEFAULT_LIBRARY_DIR, "Recipes"),
+]
 
 
 def autopkg_user_folder() -> str:
@@ -730,6 +734,12 @@ def calculate_recipe_map(
                      rebuild, which is only expanding the in-memory view
                      for the current process.
     ===============  ====================================================="""
+    # Honour the disable escape hatch here too — otherwise users who've
+    # set AUTOPKG_DISABLE_RECIPE_MAP still pay the full scan cost on
+    # repo-add / repo-update / make-override etc.
+    if _recipe_map_disabled():
+        return
+
     # Mutate in place so every importer sees the refresh.
     for sub in (
         "identifiers",
@@ -742,11 +752,9 @@ def calculate_recipe_map(
     extra_search_dirs = list(extra_search_dirs or [])
     extra_override_dirs = list(extra_override_dirs or [])
 
-    search_dirs = get_pref("RECIPE_SEARCH_DIRS") or list(DEFAULT_SEARCH_DIRS)
-    if isinstance(search_dirs, str):
-        search_dirs = [search_dirs]
-
-    for search_dir in list(search_dirs) + extra_search_dirs:
+    # Defer to get_search_dirs() so the pref-or-default resolution lives
+    # in exactly one place.
+    for search_dir in get_search_dirs() + extra_search_dirs:
         if search_dir == "." and skip_cwd:
             # Deliberately skip '.' — adding cwd to the persistent map is
             # surprising for users who run autopkg from arbitrary locations.

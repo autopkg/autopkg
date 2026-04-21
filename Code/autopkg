@@ -844,10 +844,6 @@ Example: '%prog repo-add recipes'
         log_err("Need at least one recipe repo URL!")
         return -1
 
-    # Read the existing map (if any) before modifying prefs so that the
-    # rebuild below sees a consistent baseline.
-    read_recipe_map(allow_continuing=True)
-
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     added_repo_dirs: list[str] = []
@@ -899,10 +895,6 @@ def repo_delete(argv):
     if len(arguments) < 1:
         log_err("Need at least one recipe repo path or URL!")
         return -1
-
-    # Read the existing map (if any) before mutating prefs so we can
-    # rebuild it cleanly below.
-    read_recipe_map(allow_continuing=True)
 
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     recipe_search_dirs = get_search_dirs()
@@ -2911,19 +2903,24 @@ def generate_recipe_map(argv):
     )
     options, _arguments = common_parse(parser, argv)
 
-    extra_search_dirs = list(options.search_dirs or [])
-    extra_override_dirs = list(options.override_dirs or [])
+    # Refuse transient --search-dir / --override-dir flags. Persisting
+    # those paths into recipe_map.json would pollute every subsequent
+    # pref-scoped invocation with paths the user only wanted for this
+    # one build. If the user wants a dir indexed permanently, they
+    # should set it in prefs via `repo-add` or `defaults write`.
+    if options.search_dirs or options.override_dirs:
+        log_err(
+            "ERROR: generate-recipe-map writes to the persistent on-disk "
+            "cache, so transient --search-dir / --override-dir flags are "
+            "not accepted (they would leak into every later run). To "
+            "include a directory permanently, add it to RECIPE_SEARCH_DIRS "
+            "/ RECIPE_OVERRIDE_DIRS via `autopkg repo-add <dir>` or "
+            "`defaults write com.github.autopkg RECIPE_SEARCH_DIRS ...`."
+        )
+        return 1
 
-    # Single rebuild call covering configured prefs + any CLI-supplied
-    # extras. persist=True ensures the result is written to disk even
-    # when extras were supplied, which is the whole point of this verb
-    # (CI/CD bootstrap).
-    calculate_recipe_map(
-        extra_search_dirs=extra_search_dirs or None,
-        extra_override_dirs=extra_override_dirs or None,
-        skip_cwd=not options.include_cwd,
-        persist=True,
-    )
+    # Rebuild and persist the pref-scoped map.
+    calculate_recipe_map(skip_cwd=not options.include_cwd)
 
     counts = {k: len(v) for k, v in globalRecipeMap.items() if isinstance(v, dict)}
     log(
