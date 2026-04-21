@@ -36,10 +36,20 @@ class TestAutoPkgRun(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.tmp_dir = TemporaryDirectory()
+        # Silence recipe-map side effects (see test_autopkg_recipes for
+        # rationale).
+        self._recipe_map_patches = [
+            patch("autopkg.calculate_recipe_map"),
+            patch("autopkg.read_recipe_map"),
+        ]
+        for patcher in self._recipe_map_patches:
+            patcher.start()
 
     def tearDown(self):
         """Clean up after tests."""
         self.tmp_dir.cleanup()
+        for patcher in self._recipe_map_patches:
+            patcher.stop()
 
     def test_run_recipes_no_arguments(self):
         """Test run_recipes with no recipe arguments."""

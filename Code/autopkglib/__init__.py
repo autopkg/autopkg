@@ -124,6 +124,44 @@ RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 # Supported recipe extensions
 RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
 
+# Default filesystem locations used by autopkg. These mirror the post-3.x
+# layout so that the recipe map backport can find the same paths that the
+# dev-3.x code expects.
+DEFAULT_USER_LIBRARY_DIR = "~/Library/AutoPkg"
+DEFAULT_LIBRARY_DIR = "/Library/AutoPkg"
+DEFAULT_USER_OVERRIDES_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeOverrides")
+DEFAULT_USER_RECIPES_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "Recipes")
+DEFAULT_USER_CACHE_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "Cache")
+DEFAULT_USER_REPOS_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeRepos")
+# Canonical on-disk location of the recipe map
+DEFAULT_RECIPE_MAP = os.path.join(DEFAULT_USER_LIBRARY_DIR, "recipe_map.json")
+DEFAULT_GH_TOKEN = os.path.join(DEFAULT_USER_LIBRARY_DIR, "gh_token")
+DEFAULT_SEARCH_DIRS = [
+    ".",
+    DEFAULT_USER_RECIPES_DIR,
+    os.path.join(DEFAULT_LIBRARY_DIR, "Recipes"),
+]
+
+
+def autopkg_user_folder() -> str:
+    """Return the absolute path to the user's AutoPkg folder.
+
+    The folder is created on demand when possible, but we fail soft on
+    permission or read-only errors so callers running in sandboxed or
+    mocked environments (notably the test suite, which routinely patches
+    ``os.path.expanduser`` to point at ``/``) are not crashed by a
+    housekeeping operation.
+
+    Note: any ``OSError`` raised during directory creation is swallowed
+    here and surfaces later at the actual write site — see
+    ``write_recipe_map_to_disk`` which handles real write failures."""
+    folder = os.path.abspath(os.path.expanduser(DEFAULT_USER_LIBRARY_DIR))
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except OSError:
+        pass
+    return folder
+
 
 class PreferenceError(Exception):
     """Preference exception"""
@@ -307,6 +345,18 @@ class Preferences:
 # Set the global preferences object
 globalPreferences = Preferences()
 
+# Set the global recipe map. The four top-level dicts map:
+#   identifiers           -> identifier string -> absolute recipe path
+#   shortnames            -> recipe shortname  -> absolute recipe path
+#   overrides             -> override shortname -> absolute override path
+#   overrides-identifiers -> override identifier -> absolute override path
+globalRecipeMap: dict[str, dict[str, str]] = {
+    "identifiers": {},
+    "shortnames": {},
+    "overrides": {},
+    "overrides-identifiers": {},
+}
+
 
 def get_pref(key) -> Any | None:
     """Return a single pref value (or None) for a domain."""
@@ -335,15 +385,23 @@ def remove_recipe_extension(name) -> str:
 
 
 def recipe_from_file(filename) -> VarDict | None:
-    """Create a recipe dictionary from a file. Handle exceptions and log"""
+    """Create a recipe dictionary from a file. Handle exceptions and log.
+
+    YAML recipes are parsed with ``yaml.safe_load`` (not ``FullLoader``).
+    Recipe documents are always plain mappings of primitives, so the safe
+    loader is sufficient for every legitimate recipe in the ecosystem.
+    This is a deliberate defence against arbitrary-code-execution via
+    crafted YAML tags (CVE-2020-14343-class issues) — doubly important
+    now that the recipe map backport causes every ``.recipe.yaml`` in
+    ``RECIPE_SEARCH_DIRS`` to be parsed during every map build and
+    lookup, not just when the user explicitly invokes the recipe."""
     if not os.path.isfile(filename):
         return
 
     if filename.endswith(".yaml"):
         try:
-            # try to read it as yaml
             with open(filename, "rb") as f:
-                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+                recipe_dict = yaml.safe_load(f)
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")
@@ -381,11 +439,76 @@ def get_identifier_from_recipe_file(filename) -> str | None:
     return get_identifier(recipe_dict)
 
 
-def find_recipe_by_identifier(identifier, search_dirs) -> str | None:
-    """Search search_dirs for a recipe with the given
-    identifier"""
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
+    """Attempts to read a dict and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise."""
+    if recipe_dict:
+        for key in keys_to_verify:
+            if key not in recipe_dict:
+                return False
+        # if we get here, we found all the keys
+        return True
+    return False
+
+
+def valid_recipe_dict(recipe_dict) -> bool:
+    """Returns True if recipe dict is a valid recipe,
+    otherwise returns False"""
+    return (
+        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
+    )
+
+
+def valid_recipe_file(filename) -> bool:
+    """Returns True if filename contains a valid recipe,
+    otherwise returns False"""
+    recipe_dict = recipe_from_file(filename)
+    return valid_recipe_dict(recipe_dict)
+
+
+def valid_override_dict(recipe_dict) -> bool:
+    """Returns True if the recipe is a valid override,
+    otherwise returns False"""
+    return valid_recipe_dict_with_keys(
+        recipe_dict, ["Input", "ParentRecipe"]
+    ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+
+
+def valid_override_file(filename) -> bool:
+    """Returns True if filename contains a valid override,
+    otherwise returns False"""
+    override_dict = recipe_from_file(filename)
+    return valid_override_dict(override_dict)
+
+
+def get_search_dirs() -> list[str]:
+    """Return search dirs from preferences or default list"""
+    dirs: list[str] = get_pref("RECIPE_SEARCH_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or list(DEFAULT_SEARCH_DIRS)
+
+
+def get_override_dirs() -> list[str]:
+    """Return override dirs from preferences or default list"""
+    default = [DEFAULT_USER_OVERRIDES_DIR]
+
+    dirs: list[str] = get_pref("RECIPE_OVERRIDE_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or default
+
+
+def find_recipe_by_identifier_on_disk(identifier, search_dirs) -> str | None:
+    """Search search_dirs on disk for a recipe with the given identifier.
+
+    This is the legacy on-disk scan used as a fallback when the recipe map
+    cannot resolve a recipe."""
     for directory in search_dirs:
-        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
         patterns.extend(
@@ -398,6 +521,573 @@ def find_recipe_by_identifier(identifier, search_dirs) -> str | None:
                     return match
 
     return None
+
+
+def find_recipe_by_name_on_disk(name, search_dirs) -> str | None:
+    """Search search_dirs on disk for a recipe by file/directory naming rules.
+
+    This is the legacy on-disk scan used as a fallback when the recipe map
+    cannot resolve a recipe."""
+    # drop extension from the end of the name because we're
+    # going to add it back on...
+    name = remove_recipe_extension(name)
+    # search by "Name", using file/directory hierarchy rules
+    for directory in search_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
+        patterns.extend(
+            [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
+        )
+        for pattern in patterns:
+            matches = glob.glob(pattern)
+            for match in matches:
+                if valid_recipe_file(match):
+                    return match
+
+    return None
+
+
+# Backwards-compatible alias. The recipe-map port below keeps this name
+# pointing at the on-disk scanner so existing tests that mock
+# ``find_recipe_by_identifier`` keep working. Callers that want the new
+# map-based behaviour should use ``find_recipe_by_identifier_in_map`` explicitly.
+find_recipe_by_identifier = find_recipe_by_identifier_on_disk
+
+
+# ---------------------------------------------------------------------------
+# Recipe map: backport from dev-3.x
+# ---------------------------------------------------------------------------
+#
+# The recipe map is an on-disk JSON cache of every recipe and override
+# discovered on the system. It lets autopkg resolve a recipe by identifier
+# or shortname without walking every recipe directory on each invocation,
+# which is the dominant cost for users with many recipe repos.
+#
+# Glossary:
+#   identifier      A recipe's globally-unique reverse-DNS ID, read from
+#                   its ``Identifier`` field (e.g. ``com.github.autopkg.X``).
+#   shortname       The recipe's filename minus the ``.recipe`` /
+#                   ``.recipe.plist`` / ``.recipe.yaml`` extension.
+#   override        A recipe in RECIPE_OVERRIDE_DIRS. Has precedence over a
+#                   stock recipe of the same name during resolution.
+#   search dir      An entry in RECIPE_SEARCH_DIRS.
+#   pref-scoped     The persisted map reflects the prefs at build time.
+#                   CLI ``--search-dir`` / ``--override-dir`` flags that
+#                   differ from the pref baseline bypass the map and
+#                   scan only the requested dirs on disk.
+#
+# On-disk layout:
+#   Path:  ``~/Library/AutoPkg/recipe_map.json``
+#          (overridable via AUTOPKG_RECIPE_MAP_PATH env var or
+#          RECIPE_MAP_PATH pref — issue #901)
+#   Keys:  ``identifiers``, ``shortnames``, ``overrides``,
+#          ``overrides-identifiers``, plus ``schema_version`` for
+#          forward-compat.
+#
+# UX divergence from dev-3.x: the original behaviour exited with an error
+# when the map was missing. We auto-create it on demand instead, and
+# expose an explicit ``autopkg generate-recipe-map`` verb for environments
+# (e.g. CI/CD) that want to build the cache up-front. See issues #884,
+# #893, #898.
+#
+# Resolution flow (used by ``find_recipe`` in Code/autopkg):
+#   1. Did the caller supply CLI dirs that differ from prefs?
+#        yes → on-disk scan of ONLY the supplied dirs
+#        no  → consult globalRecipeMap (O(1))
+#   2. Miss?
+#        yes → on-disk fallback of the effective dirs
+#   3. Still miss? ``locate_recipe`` triggers one cwd-inclusive rebuild
+#      (once per process) and retries.
+
+
+def find_recipe_by_identifier_in_map(
+    identifier: str, skip_overrides: bool = False
+) -> str | None:
+    """Resolve an identifier to a recipe path via the global recipe map.
+
+    Returns None if no entry exists or the cached path has disappeared from
+    disk (stale map). We only stat the file — parsing it to confirm it's a
+    valid recipe would be prohibitively expensive on the hot path (every
+    shared-processor lookup calls this), and the map was built from a valid
+    recipe to begin with."""
+    if not skip_overrides and identifier in globalRecipeMap.get(
+        "overrides-identifiers", {}
+    ):
+        override_path = globalRecipeMap["overrides-identifiers"][identifier]
+        if os.path.isfile(override_path):
+            return override_path
+    if identifier in globalRecipeMap.get("identifiers", {}):
+        recipe_path = globalRecipeMap["identifiers"][identifier]
+        if os.path.isfile(recipe_path):
+            return recipe_path
+    return None
+
+
+def find_recipe_by_name_in_map(name: str, skip_overrides: bool = False) -> str | None:
+    """Resolve a recipe shortname to a recipe path via the global recipe map.
+
+    Overrides take precedence over stock recipes unless ``skip_overrides`` is
+    True. Returns None if no entry exists or the cached path has disappeared
+    from disk. See ``find_recipe_by_identifier_in_map`` for why we don't
+    re-parse the file here."""
+    if not skip_overrides and name in globalRecipeMap.get("overrides", {}):
+        override_path = globalRecipeMap["overrides"][name]
+        if os.path.isfile(override_path):
+            return override_path
+    if name in globalRecipeMap.get("shortnames", {}):
+        recipe_path = globalRecipeMap["shortnames"][name]
+        if os.path.isfile(recipe_path):
+            return recipe_path
+    return None
+
+
+def find_name_from_identifier(identifier: str) -> str | None:
+    """Reverse lookup: return a shortname for the given identifier, or None."""
+    recipe_path = globalRecipeMap.get("identifiers", {}).get(identifier)
+    if recipe_path is None:
+        log_err(f"Could not find shortname from {identifier}!")
+        return None
+    for shortname, path in globalRecipeMap.get("shortnames", {}).items():
+        if recipe_path == path:
+            return shortname
+    log_err(f"Could not find shortname from {identifier}!")
+    return None
+
+
+def find_identifier_from_name(name: str) -> str | None:
+    """Reverse lookup: return an identifier for the given shortname, or None."""
+    recipe_path = globalRecipeMap.get("shortnames", {}).get(name)
+    if recipe_path is None:
+        log_err(f"Could not find identifier from {name}!")
+        return None
+    for recipe_id, path in globalRecipeMap.get("identifiers", {}).items():
+        if recipe_path == path:
+            return recipe_id
+    log_err(f"Could not find identifier from {name}!")
+    return None
+
+
+# Keys in globalRecipeMap that index by recipe Identifier (read from the
+# plist/yaml). All other keys index by shortname (filename minus extension).
+_IDENTIFIER_KEYS = frozenset({"identifiers", "overrides-identifiers"})
+
+
+def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
+    """Walk ``repo_dir`` one level deep and emit {key: absolute_path} entries
+    suitable for inclusion in ``globalRecipeMap[keyname]``.
+
+    For identifier-keyed dicts (``identifiers``, ``overrides-identifiers``)
+    the key is read from the recipe file's Identifier field; for the
+    shortname-keyed dicts (``shortnames``, ``overrides``) the key is the
+    filename minus the recipe extension.
+
+    First-wins: if a key is already present in the return dict or in
+    ``globalRecipeMap[keyname]`` the new path is ignored."""
+    recipe_map: dict[str, str] = {}
+    normalized_dir = os.path.abspath(os.path.expanduser(repo_dir))
+    patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
+    patterns.extend([os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS])
+    use_identifier = keyname in _IDENTIFIER_KEYS
+    for pattern in patterns:
+        for match in glob.glob(pattern):
+            if use_identifier:
+                key = get_identifier_from_recipe_file(match)
+            else:
+                key = remove_recipe_extension(os.path.basename(match))
+            if not key:
+                log_err(
+                    f"WARNING: {match} is potentially an invalid file, not "
+                    "adding it to the recipe map! Please file a GitHub Issue "
+                    "for this repo."
+                )
+                continue
+            if key in recipe_map or key in globalRecipeMap.get(keyname, {}):
+                # first-wins; do not overwrite an existing entry
+                continue
+            recipe_map[key] = match
+    return recipe_map
+
+
+def add_recipe_to_map(recipe_path: str, is_override: bool) -> None:
+    """Insert a single recipe/override into ``globalRecipeMap`` and
+    re-persist. Avoids a full RECIPE_SEARCH_DIRS tree walk when we
+    already know exactly which file changed (e.g. ``make-override``
+    and ``new-recipe`` have just written the file).
+
+    Honours first-wins semantics: existing entries are preserved, so
+    a new recipe with an identifier that clashes with a pre-existing
+    one is NOT added (matching ``map_key_to_paths``). On the rare
+    clash the caller gets a warning log and the persisted map is
+    left unchanged.
+
+    Silently no-ops when the recipe map is disabled."""
+    if _recipe_map_disabled():
+        return
+    recipe_dict = recipe_from_file(recipe_path)
+    if recipe_dict is None:
+        log_err(
+            f"WARNING: {recipe_path} is not a readable recipe; not "
+            "adding it to the recipe map."
+        )
+        return
+    identifier = get_identifier(recipe_dict)
+    shortname = remove_recipe_extension(os.path.basename(recipe_path))
+    id_key = "overrides-identifiers" if is_override else "identifiers"
+    name_key = "overrides" if is_override else "shortnames"
+    id_table = globalRecipeMap.setdefault(id_key, {})
+    name_table = globalRecipeMap.setdefault(name_key, {})
+
+    changed = False
+    if identifier and identifier not in id_table:
+        id_table[identifier] = recipe_path
+        changed = True
+    if shortname and shortname not in name_table:
+        name_table[shortname] = recipe_path
+        changed = True
+    if changed:
+        write_recipe_map_to_disk()
+
+
+def calculate_recipe_map(
+    extra_search_dirs: list[str] | None = None,
+    extra_override_dirs: list[str] | None = None,
+    skip_cwd: bool = True,
+    persist: bool | None = None,
+) -> None:
+    """Recalculate ``globalRecipeMap`` from scratch by walking every recipe
+    search directory and every override directory.
+
+    Mutates ``globalRecipeMap`` in place rather than rebinding the name so
+    any module that imported the symbol with ``from autopkglib import
+    globalRecipeMap`` continues to see the fresh contents.
+
+    ``persist`` controls whether the new map is written to disk:
+
+    ===============  =======================================================
+    Value            Behaviour
+    ===============  =======================================================
+    ``None``         Default. Persist **iff** no ``extra_*`` dirs were
+                     supplied. Callers that pass transient extras don't
+                     want their view leaking into the on-disk cache.
+    ``True``         Always persist. Used by ``generate-recipe-map``.
+    ``False``        Never persist. Used by ``locate_recipe``'s on-miss
+                     rebuild, which is only expanding the in-memory view
+                     for the current process.
+    ===============  ====================================================="""
+    # Honour the disable escape hatch here too — otherwise users who've
+    # set AUTOPKG_DISABLE_RECIPE_MAP still pay the full scan cost on
+    # repo-add / repo-update / make-override etc.
+    if _recipe_map_disabled():
+        return
+
+    # Mutate in place so every importer sees the refresh.
+    for sub in (
+        "identifiers",
+        "shortnames",
+        "overrides",
+        "overrides-identifiers",
+    ):
+        globalRecipeMap.setdefault(sub, {}).clear()
+
+    extra_search_dirs = list(extra_search_dirs or [])
+    extra_override_dirs = list(extra_override_dirs or [])
+
+    # Defer to get_search_dirs() so the pref-or-default resolution lives
+    # in exactly one place.
+    for search_dir in get_search_dirs() + extra_search_dirs:
+        if search_dir == "." and skip_cwd:
+            # Deliberately skip '.' — adding cwd to the persistent map is
+            # surprising for users who run autopkg from arbitrary locations.
+            continue
+        elif search_dir == ".":
+            # If the caller opted back in to scanning '.', resolve it so the
+            # absolute path ends up in the map.
+            search_dir = os.path.abspath(".")
+        globalRecipeMap["identifiers"].update(
+            map_key_to_paths("identifiers", search_dir)
+        )
+        globalRecipeMap["shortnames"].update(map_key_to_paths("shortnames", search_dir))
+
+    for override in get_override_dirs() + extra_override_dirs:
+        if override == ".":
+            # Match the search-dir behaviour: '.' is only scanned when the
+            # caller opts in via skip_cwd=False.
+            if skip_cwd:
+                continue
+            override = os.path.abspath(".")
+        globalRecipeMap["overrides"].update(map_key_to_paths("overrides", override))
+        globalRecipeMap["overrides-identifiers"].update(
+            map_key_to_paths("overrides-identifiers", override)
+        )
+
+    if persist is None:
+        persist = not (extra_search_dirs or extra_override_dirs)
+    if persist:
+        write_recipe_map_to_disk()
+
+
+# Schema version baked into the persisted map. Increment when the on-disk
+# format changes in a non-backwards-compatible way so we can force a
+# rebuild rather than reading stale or incompatible content.
+RECIPE_MAP_SCHEMA_VERSION = 1
+
+
+def _recipe_map_path() -> str:
+    """Return the absolute, expanded path to the recipe map file on disk.
+
+    Resolution order (issue #901):
+    1. ``AUTOPKG_RECIPE_MAP_PATH`` environment variable (CI/CD friendly).
+    2. ``RECIPE_MAP_PATH`` preference key (per-user override).
+    3. The default location under ``autopkg_user_folder()``.
+
+    Security notes:
+    * Environment variables are honoured regardless of effective UID,
+      but when running as root we log a prominent warning so operators
+      noticing the deviation in their logs can investigate. Users who
+      run ``sudo autopkg`` in CI pipelines should strip ``AUTOPKG_*``
+      from their ``env_keep`` list to avoid letting an unprivileged
+      caller influence a privileged process's write target.
+    * ``DEFAULT_RECIPE_MAP`` is stored unexpanded (with a leading ``~``)
+      so tests can monkey-patch ``os.path.expanduser``; resolve it
+      lazily here."""
+    override_source: str | None = None
+    override = os.environ.get("AUTOPKG_RECIPE_MAP_PATH")
+    if override:
+        override_source = "AUTOPKG_RECIPE_MAP_PATH environment variable"
+    else:
+        pref = get_pref("RECIPE_MAP_PATH")
+        if pref:
+            override = pref
+            override_source = "RECIPE_MAP_PATH preference"
+
+    target = override or DEFAULT_RECIPE_MAP
+    resolved = os.path.abspath(os.path.expanduser(target))
+
+    if override and override_source:
+        try:
+            euid = os.geteuid()
+        except AttributeError:
+            # Windows doesn't have geteuid; treat as unprivileged.
+            euid = -1
+        if euid == 0:
+            log_err(
+                "SECURITY WARNING: autopkg is running as root and the "
+                f"recipe map path has been redirected via {override_source} "
+                f"to {resolved}. If this was not set by the system "
+                "administrator it may be a privilege-escalation attempt. "
+                "Consider stripping AUTOPKG_* from your sudoers env_keep "
+                "configuration."
+            )
+        else:
+            log(f"Recipe map path overridden via {override_source}: {resolved}")
+    return resolved
+
+
+def _recipe_map_disabled() -> bool:
+    """Escape hatch. If either the ``AUTOPKG_DISABLE_RECIPE_MAP`` env var
+    or the ``DISABLE_RECIPE_MAP`` pref is truthy, the recipe map is bypassed
+    entirely: lookups fall back to on-disk scans and writes are skipped.
+
+    Intended as a mitigation for users who hit a bug they can't reproduce
+    locally — they can bypass the map without editing code."""
+    if os.environ.get("AUTOPKG_DISABLE_RECIPE_MAP"):
+        return True
+    pref = get_pref("DISABLE_RECIPE_MAP")
+    return bool(pref)
+
+
+# Module-level latch tracking whether the last write attempt failed. When
+# True we skip further writes for the life of the process to avoid spamming
+# the log with the same OSError on every verb. Test fixtures reset this
+# in setUp by assigning directly.
+_recipe_map_write_disabled: bool = False
+
+
+def write_recipe_map_to_disk() -> None:
+    """Persist ``globalRecipeMap`` to the recipe-map file as sorted JSON.
+
+    The write is atomic: we write to ``<path>.tmp`` in the same directory,
+    fsync, then ``os.replace`` it into position. This protects concurrent
+    autopkg invocations from reading a half-written file.
+
+    Failures to write (permission denied, read-only filesystem, etc.) are
+    logged but not raised — the in-memory map is still usable for the
+    lifetime of the process. After the first failure subsequent calls in
+    the same process are silent no-ops to avoid log spam."""
+    global _recipe_map_write_disabled
+    if _recipe_map_write_disabled:
+        return
+    if _recipe_map_disabled():
+        # Escape hatch: don't touch disk at all.
+        return
+
+    target = _recipe_map_path()
+    # Ensure the containing directory exists. autopkg_user_folder() handles
+    # the default location; if the user pointed RECIPE_MAP_PATH at a
+    # custom spot we need to ensure its directory is present too.
+    autopkg_user_folder()
+    target_dir = os.path.dirname(target)
+    if target_dir:
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+        except OSError:
+            # Fall through; the open below will surface the real error.
+            pass
+
+    # Wrap the persisted dict with a schema version so future versions can
+    # detect and migrate/rebuild incompatible formats.
+    payload = {
+        "schema_version": RECIPE_MAP_SCHEMA_VERSION,
+        **globalRecipeMap,
+    }
+
+    # Create the tempfile via tempfile.mkstemp so we get O_EXCL semantics
+    # and explicit mode bits. This prevents a classic symlink-TOCTOU
+    # attack (CWE-59/CWE-377): if another principal can pre-create a
+    # symlink at ``<target>.tmp`` pointing at an attacker-chosen file,
+    # a plain ``open(tmp, "w")`` would follow the symlink and truncate
+    # the target. mkstemp refuses to follow existing symlinks.
+    tmp_dir = target_dir or "."
+    tmp_basename = f".{os.path.basename(target)}.tmp"
+    tmp_fd = -1
+    tmp: str | None = None
+    try:
+        import tempfile as _tempfile
+
+        tmp_fd, tmp = _tempfile.mkstemp(
+            prefix=tmp_basename,
+            dir=tmp_dir,
+        )
+        # Tighten permissions so a shared-homedir setup doesn't leak the
+        # map's file listing to other users on the system.
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError:
+            # Chmod not supported on every filesystem; soft-fail.
+            pass
+        with os.fdopen(tmp_fd, "w") as f:
+            # fdopen takes ownership of the fd; null it out so the
+            # finally clause below doesn't double-close.
+            tmp_fd = -1
+            json.dump(
+                payload,
+                f,
+                ensure_ascii=True,
+                indent=2,
+                sort_keys=True,
+            )
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except (OSError, AttributeError):
+                # fsync can fail on some filesystems (e.g., tmpfs). The
+                # replace below is still atomic enough for our needs.
+                pass
+        os.replace(tmp, target)
+        tmp = None  # Successfully renamed; no cleanup needed.
+    except OSError as err:
+        _recipe_map_write_disabled = True
+        log_err(
+            f"WARNING: Could not write recipe map to {target}: {err}. "
+            "Further write attempts in this process will be skipped. "
+            "To resolve: check write permissions on the target, set "
+            "RECIPE_MAP_PATH (or AUTOPKG_RECIPE_MAP_PATH) to a writable "
+            "location, or set AUTOPKG_DISABLE_RECIPE_MAP=1 to bypass "
+            "the cache entirely."
+        )
+    finally:
+        # Best-effort cleanup of the partial tempfile if we didn't rename
+        # it into position.
+        if tmp_fd != -1:
+            try:
+                os.close(tmp_fd)
+            except OSError:
+                pass
+        if tmp and os.path.exists(tmp):
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
+def handle_reading_recipe_map_file() -> dict:
+    """Read the recipe map from disk. Returns an empty dict on any I/O or
+    JSON error — callers are expected to treat that as a signal to rebuild
+    the map."""
+    try:
+        with open(_recipe_map_path()) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # Silent: this is the normal case on a fresh install and the caller
+        # will trigger a rebuild.
+        return {}
+    except (OSError, json.JSONDecodeError) as err:
+        log_err(f"WARNING: Cannot read the recipe map file: {err}")
+        return {}
+
+
+# Required top-level keys in the in-memory / persisted map structure.
+_EXPECTED_MAP_KEYS = frozenset(
+    ("identifiers", "shortnames", "overrides", "overrides-identifiers")
+)
+
+
+def validate_recipe_map(recipe_map: dict) -> bool:
+    """Return True if ``recipe_map`` has the full set of expected top-level
+    keys AND, if a ``schema_version`` is present, it matches what this
+    version of autopkg knows how to read.
+
+    Missing ``schema_version`` is treated as valid for forward-compat with
+    older persisted files that pre-date the version field; missing required
+    dict keys always invalidate the map."""
+    if not _EXPECTED_MAP_KEYS.issubset(recipe_map.keys()):
+        return False
+    version = recipe_map.get("schema_version")
+    if version is None:
+        # Legacy file from a version before we started writing the
+        # schema_version key — treat as v1.
+        return True
+    return version == RECIPE_MAP_SCHEMA_VERSION
+
+
+def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> None:
+    """Load the recipe map from disk into ``globalRecipeMap``.
+
+    * ``rebuild=True`` forces a full rebuild regardless of on-disk state.
+    * Otherwise: valid file → load; missing/invalid → auto-rebuild once.
+
+    Dev-3.x printed an error and called ``sys.exit(1)`` when the map was
+    missing. We auto-rebuild silently instead — fresh installs and CI
+    pipelines hit that case constantly. See issues #884, #893, #898.
+
+    ``allow_continuing`` is retained for API compatibility with dev-3.x
+    callers that used it to signal "the map may not exist yet". The new
+    auto-create behaviour makes it a no-op."""
+    _ = allow_continuing  # retained for API compatibility
+
+    if _recipe_map_disabled():
+        return
+
+    if rebuild:
+        calculate_recipe_map()
+        return
+
+    recipe_map = handle_reading_recipe_map_file()
+    if validate_recipe_map(recipe_map):
+        for sub in _EXPECTED_MAP_KEYS:
+            globalRecipeMap.setdefault(sub, {}).clear()
+            globalRecipeMap[sub].update(recipe_map.get(sub, {}))
+        return
+
+    if not recipe_map:
+        log(
+            "Recipe map not found; generating it on demand. Run "
+            "`autopkg generate-recipe-map` explicitly (e.g. in CI) to "
+            "avoid paying this cost on every fresh run."
+        )
+    else:
+        log("Recipe map is invalid or from an older schema; rebuilding now.")
+    calculate_recipe_map()
 
 
 def get_autopkg_version() -> str:
@@ -1085,9 +1775,26 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            shared_processor_recipe_path = find_recipe_by_identifier(
-                processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+            # Prefer the recipe map (cheap, O(1) lookup); fall back to an
+            # on-disk scan when the map doesn't know about this identifier.
+            shared_processor_recipe_path = find_recipe_by_identifier_in_map(
+                processor_recipe_id
             )
+            if shared_processor_recipe_path is None:
+                shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
+                    processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+                )
+            # Re-validate the map-returned path is actually a recipe before
+            # adding its directory to the Python import path below. The map
+            # lookup only stat's the file (for speed); this call site feeds
+            # `spec.loader.exec_module`, so we want a structural check here
+            # even when it costs a parse. An attacker who can write to
+            # recipe_map.json cannot point us at an arbitrary directory
+            # just by having a file there — the file must parse as a recipe.
+            if shared_processor_recipe_path and not valid_recipe_file(
+                shared_processor_recipe_path
+            ):
+                shared_processor_recipe_path = None
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
                     os.path.dirname(shared_processor_recipe_path)
