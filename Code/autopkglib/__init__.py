@@ -601,19 +601,20 @@ def find_recipe_by_identifier_in_map(
 ) -> str | None:
     """Resolve an identifier to a recipe path via the global recipe map.
 
-    Returns None if no entry exists or the cached path is no longer a valid
-    recipe file (which typically means the on-disk map is stale)."""
+    Returns None if no entry exists or the cached path has disappeared from
+    disk (stale map). We only stat the file — parsing it to confirm it's a
+    valid recipe would be prohibitively expensive on the hot path (every
+    shared-processor lookup calls this), and the map was built from a valid
+    recipe to begin with."""
     if not skip_overrides and identifier in globalRecipeMap.get(
         "overrides-identifiers", {}
     ):
         override_path = globalRecipeMap["overrides-identifiers"][identifier]
-        if valid_recipe_file(override_path):
-            log(f"Found {identifier} in recipe map overrides")
+        if os.path.isfile(override_path):
             return override_path
     if identifier in globalRecipeMap.get("identifiers", {}):
         recipe_path = globalRecipeMap["identifiers"][identifier]
-        if valid_recipe_file(recipe_path):
-            log(f"Found {identifier} in recipe map")
+        if os.path.isfile(recipe_path):
             return recipe_path
     return None
 
@@ -622,17 +623,16 @@ def find_recipe_by_name_in_map(name: str, skip_overrides: bool = False) -> str |
     """Resolve a recipe shortname to a recipe path via the global recipe map.
 
     Overrides take precedence over stock recipes unless ``skip_overrides`` is
-    True. Returns None if no entry exists or the cached path is no longer a
-    valid recipe file."""
+    True. Returns None if no entry exists or the cached path has disappeared
+    from disk. See ``find_recipe_by_identifier_in_map`` for why we don't
+    re-parse the file here."""
     if not skip_overrides and name in globalRecipeMap.get("overrides", {}):
         override_path = globalRecipeMap["overrides"][name]
-        if valid_recipe_file(override_path):
-            log(f"Found {name} in recipe map overrides")
+        if os.path.isfile(override_path):
             return override_path
     if name in globalRecipeMap.get("shortnames", {}):
         recipe_path = globalRecipeMap["shortnames"][name]
-        if valid_recipe_file(recipe_path):
-            log(f"Found {name} in recipe map")
+        if os.path.isfile(recipe_path):
             return recipe_path
     return None
 
