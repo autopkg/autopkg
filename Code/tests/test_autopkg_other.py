@@ -1354,7 +1354,7 @@ class TestAutoPkgOther(unittest.TestCase):
         recipe = {"RECIPE_PATH": "/sandboxed/x.recipe"}
         env = {"RECIPE_SEARCH_DIRS": ["/sandboxed"]}
 
-        autopkg._set_locate_recipe_rebuild_attempted(True)  # skip rebuild
+        autopkg._locate_recipe_rebuild_attempted = True  # skip rebuild
         with (
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
@@ -1500,7 +1500,7 @@ class TestAutoPkgOther(unittest.TestCase):
         # find_processor_path consults the map first then the on-disk
         # scanner. Stub both to "not found" so we exercise the
         # cwd-rebuild fallback path.
-        autopkg._set_locate_recipe_rebuild_attempted(True)  # skip rebuild
+        autopkg._locate_recipe_rebuild_attempted = True  # skip rebuild
         with (
             patch("os.path.dirname") as mock_dirname,
             patch(

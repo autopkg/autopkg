@@ -82,7 +82,7 @@ class _RecipeMapIsolation:
 
         # Reset the cross-test latch so one test's miss-rebuild doesn't
         # prevent another test from exercising the same code path.
-        autopkg._set_locate_recipe_rebuild_attempted(False)
+        autopkg._locate_recipe_rebuild_attempted = False
 
     def tearDown(self):
         autopkglib.globalRecipeMap.clear()
@@ -299,7 +299,7 @@ class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
         rebuild. Subsequent misses in the same process must NOT trigger
         a second rebuild (review recommendation: avoid pathological
         multi-miss rebuilds)."""
-        autopkg._set_locate_recipe_rebuild_attempted(False)
+        autopkg._locate_recipe_rebuild_attempted = False
 
         # Write a real recipe for the first lookup so the rebuild has
         # something to find.
@@ -764,6 +764,66 @@ class TestRepoAddSingleRebuild(_RecipeMapIsolation, unittest.TestCase):
             1,
             "repo-add should call calculate_recipe_map exactly once.",
         )
+
+
+class TestIncrementalMapUpdateForSingleFile(_RecipeMapIsolation, unittest.TestCase):
+    """Review finding: `make-override` and `new-recipe` used to trigger
+    a full RECIPE_SEARCH_DIRS tree walk to index one newly-written file.
+    They now use `add_recipe_to_map` for an O(1) incremental update."""
+
+    def test_add_recipe_to_map_inserts_identifier_and_shortname(self):
+        recipes_dir = os.path.join(self.tmpdir, "repo")
+        os.makedirs(recipes_dir)
+        recipe_path = os.path.join(recipes_dir, "Sample.recipe")
+        _write_plist_recipe(recipe_path, SAMPLE_RECIPE)
+
+        autopkglib.add_recipe_to_map(recipe_path, is_override=False)
+
+        self.assertEqual(
+            autopkglib.globalRecipeMap["identifiers"][SAMPLE_RECIPE["Identifier"]],
+            recipe_path,
+        )
+        self.assertEqual(
+            autopkglib.globalRecipeMap["shortnames"]["Sample"], recipe_path
+        )
+        # Persisted to disk with the new entry.
+        self.assertTrue(os.path.exists(autopkglib.DEFAULT_RECIPE_MAP))
+
+    def test_add_recipe_to_map_respects_first_wins(self):
+        """Adding a second recipe with the same identifier must NOT
+        overwrite the existing entry (matches map_key_to_paths)."""
+        recipes_dir = os.path.join(self.tmpdir, "repo")
+        os.makedirs(recipes_dir)
+        first = os.path.join(recipes_dir, "First.recipe")
+        second = os.path.join(recipes_dir, "Second.recipe")
+        _write_plist_recipe(first, SAMPLE_RECIPE)
+        _write_plist_recipe(second, SAMPLE_RECIPE)  # same Identifier
+
+        autopkglib.add_recipe_to_map(first, is_override=False)
+        autopkglib.add_recipe_to_map(second, is_override=False)
+
+        self.assertEqual(
+            autopkglib.globalRecipeMap["identifiers"][SAMPLE_RECIPE["Identifier"]],
+            first,
+            "Second add must not overwrite the first (first-wins).",
+        )
+
+    def test_add_recipe_to_map_noops_when_disabled(self):
+        """Escape hatch: when the map is disabled, add_recipe_to_map
+        is a silent no-op."""
+        recipes_dir = os.path.join(self.tmpdir, "repo")
+        os.makedirs(recipes_dir)
+        recipe_path = os.path.join(recipes_dir, "Sample.recipe")
+        _write_plist_recipe(recipe_path, SAMPLE_RECIPE)
+
+        with patch.dict(os.environ, {"AUTOPKG_DISABLE_RECIPE_MAP": "1"}):
+            autopkglib.add_recipe_to_map(recipe_path, is_override=False)
+
+        self.assertNotIn(
+            SAMPLE_RECIPE["Identifier"],
+            autopkglib.globalRecipeMap.get("identifiers", {}),
+        )
+        self.assertFalse(os.path.exists(autopkglib.DEFAULT_RECIPE_MAP))
 
 
 class TestRepoUpdateHeadDiffing(_RecipeMapIsolation, unittest.TestCase):

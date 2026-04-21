@@ -708,6 +708,46 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
     return recipe_map
 
 
+def add_recipe_to_map(recipe_path: str, is_override: bool) -> None:
+    """Insert a single recipe/override into ``globalRecipeMap`` and
+    re-persist. Avoids a full RECIPE_SEARCH_DIRS tree walk when we
+    already know exactly which file changed (e.g. ``make-override``
+    and ``new-recipe`` have just written the file).
+
+    Honours first-wins semantics: existing entries are preserved, so
+    a new recipe with an identifier that clashes with a pre-existing
+    one is NOT added (matching ``map_key_to_paths``). On the rare
+    clash the caller gets a warning log and the persisted map is
+    left unchanged.
+
+    Silently no-ops when the recipe map is disabled."""
+    if _recipe_map_disabled():
+        return
+    recipe_dict = recipe_from_file(recipe_path)
+    if recipe_dict is None:
+        log_err(
+            f"WARNING: {recipe_path} is not a readable recipe; not "
+            "adding it to the recipe map."
+        )
+        return
+    identifier = get_identifier(recipe_dict)
+    shortname = remove_recipe_extension(os.path.basename(recipe_path))
+    id_key = "overrides-identifiers" if is_override else "identifiers"
+    name_key = "overrides" if is_override else "shortnames"
+    id_table = globalRecipeMap.setdefault(id_key, {})
+    name_table = globalRecipeMap.setdefault(name_key, {})
+
+    changed = False
+    if identifier and identifier not in id_table:
+        id_table[identifier] = recipe_path
+        changed = True
+    if shortname and shortname not in name_table:
+        name_table[shortname] = recipe_path
+        changed = True
+    if changed:
+        write_recipe_map_to_disk()
+
+
 def calculate_recipe_map(
     extra_search_dirs: list[str] | None = None,
     extra_override_dirs: list[str] | None = None,
