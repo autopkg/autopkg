@@ -35,20 +35,17 @@ from urllib.parse import quote, urlparse
 import yaml
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
 from autopkgcmd.searchcmd import get_search_results
-from autopkglib import (
-    DEFAULT_RECIPE_MAP,
+from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict_with_keys re-exported for tests)
     RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
+    _recipe_map_path,
     calculate_recipe_map,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
     find_binary,
-    find_identifier_from_name,
-    find_name_from_identifier,
-    find_recipe_by_id_in_map,
-    find_recipe_by_identifier,
+    find_recipe_by_identifier_in_map,
     find_recipe_by_identifier_on_disk,
     find_recipe_by_name_in_map,
     find_recipe_by_name_on_disk,
@@ -85,18 +82,24 @@ _ = f"""{sys.version_info.major} It looks like you're running the autopkg tool w
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
 
-# Module-level latch: have we already paid the cost of rebuilding the map
-# with cwd included during this process? Prevents pathological multi-miss
-# runs from triggering a full rebuild for each missing recipe.
+# Module-level latch: have we already paid the cost of rebuilding the
+# recipe map with cwd included during this process? Gated to once per
+# process so pathological multi-miss runs (e.g. `autopkg run -l typos`
+# against a list of non-existent identifiers) don't trigger N full
+# rebuilds for N misses.
+#
+# Test fixtures reset this in setUp via ``_set_locate_recipe_rebuild_attempted``
+# so each test starts from a clean state.
 _locate_recipe_rebuild_attempted = False
 
 
 def _set_locate_recipe_rebuild_attempted(value: bool) -> None:
-    """Setter used by locate_recipe and by tests. Kept as a function so
-    test code can patch it without worrying about module-global
-    assignment semantics."""
+    """Setter used by ``locate_recipe``, ``find_processor_path`` and by
+    tests. Exposed as a function so callers don't need ``global``
+    declarations."""
     global _locate_recipe_rebuild_attempted
     _locate_recipe_rebuild_attempted = value
+
 
 # Override global yaml state with our str representer
 # See https://github.com/autopkg/autopkg/issues/768
@@ -183,9 +186,7 @@ def _path_under_dirs(path: str, dirs) -> bool:
     return False
 
 
-def _dirs_match_prefs(
-    caller_search_dirs, caller_override_dirs
-) -> bool:
+def _dirs_match_prefs(caller_search_dirs, caller_override_dirs) -> bool:
     """Return True when the caller-supplied dirs are equivalent to the
     currently-configured pref dirs (the dirs the persisted recipe map was
     built from). When this is True it is safe to use the map for
@@ -211,16 +212,22 @@ def find_recipe(
     """Find a recipe based on a string that might be an identifier or a name.
 
     Resolution order:
-    1. If the caller supplied explicit ``search_dirs`` / ``override_dirs``
-       that differ from the configured preferences, scan ONLY those dirs
-       on disk. This preserves the dev-2.x contract that ``autopkg run -d
+    1. If the caller supplied ``search_dirs`` / ``override_dirs`` that
+       differ from the configured preferences, scan ONLY those dirs on
+       disk. This preserves the dev-2.x contract that ``autopkg run -d
        /path/to/repo Foo`` searches exactly ``/path/to/repo`` and not
        whatever happens to be in the persisted recipe map (issues #886,
        #894, #908, #918).
     2. Otherwise, consult the recipe map (O(1)).
     3. On a map miss, fall back to an on-disk scan of ``search_dirs`` (or
        the pref-configured dirs) so recipes that have not been indexed
-       yet are still found."""
+       yet are still found.
+
+    Empty-list and ``None`` semantics: both are treated as "not supplied"
+    — the pref baseline is used. Callers that want to restrict resolution
+    to an empty scope should not call this function; call
+    ``find_recipe_by_identifier_on_disk`` / ``find_recipe_by_name_on_disk``
+    directly instead."""
     # Caller-supplied dirs that differ from prefs → scope to those dirs
     # only. The map is pref-scoped and would silently include/exclude the
     # wrong set of dirs, so we bypass it entirely in that case.
@@ -229,11 +236,9 @@ def find_recipe(
     use_map = _dirs_match_prefs(search_dirs, override_dirs)
 
     if use_map:
-        result = find_recipe_by_id_in_map(
+        result = find_recipe_by_identifier_in_map(
             id_or_name, skip_overrides=skip_overrides
-        ) or find_recipe_by_name_in_map(
-            id_or_name, skip_overrides=skip_overrides
-        )
+        ) or find_recipe_by_name_in_map(id_or_name, skip_overrides=skip_overrides)
         if result:
             return result
 
@@ -423,10 +428,11 @@ def load_recipe(
         override_dirs = []
     if recipe_dirs is None:
         recipe_dirs = []
-    # Populate the recipe map before attempting resolution. With the
-    # auto-create UX, a missing map is a non-fatal condition; read_recipe_map
-    # will rebuild it on the fly if needed.
-    read_recipe_map(rebuild=True)
+    # Populate globalRecipeMap before resolution. read_recipe_map() loads
+    # the persisted cache when valid and auto-rebuilds on first miss;
+    # subsequent calls within the same process are cheap (one file read,
+    # no rebuild) so the recursive load for parent recipes is fine.
+    read_recipe_map()
     recipe = None
     recipe_file = locate_recipe(
         name,
@@ -964,9 +970,9 @@ def repo_update(argv):
         # tree (common in CI pipelines that run on every commit).
         pre_hash: str | None
         try:
-            pre_hash = run_git(
-                ["rev-parse", "HEAD"], git_directory=repo_dir
-            ).strip() or None
+            pre_hash = (
+                run_git(["rev-parse", "HEAD"], git_directory=repo_dir).strip() or None
+            )
         except GitError:
             pre_hash = None
         try:
@@ -975,9 +981,9 @@ def repo_update(argv):
             log_err(err)
             continue
         try:
-            post_hash: str | None = run_git(
-                ["rev-parse", "HEAD"], git_directory=repo_dir
-            ).strip() or None
+            post_hash: str | None = (
+                run_git(["rev-parse", "HEAD"], git_directory=repo_dir).strip() or None
+            )
         except GitError:
             post_hash = None
         if pre_hash is None or post_hash is None or pre_hash != post_hash:
@@ -1225,8 +1231,8 @@ def get_recipe_list(
 
     recipes = []
     for directory in search_dirs:
-        # TODO: Combine with similar code in find_recipe_by_name()
-        # and find_recipe_by_identifier()
+        # TODO: Combine with similar code in find_recipe_by_name_on_disk()
+        # and find_recipe_by_identifier_on_disk().
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
             continue
@@ -1495,7 +1501,7 @@ def find_processor_path(processor_name, recipe, env=None):
             # us to load a `<processor_name>.py` from a directory the
             # caller explicitly excluded. Gate the map lookup on the
             # resolved path living under env["RECIPE_SEARCH_DIRS"].
-            shared_processor_recipe_path = find_recipe_by_id_in_map(
+            shared_processor_recipe_path = find_recipe_by_identifier_in_map(
                 processor_recipe_id
             )
             if shared_processor_recipe_path and not _path_under_dirs(
@@ -1508,7 +1514,10 @@ def find_processor_path(processor_name, recipe, env=None):
                 shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
                     processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
                 )
-            if shared_processor_recipe_path is None and not _locate_recipe_rebuild_attempted:
+            if (
+                shared_processor_recipe_path is None
+                and not _locate_recipe_rebuild_attempted
+            ):
                 # Issue #894: when a shared-processor recipe is in the cwd
                 # but was excluded from the persisted map (skip_cwd=True by
                 # default), a recipe run-by-path fails with "Unknown
@@ -1519,7 +1528,7 @@ def find_processor_path(processor_name, recipe, env=None):
                     f"{processor_recipe_id!r} in the working directory..."
                 )
                 calculate_recipe_map(skip_cwd=False, persist=False)
-                shared_processor_recipe_path = find_recipe_by_id_in_map(
+                shared_processor_recipe_path = find_recipe_by_identifier_in_map(
                     processor_recipe_id
                 )
                 if shared_processor_recipe_path and not _path_under_dirs(
@@ -1728,7 +1737,8 @@ def recipe_in_override_dir(recipe_path, override_dirs):
             log_err(
                 f"WARNING: recipe map lists {resolved} as an override "
                 "but the path is not under any configured "
-                "RECIPE_OVERRIDE_DIRS. Ignoring the map entry."
+                "RECIPE_OVERRIDE_DIRS. Ignoring the map entry. "
+                "Run `autopkg generate-recipe-map` to rebuild the cache."
             )
             return False
 
@@ -2852,9 +2862,9 @@ def generate_recipe_map(argv):
     parser = gen_common_parser()
     parser.set_usage(
         f"Usage: %prog {verb} [options]\n"
-        "Build the recipe map cache now. Useful for fresh installs and\n"
-        "CI/CD environments that want to avoid paying the scan cost on\n"
-        "the first recipe run."
+        "Build or rebuild the recipe map cache now. Use this to prime\n"
+        "the cache in CI or to force a rebuild after suspecting a stale\n"
+        "or corrupted map."
     )
     add_search_and_override_dir_options(parser)
     parser.add_option(
@@ -2883,24 +2893,14 @@ def generate_recipe_map(argv):
     )
 
     counts = {k: len(v) for k, v in globalRecipeMap.items() if isinstance(v, dict)}
-    resolved = _recipe_map_path_resolved()
     log(
-        f"Recipe map written to {resolved}:\n"
+        f"Recipe map written to {_recipe_map_path()}:\n"
         f"  identifiers:           {counts.get('identifiers', 0)}\n"
         f"  shortnames:            {counts.get('shortnames', 0)}\n"
         f"  overrides:             {counts.get('overrides', 0)}\n"
         f"  overrides-identifiers: {counts.get('overrides-identifiers', 0)}"
     )
     return 0
-
-
-def _recipe_map_path_resolved() -> str:
-    """Helper that returns the canonical path the recipe map will be
-    written to, consulting the same pref/env resolution the autopkglib
-    helper uses."""
-    from autopkglib import _recipe_map_path
-
-    return _recipe_map_path()
 
 
 def new_recipe(argv):
@@ -3003,9 +3003,10 @@ def main(argv):
         "generate-recipe-map": {
             "function": generate_recipe_map,
             "help": (
-                "Build the recipe map cache. Useful for fresh installs "
-                "and CI/CD environments that want to pay the scan cost "
-                "up-front."
+                "Build or rebuild the recipe map cache. Most uses "
+                "(repo-add, make-override, first recipe run) refresh "
+                "the map automatically; invoke this explicitly to "
+                "force a rebuild or prime the cache in CI."
             ),
         },
         "make-override": {"function": make_override, "help": "Make a recipe override"},

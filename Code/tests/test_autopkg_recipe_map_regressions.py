@@ -71,7 +71,6 @@ class _RecipeMapIsolation:
         self._saved_write_disabled = autopkglib._recipe_map_write_disabled
         autopkglib._recipe_map_write_disabled = False
         autopkglib.DEFAULT_RECIPE_MAP = os.path.join(self.tmpdir, "recipe_map.json")
-        autopkg.DEFAULT_RECIPE_MAP = autopkglib.DEFAULT_RECIPE_MAP
 
         for sub in (
             "identifiers",
@@ -89,7 +88,6 @@ class _RecipeMapIsolation:
         autopkglib.globalRecipeMap.clear()
         autopkglib.globalRecipeMap.update(self._saved_map)
         autopkglib.DEFAULT_RECIPE_MAP = self._saved_default
-        autopkg.DEFAULT_RECIPE_MAP = self._saved_default
         autopkglib._recipe_map_write_disabled = self._saved_write_disabled
 
 
@@ -215,7 +213,7 @@ class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
     def test_find_processor_path_map_hit(self):
         """A shared-processor identifier present in the map is resolved
         without any on-disk scan."""
-        # Write a real recipe on disk so find_recipe_by_id_in_map's
+        # Write a real recipe on disk so find_recipe_by_identifier_in_map's
         # valid_recipe_file check succeeds.
         shared_dir = os.path.join(self.tmpdir, "shared")
         os.makedirs(shared_dir)
@@ -280,9 +278,9 @@ class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
         )
 
         def fake_calc(*args, **kwargs):
-            autopkglib.globalRecipeMap["identifiers"]["com.example.cwd.shared"] = (
-                shared_recipe
-            )
+            autopkglib.globalRecipeMap["identifiers"][
+                "com.example.cwd.shared"
+            ] = shared_recipe
 
         with (
             patch("autopkg.calculate_recipe_map", side_effect=fake_calc) as mock_calc,
@@ -345,9 +343,9 @@ class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
         override_dir = os.path.join(self.tmpdir, "o")
         os.makedirs(override_dir)
         override_path = os.path.join(override_dir, "by-id.recipe")
-        autopkglib.globalRecipeMap["overrides-identifiers"]["local.byid"] = (
-            override_path
-        )
+        autopkglib.globalRecipeMap["overrides-identifiers"][
+            "local.byid"
+        ] = override_path
         self.assertTrue(autopkg.recipe_in_override_dir(override_path, [override_dir]))
 
     def test_recipe_in_override_dir_via_map_but_not_under_configured_dir(
@@ -367,29 +365,6 @@ class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
             )
             # Should have logged a warning about the bogus map entry.
             mock_log_err.assert_called()
-
-    def test_recipe_in_override_dir_via_configured_dir(self):
-        """The existing path-prefix check still works for files that the
-        map hasn't indexed yet."""
-        override_dir = os.path.join(self.tmpdir, "configured_overrides")
-        override_path = os.path.join(override_dir, "Unindexed.recipe")
-        self.assertTrue(autopkg.recipe_in_override_dir(override_path, [override_dir]))
-
-    def test_recipe_in_override_dir_negative(self):
-        """A file neither in the map nor under any configured override
-        dir is NOT classified as an override."""
-        self.assertFalse(
-            autopkg.recipe_in_override_dir("/some/random/Recipe.recipe", [self.tmpdir])
-        )
-
-    def test_recipe_in_override_dir_sibling_prefix_not_matched(self):
-        """Regression: prior to the fix, `/Users/a/Library/AutoPkg2`
-        could accidentally match `/Users/a/Library/AutoPkg`. Make sure
-        the normalised match requires a path separator."""
-        self.assertFalse(
-            autopkg.recipe_in_override_dir("/a/AutoPkg2/file.recipe", ["/a/AutoPkg"])
-        )
-        self.assertTrue(autopkg.recipe_in_override_dir(override_path, override_dirs=[]))
 
     def test_recipe_in_override_dir_via_configured_dir(self):
         """The existing path-prefix check still works for files that the
@@ -445,11 +420,11 @@ class TestIssue874MissingOverridesIdentifiers(_RecipeMapIsolation, unittest.Test
         autopkglib.globalRecipeMap.pop("overrides-identifiers", None)
         try:
             self.assertIsNone(
-                autopkglib.find_recipe_by_id_in_map("com.example.anything")
+                autopkglib.find_recipe_by_identifier_in_map("com.example.anything")
             )
         except KeyError:
             self.fail(
-                "find_recipe_by_id_in_map raised KeyError when the "
+                "find_recipe_by_identifier_in_map raised KeyError when the "
                 "'overrides-identifiers' key was missing."
             )
 

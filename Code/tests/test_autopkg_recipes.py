@@ -699,19 +699,19 @@ class TestAutoPkgRecipes(unittest.TestCase):
         with open(recipe_file, "wb") as f:
             plistlib.dump(recipe_dict, f)
 
-        # Mock find_recipe_by_identifier to return our test file
-        original_find_by_id = autopkg.find_recipe_by_identifier
-        autopkg.find_recipe_by_identifier = lambda id_name, dirs: (
-            recipe_file if id_name == "com.example.testapp.download" else None
-        )
-
-        try:
+        # find_recipe delegates to find_recipe_by_identifier_on_disk when
+        # the caller-supplied dirs differ from the prefs baseline. Patch
+        # that canonical name rather than the deprecated alias.
+        with patch(
+            "autopkg.find_recipe_by_identifier_on_disk",
+            side_effect=lambda id_name, dirs: (
+                recipe_file if id_name == "com.example.testapp.download" else None
+            ),
+        ):
             result = autopkg.find_recipe(
                 "com.example.testapp.download", [self.tmp_dir.name]
             )
-            self.assertEqual(result, recipe_file)
-        finally:
-            autopkg.find_recipe_by_identifier = original_find_by_id
+        self.assertEqual(result, recipe_file)
 
     def test_find_recipe_finds_by_name(self):
         """Test find_recipe when recipe can be found by name but not identifier."""
@@ -727,28 +727,21 @@ class TestAutoPkgRecipes(unittest.TestCase):
         with open(recipe_file, "wb") as f:
             plistlib.dump(recipe_dict, f)
 
-        # Mock find_recipe_by_identifier to return None
-        original_find_by_id = autopkg.find_recipe_by_identifier
-        autopkg.find_recipe_by_identifier = lambda id_name, dirs: None
-
-        try:
+        # Force the identifier lookup to fail so the name-based fallback
+        # (find_recipe_by_name_on_disk) gets exercised.
+        with patch("autopkg.find_recipe_by_identifier_on_disk", return_value=None):
             result = autopkg.find_recipe("TestApp.download", [self.tmp_dir.name])
-            self.assertEqual(result, recipe_file)
-        finally:
-            autopkg.find_recipe_by_identifier = original_find_by_id
+        self.assertEqual(result, recipe_file)
 
     def test_find_recipe_not_found(self):
         """Test find_recipe when recipe cannot be found by identifier or name."""
 
-        # Mock find_recipe_by_identifier to return None
-        original_find_by_id = autopkg.find_recipe_by_identifier
-        autopkg.find_recipe_by_identifier = lambda id_name, dirs: None
-
-        try:
+        with (
+            patch("autopkg.find_recipe_by_identifier_on_disk", return_value=None),
+            patch("autopkg.find_recipe_by_name_on_disk", return_value=None),
+        ):
             result = autopkg.find_recipe("NonExistent.download", [self.tmp_dir.name])
-            self.assertIsNone(result)
-        finally:
-            autopkg.find_recipe_by_identifier = original_find_by_id
+        self.assertIsNone(result)
 
     def test_get_identifier_from_override_with_parent_recipe(self):
         """Test get_identifier_from_override when override has ParentRecipe key."""

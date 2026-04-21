@@ -15,7 +15,7 @@
 """Tests for the recipe map backported from dev-3.x.
 
 Covers:
-* Lookup helpers (find_recipe_by_id_in_map, find_recipe_by_name_in_map,
+* Lookup helpers (find_recipe_by_identifier_in_map, find_recipe_by_name_in_map,
   find_identifier_from_name, find_name_from_identifier).
 * Persistence (write_recipe_map_to_disk, handle_reading_recipe_map_file,
   validate_recipe_map).
@@ -28,7 +28,6 @@ these tests are hermetic and safe to run in parallel with others."""
 
 import importlib
 import importlib.machinery
-import io
 import json
 import os
 import plistlib
@@ -86,15 +85,10 @@ class _RecipeMapIsolationMixin:
             "overrides-identifiers": {},
         }
         autopkglib.DEFAULT_RECIPE_MAP = os.path.join(self.tmpdir, "recipe_map.json")
-        # Mirror the constant into the autopkg module so verb code that
-        # references it (e.g. generate-recipe-map's log line) picks up
-        # the test-local path too.
-        autopkg.DEFAULT_RECIPE_MAP = autopkglib.DEFAULT_RECIPE_MAP
 
     def tearDown(self):
         autopkglib.globalRecipeMap = self._saved_map
         autopkglib.DEFAULT_RECIPE_MAP = self._saved_default
-        autopkg.DEFAULT_RECIPE_MAP = self._saved_default
 
     def _cleanup_tmp(self):
         import shutil
@@ -103,7 +97,7 @@ class _RecipeMapIsolationMixin:
 
 
 class TestRecipeMapLookups(_RecipeMapIsolationMixin, unittest.TestCase):
-    """Covers find_recipe_by_id_in_map / find_recipe_by_name_in_map and
+    """Covers find_recipe_by_identifier_in_map / find_recipe_by_name_in_map and
     the reverse lookup helpers."""
 
     def setUp(self):
@@ -125,7 +119,9 @@ class TestRecipeMapLookups(_RecipeMapIsolationMixin, unittest.TestCase):
 
     def test_find_by_id_prefers_override(self):
         """An override identifier beats a stock recipe identifier."""
-        result = autopkglib.find_recipe_by_id_in_map(SAMPLE_OVERRIDE["Identifier"])
+        result = autopkglib.find_recipe_by_identifier_in_map(
+            SAMPLE_OVERRIDE["Identifier"]
+        )
         self.assertEqual(result, self.override_path)
 
     def test_find_by_id_skip_overrides(self):
@@ -134,25 +130,25 @@ class TestRecipeMapLookups(_RecipeMapIsolationMixin, unittest.TestCase):
         autopkglib.globalRecipeMap["overrides-identifiers"][
             SAMPLE_RECIPE["Identifier"]
         ] = self.override_path
-        result = autopkglib.find_recipe_by_id_in_map(
+        result = autopkglib.find_recipe_by_identifier_in_map(
             SAMPLE_RECIPE["Identifier"], skip_overrides=True
         )
         self.assertEqual(result, self.recipe_path)
 
     def test_find_by_id_returns_none_for_missing(self):
         self.assertIsNone(
-            autopkglib.find_recipe_by_id_in_map("com.example.does.not.exist")
+            autopkglib.find_recipe_by_identifier_in_map("com.example.does.not.exist")
         )
 
     def test_find_by_id_returns_none_for_stale_path(self):
         """If the cached path is missing on disk the lookup returns None."""
-        autopkglib.globalRecipeMap["identifiers"][SAMPLE_RECIPE["Identifier"]] = (
-            "/nonexistent/path.recipe"
-        )
+        autopkglib.globalRecipeMap["identifiers"][
+            SAMPLE_RECIPE["Identifier"]
+        ] = "/nonexistent/path.recipe"
         # Override identifier still resolves though...
         autopkglib.globalRecipeMap["overrides-identifiers"] = {}
         self.assertIsNone(
-            autopkglib.find_recipe_by_id_in_map(SAMPLE_RECIPE["Identifier"])
+            autopkglib.find_recipe_by_identifier_in_map(SAMPLE_RECIPE["Identifier"])
         )
 
     def test_find_by_name_prefers_override(self):

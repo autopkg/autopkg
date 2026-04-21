@@ -1317,7 +1317,7 @@ class TestAutoPkgOther(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_id_in_map") as mock_find_in_map,
+            patch("autopkg.find_recipe_by_identifier_in_map") as mock_find_in_map,
             patch("autopkg.find_recipe_by_identifier_on_disk") as mock_find_on_disk,
             patch("os.path.exists") as mock_exists,
         ):
@@ -1351,7 +1351,7 @@ class TestAutoPkgOther(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_id_in_map") as mock_find_in_map,
+            patch("autopkg.find_recipe_by_identifier_in_map") as mock_find_in_map,
             patch(
                 "autopkg.find_recipe_by_identifier_on_disk",
                 return_value=None,
@@ -1489,18 +1489,22 @@ class TestAutoPkgOther(unittest.TestCase):
         recipe = {"RECIPE_PATH": "/recipes/TestApp.recipe"}
         env = {"RECIPE_SEARCH_DIRS": ["/search/dir1"]}
 
+        # find_processor_path consults the map first then the on-disk
+        # scanner. Stub both to "not found" so we exercise the
+        # cwd-rebuild fallback path.
+        autopkg._set_locate_recipe_rebuild_attempted(True)  # skip rebuild
         with (
             patch("os.path.dirname") as mock_dirname,
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier") as mock_find_recipe,
+            patch("autopkg.find_recipe_by_identifier_in_map", return_value=None),
+            patch("autopkg.find_recipe_by_identifier_on_disk", return_value=None),
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
         ):
             mock_dirname.return_value = "/recipes"
             mock_extract.return_value = ("TestProcessor", "com.missing.recipe")
-            mock_find_recipe.return_value = None  # Shared recipe not found
             mock_exists.return_value = False
             mock_join.side_effect = lambda *args: "/".join(args)
 
@@ -1557,7 +1561,7 @@ class TestAutoPkgOther(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_id_in_map") as mock_find_in_map,
+            patch("autopkg.find_recipe_by_identifier_in_map") as mock_find_in_map,
             patch("autopkg.find_recipe_by_identifier_on_disk"),
             patch("os.path.exists") as mock_exists,
         ):

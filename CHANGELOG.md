@@ -8,16 +8,27 @@ All notable changes to this project will be documented in this file. This projec
 
 Backports the recipe map feature originally developed for the 3.x line. The recipe map is an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the system, indexed by identifier and shortname. Recipe resolution becomes O(1) instead of walking every configured `RECIPE_SEARCH_DIRS` entry.
 
-- New `autopkg generate-recipe-map` subcommand explicitly builds and persists the map. Intended for CI/CD pipelines that want to pay the scan cost up front rather than on the first recipe run.
+**What you'll notice:**
+
+- Recipe runs, `info`, `search` and trust-info verification are faster on systems with many recipe repos. The first run after installing or `repo-add`/`repo-update` may be slightly slower while the map is (re)built.
+- New `autopkg generate-recipe-map` subcommand explicitly builds and persists the map. Intended for CI/CD pipelines that want to pay the scan cost up front.
 - The map auto-rebuilds on first use when it is missing or invalid, so fresh installs and ephemeral CI runners "just work" without a manual bootstrap step.
-- `repo-add`, `repo-delete`, `repo-update`, `make-override` and `new-recipe` now keep the map in sync automatically. `repo-update` only rebuilds when `git pull` actually changed `HEAD`.
-- CLI `--search-dir` / `--override-dir` flags still scope resolution to exactly the supplied directories when they differ from the configured preferences, preserving the dev-2.x "recipes in `~/Library/AutoPkg/Recipes` override installed repos" contract (#886, #908, #918).
-- `find_processor_path` uses the map to locate shared-processor recipes, including a one-shot rebuild that pulls in the current working directory when a shared processor can't be resolved from the persisted map (#894).
-- Trust-info verification (`verify-trust-info`, `update-trust-info`) correctly classifies override files passed by path, via the map's `overrides` tables (#903).
-- The map location is configurable: the `AUTOPKG_RECIPE_MAP_PATH` environment variable takes precedence over the `RECIPE_MAP_PATH` preference, which takes precedence over the default (#901).
-- Escape hatch: set `AUTOPKG_DISABLE_RECIPE_MAP=1` (or the `DISABLE_RECIPE_MAP` preference) to bypass the map and fall back to the legacy on-disk scanners.
-- Persisted files carry a `schema_version` field so future format changes can trigger a clean rebuild rather than reading stale data.
-- Writes are atomic (tmpfile + `os.replace`) to tolerate concurrent autopkg invocations.
+- `repo-add`, `repo-delete`, `repo-update`, `make-override` and `new-recipe` keep the map in sync automatically.
+- CLI `--search-dir` / `--override-dir` flags still scope resolution to exactly the supplied directories when they differ from the configured preferences (preserves the dev-2.x "recipes in `~/Library/AutoPkg/Recipes` override installed repos" contract).
+- Trust-info verification (`verify-trust-info`, `update-trust-info`) correctly classifies override files passed by path.
+
+**If something goes wrong:**
+
+- Run `autopkg generate-recipe-map` to force a clean rebuild.
+- Set `RECIPE_MAP_PATH` preference or `AUTOPKG_RECIPE_MAP_PATH` env var to redirect the cache to a writable location (e.g. CI workspaces that don't use `~/Library/AutoPkg`).
+- Set `DISABLE_RECIPE_MAP` preference or `AUTOPKG_DISABLE_RECIPE_MAP=1` env var to bypass the cache entirely and fall back to the legacy on-disk scanners.
+
+**Implementation notes:**
+
+- Persisted files carry a `schema_version` field so future format changes trigger a clean rebuild rather than reading stale data.
+- Writes use `tempfile.mkstemp` + `os.replace` so concurrent autopkg invocations can't observe a half-written file.
+- When running as root (e.g. via `sudo autopkg`), redirecting the map path via env var or pref now emits a prominent warning. Ops teams should strip `AUTOPKG_*` from their sudoers `env_keep` if they don't want unprivileged callers to influence where autopkg writes.
+- YAML recipes are now parsed with `yaml.safe_load` (previously `yaml.FullLoader`). Recipes only use plain mappings of primitives, so no legitimate recipe is affected.
 
 Fixes #869, #874, #886, #894, #901, #903, #908, #918.
 
