@@ -380,15 +380,23 @@ def remove_recipe_extension(name) -> str:
 
 
 def recipe_from_file(filename) -> VarDict | None:
-    """Create a recipe dictionary from a file. Handle exceptions and log"""
+    """Create a recipe dictionary from a file. Handle exceptions and log.
+
+    YAML recipes are parsed with ``yaml.safe_load`` (not ``FullLoader``).
+    Recipe documents are always plain mappings of primitives, so the safe
+    loader is sufficient for every legitimate recipe in the ecosystem.
+    This is a deliberate defence against arbitrary-code-execution via
+    crafted YAML tags (CVE-2020-14343-class issues) — doubly important
+    now that the recipe map backport causes every ``.recipe.yaml`` in
+    ``RECIPE_SEARCH_DIRS`` to be parsed during every map build and
+    lookup, not just when the user explicitly invokes the recipe."""
     if not os.path.isfile(filename):
         return
 
     if filename.endswith(".yaml"):
         try:
-            # try to read it as yaml
             with open(filename, "rb") as f:
-                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+                recipe_dict = yaml.safe_load(f)
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")
@@ -746,13 +754,47 @@ def _recipe_map_path() -> str:
     2. ``RECIPE_MAP_PATH`` preference key (per-user override).
     3. The default location under ``autopkg_user_folder()``.
 
-    ``DEFAULT_RECIPE_MAP`` is stored unexpanded (with a leading ``~``) so
-    tests can monkey-patch ``os.path.expanduser``; resolve it lazily here."""
+    Security notes:
+    * Environment variables are honoured regardless of effective UID,
+      but when running as root we log a prominent warning so operators
+      noticing the deviation in their logs can investigate. Users who
+      run ``sudo autopkg`` in CI pipelines should strip ``AUTOPKG_*``
+      from their ``env_keep`` list to avoid letting an unprivileged
+      caller influence a privileged process's write target.
+    * ``DEFAULT_RECIPE_MAP`` is stored unexpanded (with a leading ``~``)
+      so tests can monkey-patch ``os.path.expanduser``; resolve it
+      lazily here."""
+    override_source: str | None = None
     override = os.environ.get("AUTOPKG_RECIPE_MAP_PATH")
-    if not override:
-        override = get_pref("RECIPE_MAP_PATH")
+    if override:
+        override_source = "AUTOPKG_RECIPE_MAP_PATH environment variable"
+    else:
+        pref = get_pref("RECIPE_MAP_PATH")
+        if pref:
+            override = pref
+            override_source = "RECIPE_MAP_PATH preference"
+
     target = override or DEFAULT_RECIPE_MAP
-    return os.path.abspath(os.path.expanduser(target))
+    resolved = os.path.abspath(os.path.expanduser(target))
+
+    if override and override_source:
+        try:
+            euid = os.geteuid()
+        except AttributeError:
+            # Windows doesn't have geteuid; treat as unprivileged.
+            euid = -1
+        if euid == 0:
+            log_err(
+                "SECURITY WARNING: autopkg is running as root and the "
+                f"recipe map path has been redirected via {override_source} "
+                f"to {resolved}. If this was not set by the system "
+                "administrator it may be a privilege-escalation attempt. "
+                "Consider stripping AUTOPKG_* from your sudoers env_keep "
+                "configuration."
+            )
+        else:
+            log(f"Recipe map path overridden via {override_source}: {resolved}")
+    return resolved
 
 
 def _recipe_map_disabled() -> bool:
@@ -811,9 +853,35 @@ def write_recipe_map_to_disk() -> None:
         "schema_version": RECIPE_MAP_SCHEMA_VERSION,
         **globalRecipeMap,
     }
-    tmp = f"{target}.tmp"
+
+    # Create the tempfile via tempfile.mkstemp so we get O_EXCL semantics
+    # and explicit mode bits. This prevents a classic symlink-TOCTOU
+    # attack (CWE-59/CWE-377): if another principal can pre-create a
+    # symlink at ``<target>.tmp`` pointing at an attacker-chosen file,
+    # a plain ``open(tmp, "w")`` would follow the symlink and truncate
+    # the target. mkstemp refuses to follow existing symlinks.
+    tmp_dir = target_dir or "."
+    tmp_basename = f".{os.path.basename(target)}.tmp"
+    tmp_fd = -1
+    tmp: str | None = None
     try:
-        with open(tmp, "w") as f:
+        import tempfile as _tempfile
+
+        tmp_fd, tmp = _tempfile.mkstemp(
+            prefix=tmp_basename,
+            dir=tmp_dir,
+        )
+        # Tighten permissions so a shared-homedir setup doesn't leak the
+        # map's file listing to other users on the system.
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError:
+            # Chmod not supported on every filesystem; soft-fail.
+            pass
+        with os.fdopen(tmp_fd, "w") as f:
+            # fdopen takes ownership of the fd; null it out so the
+            # finally clause below doesn't double-close.
+            tmp_fd = -1
             json.dump(
                 payload,
                 f,
@@ -829,17 +897,26 @@ def write_recipe_map_to_disk() -> None:
                 # replace below is still atomic enough for our needs.
                 pass
         os.replace(tmp, target)
+        tmp = None  # Successfully renamed; no cleanup needed.
     except OSError as err:
         _recipe_map_write_disabled = True
         log_err(
             f"WARNING: Could not write recipe map to {target}: {err}. "
             "Further write attempts in this process will be skipped."
         )
-        # Best-effort cleanup of the partial tempfile.
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
+    finally:
+        # Best-effort cleanup of the partial tempfile if we didn't rename
+        # it into position.
+        if tmp_fd != -1:
+            try:
+                os.close(tmp_fd)
+            except OSError:
+                pass
+        if tmp and os.path.exists(tmp):
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
 
 
 def handle_reading_recipe_map_file() -> dict:

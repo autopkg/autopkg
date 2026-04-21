@@ -159,6 +159,30 @@ def _normalize_dirs(dirs) -> list[str]:
     return [os.path.abspath(os.path.expanduser(d)) for d in dirs]
 
 
+def _path_under_dirs(path: str, dirs) -> bool:
+    """Return True when ``path`` resides under any directory in ``dirs``.
+
+    Uses a path-separator-anchored startswith check so sibling-prefix
+    false positives (``/a/AutoPkg2`` vs ``/a/AutoPkg``) are avoided.
+    An empty or missing ``dirs`` returns True — callers that haven't
+    constrained the scope accept any path.
+
+    This is a security helper for the recipe-map lookups: we use it to
+    refuse a map hit that points outside the caller-declared search
+    scope."""
+    if not dirs:
+        # No scope declared; callers that want scope enforcement must
+        # pass a non-empty list.
+        return True
+    normalized_path = os.path.abspath(os.path.expanduser(path))
+    for directory in _normalize_dirs(dirs):
+        if normalized_path == directory:
+            return True
+        if normalized_path.startswith(directory + os.sep):
+            return True
+    return False
+
+
 def _dirs_match_prefs(
     caller_search_dirs, caller_override_dirs
 ) -> bool:
@@ -1463,9 +1487,23 @@ def find_processor_path(processor_name, recipe, env=None):
             # Map-first, fall back to on-disk scan. This is the hot path for
             # users with many shared-processor recipes — the map was built
             # precisely to make it O(1) (issue #894).
+            #
+            # Security scope check: the map is pref-scoped. If the caller has
+            # narrowed env["RECIPE_SEARCH_DIRS"] to a subset of the prefs
+            # (e.g., `autopkg run --search-dir /sandboxed/repo`), a map
+            # hit could point at a recipe outside that subset, causing
+            # us to load a `<processor_name>.py` from a directory the
+            # caller explicitly excluded. Gate the map lookup on the
+            # resolved path living under env["RECIPE_SEARCH_DIRS"].
             shared_processor_recipe_path = find_recipe_by_id_in_map(
                 processor_recipe_id
             )
+            if shared_processor_recipe_path and not _path_under_dirs(
+                shared_processor_recipe_path, env.get("RECIPE_SEARCH_DIRS", [])
+            ):
+                # Map hit points outside the caller's declared search
+                # scope; do not honour it.
+                shared_processor_recipe_path = None
             if shared_processor_recipe_path is None:
                 shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
                     processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
@@ -1484,6 +1522,11 @@ def find_processor_path(processor_name, recipe, env=None):
                 shared_processor_recipe_path = find_recipe_by_id_in_map(
                     processor_recipe_id
                 )
+                if shared_processor_recipe_path and not _path_under_dirs(
+                    shared_processor_recipe_path,
+                    env.get("RECIPE_SEARCH_DIRS", []),
+                ):
+                    shared_processor_recipe_path = None
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
                     os.path.dirname(shared_processor_recipe_path)
@@ -1615,40 +1658,80 @@ class TrustVerificationError(AutoPackagerError):
 
 
 def recipe_from_external_repo(recipe_path):
-    """Returns True if the recipe_path is in a path in RECIPE_REPOS, which contains
-    recipes added via repo-add"""
+    """Returns True if the recipe_path is in a path in RECIPE_REPOS, which
+    contains recipes added via repo-add.
+
+    Path-separator-anchored prefix match. A naive ``startswith(repo)``
+    would accept ``/repos/autopkg-evil/foo.recipe`` as originating from
+    ``/repos/autopkg``, enabling trust-classification confusion."""
+    normalized_path = os.path.abspath(os.path.expanduser(recipe_path))
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     for repo in list(recipe_repos.keys()):
-        if recipe_path.startswith(repo):
+        normalized_repo = os.path.abspath(os.path.expanduser(repo))
+        if normalized_path == normalized_repo:
+            return True
+        if normalized_path.startswith(normalized_repo + os.sep):
             return True
     return False
 
 
 def recipe_in_override_dir(recipe_path, override_dirs):
     """Returns True if ``recipe_path`` is in one of ``override_dirs`` or
-    is listed in the recipe map's overrides/overrides-identifiers dicts.
+    is listed in the recipe map's overrides tables AND the listed path
+    also resides under a configured override directory.
 
-    The map-based check (issue #903) covers cases where the user passes a
-    relative/absolute path to ``update-trust-info`` or ``verify-trust-info``
-    but the configured ``override_dirs`` doesn't cover the parent of that
-    path. The canonical way to know whether a file is an override is to
-    check what the map has classified it as."""
+    The directory-prefix check is the authoritative answer; the map
+    lookup is an optimisation that lets us short-circuit for paths that
+    have already been classified.
+
+    Security: the recipe map is a user-writable on-disk file.
+    Trusting map entries as the sole source of truth for
+    override classification would let an attacker who can write to
+    ``recipe_map.json`` insert arbitrary paths into ``overrides`` and
+    have them treated as overrides for trust-info purposes. We require
+    the path to still live under a configured override dir to preserve
+    the invariant that override-ness is determined by on-disk location,
+    not by a cache."""
     normalized_recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
-
-    # Fast path: the map already knows whether this path is an override.
-    for key in ("overrides", "overrides-identifiers"):
-        for path in globalRecipeMap.get(key, {}).values():
-            if os.path.abspath(os.path.expanduser(path)) == normalized_recipe_path:
-                return True
-
     normalized_override_dirs = [
         os.path.abspath(os.path.expanduser(directory)) for directory in override_dirs
     ]
-    for override_dir in normalized_override_dirs:
-        if normalized_recipe_path.startswith(override_dir + os.sep):
-            return True
-        if normalized_recipe_path == override_dir:
-            return True
+
+    def _under_configured_override_dir(path: str) -> bool:
+        for override_dir in normalized_override_dirs:
+            if path == override_dir:
+                return True
+            if path.startswith(override_dir + os.sep):
+                return True
+        return False
+
+    # Directory-prefix check against the caller-supplied override_dirs.
+    if _under_configured_override_dir(normalized_recipe_path):
+        return True
+
+    # Map hint: a path listed in the map's overrides tables is still
+    # required to live under one of the configured override dirs. This
+    # lets us honour issue #903 (file paths that aren't directly rooted
+    # in override_dirs but are known to the map) without introducing an
+    # easy trust-bypass via a tampered map.
+    for key in ("overrides", "overrides-identifiers"):
+        for path in globalRecipeMap.get(key, {}).values():
+            resolved = os.path.abspath(os.path.expanduser(path))
+            if resolved != normalized_recipe_path:
+                continue
+            if _under_configured_override_dir(resolved):
+                return True
+            # Path is in the map's overrides tables but does NOT live
+            # under any configured override dir. This is the pattern an
+            # attacker would use to plant a bogus override entry; refuse
+            # to honour it.
+            log_err(
+                f"WARNING: recipe map lists {resolved} as an override "
+                "but the path is not under any configured "
+                "RECIPE_OVERRIDE_DIRS. Ignoring the map entry."
+            )
+            return False
+
     return False
 
 

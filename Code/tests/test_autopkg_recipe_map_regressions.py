@@ -326,20 +326,68 @@ class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
     user-supplied path. The fix uses the recipe map's overrides tables
     as the source of truth."""
 
-    def test_recipe_in_override_dir_via_map(self):
-        """A file listed in globalRecipeMap['overrides'] is considered
-        an override even when the path's parent isn't in override_dirs."""
-        override_path = os.path.join(self.tmpdir, "some", "path.recipe")
+    def test_recipe_in_override_dir_via_map_and_configured_dir(self):
+        """A file listed in globalRecipeMap['overrides'] AND residing
+        under a configured override dir is considered an override. The
+        map is a hint; the configured dir is the authoritative answer.
+        This is the shape of the #903 fix after the F-4 security
+        hardening."""
+        override_dir = os.path.join(self.tmpdir, "overrides")
+        os.makedirs(override_dir)
+        override_path = os.path.join(override_dir, "path.recipe")
         autopkglib.globalRecipeMap["overrides"]["SomeOverride"] = override_path
-        # override_dirs is deliberately empty — the map is what tells us
-        # this is an override.
-        self.assertTrue(autopkg.recipe_in_override_dir(override_path, override_dirs=[]))
+        self.assertTrue(autopkg.recipe_in_override_dir(override_path, [override_dir]))
 
-    def test_recipe_in_override_dir_via_map_identifiers_table(self):
-        """Same, but through the overrides-identifiers table."""
-        override_path = os.path.join(self.tmpdir, "o", "by-id.recipe")
+    def test_recipe_in_override_dir_via_map_identifiers_and_configured_dir(
+        self,
+    ):
+        """Same via the overrides-identifiers table."""
+        override_dir = os.path.join(self.tmpdir, "o")
+        os.makedirs(override_dir)
+        override_path = os.path.join(override_dir, "by-id.recipe")
         autopkglib.globalRecipeMap["overrides-identifiers"]["local.byid"] = (
             override_path
+        )
+        self.assertTrue(autopkg.recipe_in_override_dir(override_path, [override_dir]))
+
+    def test_recipe_in_override_dir_via_map_but_not_under_configured_dir(
+        self,
+    ):
+        """Security F-4: a map entry that points OUTSIDE any configured
+        override dir must NOT be trusted. This blocks the attack where
+        an attacker with write access to recipe_map.json plants an
+        arbitrary path in the overrides table to bypass trust checks."""
+        bogus_path = os.path.join(self.tmpdir, "notanoverridedir", "Sneaky.recipe")
+        autopkglib.globalRecipeMap["overrides"]["Sneaky"] = bogus_path
+
+        configured_dir = os.path.join(self.tmpdir, "configured_overrides")
+        with patch.object(autopkg, "log_err") as mock_log_err:
+            self.assertFalse(
+                autopkg.recipe_in_override_dir(bogus_path, [configured_dir])
+            )
+            # Should have logged a warning about the bogus map entry.
+            mock_log_err.assert_called()
+
+    def test_recipe_in_override_dir_via_configured_dir(self):
+        """The existing path-prefix check still works for files that the
+        map hasn't indexed yet."""
+        override_dir = os.path.join(self.tmpdir, "configured_overrides")
+        override_path = os.path.join(override_dir, "Unindexed.recipe")
+        self.assertTrue(autopkg.recipe_in_override_dir(override_path, [override_dir]))
+
+    def test_recipe_in_override_dir_negative(self):
+        """A file neither in the map nor under any configured override
+        dir is NOT classified as an override."""
+        self.assertFalse(
+            autopkg.recipe_in_override_dir("/some/random/Recipe.recipe", [self.tmpdir])
+        )
+
+    def test_recipe_in_override_dir_sibling_prefix_not_matched(self):
+        """Regression: prior to the fix, `/Users/a/Library/AutoPkg2`
+        could accidentally match `/Users/a/Library/AutoPkg`. Make sure
+        the normalised match requires a path separator."""
+        self.assertFalse(
+            autopkg.recipe_in_override_dir("/a/AutoPkg2/file.recipe", ["/a/AutoPkg"])
         )
         self.assertTrue(autopkg.recipe_in_override_dir(override_path, override_dirs=[]))
 
@@ -583,35 +631,42 @@ class TestAtomicWrite(_RecipeMapIsolation, unittest.TestCase):
     can't observe a half-written file (review recommendation: atomic
     writes for on-disk cache files)."""
 
-    def test_write_uses_tmp_and_replace(self):
-        """Verify write_recipe_map_to_disk writes to <path>.tmp then
-        renames into position."""
-        observed_writes: list[str] = []
-        real_open = open
+    def test_write_uses_mkstemp_and_replace(self):
+        """Verify write_recipe_map_to_disk writes via tempfile.mkstemp
+        (O_EXCL semantics) and renames into position. Security fix for
+        F-3: a plain open(tmp, 'w') would follow a pre-existing symlink."""
+        observed: dict = {"mkstemp_calls": 0, "replace_calls": 0}
+        import tempfile as real_tempfile
 
-        def tracking_open(path, *args, **kwargs):
-            if isinstance(path, str) and path.endswith(".json.tmp"):
-                observed_writes.append(path)
-            return real_open(path, *args, **kwargs)
+        real_mkstemp = real_tempfile.mkstemp
+        real_replace = os.replace
 
-        with patch("builtins.open", side_effect=tracking_open):
+        def tracking_mkstemp(*args, **kwargs):
+            observed["mkstemp_calls"] += 1
+            return real_mkstemp(*args, **kwargs)
+
+        def tracking_replace(src, dst):
+            observed["replace_calls"] += 1
+            return real_replace(src, dst)
+
+        with (
+            patch("tempfile.mkstemp", side_effect=tracking_mkstemp),
+            patch("os.replace", side_effect=tracking_replace),
+        ):
             autopkglib.write_recipe_map_to_disk()
 
-        self.assertTrue(
-            observed_writes,
-            "write_recipe_map_to_disk should have written to a .tmp file first.",
+        self.assertEqual(
+            observed["mkstemp_calls"],
+            1,
+            "write_recipe_map_to_disk should use tempfile.mkstemp.",
         )
-        # Final file exists; temp file was cleaned up (renamed away).
+        self.assertEqual(observed["replace_calls"], 1)
         self.assertTrue(os.path.exists(autopkglib.DEFAULT_RECIPE_MAP))
-        self.assertFalse(
-            os.path.exists(autopkglib.DEFAULT_RECIPE_MAP + ".tmp"),
-            "Temp file should have been renamed into position.",
-        )
 
     def test_write_failure_latches_and_is_silent_on_second_call(self):
         """First OSError logs a warning and latches the write-disabled
         flag so subsequent calls in the same process are no-ops."""
-        with patch("builtins.open", side_effect=OSError("no space left")):
+        with patch("tempfile.mkstemp", side_effect=OSError("no space left")):
             with patch.object(autopkglib, "log_err") as mock_log_err:
                 autopkglib.write_recipe_map_to_disk()
                 # First call logs.
@@ -620,31 +675,22 @@ class TestAtomicWrite(_RecipeMapIsolation, unittest.TestCase):
                 # Second call is a silent no-op.
                 self.assertEqual(mock_log_err.call_count, 1)
 
-    def test_failed_temp_file_is_cleaned_up(self):
-        """A failed write must not leave the .tmp turd on disk."""
-        target = autopkglib.DEFAULT_RECIPE_MAP
-        tmp = target + ".tmp"
+    def test_failed_replace_cleans_up_tempfile(self):
+        """A failed os.replace must not leave the tempfile behind."""
+        import glob as _glob
 
-        def fail_after_partial_write(path, *args, **kwargs):
-            # Write a partial tempfile then raise.
-            if path.endswith(".tmp"):
-                with (
-                    open.__wrapped__(path, *args, **kwargs)
-                    if hasattr(open, "__wrapped__")
-                    else open(path, *args, **kwargs) as f
-                ):
-                    f.write("partial")
-                raise OSError("interrupted")
-            return open(path, *args, **kwargs)
-
-        # Simpler approach: use the real open but patch os.replace to fail.
         autopkglib._recipe_map_write_disabled = False
+        map_dir = os.path.dirname(autopkglib.DEFAULT_RECIPE_MAP)
+        # Ensure dir exists so mkstemp can create there.
+        os.makedirs(map_dir, exist_ok=True)
         with patch("os.replace", side_effect=OSError("nope")):
             autopkglib.write_recipe_map_to_disk()
 
+        # No leftover tempfile matching our naming pattern should remain.
+        leftovers = _glob.glob(os.path.join(map_dir, ".recipe_map.json.tmp*"))
         self.assertFalse(
-            os.path.exists(tmp),
-            "Temp file should have been unlinked after the failed replace.",
+            leftovers,
+            f"Tempfile(s) should have been cleaned up but found: {leftovers}",
         )
 
 

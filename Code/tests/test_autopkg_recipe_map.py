@@ -256,7 +256,7 @@ class TestRecipeMapPersistence(_RecipeMapIsolationMixin, unittest.TestCase):
     def test_write_tolerates_osError(self):
         """A permission error during write should log a warning, not raise."""
         with (
-            patch("builtins.open", side_effect=OSError("nope")),
+            patch("tempfile.mkstemp", side_effect=OSError("nope")),
             patch.object(autopkglib, "log_err") as mock_log_err,
         ):
             # Must not raise.
