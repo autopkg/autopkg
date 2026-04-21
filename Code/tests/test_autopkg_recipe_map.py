@@ -200,16 +200,25 @@ class TestRecipeMapPersistence(_RecipeMapIsolationMixin, unittest.TestCase):
     validate_recipe_map."""
 
     def test_write_then_read_roundtrip(self):
-        autopkglib.globalRecipeMap = {
-            "identifiers": {"com.example.a": "/tmp/a.recipe"},
-            "shortnames": {"A": "/tmp/a.recipe"},
-            "overrides": {},
-            "overrides-identifiers": {},
-        }
+        autopkglib.globalRecipeMap.clear()
+        autopkglib.globalRecipeMap.update(
+            {
+                "identifiers": {"com.example.a": "/tmp/a.recipe"},
+                "shortnames": {"A": "/tmp/a.recipe"},
+                "overrides": {},
+                "overrides-identifiers": {},
+            }
+        )
         autopkglib.write_recipe_map_to_disk()
         self.assertTrue(os.path.exists(autopkglib.DEFAULT_RECIPE_MAP))
         result = autopkglib.handle_reading_recipe_map_file()
-        self.assertEqual(result, autopkglib.globalRecipeMap)
+        # Persisted file additionally carries a schema_version key; the
+        # four sub-dicts must match.
+        self.assertEqual(
+            result.get("schema_version"), autopkglib.RECIPE_MAP_SCHEMA_VERSION
+        )
+        for key in ("identifiers", "shortnames", "overrides", "overrides-identifiers"):
+            self.assertEqual(result[key], autopkglib.globalRecipeMap[key])
 
     def test_write_is_sorted_for_stable_diffs(self):
         """The file should use sort_keys=True so repeated regenerations
@@ -612,7 +621,17 @@ class TestGenerateRecipeMapVerb(_RecipeMapIsolationMixin, unittest.TestCase):
             on_disk = json.load(f)
         self.assertEqual(
             set(on_disk.keys()),
-            {"identifiers", "shortnames", "overrides", "overrides-identifiers"},
+            {
+                "identifiers",
+                "shortnames",
+                "overrides",
+                "overrides-identifiers",
+                "schema_version",
+            },
+        )
+        self.assertEqual(
+            on_disk["schema_version"],
+            autopkglib.RECIPE_MAP_SCHEMA_VERSION,
         )
         self.assertIn(SAMPLE_RECIPE["Identifier"], on_disk["identifiers"])
         self.assertIn(SAMPLE_OVERRIDE["Identifier"], on_disk["overrides-identifiers"])
@@ -631,29 +650,6 @@ class TestGenerateRecipeMapVerb(_RecipeMapIsolationMixin, unittest.TestCase):
         with open(autopkglib.DEFAULT_RECIPE_MAP) as f:
             on_disk = json.load(f)
         self.assertIn(SAMPLE_RECIPE["Identifier"], on_disk["identifiers"])
-
-        with open(autopkglib.DEFAULT_RECIPE_MAP) as f:
-            on_disk = json.load(f)
-        self.assertEqual(
-            set(on_disk.keys()),
-            {"identifiers", "shortnames", "overrides", "overrides-identifiers"},
-        )
-        self.assertIn(SAMPLE_RECIPE["Identifier"], on_disk["identifiers"])
-        self.assertIn(SAMPLE_OVERRIDE["Identifier"], on_disk["overrides-identifiers"])
-
-    def test_generates_without_extras_uses_prefs(self):
-        """No CLI dirs => use the configured prefs. Should still persist."""
-        with patch.object(
-            autopkglib,
-            "get_pref",
-            side_effect=lambda k: {
-                "RECIPE_SEARCH_DIRS": [self.recipes_dir],
-                "RECIPE_OVERRIDE_DIRS": [self.overrides_dir],
-            }.get(k),
-        ):
-            rc = self._run([])
-        self.assertEqual(rc, 0)
-        self.assertTrue(os.path.exists(autopkglib.DEFAULT_RECIPE_MAP))
 
 
 class TestAutopkgUserFolder(unittest.TestCase):

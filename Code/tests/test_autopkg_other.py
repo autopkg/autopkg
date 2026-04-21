@@ -1316,7 +1316,10 @@ class TestAutoPkgOther(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier") as mock_find_recipe,
+            # find_processor_path consults the map first; simulate a hit
+            # there so the on-disk fallback is never exercised.
+            patch("autopkg.find_recipe_by_id_in_map") as mock_find_in_map,
+            patch("autopkg.find_recipe_by_identifier_on_disk") as mock_find_on_disk,
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
         ):
@@ -1329,7 +1332,7 @@ class TestAutoPkgOther(unittest.TestCase):
                 "CustomProcessor",
                 "com.example.recipes.shared",
             )
-            mock_find_recipe.return_value = "/shared/SharedRecipe.recipe"
+            mock_find_in_map.return_value = "/shared/SharedRecipe.recipe"
             mock_exists.side_effect = lambda path: path == "/shared/CustomProcessor.py"
             mock_join.side_effect = lambda *args: "/".join(args)
 
@@ -1337,10 +1340,10 @@ class TestAutoPkgOther(unittest.TestCase):
 
             self.assertEqual(result, "/shared/CustomProcessor.py")
 
-            # Verify it searched for the shared recipe
-            mock_find_recipe.assert_called_once_with(
-                "com.example.recipes.shared", ["/search/dir1", "/search/dir2"]
-            )
+            # Verify it consulted the map first.
+            mock_find_in_map.assert_called_once_with("com.example.recipes.shared")
+            # On-disk fallback should not have been needed.
+            mock_find_on_disk.assert_not_called()
 
     def test_find_processor_path_with_parent_recipes(self):
         """Test find_processor_path with recipe that has parent recipes."""
@@ -1525,7 +1528,8 @@ class TestAutoPkgOther(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier") as mock_find_recipe,
+            patch("autopkg.find_recipe_by_id_in_map") as mock_find_in_map,
+            patch("autopkg.find_recipe_by_identifier_on_disk"),
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
         ):
@@ -1541,7 +1545,7 @@ class TestAutoPkgOther(unittest.TestCase):
 
             mock_dirname.side_effect = dirname_side_effect
             mock_extract.return_value = ("CustomProcessor", "com.shared.recipes")
-            mock_find_recipe.return_value = "/shared/SharedRecipe.recipe"
+            mock_find_in_map.return_value = "/shared/SharedRecipe.recipe"
 
             # Make processor exist in shared directory
             def exists_side_effect(path):

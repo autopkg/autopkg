@@ -1103,8 +1103,13 @@ class TestAutoPkgRepos(unittest.TestCase):
 
         autopkg.repo_delete([None, "repo-delete", "recipes"])
 
-        mock_log_err.assert_called_with(
-            "ERROR: Could not remove /repo/path: Permission denied"
+        # Error message includes additional context about manual cleanup
+        # but must still start with the expected ERROR: prefix.
+        error_call = mock_log_err.call_args
+        assert error_call is not None
+        self.assertIn(
+            "ERROR: Could not remove /repo/path: Permission denied",
+            error_call.args[0],
         )
         # Verify preferences were still saved even though rmtree failed
         mock_save_pref.assert_called()
@@ -1181,13 +1186,17 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_get_repo_info.return_value = {"path": "/repo/path"}
         mock_expanduser.return_value = "/repo/path"
         mock_abspath.return_value = "/repo/path"
+        # repo_update now calls rev-parse before and after pull so it can
+        # decide whether to rebuild the recipe map. Return stable hashes
+        # that indicate no change so the test asserts behaviour in the
+        # "Already up to date" path.
         mock_run_git.return_value = "Already up to date."
 
         autopkg.repo_update([None, "repo-update", "recipes"])
 
         mock_expand_repo_url.assert_called_once_with("recipes")
         mock_get_repo_info.assert_called_once_with("https://github.com/autopkg/recipes")
-        mock_run_git.assert_called_once_with(["pull"], git_directory="/repo/path")
+        mock_run_git.assert_any_call(["pull"], git_directory="/repo/path")
         mock_log.assert_any_call("Attempting git pull for /repo/path...")
         mock_log.assert_any_call("Already up to date.")
 
@@ -1223,7 +1232,11 @@ class TestAutoPkgRepos(unittest.TestCase):
 
         autopkg.repo_update([None, "repo-update", "all"])
 
-        self.assertEqual(mock_run_git.call_count, 2)
+        # repo_update performs up to 3 git operations per repo (rev-parse
+        # before, pull, rev-parse after) so we assert on the pull calls
+        # specifically rather than the total call count.
+        pull_calls = [c for c in mock_run_git.call_args_list if c.args[0] == ["pull"]]
+        self.assertEqual(len(pull_calls), 2)
         mock_run_git.assert_any_call(["pull"], git_directory="/repo/path1")
         mock_run_git.assert_any_call(["pull"], git_directory="/repo/path2")
 

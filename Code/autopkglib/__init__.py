@@ -668,29 +668,39 @@ def calculate_recipe_map(
     extra_search_dirs: list[str] | None = None,
     extra_override_dirs: list[str] | None = None,
     skip_cwd: bool = True,
+    persist: bool | None = None,
 ) -> None:
     """Recalculate ``globalRecipeMap`` from scratch by walking every recipe
     search directory and every override directory.
 
-    If ``extra_search_dirs`` or ``extra_override_dirs`` is provided the result
-    is NOT written to disk — callers that pass extra dirs are expected to be
-    building a transient view (e.g. ``repo-add`` immediately before committing
-    the new repo)."""
-    global globalRecipeMap
-    globalRecipeMap = {
-        "identifiers": {},
-        "shortnames": {},
-        "overrides": {},
-        "overrides-identifiers": {},
-    }
-    if extra_search_dirs is None:
-        extra_search_dirs = []
-    if extra_override_dirs is None:
-        extra_override_dirs = []
+    Mutates ``globalRecipeMap`` in place rather than rebinding the name so
+    any module that imported the symbol with ``from autopkglib import
+    globalRecipeMap`` continues to see the fresh contents. (The generate-
+    recipe-map verb in Code/autopkg relies on this.)
+
+    ``persist`` explicitly controls whether the new map is written to disk:
+    * ``None`` (default): persist iff no extra dirs were supplied. This is
+      the legacy behaviour — callers that pass transient extras don't want
+      their view leaking into the on-disk cache.
+    * ``True`` / ``False``: force the corresponding behaviour. Used by the
+      ``generate-recipe-map`` verb, which always wants to persist."""
+    # Mutate in place so every importer sees the refresh.
+    for sub in (
+        "identifiers",
+        "shortnames",
+        "overrides",
+        "overrides-identifiers",
+    ):
+        globalRecipeMap.setdefault(sub, {}).clear()
+
+    extra_search_dirs = list(extra_search_dirs or [])
+    extra_override_dirs = list(extra_override_dirs or [])
+
     search_dirs = get_pref("RECIPE_SEARCH_DIRS") or list(DEFAULT_SEARCH_DIRS)
     if isinstance(search_dirs, str):
         search_dirs = [search_dirs]
-    for search_dir in list(search_dirs) + list(extra_search_dirs):
+
+    for search_dir in list(search_dirs) + extra_search_dirs:
         if search_dir == "." and skip_cwd:
             # Deliberately skip '.' — adding cwd to the persistent map is
             # surprising for users who run autopkg from arbitrary locations.
@@ -703,48 +713,136 @@ def calculate_recipe_map(
             map_key_to_paths("identifiers", search_dir)
         )
         globalRecipeMap["shortnames"].update(map_key_to_paths("shortnames", search_dir))
-    for override in get_override_dirs() + list(extra_override_dirs):
+
+    for override in get_override_dirs() + extra_override_dirs:
+        if override == ".":
+            # Match the search-dir behaviour: '.' is only scanned when the
+            # caller opts in via skip_cwd=False.
+            if skip_cwd:
+                continue
+            override = os.path.abspath(".")
         globalRecipeMap["overrides"].update(map_key_to_paths("overrides", override))
         globalRecipeMap["overrides-identifiers"].update(
             map_key_to_paths("overrides-identifiers", override)
         )
-    if not extra_search_dirs and not extra_override_dirs:
-        # Only persist when the map reflects the real configured state.
+
+    if persist is None:
+        persist = not (extra_search_dirs or extra_override_dirs)
+    if persist:
         write_recipe_map_to_disk()
+
+
+# Schema version baked into the persisted map. Increment when the on-disk
+# format changes in a non-backwards-compatible way so we can force a
+# rebuild rather than reading stale or incompatible content.
+RECIPE_MAP_SCHEMA_VERSION = 1
 
 
 def _recipe_map_path() -> str:
     """Return the absolute, expanded path to the recipe map file on disk.
 
+    Resolution order (issue #901):
+    1. ``AUTOPKG_RECIPE_MAP_PATH`` environment variable (CI/CD friendly).
+    2. ``RECIPE_MAP_PATH`` preference key (per-user override).
+    3. The default location under ``autopkg_user_folder()``.
+
     ``DEFAULT_RECIPE_MAP`` is stored unexpanded (with a leading ``~``) so
     tests can monkey-patch ``os.path.expanduser``; resolve it lazily here."""
-    return os.path.abspath(os.path.expanduser(DEFAULT_RECIPE_MAP))
+    override = os.environ.get("AUTOPKG_RECIPE_MAP_PATH")
+    if not override:
+        override = get_pref("RECIPE_MAP_PATH")
+    target = override or DEFAULT_RECIPE_MAP
+    return os.path.abspath(os.path.expanduser(target))
+
+
+def _recipe_map_disabled() -> bool:
+    """Escape hatch. If either the ``AUTOPKG_DISABLE_RECIPE_MAP`` env var
+    or the ``DISABLE_RECIPE_MAP`` pref is truthy, the recipe map is bypassed
+    entirely: lookups fall back to on-disk scans and writes are skipped.
+
+    Intended as a mitigation for users who hit a bug they can't reproduce
+    locally — they can bypass the map without editing code."""
+    if os.environ.get("AUTOPKG_DISABLE_RECIPE_MAP"):
+        return True
+    pref = get_pref("DISABLE_RECIPE_MAP")
+    return bool(pref)
+
+
+# Module-level latch tracking whether the last write attempt failed. When
+# True we skip further writes for the life of the process to avoid spamming
+# the log with the same OSError on every verb.
+_recipe_map_write_disabled: bool = False
 
 
 def write_recipe_map_to_disk() -> None:
     """Persist ``globalRecipeMap`` to the recipe-map file as sorted JSON.
 
+    The write is atomic: we write to ``<path>.tmp`` in the same directory,
+    fsync, then ``os.replace`` it into position. This protects concurrent
+    autopkg invocations from reading a half-written file.
+
     Failures to write (permission denied, read-only filesystem, etc.) are
     logged but not raised — the in-memory map is still usable for the
-    lifetime of the process."""
-    # Ensure the containing directory exists so the first invocation on a
-    # fresh install doesn't fail. autopkg_user_folder() is itself
-    # permission-tolerant.
+    lifetime of the process. After the first failure subsequent calls in
+    the same process are silent no-ops to avoid log spam."""
+    global _recipe_map_write_disabled
+    if _recipe_map_write_disabled:
+        return
+    if _recipe_map_disabled():
+        # Escape hatch: don't touch disk at all.
+        return
+
+    target = _recipe_map_path()
+    # Ensure the containing directory exists. autopkg_user_folder() handles
+    # the default location; if the user pointed RECIPE_MAP_PATH at a
+    # custom spot we need to ensure its directory is present too.
     autopkg_user_folder()
+    target_dir = os.path.dirname(target)
+    if target_dir:
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+        except OSError:
+            # Fall through; the open below will surface the real error.
+            pass
+
+    # Wrap the persisted dict with a schema version so future versions can
+    # detect and migrate/rebuild incompatible formats.
+    payload = {
+        "schema_version": RECIPE_MAP_SCHEMA_VERSION,
+        **globalRecipeMap,
+    }
+    tmp = f"{target}.tmp"
     try:
-        with open(_recipe_map_path(), "w") as f:
+        with open(tmp, "w") as f:
             json.dump(
-                globalRecipeMap,
+                payload,
                 f,
                 ensure_ascii=True,
                 indent=2,
                 sort_keys=True,
             )
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except (OSError, AttributeError):
+                # fsync can fail on some filesystems (e.g., tmpfs). The
+                # replace below is still atomic enough for our needs.
+                pass
+        os.replace(tmp, target)
     except OSError as err:
-        log_err(f"WARNING: Could not write recipe map to disk: {err}")
+        _recipe_map_write_disabled = True
+        log_err(
+            f"WARNING: Could not write recipe map to {target}: {err}. "
+            "Further write attempts in this process will be skipped."
+        )
+        # Best-effort cleanup of the partial tempfile.
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
 
 
-def handle_reading_recipe_map_file() -> dict[str, dict[str, str]]:
+def handle_reading_recipe_map_file() -> dict:
     """Read the recipe map from disk. Returns an empty dict on any I/O or
     JSON error — callers are expected to treat that as a signal to rebuild
     the map."""
@@ -760,48 +858,77 @@ def handle_reading_recipe_map_file() -> dict[str, dict[str, str]]:
         return {}
 
 
-def validate_recipe_map(recipe_map: dict[str, dict[str, str]]) -> bool:
+# Required top-level keys in the in-memory / persisted map structure.
+_EXPECTED_MAP_KEYS = frozenset(
+    ("identifiers", "shortnames", "overrides", "overrides-identifiers")
+)
+
+
+def validate_recipe_map(recipe_map: dict) -> bool:
     """Return True if ``recipe_map`` has the full set of expected top-level
-    keys."""
-    expected_keys = {
-        "identifiers",
-        "overrides",
-        "overrides-identifiers",
-        "shortnames",
-    }
-    return expected_keys.issubset(recipe_map.keys())
+    keys AND, if a ``schema_version`` is present, it matches what this
+    version of autopkg knows how to read.
+
+    Missing ``schema_version`` is treated as valid for forward-compat with
+    older persisted files that pre-date the version field; missing required
+    dict keys always invalidate the map."""
+    if not _EXPECTED_MAP_KEYS.issubset(recipe_map.keys()):
+        return False
+    version = recipe_map.get("schema_version")
+    if version is None:
+        # Legacy file from a version before we started writing the
+        # schema_version key — treat as v1.
+        return True
+    return version == RECIPE_MAP_SCHEMA_VERSION
 
 
 def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> None:
     """Load the recipe map from disk into ``globalRecipeMap``.
 
-    If the file is missing or invalid we ALWAYS auto-create it by walking
-    the configured search/override dirs. This is a deliberate divergence
-    from the dev-3.x behaviour which printed an error and exited. The
-    original behaviour was confusing for first-time users and CI jobs that
-    had not yet run a map-building verb.
+    Behaviour:
+    * If ``rebuild`` is True we always rebuild from scratch, regardless of
+      the on-disk state. (Dev-3.x's ``rebuild=True`` originally skipped
+      the rebuild when the file was valid; we treat that as a bug since
+      callers that pass ``rebuild=True`` genuinely want the force.)
+    * Otherwise we read the file and validate it. Valid → load into the
+      global map. Invalid/missing → auto-rebuild silently.
 
-    ``rebuild`` is retained for API compatibility with the dev-3.x callers
-    — callers that pass ``rebuild=True`` get the same on-demand rebuild.
-    ``allow_continuing`` is likewise retained; with the new auto-create
-    behaviour it is effectively a no-op but is accepted so existing callers
-    do not need to be rewritten."""
-    global globalRecipeMap
+    This is a deliberate UX divergence from dev-3.x's "print error and
+    sys.exit(1) when the map is missing" behaviour. Fresh installs and
+    CI/CD pipelines hit that case constantly and the exit was confusing.
+    See GitHub issues #884, #893, #898.
+
+    ``allow_continuing`` is retained for API compatibility with the dev-3.x
+    callers (repo-add / repo-delete pass it to say "the map might not
+    exist yet"). With the new auto-create behaviour it is effectively a
+    no-op but we accept it so existing callers don't need to change."""
     _ = allow_continuing  # retained for API compatibility
+
+    if _recipe_map_disabled():
+        # Escape hatch: callers will still do something; we just don't
+        # populate the map. find_recipe_by_*_in_map will return None and
+        # the on-disk fallbacks will kick in.
+        return
+
+    if rebuild:
+        log("Recipe map: forced rebuild requested.")
+        calculate_recipe_map()
+        return
+
     recipe_map = handle_reading_recipe_map_file()
     if validate_recipe_map(recipe_map):
-        globalRecipeMap.update(recipe_map)
+        # Load into globalRecipeMap in place. Start by clearing the
+        # existing sub-dicts so stale entries don't leak across reads.
+        for sub in _EXPECTED_MAP_KEYS:
+            globalRecipeMap.setdefault(sub, {}).clear()
+            globalRecipeMap[sub].update(recipe_map.get(sub, {}))
         return
-    # Auto-create on miss rather than failing. This is the behavioural fix
-    # called out above.
-    if rebuild:
-        log("Recipe map is missing or invalid; rebuilding now...")
+
+    # Missing/invalid → auto-create.
+    if not recipe_map:
+        log("Recipe map not found; generating it on demand.")
     else:
-        log(
-            "Recipe map is missing or invalid; generating it on demand. "
-            "Run `autopkg generate-recipe-map` explicitly (e.g. in CI) to "
-            "avoid paying this cost on every fresh run."
-        )
+        log("Recipe map is invalid or from an older schema; rebuilding now.")
     calculate_recipe_map()
 
 
