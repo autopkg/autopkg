@@ -135,7 +135,6 @@ DEFAULT_USER_CACHE_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "Cache")
 DEFAULT_USER_REPOS_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeRepos")
 # Canonical on-disk location of the recipe map
 DEFAULT_RECIPE_MAP = os.path.join(DEFAULT_USER_LIBRARY_DIR, "recipe_map.json")
-DEFAULT_GH_TOKEN = os.path.join(DEFAULT_USER_LIBRARY_DIR, "gh_token")
 DEFAULT_SEARCH_DIRS = [
     ".",
     DEFAULT_USER_RECIPES_DIR,
