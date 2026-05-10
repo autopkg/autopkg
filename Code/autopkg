@@ -35,28 +35,43 @@ from urllib.parse import quote, urlparse
 import yaml
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
 from autopkgcmd.searchcmd import get_search_results
-from autopkglib import (
+from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict_with_keys re-exported for tests)
     RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
+    _recipe_map_path,
+    add_recipe_to_map,
+    calculate_recipe_map,
     core_processor_names,
     extract_processor_name_with_recipe_identifier,
     find_binary,
-    find_recipe_by_identifier,
+    find_recipe_by_identifier_in_map,
+    find_recipe_by_identifier_on_disk,
+    find_recipe_by_name_in_map,
+    find_recipe_by_name_on_disk,
     get_all_prefs,
     get_autopkg_version,
     get_identifier,
+    get_override_dirs,
     get_pref,
     get_processor,
+    get_search_dirs,
+    globalRecipeMap,
     is_mac,
     log,
     log_err,
     plist_serializer,
     processor_names,
+    read_recipe_map,
     recipe_from_file,
     remove_recipe_extension,
     set_pref,
+    valid_override_dict,
+    valid_override_file,
+    valid_recipe_dict,
+    valid_recipe_dict_with_keys,
+    valid_recipe_file,
     version_equal_or_greater,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
@@ -67,6 +82,38 @@ _ = f"""{sys.version_info.major} It looks like you're running the autopkg tool w
 
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
+
+# Module-level latch: have we already paid the cost of rebuilding the
+# recipe map with cwd included during this process? Gated to once per
+# process so pathological multi-miss runs (e.g. `autopkg run -l typos`
+# against a list of non-existent identifiers) don't trigger N full
+# rebuilds for N misses.
+_locate_recipe_rebuild_attempted = False
+
+
+def _try_cwd_rebuild_once(reason: str) -> bool:
+    """Perform a one-shot cwd-inclusive recipe-map rebuild, or return
+    False if we've already tried in this process.
+
+    Call sites use this to recover from map misses where the recipe may
+    be in the current working directory (which is excluded from the
+    persisted map by default). Returns True iff a rebuild was actually
+    performed; callers should retry their lookup on True.
+
+    ``reason`` is included in the log line so users can correlate the
+    rebuild with the verb that triggered it (``locate_recipe`` for a
+    recipe miss, ``find_processor_path`` for a shared-processor miss).
+
+    Tests reset the latch by patching ``_locate_recipe_rebuild_attempted``
+    directly; there is no public setter."""
+    global _locate_recipe_rebuild_attempted
+    if _locate_recipe_rebuild_attempted:
+        return False
+    _locate_recipe_rebuild_attempted = True
+    log(f"Rebuilding recipe map with current working directories ({reason})...")
+    calculate_recipe_map(skip_cwd=False, persist=False)
+    return True
+
 
 # Override global yaml state with our str representer
 # See https://github.com/autopkg/autopkg/issues/768
@@ -113,79 +160,128 @@ def builds_a_package(recipe) -> bool:
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
-    """Attempts to read a dict and ensures the keys in
-    keys_to_verify exist. Returns False on any failure, True otherwise."""
-    if recipe_dict:
-        for key in keys_to_verify:
-            if key not in recipe_dict:
-                return False
-        # if we get here, we found all the keys
+def find_recipe_by_name(name, search_dirs) -> str | None:
+    """Legacy helper retained for call-site compatibility. Defers to the
+    canonical on-disk scanner now defined in autopkglib."""
+    return find_recipe_by_name_on_disk(name, search_dirs)
+
+
+def _normalize_dirs(dirs) -> list[str]:
+    """Return a list of absolute, expanded paths from ``dirs``. ``None`` and
+    empty iterables become an empty list."""
+    if not dirs:
+        return []
+    if isinstance(dirs, str):
+        dirs = [dirs]
+    return [os.path.abspath(os.path.expanduser(d)) for d in dirs]
+
+
+def _path_under_dirs(path: str, dirs) -> bool:
+    """Return True when ``path`` resides under any directory in ``dirs``.
+
+    Uses a path-separator-anchored startswith check so sibling-prefix
+    false positives (``/a/AutoPkg2`` vs ``/a/AutoPkg``) are avoided.
+    An empty or missing ``dirs`` returns True — callers that haven't
+    constrained the scope accept any path.
+
+    This is a security helper for the recipe-map lookups: we use it to
+    refuse a map hit that points outside the caller-declared search
+    scope."""
+    if not dirs:
+        # No scope declared; callers that want scope enforcement must
+        # pass a non-empty list.
         return True
+    normalized_path = os.path.abspath(os.path.expanduser(path))
+    for directory in _normalize_dirs(dirs):
+        if normalized_path == directory:
+            return True
+        if normalized_path.startswith(directory + os.sep):
+            return True
     return False
 
 
-def valid_recipe_dict(recipe_dict) -> bool:
-    """Returns True if recipe dict is a valid recipe,
-    otherwise returns False"""
-    return (
-        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
-        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
-        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
+def _dirs_match_prefs(caller_search_dirs, caller_override_dirs) -> bool:
+    """Return True when the caller-supplied dirs fully include the
+    pref-configured baseline the persisted recipe map was built from.
+    When this is True it is safe to use the map: any recipe the map
+    knows about lives in a directory the caller would have scanned
+    anyway.
+
+    When this is False the caller has NARROWED the scope (e.g.,
+    ``autopkg run -d /tmp/test-repo Foo`` without also passing the
+    pref dirs), and the map could point at a recipe the caller
+    explicitly excluded. Fall back to an on-disk scan of the caller's
+    exact scope in that case.
+
+    Superset semantics matter for the recursive ``load_recipe`` call:
+    when resolving a parent recipe, the recursion appends the child's
+    directory to ``recipe_dirs``, making the caller's dirs a strict
+    superset of the prefs. The map is still safe (and vastly faster)
+    in that case.
+
+    This is the guard for GitHub issues #886, #894, #908 and #918."""
+    pref_search = set(_normalize_dirs(get_search_dirs()))
+    pref_override = set(_normalize_dirs(get_override_dirs()))
+    caller_search = set(_normalize_dirs(caller_search_dirs))
+    caller_override = set(_normalize_dirs(caller_override_dirs))
+    # If the caller didn't supply anything for a category, they implicitly
+    # accept the pref baseline for that category.
+    if not caller_search_dirs:
+        caller_search = pref_search
+    if not caller_override_dirs:
+        caller_override = pref_override
+    return pref_search.issubset(caller_search) and pref_override.issubset(
+        caller_override
     )
 
 
-def valid_recipe_file(filename) -> bool:
-    """Returns True if filename contains a valid recipe,
-    otherwise returns False"""
-    recipe_dict = recipe_from_file(filename)
-    return valid_recipe_dict(recipe_dict)
+def find_recipe(
+    id_or_name,
+    search_dirs=None,
+    override_dirs=None,
+    skip_overrides=False,
+) -> str | None:
+    """Find a recipe based on a string that might be an identifier or a name.
 
+    Resolution order:
+    1. If the caller supplied ``search_dirs`` / ``override_dirs`` that
+       differ from the configured preferences, scan ONLY those dirs on
+       disk. This preserves the dev-2.x contract that ``autopkg run -d
+       /path/to/repo Foo`` searches exactly ``/path/to/repo`` and not
+       whatever happens to be in the persisted recipe map (issues #886,
+       #894, #908, #918).
+    2. Otherwise, consult the recipe map (O(1)).
+    3. On a map miss, fall back to an on-disk scan of ``search_dirs`` (or
+       the pref-configured dirs) so recipes that have not been indexed
+       yet are still found.
 
-def valid_override_dict(recipe_dict) -> bool:
-    """Returns True if the recipe is a valid override,
-    otherwise returns False"""
-    return valid_recipe_dict_with_keys(
-        recipe_dict, ["Input", "ParentRecipe"]
-    ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+    Empty-list and ``None`` semantics: both are treated as "not supplied"
+    — the pref baseline is used. Callers that want to restrict resolution
+    to an empty scope should not call this function; call
+    ``find_recipe_by_identifier_on_disk`` / ``find_recipe_by_name_on_disk``
+    directly instead."""
+    # Caller-supplied dirs that differ from prefs → scope to those dirs
+    # only. The map is pref-scoped and would silently include/exclude the
+    # wrong set of dirs, so we bypass it entirely in that case.
+    if _dirs_match_prefs(search_dirs, override_dirs):
+        result = find_recipe_by_identifier_in_map(
+            id_or_name, skip_overrides=skip_overrides
+        ) or find_recipe_by_name_in_map(id_or_name, skip_overrides=skip_overrides)
+        if result:
+            return result
 
-
-def valid_override_file(filename) -> bool:
-    """Returns True if filename contains a valid override,
-    otherwise returns False"""
-    override_dict = recipe_from_file(filename)
-    return valid_override_dict(override_dict)
-
-
-def find_recipe_by_name(name, search_dirs) -> str | None:
-    """Search search_dirs for a recipe by file/directory naming rules"""
-    # drop extension from the end of the name because we're
-    # going to add it back on...
-    name = remove_recipe_extension(name)
-    # search by "Name", using file/directory hierarchy rules
-    for directory in search_dirs:
-        # TODO: Combine with similar code in get_recipe_list()
-        # and find_recipe_by_identifier()
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
-        patterns.extend(
-            [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
-        )
-        for pattern in patterns:
-            matches = glob.glob(pattern)
-            for match in matches:
-                if valid_recipe_file(match):
-                    return match
-
-    return None
-
-
-def find_recipe(id_or_name, search_dirs) -> str | None:
-    """find a recipe based on a string that might be an identifier
-    or a name"""
-    return find_recipe_by_identifier(id_or_name, search_dirs) or find_recipe_by_name(
-        id_or_name, search_dirs
-    )
+    # Map disabled, map miss, or caller scoped the search. Walk the
+    # effective search set on disk. Compute the dirs lazily so a map
+    # hit above doesn't pay the cost.
+    scan_dirs: list[str] = []
+    if not skip_overrides:
+        scan_dirs.extend(override_dirs or get_override_dirs())
+    scan_dirs.extend(search_dirs or get_search_dirs())
+    if not scan_dirs:
+        return None
+    return find_recipe_by_identifier_on_disk(
+        id_or_name, scan_dirs
+    ) or find_recipe_by_name_on_disk(id_or_name, scan_dirs)
 
 
 def get_identifier_from_override(override) -> str:
@@ -264,8 +360,17 @@ def locate_recipe(
             recipe_file = name
 
     if not recipe_file:
-        # name wasn't a filename. Let's search our local repos.
-        recipe_file = find_recipe(name, override_dirs + recipe_dirs)
+        # name wasn't a filename. find_recipe handles map-vs-on-disk
+        # precedence based on whether the caller-supplied dirs match
+        # the prefs (see issues #886, #894, #908, #918).
+        recipe_file = find_recipe(
+            name, search_dirs=recipe_dirs, override_dirs=override_dirs
+        )
+
+    if not recipe_file and _try_cwd_rebuild_once(f"resolving {name!r}"):
+        recipe_file = find_recipe(
+            name, search_dirs=recipe_dirs, override_dirs=override_dirs
+        )
 
     if not recipe_file and make_suggestions:
         print(f"Didn't find a recipe for {name}.")
@@ -345,6 +450,13 @@ def load_recipe(
         override_dirs = []
     if recipe_dirs is None:
         recipe_dirs = []
+    # Populate globalRecipeMap before resolution, but only if it hasn't
+    # already been loaded in this process. Without this guard, every
+    # recursive load_recipe for a parent recipe would re-read the
+    # recipe_map.json from disk and re-validate it, costing 4+ disk
+    # reads on a 3-parent chain for no benefit.
+    if not globalRecipeMap.get("identifiers"):
+        read_recipe_map()
     recipe = None
     recipe_file = locate_recipe(
         name,
@@ -358,7 +470,20 @@ def load_recipe(
     if recipe_file:
         # read it
         recipe = recipe_from_file(recipe_file)
+        if recipe is None:
+            # Map entry pointed at a file that exists but isn't a
+            # readable recipe (stale entry, truncated mid-write by a
+            # concurrent generate-recipe-map, or tampered). Fall
+            # through to the make_suggestions / search_github path as
+            # if we never found it.
+            log_err(
+                f"WARNING: {recipe_file} from recipe map is not a "
+                "readable recipe; the map may be stale. Run "
+                "`autopkg generate-recipe-map` to rebuild."
+            )
+            recipe_file = None
 
+    if recipe_file:
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
             parent_trust_info = recipe.get("ParentRecipeTrustInfo")
@@ -637,28 +762,6 @@ def save_pref_or_warn(key, value):
         log_err(f"WARNING: {err}")
 
 
-def get_search_dirs() -> list[str]:
-    """Return search dirs from preferences or default list"""
-    default = [".", "~/Library/AutoPkg/Recipes", "/Library/AutoPkg/Recipes"]
-
-    dirs: list[str] = get_pref("RECIPE_SEARCH_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
-
-
-def get_override_dirs() -> list[str]:
-    """Return override dirs from preferences or default list"""
-    default = ["~/Library/AutoPkg/RecipeOverrides"]
-
-    dirs: list[str] = get_pref("RECIPE_OVERRIDE_DIRS")
-    if isinstance(dirs, str):
-        # convert a string to a list
-        dirs = [dirs]
-    return dirs or default
-
-
 def add_search_and_override_dir_options(parser):
     """Several subcommands use these same options"""
     parser.add_option(
@@ -747,6 +850,7 @@ Example: '%prog repo-add recipes'
 
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
+    added_repo_dirs: list[str] = []
     for repo_url in arguments:
         if "file://" in repo_url:
             log_err(
@@ -762,10 +866,18 @@ Example: '%prog repo-add recipes'
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
+            added_repo_dirs.append(new_recipe_repo_dir)
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
     save_pref_or_warn("RECIPE_SEARCH_DIRS", recipe_search_dirs)
+
+    # Rebuild the recipe map so the newly added repos are immediately
+    # available. The RECIPE_SEARCH_DIRS pref was already updated above,
+    # so a single calculate_recipe_map() call picks up the new repos and
+    # persists the result.
+    if added_repo_dirs:
+        calculate_recipe_map()
 
     log("Updated search path:")
     for search_dir in get_pref("RECIPE_SEARCH_DIRS"):
@@ -790,6 +902,7 @@ def repo_delete(argv):
 
     recipe_repos = get_pref("RECIPE_REPOS") or {}
     recipe_search_dirs = get_search_dirs()
+    prefs_changed = False
 
     for path_or_url in arguments:
         path_or_url = expand_repo_url(path_or_url)
@@ -800,21 +913,33 @@ def repo_delete(argv):
         else:
             log(f"Removing repo at {repo_path}...")
 
-        # first, remove from RECIPE_SEARCH_DIRS
+        # Mutate prefs and attempt the filesystem removal together. If
+        # the rmtree fails we still strip the repo from RECIPE_SEARCH_DIRS
+        # and RECIPE_REPOS so the persisted map never references a repo
+        # that isn't in the configured search set.
         if repo_path in recipe_search_dirs:
             recipe_search_dirs.remove(repo_path)
-        # now remove the repo files
+            prefs_changed = True
+        if repo_path in recipe_repos:
+            del recipe_repos[repo_path]
+            prefs_changed = True
         try:
             shutil.rmtree(repo_path)
         except OSError as err:
-            log_err(f"ERROR: Could not remove {repo_path}: {err}")
-        else:
-            # last, remove from RECIPE_REPOS
-            del recipe_repos[repo_path]
+            log_err(
+                f"ERROR: Could not remove {repo_path}: {err}. The repo has "
+                "been deconfigured; remove the directory manually if "
+                "desired."
+            )
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
     save_pref_or_warn("RECIPE_SEARCH_DIRS", recipe_search_dirs)
+
+    # Always rebuild when prefs changed so the persisted map matches the
+    # configured state, even if some rmtrees failed.
+    if prefs_changed:
+        calculate_recipe_map()
 
 
 def repo_list(argv):
@@ -863,14 +988,41 @@ def repo_update(argv):
             else:
                 repo_dirs.append(repo_path)
 
+    any_repo_changed = False
     for repo_dir in repo_dirs:
         # resolve ~ and symlinks before passing to git
         repo_dir = os.path.abspath(os.path.expanduser(repo_dir))
         log(f"Attempting git pull for {repo_dir}...")
+        # Capture HEAD before and after so we only rebuild the map when
+        # the on-disk contents actually changed. Avoids paying a full
+        # scan cost for `autopkg repo-update all` on a fully-up-to-date
+        # tree (common in CI pipelines that run on every commit).
+        pre_hash: str | None
+        try:
+            pre_hash = (
+                run_git(["rev-parse", "HEAD"], git_directory=repo_dir).strip() or None
+            )
+        except GitError:
+            pre_hash = None
         try:
             log(run_git(["pull"], git_directory=repo_dir))
         except GitError as err:
             log_err(err)
+            continue
+        try:
+            post_hash: str | None = (
+                run_git(["rev-parse", "HEAD"], git_directory=repo_dir).strip() or None
+            )
+        except GitError:
+            post_hash = None
+        if pre_hash is None or post_hash is None or pre_hash != post_hash:
+            any_repo_changed = True
+
+    # Refresh the map so new or renamed recipes are discoverable without
+    # another manual rebuild — but only when we actually changed
+    # something on disk.
+    if any_repo_changed:
+        calculate_recipe_map()
 
 
 def do_gh_repo_contents_fetch(
@@ -1108,8 +1260,8 @@ def get_recipe_list(
 
     recipes = []
     for directory in search_dirs:
-        # TODO: Combine with similar code in find_recipe_by_name()
-        # and find_recipe_by_identifier()
+        # TODO: Combine with similar code in find_recipe_by_name_on_disk()
+        # and find_recipe_by_identifier_on_disk().
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         if not os.path.isdir(normalized_dir):
             continue
@@ -1367,9 +1519,43 @@ def find_processor_path(processor_name, recipe, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            shared_processor_recipe_path = find_recipe_by_identifier(
-                processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+            # Map-first, fall back to on-disk scan. This is the hot path for
+            # users with many shared-processor recipes — the map was built
+            # precisely to make it O(1) (issue #894).
+            #
+            # Security scope check: the map is pref-scoped. If the caller has
+            # narrowed env["RECIPE_SEARCH_DIRS"] to a subset of the prefs
+            # (e.g., `autopkg run --search-dir /sandboxed/repo`), a map
+            # hit could point at a recipe outside that subset, causing
+            # us to load a `<processor_name>.py` from a directory the
+            # caller explicitly excluded. Gate the map lookup on the
+            # resolved path living under env["RECIPE_SEARCH_DIRS"].
+            shared_processor_recipe_path = find_recipe_by_identifier_in_map(
+                processor_recipe_id
             )
+            if shared_processor_recipe_path and not _path_under_dirs(
+                shared_processor_recipe_path, env.get("RECIPE_SEARCH_DIRS", [])
+            ):
+                # Map hit points outside the caller's declared search
+                # scope; do not honour it.
+                shared_processor_recipe_path = None
+            if shared_processor_recipe_path is None:
+                shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
+                    processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+                )
+            if shared_processor_recipe_path is None and _try_cwd_rebuild_once(
+                f"resolving shared processor {processor_recipe_id!r}"
+            ):
+                # Issue #894: the shared processor may be in the cwd,
+                # which is excluded from the persisted map by default.
+                shared_processor_recipe_path = find_recipe_by_identifier_in_map(
+                    processor_recipe_id
+                )
+                if shared_processor_recipe_path and not _path_under_dirs(
+                    shared_processor_recipe_path,
+                    env.get("RECIPE_SEARCH_DIRS", []),
+                ):
+                    shared_processor_recipe_path = None
             if shared_processor_recipe_path:
                 processor_search_dirs.append(
                     os.path.dirname(shared_processor_recipe_path)
@@ -1501,24 +1687,73 @@ class TrustVerificationError(AutoPackagerError):
 
 
 def recipe_from_external_repo(recipe_path):
-    """Returns True if the recipe_path is in a path in RECIPE_REPOS, which contains
-    recipes added via repo-add"""
+    """Returns True if the recipe_path is in a path in RECIPE_REPOS,
+    which contains recipes added via repo-add. Uses ``_path_under_dirs``
+    for a separator-anchored prefix match so sibling-prefix names (e.g.
+    ``/repos/autopkg`` vs ``/repos/autopkg-evil``) don't confuse trust
+    classification."""
     recipe_repos = get_pref("RECIPE_REPOS") or {}
-    for repo in list(recipe_repos.keys()):
-        if recipe_path.startswith(repo):
-            return True
-    return False
+    return bool(recipe_repos) and _path_under_dirs(recipe_path, list(recipe_repos))
 
 
 def recipe_in_override_dir(recipe_path, override_dirs):
-    """Returns True if the recipe is in a path in override_dirs"""
+    """Returns True if ``recipe_path`` is in one of ``override_dirs`` or
+    is listed in the recipe map's overrides tables AND the listed path
+    also resides under a configured override directory.
+
+    The directory-prefix check is the authoritative answer; the map
+    lookup is an optimisation that lets us short-circuit for paths that
+    have already been classified.
+
+    Security: the recipe map is a user-writable on-disk file.
+    Trusting map entries as the sole source of truth for
+    override classification would let an attacker who can write to
+    ``recipe_map.json`` insert arbitrary paths into ``overrides`` and
+    have them treated as overrides for trust-info purposes. We require
+    the path to still live under a configured override dir to preserve
+    the invariant that override-ness is determined by on-disk location,
+    not by a cache."""
     normalized_recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
     normalized_override_dirs = [
         os.path.abspath(os.path.expanduser(directory)) for directory in override_dirs
     ]
-    for override_dir in normalized_override_dirs:
-        if normalized_recipe_path.startswith(override_dir):
-            return True
+
+    def _under_configured_override_dir(path: str) -> bool:
+        for override_dir in normalized_override_dirs:
+            if path == override_dir:
+                return True
+            if path.startswith(override_dir + os.sep):
+                return True
+        return False
+
+    # Directory-prefix check against the caller-supplied override_dirs.
+    if _under_configured_override_dir(normalized_recipe_path):
+        return True
+
+    # Map hint: a path listed in the map's overrides tables is still
+    # required to live under one of the configured override dirs. This
+    # lets us honour issue #903 (file paths that aren't directly rooted
+    # in override_dirs but are known to the map) without introducing an
+    # easy trust-bypass via a tampered map.
+    for key in ("overrides", "overrides-identifiers"):
+        for path in globalRecipeMap.get(key, {}).values():
+            resolved = os.path.abspath(os.path.expanduser(path))
+            if resolved != normalized_recipe_path:
+                continue
+            if _under_configured_override_dir(resolved):
+                return True
+            # Path is in the map's overrides tables but does NOT live
+            # under any configured override dir. This is the pattern an
+            # attacker would use to plant a bogus override entry; refuse
+            # to honour it.
+            log_err(
+                f"WARNING: recipe map lists {resolved} as an override "
+                "but the path is not under any configured "
+                "RECIPE_OVERRIDE_DIRS. Ignoring the map entry. "
+                "Run `autopkg generate-recipe-map` to rebuild the cache."
+            )
+            return False
+
     return False
 
 
@@ -1970,6 +2205,9 @@ def make_override(argv):
         with open(override_file, "wb") as f:
             plistlib.dump(plist_serializer(override_dict), f)
     log(f"Override file saved to {override_file}")
+    # Add the new override to the map incrementally instead of a full
+    # rebuild — we already know exactly which file changed.
+    add_recipe_to_map(override_file, is_override=True)
     return 0
 
 
@@ -2623,6 +2861,65 @@ def audit(argv):
         log(f"    {recipe_no_issue_count} recipes triggered no audit flags")
 
 
+def generate_recipe_map(argv):
+    """Build and persist the recipe map cache.
+
+    The recipe map is normally rebuilt implicitly by repo-add, repo-delete,
+    repo-update, make-override, new-recipe and (on miss) any recipe-loading
+    verb. This verb exists primarily for fresh installs and CI/CD
+    pipelines that want to pay the scan cost once, up-front, before any
+    recipes are run.
+    """
+    verb = argv[1]
+    parser = gen_common_parser()
+    parser.set_usage(
+        f"Usage: %prog {verb} [options]\n"
+        "Build or rebuild the recipe map cache now. Use this to prime\n"
+        "the cache in CI or to force a rebuild after suspecting a stale\n"
+        "or corrupted map."
+    )
+    add_search_and_override_dir_options(parser)
+    parser.add_option(
+        "--include-cwd",
+        action="store_true",
+        help=(
+            "Also include the current working directory in the map. By "
+            "default '.' is excluded to avoid surprising behaviour when "
+            "running from arbitrary locations."
+        ),
+    )
+    options, _arguments = common_parse(parser, argv)
+
+    # Refuse transient --search-dir / --override-dir flags. Persisting
+    # those paths into recipe_map.json would pollute every subsequent
+    # pref-scoped invocation with paths the user only wanted for this
+    # one build. If the user wants a dir indexed permanently, they
+    # should set it in prefs via `repo-add` or `defaults write`.
+    if options.search_dirs or options.override_dirs:
+        log_err(
+            "ERROR: generate-recipe-map writes to the persistent on-disk "
+            "cache, so transient --search-dir / --override-dir flags are "
+            "not accepted (they would leak into every later run). To "
+            "include a directory permanently, add it to RECIPE_SEARCH_DIRS "
+            "/ RECIPE_OVERRIDE_DIRS via `autopkg repo-add <dir>` or "
+            "`defaults write com.github.autopkg RECIPE_SEARCH_DIRS ...`."
+        )
+        return 1
+
+    # Rebuild and persist the pref-scoped map.
+    calculate_recipe_map(skip_cwd=not options.include_cwd)
+
+    counts = {k: len(v) for k, v in globalRecipeMap.items() if isinstance(v, dict)}
+    log(
+        f"Recipe map written to {_recipe_map_path()}:\n"
+        f"  identifiers:           {counts.get('identifiers', 0)}\n"
+        f"  shortnames:            {counts.get('shortnames', 0)}\n"
+        f"  overrides:             {counts.get('overrides', 0)}\n"
+        f"  overrides-identifiers: {counts.get('overrides-identifiers', 0)}"
+    )
+    return 0
+
+
 def new_recipe(argv):
     """Makes a new recipe template"""
     verb = argv[1]
@@ -2684,6 +2981,15 @@ def new_recipe(argv):
         log(f"Saved new recipe to {filename}")
     except Exception as err:
         log_err(f"Failed to write recipe: {err}")
+        return
+
+    # Add the new recipe to the map incrementally instead of a full
+    # rebuild. Note: if the caller wrote the recipe outside any
+    # configured RECIPE_SEARCH_DIRS, the entry will persist until the
+    # next full map rebuild (e.g. via `autopkg repo-update`), which
+    # matches the user's "make it findable right now" expectation
+    # without permanently baking a non-pref path into the cache.
+    add_recipe_to_map(os.path.abspath(filename), is_override=False)
 
 
 def main(argv):
@@ -2712,6 +3018,15 @@ def main(argv):
         "list-processors": {
             "function": list_processors,
             "help": "List available core Processors",
+        },
+        "generate-recipe-map": {
+            "function": generate_recipe_map,
+            "help": (
+                "Build or rebuild the recipe map cache. Most uses "
+                "(repo-add, make-override, first recipe run) refresh "
+                "the map automatically; invoke this explicitly to "
+                "force a rebuild or prime the cache in CI."
+            ),
         },
         "make-override": {"function": make_override, "help": "Make a recipe override"},
         "new-recipe": {"function": new_recipe, "help": "Make a new template recipe"},

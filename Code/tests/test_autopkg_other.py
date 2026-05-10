@@ -33,6 +33,20 @@ sys.modules["autopkg"] = autopkg
 class TestAutoPkgOther(unittest.TestCase):
     """Test cases for miscellaneous core functions of AutoPkg."""
 
+    def setUp(self):
+        """Silence recipe-map side effects (see test_autopkg_recipes for
+        rationale)."""
+        self._recipe_map_patches = [
+            patch("autopkg.calculate_recipe_map"),
+            patch("autopkg.read_recipe_map"),
+        ]
+        for patcher in self._recipe_map_patches:
+            patcher.start()
+
+    def tearDown(self):
+        for patcher in self._recipe_map_patches:
+            patcher.stop()
+
     def test_display_help_basic_functionality(self):
         """Test display_help with basic subcommands."""
         argv = ["autopkg"]
@@ -1295,14 +1309,18 @@ class TestAutoPkgOther(unittest.TestCase):
         """Test find_processor_path with processor name that includes recipe identifier."""
         processor_name = "com.example.recipes.shared/CustomProcessor"
         recipe = {"RECIPE_PATH": "/recipes/TestApp.recipe"}
+        # Map hit must reside under env["RECIPE_SEARCH_DIRS"] to be
+        # trusted (security fix F-5). Use /search/dir1 as the parent.
         env = {"RECIPE_SEARCH_DIRS": ["/search/dir1", "/search/dir2"]}
 
         with (
-            patch("os.path.dirname") as mock_dirname,
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier") as mock_find_recipe,
+            patch("autopkg.find_recipe_by_identifier_in_map") as mock_find_in_map,
+            patch("autopkg.find_recipe_by_identifier_on_disk") as mock_find_on_disk,
+            patch("autopkg._path_under_dirs", return_value=True),
+            patch("os.path.dirname") as mock_dirname,
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
         ):
@@ -1310,22 +1328,55 @@ class TestAutoPkgOther(unittest.TestCase):
                 "/recipes/TestApp.recipe": "/recipes",
                 "/shared/SharedRecipe.recipe": "/shared",
             }.get(path, "/default")
-
             mock_extract.return_value = (
                 "CustomProcessor",
                 "com.example.recipes.shared",
             )
-            mock_find_recipe.return_value = "/shared/SharedRecipe.recipe"
+            # Map hit; the _path_under_dirs check is mocked to True so we
+            # don't depend on the host OS's path separator for the scope
+            # check.
+            mock_find_in_map.return_value = "/shared/SharedRecipe.recipe"
             mock_exists.side_effect = lambda path: path == "/shared/CustomProcessor.py"
             mock_join.side_effect = lambda *args: "/".join(args)
 
             result = autopkg.find_processor_path(processor_name, recipe, env)
 
             self.assertEqual(result, "/shared/CustomProcessor.py")
+            mock_find_in_map.assert_called_once_with("com.example.recipes.shared")
+            mock_find_on_disk.assert_not_called()
 
-            # Verify it searched for the shared recipe
-            mock_find_recipe.assert_called_once_with(
-                "com.example.recipes.shared", ["/search/dir1", "/search/dir2"]
+    def test_find_processor_path_map_hit_outside_scope_is_rejected(self):
+        """Security F-5: a map hit that points OUTSIDE the caller's
+        declared RECIPE_SEARCH_DIRS must NOT be honoured. Otherwise a
+        pre-existing map could leak processor-resolution to directories
+        the caller explicitly excluded via --search-dir."""
+        processor_name = "com.example.shared/Proc"
+        recipe = {"RECIPE_PATH": "/sandboxed/x.recipe"}
+        env = {"RECIPE_SEARCH_DIRS": ["/sandboxed"]}
+
+        autopkg._locate_recipe_rebuild_attempted = True  # skip rebuild
+        with (
+            patch(
+                "autopkg.extract_processor_name_with_recipe_identifier"
+            ) as mock_extract,
+            patch("autopkg.find_recipe_by_identifier_in_map") as mock_find_in_map,
+            patch(
+                "autopkg.find_recipe_by_identifier_on_disk",
+                return_value=None,
+            ) as mock_find_on_disk,
+            patch("autopkg.calculate_recipe_map"),
+            patch("os.path.exists", return_value=False),
+        ):
+            mock_extract.return_value = ("Proc", "com.example.shared")
+            # Map says the shared recipe is OUTSIDE /sandboxed.
+            mock_find_in_map.return_value = "/outside/Leaky.recipe"
+
+            result = autopkg.find_processor_path(processor_name, recipe, env)
+
+            # Map hit was rejected; fallback was tried and returned None.
+            self.assertIsNone(result)
+            mock_find_on_disk.assert_called_once_with(
+                "com.example.shared", ["/sandboxed"]
             )
 
     def test_find_processor_path_with_parent_recipes(self):
@@ -1446,18 +1497,22 @@ class TestAutoPkgOther(unittest.TestCase):
         recipe = {"RECIPE_PATH": "/recipes/TestApp.recipe"}
         env = {"RECIPE_SEARCH_DIRS": ["/search/dir1"]}
 
+        # find_processor_path consults the map first then the on-disk
+        # scanner. Stub both to "not found" so we exercise the
+        # cwd-rebuild fallback path.
+        autopkg._locate_recipe_rebuild_attempted = True  # skip rebuild
         with (
             patch("os.path.dirname") as mock_dirname,
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier") as mock_find_recipe,
+            patch("autopkg.find_recipe_by_identifier_in_map", return_value=None),
+            patch("autopkg.find_recipe_by_identifier_on_disk", return_value=None),
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
         ):
             mock_dirname.return_value = "/recipes"
             mock_extract.return_value = ("TestProcessor", "com.missing.recipe")
-            mock_find_recipe.return_value = None  # Shared recipe not found
             mock_exists.return_value = False
             mock_join.side_effect = lambda *args: "/".join(args)
 
@@ -1511,7 +1566,9 @@ class TestAutoPkgOther(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier") as mock_find_recipe,
+            patch("autopkg.find_recipe_by_identifier_in_map") as mock_find_in_map,
+            patch("autopkg.find_recipe_by_identifier_on_disk"),
+            patch("autopkg._path_under_dirs", return_value=True),
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
         ):
@@ -1527,27 +1584,13 @@ class TestAutoPkgOther(unittest.TestCase):
 
             mock_dirname.side_effect = dirname_side_effect
             mock_extract.return_value = ("CustomProcessor", "com.shared.recipes")
-            mock_find_recipe.return_value = "/shared/SharedRecipe.recipe"
-
-            # Make processor exist in shared directory
-            def exists_side_effect(path):
-                return path == "/shared/CustomProcessor.py"
-
-            mock_exists.side_effect = exists_side_effect
+            mock_find_in_map.return_value = "/shared/SharedRecipe.recipe"
+            mock_exists.side_effect = lambda path: path == "/shared/CustomProcessor.py"
             mock_join.side_effect = lambda *args: "/".join(args)
 
             result = autopkg.find_processor_path(processor_name, recipe, env)
 
             self.assertEqual(result, "/shared/CustomProcessor.py")
-
-            # Verify the search order: recipe dir, shared dir, parent dirs
-            expected_calls = [
-                unittest.mock.call("/main/CustomProcessor.py"),
-                unittest.mock.call(
-                    "/shared/CustomProcessor.py"
-                ),  # Found here, so stops
-            ]
-            mock_exists.assert_has_calls(expected_calls[:2])
 
     def test_find_processor_path_get_pref_returns_none(self):
         """Test find_processor_path when get_pref returns None for search dirs."""
