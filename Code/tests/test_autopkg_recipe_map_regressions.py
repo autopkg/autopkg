@@ -1119,5 +1119,165 @@ class TestLoadRecipeToleratesStaleMapEntry(_RecipeMapIsolation, unittest.TestCas
         )
 
 
+class TestStaleOverrideIdentifier(_RecipeMapIsolation, unittest.TestCase):
+    """Regression test: if a user edits an override file to change its
+    Identifier (e.g. when copying an override for a multi-arch setup), the
+    on-disk map still indexes the file under the old identifier. A lookup by
+    old identifier would return the file path (it still exists), then the
+    recipe would load with the new identifier, making RECIPE_CACHE_DIR
+    disagree with the resolved path.
+
+    The fix: cross-check the file's identifier for overrides-identifiers
+    entries. A mismatch is treated as a stale hit (returns None + warning)
+    rather than silently returning the wrong path.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.overrides_dir = os.path.join(self.tmpdir, "RecipeOverrides")
+        os.makedirs(self.overrides_dir)
+
+    def _write_override(self, name, identifier):
+        path = os.path.join(self.overrides_dir, f"{name}.recipe")
+        _write_plist_recipe(
+            path,
+            {
+                "Identifier": identifier,
+                "Input": {"NAME": name},
+                "ParentRecipe": "com.example.test.sample",
+            },
+        )
+        return path
+
+    def test_stale_override_identifier_returns_none(self):
+        """After the identifier in an override file is changed, a lookup by the
+        old identifier must return None rather than the mismatched path."""
+        path = self._write_override("MyApp", "local.myapp.original")
+        autopkglib.globalRecipeMap["overrides-identifiers"][
+            "local.myapp.original"
+        ] = path
+
+        # Simulate the user editing the file to change the identifier.
+        _write_plist_recipe(
+            path,
+            {
+                "Identifier": "local.myapp.arm64",
+                "Input": {"NAME": "MyApp"},
+                "ParentRecipe": "com.example.test.sample",
+            },
+        )
+
+        result = autopkglib.find_recipe_by_identifier_in_map("local.myapp.original")
+        self.assertIsNone(
+            result,
+            "Stale map entry with changed identifier must return None.",
+        )
+
+    def test_stale_override_identifier_logs_warning(self):
+        """A stale override entry must emit a warning directing the user to
+        run generate-recipe-map."""
+        path = self._write_override("MyApp", "local.myapp.original")
+        autopkglib.globalRecipeMap["overrides-identifiers"][
+            "local.myapp.original"
+        ] = path
+
+        _write_plist_recipe(
+            path,
+            {
+                "Identifier": "local.myapp.arm64",
+                "Input": {"NAME": "MyApp"},
+                "ParentRecipe": "com.example.test.sample",
+            },
+        )
+
+        with patch("autopkglib.log_err") as mock_log_err:
+            autopkglib.find_recipe_by_identifier_in_map("local.myapp.original")
+
+        warned = any(
+            "stale" in str(call).lower() or "generate-recipe-map" in str(call)
+            for call in mock_log_err.call_args_list
+        )
+        self.assertTrue(warned, "Expected a stale-map warning to be logged.")
+
+    def test_matching_override_identifier_still_returned(self):
+        """An override whose on-disk identifier still matches the map entry
+        must be returned normally (no false positive from the cross-check)."""
+        path = self._write_override("MyApp", "local.myapp.original")
+        autopkglib.globalRecipeMap["overrides-identifiers"][
+            "local.myapp.original"
+        ] = path
+
+        result = autopkglib.find_recipe_by_identifier_in_map("local.myapp.original")
+        self.assertEqual(result, path)
+
+    def test_new_identifier_found_via_disk_scan_after_stale_miss(self):
+        """After a stale map miss, the disk scanner must resolve the new
+        identifier to the same file — so the recipe still runs, just under
+        the new identifier."""
+        path = self._write_override("MyApp", "local.myapp.original")
+        autopkglib.globalRecipeMap["overrides-identifiers"][
+            "local.myapp.original"
+        ] = path
+
+        _write_plist_recipe(
+            path,
+            {
+                "Identifier": "local.myapp.arm64",
+                "Input": {"NAME": "MyApp"},
+                "ParentRecipe": "com.example.test.sample",
+            },
+        )
+
+        # Old identifier: stale miss.
+        self.assertIsNone(
+            autopkglib.find_recipe_by_identifier_in_map("local.myapp.original")
+        )
+        # New identifier: disk scan finds the file.
+        found = autopkglib.find_recipe_by_identifier_on_disk(
+            "local.myapp.arm64", [self.overrides_dir]
+        )
+        self.assertEqual(found, path)
+
+    def test_stale_override_falls_through_to_stock_recipe(self):
+        """A stale override entry must not block a valid stock-identifiers hit
+        for the same identifier. After rejecting the override, the function
+        must return the stock recipe path."""
+        stock_path = os.path.join(self.tmpdir, "StockRecipes", "MyApp.munki.recipe")
+        os.makedirs(os.path.dirname(stock_path), exist_ok=True)
+        _write_plist_recipe(
+            stock_path,
+            {
+                "Identifier": "local.myapp.original",
+                "Input": {"NAME": "MyApp"},
+                "Process": [],
+            },
+        )
+
+        override_path = self._write_override("MyApp", "local.myapp.original")
+        # Edit the override so its identifier no longer matches the map key.
+        _write_plist_recipe(
+            override_path,
+            {
+                "Identifier": "local.myapp.arm64",
+                "Input": {"NAME": "MyApp"},
+                "ParentRecipe": "com.example.test.sample",
+            },
+        )
+
+        autopkglib.globalRecipeMap["overrides-identifiers"][
+            "local.myapp.original"
+        ] = override_path
+        autopkglib.globalRecipeMap["identifiers"][
+            "local.myapp.original"
+        ] = stock_path
+
+        result = autopkglib.find_recipe_by_identifier_in_map("local.myapp.original")
+        self.assertEqual(
+            result,
+            stock_path,
+            "Stale override must fall through to a valid stock-identifiers hit.",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

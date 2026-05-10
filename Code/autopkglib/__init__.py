@@ -606,16 +606,26 @@ def find_recipe_by_identifier_in_map(
     """Resolve an identifier to a recipe path via the global recipe map.
 
     Returns None if no entry exists or the cached path has disappeared from
-    disk (stale map). We only stat the file — parsing it to confirm it's a
-    valid recipe would be prohibitively expensive on the hot path (every
-    shared-processor lookup calls this), and the map was built from a valid
-    recipe to begin with."""
+    disk (stale map). For stock recipes (``identifiers`` bucket) we only stat
+    the file — parsing to confirm it's still valid would be prohibitively
+    expensive on the hot path (every shared-processor lookup calls this). For
+    overrides we do a cheap identifier cross-check: users routinely edit
+    override files (e.g. when copying for multi-arch setups), and a stale
+    entry would cause a split-identifier run (map resolves via old id, recipe
+    loads with new id, RECIPE_CACHE_DIR disagrees) rather than a clean miss."""
     if not skip_overrides and identifier in globalRecipeMap.get(
         "overrides-identifiers", {}
     ):
         override_path = globalRecipeMap["overrides-identifiers"][identifier]
         if os.path.isfile(override_path):
-            return override_path
+            if get_identifier_from_recipe_file(override_path) == identifier:
+                return override_path
+            log_err(
+                f"WARNING: Recipe map entry for '{identifier}' points to "
+                f"'{override_path}', but that file's identifier no longer "
+                "matches. The map is stale — run "
+                "`autopkg generate-recipe-map` to rebuild."
+            )
     if identifier in globalRecipeMap.get("identifiers", {}):
         recipe_path = globalRecipeMap["identifiers"][identifier]
         if os.path.isfile(recipe_path):
