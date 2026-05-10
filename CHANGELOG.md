@@ -34,6 +34,7 @@ Fixes #869, #874, #886, #894, #901, #903, #908, #918.
 
 ### Other
 
+- URLDownloader: `prefetch_filename` now includes `curl_common_opts` (e.g. `Authorization` request headers) in the HEAD request used to determine the filename, preventing prefetch failures on authenticated endpoints (#925, thanks to @n8felton)
 - Updated virtualenv to 20.36.1
 - Updated filelock to 3.20.3
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
