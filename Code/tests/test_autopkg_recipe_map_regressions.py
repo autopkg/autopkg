@@ -1267,9 +1267,7 @@ class TestStaleOverrideIdentifier(_RecipeMapIsolation, unittest.TestCase):
         autopkglib.globalRecipeMap["overrides-identifiers"][
             "local.myapp.original"
         ] = override_path
-        autopkglib.globalRecipeMap["identifiers"][
-            "local.myapp.original"
-        ] = stock_path
+        autopkglib.globalRecipeMap["identifiers"]["local.myapp.original"] = stock_path
 
         result = autopkglib.find_recipe_by_identifier_in_map("local.myapp.original")
         self.assertEqual(
