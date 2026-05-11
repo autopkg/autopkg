@@ -22,8 +22,8 @@ from autopkglib import Processor, ProcessorError
 
 __all__ = ["DmgCreator"]
 
-DEFAULT_DMG_FORMAT = "UDZO"
-DEFAULT_DMG_FILESYSTEM = "HFS+"
+DEFAULT_DMG_FORMAT = "ULFO"
+DEFAULT_DMG_FILESYSTEM = "APFS"
 DEFAULT_ZLIB_LEVEL = 5
 
 
@@ -46,7 +46,8 @@ class DmgCreator(Processor):
         "dmg_filesystem": {
             "required": False,
             "description": (
-                f"The dmg filesystem. Defaults to {DEFAULT_DMG_FILESYSTEM}."
+                f"The dmg filesystem. Defaults to {DEFAULT_DMG_FILESYSTEM}. "
+                "Note: APFS requires macOS 10.13 or later to mount."
             ),
             "default": DEFAULT_DMG_FILESYSTEM,
         },
@@ -93,6 +94,8 @@ class DmgCreator(Processor):
             "UDxx",
             "UDSP",
             "UDSB",
+            "ULFO",
+            "ULMO",
         ]
 
         dmg_format = self.env.get("dmg_format", DEFAULT_DMG_FORMAT)
