@@ -256,23 +256,23 @@ class URLDownloader(URLGetter):
         return download_dir
 
     def get_metadata(self) -> dict[str, Any]:
-        """
-        Retrieves metadata information from a JSON file associated with the current environment's pathname.
-
-        The method attempts to locate a `.info.json` file that corresponds to the `pathname` specified
-        in `self.env`. If the file exists, its contents are parsed as JSON and returned as a dictionary.
-        If the file does not exist, an empty dictionary is returned.
-        """
+        """Retrieve metadata from .info.json, or return empty dict if missing or unreadable."""
         pathname_info_json = self.env["pathname"] + ".info.json"
 
-        if os.path.exists(pathname_info_json):
-            self.output("Reading metadata from Info JSON.", 2)
+        try:
             with open(pathname_info_json, "r") as infile:
                 metadata = json.load(infile)
-                self.output(f"Info JSON contents: {metadata}", 2)
-                return metadata
-
-        return {}
+            self.output("Reading metadata from Info JSON.", 2)
+            self.output(f"Info JSON contents: {metadata}", 2)
+            return metadata
+        except FileNotFoundError:
+            return {}
+        except (OSError, json.JSONDecodeError) as err:
+            self.output(
+                f"WARNING: Could not read {pathname_info_json} "
+                f"({type(err).__name__}): {err}. Continuing with empty metadata."
+            )
+            return {}
 
     def compute_hashes(self) -> dict[str, str]:
         """
