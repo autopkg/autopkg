@@ -587,6 +587,73 @@ class TestIssue901RecipeMapPathOverride(unittest.TestCase):
             self.assertEqual(autopkglib._recipe_map_path(), expected)
 
 
+class TestRecipeMapPathSecurityWarning(unittest.TestCase):
+    """Tests for the security warning emitted by _recipe_map_path() when
+    autopkg is running as root and the map path has been redirected via an
+    env var or pref (issue #901 review finding)."""
+
+    def setUp(self):
+        # A non-existent path is sufficient — _recipe_map_path only
+        # resolves the string; nothing writes to it during these tests.
+        self.custom_map_path = os.path.join(
+            tempfile.gettempdir(), "autopkg_test_custom_map.json"
+        )
+
+    def _any_call_contains(self, mock, text):
+        return any(text in str(c) for c in mock.call_args_list)
+
+    def test_root_with_env_var_logs_security_warning(self):
+        """Running as root with AUTOPKG_RECIPE_MAP_PATH must emit a
+        SECURITY WARNING via log_err."""
+        with (
+            patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
+            patch("os.geteuid", return_value=0),
+            patch("autopkglib.log_err") as mock_log_err,
+        ):
+            autopkglib._recipe_map_path()
+
+        self.assertTrue(
+            self._any_call_contains(mock_log_err, "SECURITY WARNING"),
+            "Expected SECURITY WARNING from log_err when euid=0.",
+        )
+
+    def test_unprivileged_with_env_var_logs_redirect_not_warning(self):
+        """An unprivileged user redirecting the map path must get a plain
+        informational log via log(), not a SECURITY WARNING via log_err."""
+        with (
+            patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
+            patch("os.geteuid", return_value=501),
+            patch("autopkglib.log") as mock_log,
+            patch("autopkglib.log_err") as mock_log_err,
+        ):
+            autopkglib._recipe_map_path()
+
+        self.assertFalse(
+            self._any_call_contains(mock_log_err, "SECURITY WARNING"),
+            "SECURITY WARNING must not fire for unprivileged processes.",
+        )
+        self.assertTrue(
+            self._any_call_contains(mock_log, "overridden"),
+            "Expected an informational redirect log from log().",
+        )
+
+    def test_windows_missing_geteuid_treated_as_unprivileged(self):
+        """On Windows, os.geteuid doesn't exist. The fallback must treat
+        the process as unprivileged (no SECURITY WARNING)."""
+        with (
+            patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
+            patch("os.geteuid", side_effect=AttributeError("no geteuid on Windows")),
+            patch("autopkglib.log_err") as mock_log_err,
+        ):
+            result = autopkglib._recipe_map_path()
+
+        self.assertEqual(result, self.custom_map_path)
+        self.assertFalse(
+            self._any_call_contains(mock_log_err, "SECURITY WARNING"),
+            "Windows fallback must not emit a SECURITY WARNING.",
+        )
+
+
 class TestSchemaVersion(_RecipeMapIsolation, unittest.TestCase):
     """Tests for the RECIPE_MAP_SCHEMA_VERSION field added for forward-
     compatibility."""

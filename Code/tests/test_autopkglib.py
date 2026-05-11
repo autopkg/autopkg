@@ -252,5 +252,34 @@ class TestAutoPkg(unittest.TestCase):
         self.assertIsNone(id)
 
 
+class TestUpdateData(unittest.TestCase):
+    """Tests for update_data / getdata variable substitution."""
+
+    def test_integer_value_substituted_as_string(self):
+        """Integer values referenced via %KEY% must be coerced to str so
+        RE_KEYREF.sub doesn't raise TypeError (regression fixed in #1038)."""
+        env = {"BUILD": 42, "NAME": "MyApp-%BUILD%"}
+        autopkglib.update_data(env, "NAME", env["NAME"])
+        self.assertEqual(env["NAME"], "MyApp-42")
+
+    def test_float_value_substituted_as_string(self):
+        """Float values referenced via %KEY% must also be coerced to str."""
+        env = {"VERSION": 1.5, "NAME": "App-%VERSION%"}
+        autopkglib.update_data(env, "NAME", env["NAME"])
+        self.assertEqual(env["NAME"], "App-1.5")
+
+    def test_plain_string_substitution_unchanged(self):
+        """String values are substituted as-is."""
+        env = {"NAME": "Firefox", "PATH": "%NAME%.pkg"}
+        autopkglib.update_data(env, "PATH", env["PATH"])
+        self.assertEqual(env["PATH"], "Firefox.pkg")
+
+    def test_missing_key_does_not_raise(self):
+        """Reference to an undefined key is logged and left as-is, not raised."""
+        env = {"PATH": "%UNDEFINED%.pkg"}
+        autopkglib.update_data(env, "PATH", env["PATH"])
+        self.assertIn("%UNDEFINED%", env["PATH"])
+
+
 if __name__ == "__main__":
     unittest.main()

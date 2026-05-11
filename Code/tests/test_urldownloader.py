@@ -20,8 +20,9 @@ import unittest
 from hashlib import md5, sha1, sha256
 from unittest.mock import patch
 
-from autopkglib import BUNDLE_ID
+from autopkglib import BUNDLE_ID, ProcessorError
 from autopkglib.URLDownloader import URLDownloader
+from autopkglib.URLGetter import URLGetter
 
 
 class TestURLDownloader(unittest.TestCase):
@@ -239,6 +240,30 @@ class TestURLDownloader(unittest.TestCase):
             # dev-2.x - getxattr should return None
             result = self.processor.getxattr(self.processor.xattr_etag)
             self.assertIsNone(result)
+
+    def test_getxattr_raises_processor_error(self):
+        """getxattr() was removed in PR #978. Calling it must raise ProcessorError
+        rather than silently returning None or causing an AttributeError."""
+        if not hasattr(self.processor, "get_metadata"):
+            self.skipTest("getxattr removal only applies to the PR #978 branch")
+
+        with self.assertRaises(ProcessorError):
+            self.processor.getxattr("any.xattr.name")
+
+    def test_get_metadata_returns_empty_on_corrupt_json(self):
+        """get_metadata() must return {} and not raise when .info.json is corrupt."""
+        if not hasattr(self.processor, "get_metadata"):
+            self.skipTest("get_metadata not available in this branch")
+
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as f:
+            f.write(b"dummy")
+        with open(test_file + ".info.json", "w", encoding="utf-8") as f:
+            f.write("not valid json {{{")
+
+        self.processor.env["pathname"] = test_file
+        result = self.processor.get_metadata()
+        self.assertEqual(result, {})
 
     # ETag functionality tests (works with both xattr and .info.json)
 
@@ -665,6 +690,65 @@ class TestURLDownloader(unittest.TestCase):
         self.assertFalse(self.processor.xattr_etag.startswith("user."))
         self.assertFalse(self.processor.xattr_last_modified.startswith("user."))
         self.assertTrue(BUNDLE_ID in self.processor.xattr_etag)
+
+    def _require_prefetch_filename(self):
+        if not hasattr(self.processor, "prefetch_filename"):
+            self.skipTest("prefetch_filename not available in this branch")
+
+    def _prefetch_patches(self, headers):
+        return (
+            patch.object(
+                URLDownloader,
+                "prepare_base_curl_cmd",
+                return_value=["curl", "http://example.com/file.dmg"],
+            ),
+            patch.object(URLGetter, "add_curl_common_opts"),
+            patch.object(URLGetter, "download_with_curl", return_value=""),
+            patch.object(URLGetter, "parse_headers", return_value=headers),
+        )
+
+    def test_prefetch_filename_calls_curl_common_opts(self):
+        """prefetch_filename must call add_curl_common_opts before the HEAD
+        request so options like --compressed or custom headers are honoured
+        (regression: PR #925 added this call; this test pins the behaviour)."""
+        self._require_prefetch_filename()
+        prepare, add_opts, download, parse = self._prefetch_patches({})
+        with prepare, add_opts as mock_add_opts, download, parse:
+            self.processor.prefetch_filename()
+        mock_add_opts.assert_called_once()
+
+    def test_prefetch_filename_returns_content_disposition_filename(self):
+        """prefetch_filename must extract the filename from the
+        Content-Disposition header when present."""
+        self._require_prefetch_filename()
+        prepare, add_opts, download, parse = self._prefetch_patches(
+            {"content-disposition": 'attachment; filename="MyApp-1.0.dmg"'}
+        )
+        with prepare, add_opts, download, parse:
+            result = self.processor.prefetch_filename()
+        self.assertEqual(result, "MyApp-1.0.dmg")
+
+    def test_prefetch_filename_falls_back_to_redirect_url(self):
+        """When there's no Content-Disposition header but the response
+        includes an http_redirected URL, the filename is taken from
+        the final path component of that URL."""
+        self._require_prefetch_filename()
+        prepare, add_opts, download, parse = self._prefetch_patches(
+            {"http_redirected": "https://cdn.example.com/downloads/MyApp-2.0.pkg"}
+        )
+        with prepare, add_opts, download, parse:
+            result = self.processor.prefetch_filename()
+        self.assertEqual(result, "MyApp-2.0.pkg")
+
+    def test_prefetch_filename_returns_none_when_no_hints(self):
+        """When neither Content-Disposition nor a redirect URL is present,
+        prefetch_filename must return None so the caller falls back to the
+        URL-derived filename."""
+        self._require_prefetch_filename()
+        prepare, add_opts, download, parse = self._prefetch_patches({})
+        with prepare, add_opts, download, parse:
+            result = self.processor.prefetch_filename()
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":

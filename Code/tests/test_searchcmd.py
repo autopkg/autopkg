@@ -469,6 +469,59 @@ class TestSearchCmd(unittest.TestCase):
         call_args = mock_handle_error.call_args[0]
         self.assertIn("Invalid response from GitHub API", call_args[1])
 
+    @patch("autopkgcmd.searchcmd.handle_cache_error")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_handles_http_4xx_with_message(
+        self, mock_gh_session, mock_url_getter, mock_handle_error
+    ):
+        """check_search_cache must call handle_cache_error when the API
+        returns HTTP 200 but a JSON body with status >= 400 and a message
+        (the GitHub contents-API pattern for rate-limit / not-found errors)."""
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
+
+        mock_gh_session.return_value.token = None
+
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+        mock_api.execute_curl.return_value = (
+            '{"status": "403", "message": "API rate limit exceeded"}',
+            "",
+            0,
+        )
+
+        check_search_cache(cache_path)
+
+        mock_handle_error.assert_called_once()
+        call_args = mock_handle_error.call_args[0]
+        self.assertEqual(call_args[0], cache_path)
+        self.assertIn("API rate limit exceeded", call_args[1])
+
+    @patch("autopkgcmd.searchcmd.handle_cache_error")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_handles_http_4xx_without_message(
+        self, mock_gh_session, mock_url_getter, mock_handle_error
+    ):
+        """check_search_cache must fall back to 'Error <N>' when the API
+        returns a status >= 400 body with no message field."""
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
+
+        mock_gh_session.return_value.token = None
+
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+        mock_api.execute_curl.return_value = ('{"status": "404"}', "", 0)
+
+        check_search_cache(cache_path)
+
+        mock_handle_error.assert_called_once()
+        call_args = mock_handle_error.call_args[0]
+        self.assertEqual(call_args[0], cache_path)
+        self.assertIn("404", call_args[1])
+
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.path.isfile")
     @patch("autopkgcmd.searchcmd.URLGetter")
