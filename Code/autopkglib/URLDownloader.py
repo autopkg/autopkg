@@ -382,23 +382,7 @@ class URLDownloader(URLGetter):
             self.output(f"Storing new ETag header: {header.get('etag')}")
 
     def store_metadata(self, header: dict[str, Any]) -> None:
-        """
-        Generates and stores metadata information for the current file and its download source.
-
-        This method constructs a metadata dictionary containing details such as:
-        - Download URL
-        - File name
-        - File size
-        - HTTP headers (Content-Length, ETag, Last-Modified)
-
-        If the environment variable `"COMPUTE_HASHES"` is set to `True`, hash values for the file
-        (SHA-1, SHA-256, MD5) are also computed and included.
-
-        The metadata is serialized to JSON format and written to a `.info.json` file with a pathname
-        matching the current file in `self.env`.
-
-        Additionally, for backward compatibility, headers are stored as extended attributes (xattrs).
-        """
+        """Write download metadata to .info.json and store xattrs for backward compatibility."""
         pathname_info_json = self.env["pathname"] + ".info.json"
 
         self.env["etag"] = header.get("etag", "")
@@ -407,7 +391,7 @@ class URLDownloader(URLGetter):
 
         metadata_dict: dict[str, Any] = {
             "download_url": self.env["url"],
-            "file_name": self.get_filename() or "",
+            "file_name": os.path.basename(self.env["pathname"]),
             "file_size": self.env["file_size"],
             "http_headers": {
                 "Content-Length": self.env["file_size"],
