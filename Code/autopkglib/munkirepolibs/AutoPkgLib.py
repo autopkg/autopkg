@@ -46,7 +46,7 @@ class AutoPkgLib:
 
             # add to hash table
             if "installer_item_hash" in item:
-                if not item["installer_item_hash"] in hash_table:
+                if item["installer_item_hash"] not in hash_table:
                     hash_table[item["installer_item_hash"]] = []
                 hash_table[item["installer_item_hash"]].append(itemindex)
 
@@ -174,7 +174,7 @@ class AutoPkgLib:
             shutil.copy(pkg_path, destination_pathname)
         except OSError as err:
             raise ProcessorError(
-                f"Can't copy {pkg_path} to {destination_pathname}: " f"{err.strerror}"
+                f"Can't copy {pkg_path} to {destination_pathname}: {err.strerror}"
             )
 
         return os.path.join(self.munki_repo, "pkgs", self.repo_subdirectory, item_name)

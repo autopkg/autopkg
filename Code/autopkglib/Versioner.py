@@ -23,16 +23,17 @@ from collections.abc import Callable, Iterator
 from autopkglib import FileOrPath, ProcessorError, VarDict
 from autopkglib.DmgMounter import DmgMounter
 
+# The version string to use when the version cannot be determined
 UNKNOWN_VERSION = "UNKNOWN_VERSION"
 
 __all__ = ["Versioner"]
 
 
-def _zip_listdir(file: zipfile.ZipFile, dir: str) -> Iterator[zipfile.ZipInfo]:
-    dir = dir.rstrip("/")
+def _zip_listdir(file: zipfile.ZipFile, directory: str) -> Iterator[zipfile.ZipInfo]:
+    directory = directory.rstrip("/")
 
     def is_direct_child(info: zipfile.ZipInfo) -> bool:
-        return posixpath.dirname(info.filename.rstrip("/")) == dir
+        return posixpath.dirname(info.filename.rstrip("/")) == directory
 
     return filter(is_direct_child, file.infolist())
 
@@ -41,7 +42,7 @@ class Versioner(DmgMounter):
     """Returns version information from a plist"""
 
     description = __doc__
-
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "input_plist_path": {
             "required": True,
@@ -52,14 +53,13 @@ class Versioner(DmgMounter):
         },
         "plist_version_key": {
             "required": False,
-            "default": "CFBundleShortVersionString",
             "description": (
                 "Which plist key to use; defaults to CFBundleShortVersionString"
             ),
+            "default": "CFBundleShortVersionString",
         },
         "skip_single_root_dir": {
             "required": False,
-            "default": False,
             "description": (
                 "If this flag is set, `input_plist_path` points inside a zip file, "
                 "and there is a single directory inside the zip file at the root of "
@@ -74,6 +74,7 @@ class Versioner(DmgMounter):
                 "path. If there is more than one file or directory at the root, the "
                 "Processor will fail."
             ),
+            "default": False,
         },
     }
     output_variables = {"version": {"description": "Version of the item."}}
@@ -152,7 +153,7 @@ class Versioner(DmgMounter):
             path/to/disk.dmg/path/in/dmg/to/version.plist
         """
         # Check if we're trying to read something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(path)
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(path)
         if not dmg:
             raise ProcessorError(f"Expected DMG path, but '{path}' is not a DMG path.")
         try:

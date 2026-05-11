@@ -20,7 +20,16 @@ from autopkglib.URLTextSearcher import URLTextSearcher
 
 __all__ = ["CURLTextSearcher"]
 
-CURLTextSearcher = URLTextSearcher
+
+class CURLTextSearcher(URLTextSearcher):
+    """DEPRECATED. Use URLTextSearcher instead.
+
+    This processor is a compatibility wrapper that forwards all functionality
+    to URLTextSearcher. It will be removed in a future AutoPkg release.
+    """
+
+    lifecycle = {"introduced": "0.5.1", "deprecated": "0.6.0"}
+
 
 if __name__ == "__main__":
     PROCESSOR = CURLTextSearcher()

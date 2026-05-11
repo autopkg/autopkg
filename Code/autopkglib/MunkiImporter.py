@@ -18,6 +18,7 @@
 import os
 import plistlib
 import subprocess
+from datetime import datetime
 
 from autopkglib import Processor, ProcessorError
 from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
@@ -29,32 +30,34 @@ __all__ = ["MunkiImporter"]
 class MunkiImporter(Processor):
     """Imports a pkg or dmg to the Munki repo."""
 
+    description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "MUNKI_REPO": {
-            "description": "Path to a mounted Munki repo.",
             "required": True,
+            "description": "Path to a mounted Munki repo.",
         },
         "MUNKI_REPO_PLUGIN": {
+            "required": False,
             "description": (
                 "Munki repo plugin. Defaults to FileRepo. Munki must be installed and available "
                 " at MUNKILIB_DIR if a plugin other than FileRepo is specified."
             ),
-            "required": False,
             "default": "FileRepo",
         },
         "MUNKILIB_DIR": {
+            "required": False,
             "description": (
                 "Directory path that contains munkilib. Defaults to /usr/local/munki"
             ),
-            "required": False,
             "default": "/usr/local/munki",
         },
         "force_munki_repo_lib": {
+            "required": False,
             "description": (
                 "When True, munki code libraries will be utilized when the FileRepo plugin is "
                 "used. Munki must be installed and available at MUNKILIB_DIR"
             ),
-            "required": False,
             "default": False,
         },
         "pkg_path": {
@@ -113,21 +116,21 @@ class MunkiImporter(Processor):
         "uninstaller_pkg_path": {
             "required": False,
             "description": (
-                "Path to an uninstaller pkg, supported for Adobe "
-                "installer_type items."
+                "Path to an uninstaller pkg, supported for Adobe installer_type items."
             ),
         },
         "MUNKI_PKGINFO_FILE_EXTENSION": {
-            "description": "Extension for output pkginfo files. Default is 'plist'.",
             "required": False,
+            "description": "Extension for output pkginfo files. Default is 'plist'.",
+            "default": "plist",
         },
         "metadata_additions": {
+            "required": False,
             "description": (
                 "A dictionary that will be merged with the pkginfo _metadata.  "
                 "Unique keys will be added, but overlapping keys will replace "
                 "existing values."
             ),
-            "required": False,
         },
     }
     output_variables = {
@@ -139,8 +142,7 @@ class MunkiImporter(Processor):
         },
         "pkg_repo_path": {
             "description": (
-                "The repo path where the pkg was written. "
-                "Empty if item not imported."
+                "The repo path where the pkg was written. Empty if item not imported."
             )
         },
         "munki_info": {
@@ -151,7 +153,6 @@ class MunkiImporter(Processor):
             "description": "Description of interesting results."
         },
     }
-    description = __doc__
 
     def _fetch_repo_library(
         self,
@@ -302,8 +303,8 @@ class MunkiImporter(Processor):
         )
 
         self.output(f"Using repo lib: {library.__class__.__name__}")
-        self.output(f'        plugin: {self.env["MUNKI_REPO_PLUGIN"]}')
-        self.output(f'          repo: {self.env["MUNKI_REPO"]}')
+        self.output(f"        plugin: {self.env['MUNKI_REPO_PLUGIN']}")
+        self.output(f"          repo: {self.env['MUNKI_REPO']}")
 
         # clear any pre-existing summary result
         if "munki_importer_summary_result" in self.env:
@@ -317,7 +318,7 @@ class MunkiImporter(Processor):
         # uninstaller pkg will be copied later, this is just to suppress
         # makepkginfo stderr warning output
         if self.env.get("uninstaller_pkg_path"):
-            args.extend(["--uninstallpkg", self.env["uninstaller_pkg_path"]])
+            args.extend(["--uninstallerpkg", self.env["uninstaller_pkg_path"]])
         if self.env.get("additional_makepkginfo_options"):
             args.extend(self.env["additional_makepkginfo_options"])
 
@@ -326,7 +327,7 @@ class MunkiImporter(Processor):
             proc = subprocess.Popen(
                 args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
             )
-            (out, err_out) = proc.communicate()
+            out, err_out = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"makepkginfo execution failed with error code {err.errno}: "
@@ -347,7 +348,24 @@ class MunkiImporter(Processor):
         # copy any keys from pkginfo in self.env
         if "pkginfo" in self.env:
             for key in self.env["pkginfo"]:
-                pkginfo[key] = self.env["pkginfo"][key]
+                value = self.env["pkginfo"][key]
+                # Special handling: if key is force_install_after_date and value is a str with 'Z' at end, convert to naive datetime
+                if (
+                    key == "force_install_after_date"
+                    and isinstance(value, str)
+                    and value.endswith("Z")
+                ):
+                    try:
+                        # Pull 'Z' off end, read string representation as naive/no-timezone-related datetime
+                        datetime_obj = datetime.strptime(
+                            value[:-1], "%Y-%m-%dT%H:%M:%S"
+                        )
+                        # When being written out later, the serialization of a date is always ISO8601 w/Z
+                        pkginfo[key] = datetime_obj
+                    except Exception:
+                        pkginfo[key] = value  # fallback to string if parsing fails
+                else:
+                    pkginfo[key] = value
 
         # copy any keys from metadata_additions
         if "metadata_additions" in self.env:
@@ -357,7 +375,7 @@ class MunkiImporter(Processor):
         # if pkginfo has an installs item
         if "installs" in pkginfo and self.env.get("version_comparison_key"):
             for item in pkginfo["installs"]:
-                if not self.env["version_comparison_key"] in item:
+                if self.env["version_comparison_key"] not in item:
                     raise ProcessorError(
                         "version_comparison_key "
                         f"'{self.env['version_comparison_key']}' could not be "
@@ -484,10 +502,10 @@ class MunkiImporter(Processor):
             },
         }
 
-        self.output(f'Copied pkginfo to: {self.env["pkginfo_repo_path"]}')
-        self.output(f'           pkg to: {self.env["pkg_repo_path"]}')
+        self.output(f"Copied pkginfo to: {self.env['pkginfo_repo_path']}")
+        self.output(f"           pkg to: {self.env['pkg_repo_path']}")
         if self.env.get("extract_icon"):
-            self.output(f'          icon to: {self.env["icon_repo_path"]}')
+            self.output(f"          icon to: {self.env['icon_repo_path']}")
 
 
 if __name__ == "__main__":

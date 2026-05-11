@@ -33,6 +33,7 @@ class InstallFromDMG(DmgMounter):
     filesystem."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.4.0"}
     input_variables = {
         "dmg_path": {"required": True, "description": "Path to the disk image."},
         "items_to_copy": {

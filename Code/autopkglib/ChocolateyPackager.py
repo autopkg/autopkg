@@ -39,11 +39,9 @@ DefaultValue = VariableSentinel()
 
 
 class ChocolateyPackager(Processor):
-    """
-    Run `choco.exe` to build a single Nuget package.
-    """
+    """Run `choco.exe` to build a single Nuget package."""
 
-    description: str = __doc__
+    description = __doc__
 
     # Input variables for Nuspec creation. These correspond to the schema referenced
     # `Scripts/regenerate_nuspec_ds.py`.
@@ -113,8 +111,7 @@ class ChocolateyPackager(Processor):
         "icon": {
             "required": False,
             "description": (
-                "Not sure, but probably something to do with the icon of the "
-                "package."
+                "Not sure, but probably something to do with the icon of the package."
             ),
         },
         "license": {"required": False, "description": ("Licensing information.")},
@@ -167,7 +164,7 @@ class ChocolateyPackager(Processor):
         "installer_checksum_type": {
             "required": False,
             "description": (
-                "One of the valid checksum types: " f"{', '.join(CHOCO_CHECKSUM_TYPES)}"
+                f"One of the valid checksum types: {', '.join(CHOCO_CHECKSUM_TYPES)}"
             ),
             "default": "sha512",
         },
@@ -382,7 +379,7 @@ class ChocolateyPackager(Processor):
             stderr=subprocess.STDOUT,
             text=True,
         )
-        (output, _) = proc.communicate()
+        output, _ = proc.communicate()
         self.log(output.splitlines(), 1)
         if proc.returncode != 0:
             raise ProcessorError(

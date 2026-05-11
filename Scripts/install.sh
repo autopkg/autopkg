@@ -6,10 +6,10 @@
 
 launchd_load()
 {
-    # most likely it's loaded..
-    echo "Attempting to unload $1.."
+    # most likely it's loaded...
+    echo "Attempting to unload $1..."
     /bin/launchctl unload "$1"
-    echo "Attempting to load $1.."
+    echo "Attempting to load $1..."
     /bin/launchctl load "$1"
 }
 
@@ -22,14 +22,17 @@ if [ `id -u` -ne 0 ]; then
     exit 1
 fi
 
-# Remove previously installed version
+echo "Backing up Python3 framework"
+mv "$INSTALL_DIR/Python3" "/tmp/Python3"
+
+echo "Removing existing AutoPkg installation"
 if [ -e "$INSTALL_DIR" ]; then
     echo "Removing existing install"
     rm -rf "$INSTALL_DIR"
 fi
 for DAEMON in "$LAUNCH_DAEMON_PKGSERVER" "$LAUNCH_DAEMON_INSTALLD"; do
     if [ -e "$DAEMON" ]; then
-        echo "Removing Launch Daemon $(basename "$DAEMON").."
+        echo "Removing Launch Daemon $(basename "$DAEMON")..."
         rm -f "$DAEMON"
     fi
 done
@@ -38,29 +41,49 @@ echo "Installing AutoPkg to $INSTALL_DIR"
 
 echo "Creating directories"
 mkdir -m 0755 "$INSTALL_DIR"
+mkdir -m 0755 "$INSTALL_DIR/autopkgcmd"
 mkdir -m 0755 "$INSTALL_DIR/autopkglib"
+mkdir -m 0755 "$INSTALL_DIR/autopkglib/autopkgyaml"
 mkdir -m 0755 "$INSTALL_DIR/autopkglib/github"
+mkdir -m 0755 "$INSTALL_DIR/autopkglib/munkirepolibs"
 mkdir -m 0755 "$INSTALL_DIR/autopkgserver"
+mkdir -m 0755 "$INSTALL_DIR/nuget"
+mkdir -m 0755 "$INSTALL_DIR/nuget/generated"
 
 echo "Copying executable"
 cp Code/autopkg "$INSTALL_DIR/"
 ln -sf "$INSTALL_DIR/autopkg" /usr/local/bin/autopkg
 
-echo "Copying library"
+echo "Copying autopkgcmd"
+cp Code/autopkgcmd/__init__.py "$INSTALL_DIR/autopkgcmd/"
+cp Code/autopkgcmd/opts.py "$INSTALL_DIR/autopkgcmd/"
+cp Code/autopkgcmd/searchcmd.py "$INSTALL_DIR/autopkgcmd/"
+cp Code/autopkgcmd/searchcmd.py "$INSTALL_DIR/autopkgcmd/"
+
+echo "Copying autopkglib"
 cp Code/autopkglib/*.py "$INSTALL_DIR/autopkglib/"
 cp Code/autopkglib/github/*.py "$INSTALL_DIR/autopkglib/github"
+cp Code/autopkglib/autopkgyaml/*.py "$INSTALL_DIR/autopkglib/autopkgyaml"
+cp Code/autopkglib/munkirepolibs/*.py "$INSTALL_DIR/autopkglib/munkirepolibs"
 cp Code/autopkglib/version.plist "$INSTALL_DIR/autopkglib/"
 
-echo "Copying server"
+echo "Copying autopkgserver"
 cp Code/autopkgserver/autopkgserver "$INSTALL_DIR/autopkgserver/"
 cp Code/autopkgserver/autopkginstalld "$INSTALL_DIR/autopkgserver/"
 cp Code/autopkgserver/*.py "$INSTALL_DIR/autopkgserver/"
 cp Code/autopkgserver/autopkgserver.plist "$LAUNCH_DAEMON_PKGSERVER"
 cp Code/autopkgserver/autopkginstalld.plist "$LAUNCH_DAEMON_INSTALLD"
 
+echo "Copying nuget"
+cp Code/nuget/*.py "$INSTALL_DIR/nuget/"
+cp Code/nuget/generated/*.py "$INSTALL_DIR/nuget/generated/"
+
 echo "Setting permissions"
 find "$INSTALL_DIR" -type f -exec chmod 755 {} \;
 chown -hR root:wheel "$INSTALL_DIR"
+
+echo "Restoring Python3 framework"
+mv "/tmp/Python3" "$INSTALL_DIR/Python3"
 
 echo "Installing Launch Daemons"
 launchd_load "$LAUNCH_DAEMON_PKGSERVER"

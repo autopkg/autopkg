@@ -19,9 +19,10 @@ import json
 import os
 import ssl
 from hashlib import md5, sha1, sha256
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import certifi
+from autopkglib import ProcessorError
 from autopkglib.URLDownloader import URLDownloader
 
 __all__ = ["URLDownloaderPython"]
@@ -33,8 +34,16 @@ class URLDownloaderPython(URLDownloader):
     """
 
     description = __doc__
+    lifecycle = {"introduced": "2.4.1"}
     input_variables = {
         "url": {"required": True, "description": "The URL to download."},
+        "request_headers": {
+            "required": False,
+            "description": (
+                "Optional dictionary of headers to include with the download request. "
+                "Keys are header names and values are header values."
+            ),
+        },
         "download_dir": {
             "required": False,
             "description": (
@@ -47,7 +56,6 @@ class URLDownloaderPython(URLDownloader):
             "description": "Filename to override the URL's tail.",
         },
         "prefetch_filename": {
-            "default": False,
             "required": False,
             "description": (
                 "If True, URLDownloader attempts to determine filename from HTTP "
@@ -60,9 +68,9 @@ class URLDownloaderPython(URLDownloader):
                 "\t4. last part of 'url'.  \n"
                 "'prefetch_filename' is useful for URLs with redirects."
             ),
+            "default": False,
         },
         "CHECK_FILESIZE_ONLY": {
-            "default": False,
             "required": False,
             "description": (
                 "If True, a server's ETag and Last-Modified "
@@ -74,6 +82,7 @@ class URLDownloaderPython(URLDownloader):
                 "cause items to be needlessly re-downloaded. "
                 "Defaults to False."
             ),
+            "default": False,
         },
         "PKG": {
             "required": False,
@@ -85,20 +94,20 @@ class URLDownloaderPython(URLDownloader):
         },
         "COMPUTE_HASHES": {
             "required": False,
-            "default": False,
             "description": (
                 "Determine whether to compute md5, sha1, and sha256 hashes of "
                 "the downloaded file."
             ),
+            "default": False,
         },
         "HEADERS_TO_TEST": {
             "required": False,
-            "default": ["ETag", "Last-Modified", "Content-Length"],
             "description": (
                 "List of HTTP headers to compare against the previous download "
                 "to detect changes. If 'CHECK_FILESIZE_ONLY' is enabled, this "
                 "list is overridden to ['Content-Length'] only."
             ),
+            "default": ["ETag", "Last-Modified", "Content-Length"],
         },
     }
     output_variables = {
@@ -117,7 +126,6 @@ class URLDownloaderPython(URLDownloader):
             "description": "Description of interesting results."
         },
     }
-    __doc__ = description
 
     def download_changed(self, header) -> bool:
         """Check if downloaded file changed on server."""
@@ -232,10 +240,19 @@ class URLDownloaderPython(URLDownloader):
         return ctx
 
     def ssl_context_certifi(self) -> ssl.SSLContext:
-        """ssl context using certifi CAs"""
+        """SSL context using certifi CAs or custom CAs if the env SSL_CERT_FILE is set"""
         # this doesn't need to be a class method
         # https://stackoverflow.com/questions/24374400/verifying-https-certificates-with-urllib-request
-        return ssl.create_default_context(cafile=certifi.where())
+        ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+        ctx.load_verify_locations(cafile=certifi.where())
+        if (cafile := os.environ.get("SSL_CERT_FILE")) is not None:
+            self.output(f"SSL_CERT_FILE={cafile}", 1)
+            if not os.path.isfile(cafile):
+                raise ProcessorError(f"Certificate file '{cafile}' does not exist.")
+            if not os.access(cafile, os.R_OK):
+                raise ProcessorError(f"Certificate file '{cafile}' is not readable.")
+            ctx.load_verify_locations(cafile=cafile)
+        return ctx
 
     def download_and_hash(self, file_save_path) -> dict | None:
         """stream down file from url and calculate size & hashes"""
@@ -247,7 +264,11 @@ class URLDownloaderPython(URLDownloader):
 
         hashes = None
         if self.env.get("COMPUTE_HASHES", None):
-            hashes = sha1(), sha256(), md5()
+            hashes = (
+                sha1(usedforsecurity=False),
+                sha256(usedforsecurity=False),
+                md5(usedforsecurity=False),
+            )
 
         # chunksize seems like it could be anything
         #   it is probably best if it is a multiple of a typical hash block_size
@@ -264,8 +285,20 @@ class URLDownloaderPython(URLDownloader):
         if file_save_path:
             file_save = open(file_save_path, "wb")
 
+        # Build request, adding any provided request headers
+        request_headers = self.env.get("request_headers") or {}
+        if request_headers and not isinstance(request_headers, dict):
+            raise ProcessorError(
+                "request_headers must be a dictionary of header-name: value pairs"
+            )
+        # Normalise header keys to str (in case of non-str) and skip None values
+        normalised_headers = {
+            str(k): str(v) for k, v in request_headers.items() if v is not None
+        }
+        request_obj = Request(url, headers=normalised_headers)
+
         # get http headers
-        response = urlopen(url, context=self.ssl_context_certifi())
+        response = urlopen(request_obj, context=self.ssl_context_certifi())
         response_headers = response.info()
 
         self.env["download_changed"] = self.download_changed(response_headers)

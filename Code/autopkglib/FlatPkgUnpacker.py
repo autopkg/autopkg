@@ -33,6 +33,7 @@ class FlatPkgUnpacker(DmgMounter):
     For xar it also optionally skips extracting the payload."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "flat_pkg_path": {
             "required": True,
@@ -51,6 +52,7 @@ class FlatPkgUnpacker(DmgMounter):
                 "This means components of the package will not be "
                 "extracted such as scripts."
             ),
+            "default": False,
         },
         "destination_path": {
             "required": True,
@@ -114,7 +116,7 @@ class FlatPkgUnpacker(DmgMounter):
             proc = subprocess.Popen(
                 xarcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
-            (_, stderr) = proc.communicate()
+            _, stderr = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"xar execution failed with error code {err.errno}: {err.strerror}"
@@ -145,7 +147,7 @@ class FlatPkgUnpacker(DmgMounter):
             proc = subprocess.Popen(
                 pkgutilcmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
-            (_, stderr) = proc.communicate()
+            _, stderr = proc.communicate()
         except OSError as err:
             raise ProcessorError(
                 f"pkgutil execution failed with error code {err.errno}: {err.strerror}"
@@ -158,9 +160,7 @@ class FlatPkgUnpacker(DmgMounter):
 
     def main(self) -> None:
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(
-            self.env["flat_pkg_path"]
-        )
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(self.env["flat_pkg_path"])
         try:
             if dmg:
                 # Mount dmg and copy path inside.

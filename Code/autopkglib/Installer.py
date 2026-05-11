@@ -33,6 +33,7 @@ class Installer(DmgMounter):
     """Calls autopkginstalld to install a package."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.4.0"}
     input_variables = {
         "pkg_path": {
             "required": True,
@@ -88,7 +89,7 @@ class Installer(DmgMounter):
 
         pkg_path = self.env["pkg_path"]
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_pkg_path) = self.parsePathForDMG(pkg_path)
+        dmg_path, dmg, dmg_pkg_path = self.parsePathForDMG(pkg_path)
         try:
             if dmg:
                 # Mount dmg and copy path inside.

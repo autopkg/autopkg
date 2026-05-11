@@ -35,19 +35,25 @@ AUTOPKG_REPO = os.path.expanduser("~/Developer/autopkg")
 # Path to a folder that contains AutoPkg recipes
 RECIPE_REPOS = os.path.expanduser("~/Developer/repo-lasso/repos/autopkg")
 
+# Control (known good) and experimental branch names
+CONTROL_BRANCH = "dev-2.x"
+EXPER_BRANCH = "unarchiver"
+
 # Types of recipes you wish to test (recommended: download, pkg)
 # Munki tools and a valid Munki repo required to test munki recipes
 _types_to_test = ["download", "pkg"]
-_types_to_test = [f".{x}.recipe" for x in _types_to_test]
-_types_to_test.extend(f"{x}.yaml" for x in ["download", "pkg"])
-TYPES_TO_TEST = tuple(_types_to_test)
+TYPES_TO_TEST = tuple(
+    [f".{x}.recipe" for x in _types_to_test] + [f"{x}.yaml" for x in _types_to_test]
+)
+
+# Additional command-line options to provide at runtime (example provided)
+ADDITIONAL_OPTS = [
+    # "-k",
+    # "USE_PYTHON_NATIVE_EXTRACTOR=true",
+]
 
 # How many recipes you wish to run the test on
 RECIPE_COUNT = 100
-
-# Control (known good) and experimental branch names
-CONTROL_BRANCH = "master"
-EXPER_BRANCH = "dev-2.7.x"
 
 
 def clear_cache():
@@ -64,6 +70,7 @@ def test_recipe(filepath, autopkg_path="/usr/local/bin/autopkg"):
     results = {"1st": None, "2nd": None}
     for attempt in results.keys():
         cmd = [autopkg_path, "run", "--quiet", filepath]
+        cmd.extend(ADDITIONAL_OPTS)
         proc = subprocess.run(cmd, check=False, capture_output=True)
         results[attempt] = proc.returncode
         print("  %s run finished with exit code %d" % (attempt, proc.returncode))

@@ -23,13 +23,10 @@ __all__ = ["FlatPkgPacker"]
 
 
 class FlatPkgPacker(Processor):
-    """Flatten an expanded package using pkgutil.
-
-    Requires version 0.2.4.
-    """
+    """Flatten an expanded package using pkgutil."""
 
     description = __doc__
-
+    lifecycle = {"introduced": "0.2.4"}
     input_variables = {
         "source_flatpkg_dir": {
             "description": "Path to an extracted flat package",
@@ -40,7 +37,6 @@ class FlatPkgPacker(Processor):
             "required": True,
         },
     }
-
     output_variables = {}
 
     def flatten(self, source_dir, dest_pkg):

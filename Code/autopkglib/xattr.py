@@ -15,7 +15,10 @@
 Wrapper module that provides a consistent xattr interface
 regardless of platform support.
 """
+
 from typing import Any
+
+from autopkglib import log_err
 
 __all__ = ["getxattr", "listxattr", "removexattr", "setxattr"]
 
@@ -46,7 +49,7 @@ try:
 
     _xattr = __xattr_wrapper(_xattr_real)
 except ImportError:
-    print("WARNING: Library 'xattr' unavailable. Defining no-op implementation.")
+    log_err("WARNING: Library 'xattr' unavailable. Defining no-op implementation.")
 
     class __xattr_stub:
         """A stub class that will perform noop for any calls to the
@@ -86,7 +89,7 @@ def getxattr(path: str, attr: str, symlink: bool = False) -> str | None:
     try:
         return _xattr.getxattr(path, attr, symlink)
     except OSError as e:
-        print(f"WARNING: xattr.getxattr threw OSError. {e}")
+        log_err(f"WARNING: xattr.getxattr threw OSError. {e}")
         return None
 
 
@@ -94,7 +97,7 @@ def listxattr(path: str, symlink: bool = False) -> list[str]:
     try:
         return _xattr.listxattr(path, symlink)
     except OSError as e:
-        print(f"WARNING: xattr.listxattr threw OSError. {e}")
+        log_err(f"WARNING: xattr.listxattr threw OSError. {e}")
         return []
 
 
@@ -102,7 +105,7 @@ def removexattr(path: str, attr: str, symlink: bool = False) -> None:
     try:
         return _xattr.removexattr(path, attr, symlink)
     except OSError as e:
-        print(f"WARNING: xattr.removexattr threw OSError. {e}")
+        log_err(f"WARNING: xattr.removexattr threw OSError. {e}")
         return None
 
 
@@ -112,5 +115,5 @@ def setxattr(
     try:
         return _xattr.setxattr(path, attr, value, options, symlink)
     except OSError as e:
-        print(f"WARNING: xattr.setxattr threw OSError. {e}")
+        log_err(f"WARNING: xattr.setxattr threw OSError. {e}")
         return None

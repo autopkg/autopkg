@@ -29,6 +29,7 @@ class Copier(DmgMounter):
     """Copies source_path to destination_path."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "source_path": {
             "required": True,
@@ -50,8 +51,6 @@ class Copier(DmgMounter):
         },
     }
     output_variables = {}
-
-    __doc__ = description
 
     def copy(self, source_item, dest_item, overwrite=False):
         """Copies source_item to dest_item, overwriting if allowed"""
@@ -80,7 +79,7 @@ class Copier(DmgMounter):
     def main(self) -> None:
         source_path = self.env["source_path"]
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(source_path)
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(source_path)
         self.output(
             f"Parsed dmg results: dmg_path: {dmg_path}, dmg: {dmg}, "
             f"dmg_source_path: {dmg_source_path}",

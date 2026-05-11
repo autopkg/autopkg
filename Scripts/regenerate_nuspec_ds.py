@@ -17,6 +17,7 @@ Regenerates the NuSpec XML schema Python wrapper module from upstream source.
 Downloads the latest NuSpec XSD from the GitHub NuGet/NuGet.Client Git repository,
 and creates a wrapper library using the `generateDS` utility.
 """
+
 import os
 import sys
 

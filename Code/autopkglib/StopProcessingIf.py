@@ -15,12 +15,12 @@
 # limitations under the License.
 """See docstring for StopProcessingIf class"""
 
-from autopkglib import Processor, ProcessorError, log
+from autopkglib import Processor, ProcessorError, log_err
 
 try:
     from Foundation import NSPredicate
 except ImportError:
-    log("WARNING: Failed 'from Foundation import NSPredicate' in " + __name__)
+    log_err("WARNING: Failed 'from Foundation import NSPredicate' in " + __name__)
 
 __all__ = ["StopProcessingIf"]
 
@@ -30,6 +30,7 @@ class StopProcessingIf(Processor):
     predicate comparison evaluates to true."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "predicate": {
             "required": True,

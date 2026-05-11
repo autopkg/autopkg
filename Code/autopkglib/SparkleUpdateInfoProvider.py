@@ -31,9 +31,11 @@ SUPPORTED_ADDITIONAL_PKGINFO_KEYS = ["description", "minimum_os_version"]
 
 
 class SparkleUpdateInfoProvider(URLGetter):
-    """Provides URL to the highest version number or latest update."""
+    # pylint: disable=invalid-name
+    """Provides URL and version information from a Sparkle feed."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "appcast_url": {
             "required": True,
@@ -59,6 +61,7 @@ class SparkleUpdateInfoProvider(URLGetter):
                 "appcast is using an alternate one. Defaults to "
                 "that used for 'vanilla' Sparkle appcasts."
             ),
+            "default": DEFAULT_XMLNS,
         },
         "curl_opts": {
             "required": False,
@@ -89,6 +92,7 @@ class SparkleUpdateInfoProvider(URLGetter):
                 "from the sparkle feed needs to be urlencoded. "
                 "Defaults to True."
             ),
+            "default": True,
         },
         "update_channel": {
             "required": False,
@@ -309,8 +313,7 @@ class SparkleUpdateInfoProvider(URLGetter):
                     pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
             for copied_key in pkginfo.keys():
                 self.output(
-                    f"Copied key {copied_key} from Sparkle feed to additional "
-                    "pkginfo."
+                    f"Copied key {copied_key} from Sparkle feed to additional pkginfo."
                 )
         return pkginfo
 

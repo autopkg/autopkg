@@ -22,7 +22,6 @@ from autopkglib import Processor, ProcessorError
 
 __all__ = ["PkgRootCreator"]
 
-
 # Download URLs in chunks of 256 kB.
 CHUNK_SIZE = 256 * 1024
 
@@ -32,6 +31,7 @@ class PkgRootCreator(Processor):
     (Can also be used to create directory structures for other purposes.)"""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "pkgroot": {
             "required": True,

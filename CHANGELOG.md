@@ -1,8 +1,102 @@
-### [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...HEAD) (Unreleased)
-
 # AutoPkg Change Log
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
+
+## [2.9.1](https://github.com/autopkg/autopkg/compare/v2.9.0...HEAD) (Unreleased)
+
+### Recipe map
+
+Backports the recipe map feature originally developed for the 3.x line. The recipe map is an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the system, indexed by identifier and shortname. Recipe resolution becomes O(1) instead of walking every configured `RECIPE_SEARCH_DIRS` entry.
+
+**What you'll notice:**
+
+- Recipe runs, `info`, `search` and trust-info verification are faster on systems with many recipe repos. The first run after installing or `repo-add`/`repo-update` may be slightly slower while the map is (re)built.
+- New `autopkg generate-recipe-map` subcommand explicitly builds and persists the map. Intended for CI/CD pipelines that want to pay the scan cost up front.
+- The map auto-rebuilds on first use when it is missing or invalid, so fresh installs and ephemeral CI runners "just work" without a manual bootstrap step.
+- `repo-add`, `repo-delete`, `repo-update`, `make-override` and `new-recipe` keep the map in sync automatically.
+- CLI `--search-dir` / `--override-dir` flags still scope resolution to exactly the supplied directories when they differ from the configured preferences (preserves the dev-2.x "recipes in `~/Library/AutoPkg/Recipes` override installed repos" contract).
+- Trust-info verification (`verify-trust-info`, `update-trust-info`) correctly classifies override files passed by path.
+
+**If something goes wrong:**
+
+- Run `autopkg generate-recipe-map` to force a clean rebuild.
+- Set `RECIPE_MAP_PATH` preference or `AUTOPKG_RECIPE_MAP_PATH` env var to redirect the cache to a writable location (e.g. CI workspaces that don't use `~/Library/AutoPkg`).
+- Set `DISABLE_RECIPE_MAP` preference or `AUTOPKG_DISABLE_RECIPE_MAP=1` env var to bypass the cache entirely and fall back to the legacy on-disk scanners.
+
+**Implementation notes:**
+
+- Persisted files carry a `schema_version` field so future format changes trigger a clean rebuild rather than reading stale data.
+- Writes use `tempfile.mkstemp` + `os.replace` so concurrent autopkg invocations can't observe a half-written file.
+- When running as root (e.g. via `sudo autopkg`), redirecting the map path via env var or pref now emits a prominent warning. Ops teams should strip `AUTOPKG_*` from their sudoers `env_keep` if they don't want unprivileged callers to influence where autopkg writes.
+- YAML recipes are now parsed with `yaml.safe_load` (previously `yaml.FullLoader`). Recipes only use plain mappings of primitives, so no legitimate recipe is affected.
+
+Fixes #869, #874, #886, #894, #901, #903, #908, #918.
+
+### Other
+
+- URLDownloader: `prefetch_filename` now includes `curl_common_opts` (e.g. `Authorization` request headers) in the HEAD request used to determine the filename, preventing prefetch failures on authenticated endpoints (#925, thanks to @n8felton)
+- Updated virtualenv to 20.36.1
+- Updated filelock to 3.20.3
+- Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
+- Replace deprecated imp module with importlib
+- CodeSignatureVerifier now returns a ProcessorError if executed on a platform other than macOS
+- Improved testing automation by skipping macOS-only tests on Ubuntu and Windows
+
+## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
+
+### Redesigned search
+
+AutoPkg 2.9.0 introduces a completely redesigned `autopkg search` feature using a structured [search index](https://github.com/autopkg/index) of all recipes in the AutoPkg org.
+
+This index is updated on GitHub every 4 hours. A local cache is downloaded, and the full index is redownloaded only when changes are available. This should be faster and much more reliable than our previous search method, especially when performing multiple searches back to back. This new method should also work better in the absence of a GitHub personal access token at `~/.autopkg_gh_token`.
+
+With this change, there may be bugs or differences in behavior from the previous search method. If you encounter issues with `autopkg search` or have suggestions for improvement, please file an issue on GitHub.
+
+### VariableSetter processor
+
+A new [VariableSetter](https://github.com/autopkg/autopkg/wiki/Processor-VariableSetter) processor allows setting arbitrary environment variables for use as input to subsequent processors (#997, thanks to @MScottBlake). We recommend using this processor instead of "overloading" variables into other processors like EndOfCheckPhase. Remember to set a `MinimumVersion` of 2.9.0 in any recipes that use VariableSetter.
+
+### Other AutoPkg changes
+
+- Updated included Python runtime to 3.10.11 (#990, thanks to @MScottBlake)
+- Updated requirements.txt with the contents of new_requirements.txt, which has been used in production releases since AutoPkg 2.7, and removed new_requirements.txt. This should reduce false positives from security vulnerability and dependency update scanners.
+- Fixed incorrect count of recipes in results when using `audit` verb (#1004, thanks to @macprince for reporting)
+- Fixed `Bad file descriptor` error processor output during package builds.
+- Fixed issue where tilde paths in `CACHE_DIR` preference weren't properly expanded.
+- Fixed bug that made temporary package filenames less random.
+- Added a method by which processors can be marked for deprecation, similar to what DeprecationWarning does for recipes.
+- Added basic unit tests for autopkgserver and autopkginstalld.
+- Removed `resources` subkey of the PkgCreator `pkg_request` dictionary, which has not been used since AutoPkg changed from `packagemaker` to `pkgbuild` for packaging prior to v0.1.0.
+- Removed `options` subkey of the PkgCreator `pkg_request` dictionary, which has never been used.
+- Moved from deprecated `pkg_resources` to `importlib.resources` for better Python 3.10+ compatibility.
+- Removed legacy launch.py component of autopkgserver, unused since AutoPkg 0.5.0.
+- Updated and resolved issues with manual `install.sh` script used for local testing of development builds of AutoPkg.
+- Updated GitHub Actions workflows with newer action versions and improved job handling.
+
+### Other core processor changes
+
+- Add "lifecycle" attribute to core processors indicating the AutoPkg version the processor was introduced in. If the processor is deprecated, this attribute can also indicate which AutoPkg version it has been deprecated since. This information will be used to automatically update the processor pages on the AutoPkg wiki.
+- GitHubReleasesInfoProvider: now supports pagination, which should improve reliability for repos that have a large number of prereleases that bump the "latest" release off the first page of API results (#1005, thanks to @kirovreporting).
+- MunkiImporter: replace '--uninstallpkg' with '--uninstallerpkg' to maintain compatibility with recent versions of Munki's `makepkginfo`. (#1001, thanks to @PeetMcK).
+- Officially deprecated processors CURLTextSearcher and CURLDownloader. Use URLTextSearcher and URLDownloader instead.
+- Removed deprecated processor BrewCaskInfoProvider.
+- URLDownloaderPython: explicitly mark the sha1, md5, and sha256 hashing of downloaded files as non-security-related.
+- URLDownloaderPython: add new input variable `request_headers`, matching the same functionality in URLDownloader (#986, thanks to @smithjw)
+- Unarchiver: when using Python native extractor, stop processing if archives have indicators of directory traversal attacks.
+- Added extensive unit tests for URLDownloader, PlistReader integration, packager, and Processor base class.
+- Various processors updated with `default` values that were previously implied or included only in the description.
+
+## [2.7.6](https://github.com/autopkg/autopkg/compare/v2.7.5...v2.7.6) (August 2, 2025)
+
+- [FindAndReplace](https://github.com/autopkg/autopkg/wiki/Processor-FindAndReplace) is a new core processor that replaces specified text with other text in the content of a string
+    - This processor has already been available in homebysix-recipes, and is moving to the core due to widespread use
+    - Now includes a `result_output_var_name` option that allows you to choose the variable that stores its output (#976, thanks to @jgstew)
+- Changes that allow easier command-line testing of custom processors (#953, thanks to @macmule)
+- Recipe identifier is now included in the `failures` array of run receipts (#974, thanks to @smaddock)
+- URLDownloaderPython: uses the certificate bundle defined in the `SSL_CERT_FILE` environment variable if set (#962, thanks to @smithjw)
+- AppDmgVersioner: improved error output when `dmg_path` is missing or empty
+- MunkiImporter: Improved handling of pkginfo keys that contain a `force_install_after_date` (#967, thanks to @arubdesu)
+- Added unit tests for various processors and some core AutoPkg functions
 
 
 ## [2.7.5](https://github.com/autopkg/autopkg/compare/v2.7.4...v2.7.5) (July 6, 2025)
@@ -69,6 +163,7 @@ Similarly, thanks to @homebysix for doing a similar action for linting, ensuring
 
 ### Other Changes
 
+- New core processor MunkiOptionalReceiptEditor, based on @keeleysam's [MunkiPkginfoReceiptsEditor](https://github.com/autopkg/keeleysam-recipes/blob/master/GoogleTalkPlugin/MunkiPkginfoReceiptsEditor.py), which allows specifying which receipts are considered optional in Munki pkginfo files ([example](https://github.com/autopkg/recipes/blob/83305f7bcdc1270f1f2715548dae8013ce2848c0/munkitools/munkitools7.munki.recipe#L104-L114))
 - The make_new_release script is a lot easier to use (only really benefits maintainers, but hey)
 - Remove incompatibility notice non-macs by @jgstew in https://github.com/autopkg/autopkg/pull/795
 - Add automated UnitTests for AutoPkg with GitHub Actions by @jgstew in https://github.com/autopkg/autopkg/pull/796

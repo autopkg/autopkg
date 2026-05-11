@@ -15,7 +15,6 @@
 # limitations under the License.
 """See docstring for FileFinder class"""
 
-
 import os.path
 from glob import glob
 
@@ -29,22 +28,22 @@ class FileFinder(DmgMounter):
     """Finds a filename for use in other Processors.
 
     Currently only supports glob filename patterns.
-
-    Requires version 0.2.3.
     """
 
+    description = __doc__
+    lifecycle = {"introduced": "0.2.3"}
     input_variables = {
         "pattern": {
-            "description": "Shell glob pattern to match files by",
             "required": True,
+            "description": "Shell glob pattern to match files by",
         },
         "find_method": {
+            "required": False,
             "description": (
                 "Type of pattern to match. Currently only "
                 'supported type is "glob" (also the default)'
             ),
             "default": "glob",
-            "required": False,
         },
     }
     output_variables = {
@@ -52,8 +51,6 @@ class FileFinder(DmgMounter):
         "dmg_found_filename": {"description": "DMG-relative path of found filename"},
         "found_basename": {"description": "Basename of found filename"},
     }
-
-    description = __doc__
 
     def globfind(self, pattern):
         """If multiple files are found the last alphanumerically sorted found
@@ -79,7 +76,7 @@ class FileFinder(DmgMounter):
         source_path = pattern
 
         # Check if we're trying to copy something inside a dmg.
-        (dmg_path, dmg, dmg_source_path) = self.parsePathForDMG(source_path)
+        dmg_path, dmg, dmg_source_path = self.parsePathForDMG(source_path)
         try:
             if dmg:
                 # Mount dmg and copy path inside.

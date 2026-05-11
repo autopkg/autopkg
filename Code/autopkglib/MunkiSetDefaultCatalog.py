@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/autopkg/python
 #
 # Copyright 2014 Yoann Gini
 # Based on MunkiPkginfoMerger.py, copyright 2013 Greg Neagle
@@ -34,11 +34,12 @@ class MunkiSetDefaultCatalog(Processor):
     catalog preference for munkiimport (com.googlecode.munki.munkiimport),
     if one has been set. Typically this would be run as a preprocessor."""
 
+    description = __doc__
+    lifecycle = {"introduced": "0.4.2"}
     input_variables = {
         "pkginfo": {"required": False, "description": "Dictionary of Munki pkginfo."}
     }
     output_variables = {"pkginfo": {"description": "Updated pkginfo."}}
-    description = __doc__
 
     def main(self) -> None:
         if "pkginfo" not in self.env:

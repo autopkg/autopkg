@@ -33,6 +33,7 @@ class URLDownloader(URLGetter):
     """Downloads a URL to the specified download_dir using curl."""
 
     description = __doc__
+    lifecycle = {"introduced": "0.1.0"}
     input_variables = {
         "url": {"required": True, "description": "The URL to download."},
         "request_headers": {
@@ -59,7 +60,6 @@ class URLDownloader(URLGetter):
             "description": "Filename to override the URL's tail.",
         },
         "prefetch_filename": {
-            "default": False,
             "required": False,
             "description": (
                 "If True, URLDownloader attempts to determine filename from HTTP "
@@ -72,9 +72,9 @@ class URLDownloader(URLGetter):
                 "\t4. last part of 'url'.  \n"
                 "'prefetch_filename' is useful for URLs with redirects."
             ),
+            "default": False,
         },
         "CHECK_FILESIZE_ONLY": {
-            "default": False,
             "required": False,
             "description": (
                 "If True, a server's ETag and Last-Modified "
@@ -86,6 +86,7 @@ class URLDownloader(URLGetter):
                 "cause items to be needlessly re-downloaded. "
                 "Defaults to False."
             ),
+            "default": False,
         },
         "PKG": {
             "required": False,
@@ -207,6 +208,8 @@ class URLDownloader(URLGetter):
         """Attempt to find filename in HTTP headers."""
         curl_cmd = self.prepare_base_curl_cmd()
         curl_cmd.extend(["--head"])
+        # Add the common options
+        self.add_curl_common_opts(curl_cmd)
 
         raw_headers = self.download_with_curl(curl_cmd)
         header = self.parse_headers(raw_headers)

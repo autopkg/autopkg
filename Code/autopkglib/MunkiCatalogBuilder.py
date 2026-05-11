@@ -15,34 +15,21 @@
 # limitations under the License.
 """See docstring for MunkiCatalogBuilder class"""
 
-import os
-
-from autopkglib import Processor, remove_recipe_extension
+from autopkglib import Processor
 
 __all__ = ["MunkiCatalogBuilder"]
 
 
 class MunkiCatalogBuilder(Processor):
-    """DEPRECATED. This processor now emits a warning and performs no function.
-    Previously it rebuilt Munki catalogs."""
+    """DEPRECATED. This processor now emits a warning and performs no function. Previously it rebuilt Munki catalogs."""
 
+    description = __doc__
+    lifecycle = {"introduced": "0.1.0", "deprecated": "2.7.5"}
     input_variables = {}
     output_variables = {}
-    description = __doc__
 
     def main(self) -> None:
-        warning_message = self.env.get(
-            "warning_message",
-            "### The MunkiCatalogBuilder processor has been deprecated. It currently does nothing. It will be removed in the future. ###",
-        )
-        self.output(warning_message)
-        recipe_name = os.path.basename(self.env["RECIPE_PATH"])
-        recipe_name = remove_recipe_extension(recipe_name)
-        self.env["deprecation_summary_result"] = {
-            "summary_text": "The following recipes have deprecation warnings:",
-            "report_fields": ["name", "warning"],
-            "data": {"name": recipe_name, "warning": warning_message},
-        }
+        pass
 
 
 if __name__ == "__main__":

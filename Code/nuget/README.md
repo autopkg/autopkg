@@ -44,5 +44,5 @@ shown below. The script automates some particulars around getting the schema `.x
 and setting the appropriate XML namespace. The script has more details for the curious.
 
 ```powershell
-python Scripts\regenerate_nuspec_ds.py --output-path --output-path .\Code\nuget\generated\_nuspec.py
+python Scripts\regenerate_nuspec_ds.py --output-path .\Code\nuget\generated\_nuspec.py
 ```

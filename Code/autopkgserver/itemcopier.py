@@ -70,7 +70,6 @@ class ItemCopier:
         """
         mountpoint = self.request["mount_point"]
         for item in self.request["items_to_copy"]:
-
             # get itemname
             source_itemname = item.get("source_item")
             dest_itemname = item.get("destination_item")
@@ -86,8 +85,9 @@ class ItemCopier:
             destpath = item.get("destination_path")
             if not os.path.exists(destpath):
                 self.log.info(
-                    f"Destination path {destpath} does not exist, will determine "
-                    "owner/permissions from parent"
+                    "Destination path %s does not exist, will determine "
+                    "owner/permissions from parent",
+                    destpath,
                 )
                 parent_path = destpath
                 new_paths = []
@@ -128,7 +128,7 @@ class ItemCopier:
 
             # remove item if it already exists
             if os.path.exists(full_destpath):
-                self.log.info(f"Removing existing {full_destpath}")
+                self.log.info("Removing existing %s", full_destpath)
                 retcode = subprocess.call(["/bin/rm", "-rf", full_destpath])
                 if retcode:
                     raise ItemCopierError(
@@ -136,7 +136,7 @@ class ItemCopier:
                     )
 
             # all tests passed, OK to copy
-            self.log.info(f"Copying {source_itemname} to {full_destpath}")
+            self.log.info("Copying %s to %s", source_itemname, full_destpath)
             self.socket.send(
                 f"STATUS:Copying {source_itemname} to {full_destpath}\n".encode()
             )
@@ -150,21 +150,21 @@ class ItemCopier:
 
             # set owner
             user = item.get("user", "root")
-            self.log.info(f"Setting owner for '{full_destpath}' to '{user}'")
+            self.log.info("Setting owner for '%s' to '%s'", full_destpath, user)
             retcode = subprocess.call(["/usr/sbin/chown", "-R", user, full_destpath])
             if retcode:
                 raise ItemCopierError(f"Error setting owner for {full_destpath}")
 
             # set group
             group = item.get("group", "admin")
-            self.log.info(f"Setting group for '{full_destpath}' to '{group}'")
+            self.log.info("Setting group for '%s' to '%s'", full_destpath, group)
             retcode = subprocess.call(["/usr/bin/chgrp", "-R", group, full_destpath])
             if retcode:
                 raise ItemCopierError(f"Error setting group for {full_destpath}")
 
             # set mode
             mode = item.get("mode", "o-w")
-            self.log.info(f"Setting mode for '{full_destpath}' to '{mode}'")
+            self.log.info("Setting mode for '%s' to '%s'", full_destpath, mode)
             retcode = subprocess.call(["/bin/chmod", "-R", mode, full_destpath])
             if retcode:
                 raise ItemCopierError(f"Error setting mode for {full_destpath}")
