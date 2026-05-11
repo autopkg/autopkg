@@ -18,6 +18,7 @@
 
 import os.path
 import subprocess
+from typing import NoReturn
 
 from autopkglib import Processor, ProcessorError, find_binary, is_windows
 
@@ -68,6 +69,13 @@ class URLGetter(Processor):
 
         for item in self.env.get("curl_opts", []):
             curl_cmd.extend([item])
+
+    def produce_etag_headers(self, filename) -> NoReturn:
+        """Removed — now lives on URLDownloader."""
+        raise ProcessorError(
+            "produce_etag_headers() has moved to URLDownloader. "
+            "Subclasses of URLGetter that need this method should subclass URLDownloader instead."
+        )
 
     def clear_header(self, header) -> None:
         """Clear header dictionary."""

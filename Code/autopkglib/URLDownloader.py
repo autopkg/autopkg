@@ -21,7 +21,7 @@ import os.path
 import platform
 import tempfile
 from hashlib import md5, sha1, sha256
-from typing import Any
+from typing import Any, NoReturn
 
 from autopkglib import BUNDLE_ID, ProcessorError, xattr
 from autopkglib.URLGetter import URLGetter
@@ -121,6 +121,13 @@ class URLDownloader(URLGetter):
         },
     }
 
+    def getxattr(self, attr) -> NoReturn:
+        """Removed — metadata is now stored in .info.json. Use get_metadata() instead."""
+        raise ProcessorError(
+            "getxattr() has been removed from URLDownloader. "
+            "Use get_metadata() to read cached download metadata."
+        )
+
     def prepare_base_curl_cmd(self) -> list[str]:
         """Assemble base curl command and return it."""
         curl_cmd = [
@@ -164,7 +171,9 @@ class URLDownloader(URLGetter):
         if os.path.exists(filename):
             metadata = self.get_metadata()
             file_size = metadata.get("file_size")
-            self.existing_file_size = file_size if file_size is not None else os.path.getsize(filename)
+            self.existing_file_size = (
+                file_size if file_size is not None else os.path.getsize(filename)
+            )
             if not self.env.get("CHECK_FILESIZE_ONLY"):
                 http_headers: dict[str, Any] = metadata.get("http_headers", {})
                 if etag := http_headers.get("ETag"):
