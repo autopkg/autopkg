@@ -274,7 +274,7 @@ class URLDownloader(URLGetter):
         pathname_info_json = self.env["pathname"] + ".info.json"
 
         try:
-            with open(pathname_info_json, "r") as infile:
+            with open(pathname_info_json, "r", encoding="utf-8") as infile:
                 metadata = json.load(infile)
             self.output("Reading metadata from Info JSON.", 2)
             self.output(f"Info JSON contents: {metadata}", 2)
@@ -409,11 +409,20 @@ class URLDownloader(URLGetter):
 
         metadata_str = json.dumps(metadata_dict, indent=4, sort_keys=True)
 
-        # Write metadata to file
+        # Write metadata atomically to avoid partial-write corruption
         self.output(f"Storing metadata to {pathname_info_json}")
         self.output(f"Metadata contents:\n{metadata_str}", verbose_level=2)
-        with open(pathname_info_json, "w") as outfile:
-            outfile.write(metadata_str)
+        dir_name = os.path.dirname(self.env["pathname"])
+        with tempfile.NamedTemporaryFile(
+            "w", dir=dir_name, delete=False, suffix=".tmp", encoding="utf-8"
+        ) as tmp:
+            tmp.write(metadata_str)
+            tmp_path = tmp.name
+        try:
+            os.replace(tmp_path, pathname_info_json)
+        except OSError:
+            os.remove(tmp_path)
+            raise
 
         # For backwards compatibility, set xattrs
         self.store_headers(header)

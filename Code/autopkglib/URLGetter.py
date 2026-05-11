@@ -70,7 +70,7 @@ class URLGetter(Processor):
         for item in self.env.get("curl_opts", []):
             curl_cmd.extend([item])
 
-    def produce_etag_headers(self, filename) -> NoReturn:
+    def produce_etag_headers(self) -> NoReturn:
         """Removed — now lives on URLDownloader."""
         raise ProcessorError(
             "produce_etag_headers() has moved to URLDownloader. "
