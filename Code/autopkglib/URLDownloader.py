@@ -158,17 +158,19 @@ class URLDownloader(URLGetter):
     def produce_etag_headers(self, filename) -> dict[str, str]:
         """Produce a dict of curl headers containing etag headers from the download."""
         headers = {}
-        # If the download file already exists, add some headers to the request
-        # so we don't retrieve the content if it hasn't changed
+        # If the download file already exists and CHECK_FILESIZE_ONLY is not
+        # set, add etag/last-modified headers so we skip re-downloading
+        # unchanged content.
         if os.path.exists(filename):
             metadata = self.get_metadata()
             file_size = metadata.get("file_size")
             self.existing_file_size = file_size if file_size is not None else os.path.getsize(filename)
-            http_headers: dict[str, Any] = metadata.get("http_headers", {})
-            if etag := http_headers.get("ETag"):
-                headers["If-None-Match"] = etag
-            if last_modified := http_headers.get("Last-Modified"):
-                headers["If-Modified-Since"] = last_modified
+            if not self.env.get("CHECK_FILESIZE_ONLY"):
+                http_headers: dict[str, Any] = metadata.get("http_headers", {})
+                if etag := http_headers.get("ETag"):
+                    headers["If-None-Match"] = etag
+                if last_modified := http_headers.get("Last-Modified"):
+                    headers["If-Modified-Since"] = last_modified
         return headers
 
     def clear_vars(self) -> None:
