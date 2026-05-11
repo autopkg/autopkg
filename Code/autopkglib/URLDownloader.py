@@ -16,9 +16,12 @@
 # limitations under the License.
 """See docstring for URLDownloader class"""
 
+import json
 import os.path
 import platform
 import tempfile
+from hashlib import md5, sha1, sha256
+from typing import Any, NoReturn
 
 from autopkglib import BUNDLE_ID, ProcessorError, xattr
 from autopkglib.URLGetter import URLGetter
@@ -93,6 +96,14 @@ class URLDownloader(URLGetter):
                 "this package or disk image."
             ),
         },
+        "COMPUTE_HASHES": {
+            "required": False,
+            "default": False,
+            "description": (
+                "Determine whether to compute md5, sha1, and sha256 hashes of "
+                "the downloaded file."
+            ),
+        },
     }
     output_variables = {
         "pathname": {"description": "Path to the downloaded file."},
@@ -111,12 +122,12 @@ class URLDownloader(URLGetter):
         },
     }
 
-    def getxattr(self, attr) -> str | None:
-        """Get a named xattr from a file. Return None if not present."""
-
-        if attr in xattr.listxattr(self.env["pathname"]):
-            return xattr.getxattr(self.env["pathname"], attr).decode()
-        return None
+    def getxattr(self, attr) -> NoReturn:
+        """Removed — metadata is now stored in .info.json. Use get_metadata() instead."""
+        raise ProcessorError(
+            "getxattr() has been removed from URLDownloader. "
+            "Use get_metadata() to read cached download metadata."
+        )
 
     def prepare_base_curl_cmd(self) -> list[str]:
         """Assemble base curl command and return it."""
@@ -149,8 +160,30 @@ class URLDownloader(URLGetter):
         self.add_curl_common_opts(curl_cmd)
         # Clear out a potentially zero-byte file
         self.clear_zero_file(self.env["pathname"])
-        self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.env["pathname"]))
+        self.add_curl_headers(curl_cmd, self.produce_etag_headers())
         return curl_cmd
+
+    def produce_etag_headers(self) -> dict[str, str]:
+        """Produce a dict of curl headers containing etag headers from the download."""
+        headers = {}
+        # If the download file already exists and CHECK_FILESIZE_ONLY is not
+        # set, add etag/last-modified headers so we skip re-downloading
+        # unchanged content.
+        if os.path.exists(self.env["pathname"]):
+            metadata = self.get_metadata()
+            file_size = metadata.get("file_size")
+            self.existing_file_size = (
+                file_size
+                if file_size is not None
+                else os.path.getsize(self.env["pathname"])
+            )
+            if not self.env.get("CHECK_FILESIZE_ONLY"):
+                http_headers: dict[str, Any] = metadata.get("http_headers", {})
+                if etag := http_headers.get("ETag"):
+                    headers["If-None-Match"] = etag
+                if last_modified := http_headers.get("Last-Modified"):
+                    headers["If-Modified-Since"] = last_modified
+        return headers
 
     def clear_vars(self) -> None:
         """Clear and initialize variables."""
@@ -166,6 +199,7 @@ class URLDownloader(URLGetter):
             self.xattr_etag = f"{BUNDLE_ID}.etag"
             self.xattr_last_modified = f"{BUNDLE_ID}.last-modified"
 
+        self.env["file_size"] = 0
         self.env["last_modified"] = ""
         self.env["etag"] = ""
         self.existing_file_size = None
@@ -237,6 +271,43 @@ class URLDownloader(URLGetter):
             except OSError as err:
                 raise ProcessorError(f"Can't create {download_dir}: {err.strerror}")
         return download_dir
+
+    def get_metadata(self) -> dict[str, Any]:
+        """Retrieve metadata from .info.json, or return empty dict if missing or unreadable."""
+        pathname_info_json = self.env["pathname"] + ".info.json"
+
+        try:
+            with open(pathname_info_json, "r", encoding="utf-8") as infile:
+                metadata = json.load(infile)
+            self.output("Reading metadata from Info JSON.", 2)
+            self.output(f"Info JSON contents: {metadata}", 2)
+            return metadata
+        except FileNotFoundError:
+            return {}
+        except (OSError, json.JSONDecodeError) as err:
+            self.output(
+                f"WARNING: Could not read {pathname_info_json} "
+                f"({type(err).__name__}): {err}. Continuing with empty metadata."
+            )
+            return {}
+
+    def compute_hashes(self) -> dict[str, str]:
+        """Compute and return SHA-1, SHA-256, and MD5 hashes of the downloaded file."""
+        sha1_hasher = sha1()
+        sha256_hasher = sha256()
+        md5_hasher = md5()
+
+        with open(self.env["pathname"], "rb") as infile:
+            for chunk in iter(lambda: infile.read(4096 * 100), b""):
+                sha1_hasher.update(chunk)
+                sha256_hasher.update(chunk)
+                md5_hasher.update(chunk)
+
+        return {
+            "sha1": sha1_hasher.hexdigest(),
+            "sha256": sha256_hasher.hexdigest(),
+            "md5": md5_hasher.hexdigest(),
+        }
 
     def create_temp_file(self, download_dir) -> str:
         """Create temporary file and return its path."""
@@ -315,6 +386,50 @@ class URLDownloader(URLGetter):
             )
             self.output(f"Storing new ETag header: {header.get('etag')}")
 
+    def store_metadata(self, header: dict[str, Any]) -> None:
+        """Write download metadata to .info.json and store xattrs for backward compatibility."""
+        pathname_info_json = self.env["pathname"] + ".info.json"
+
+        self.env["etag"] = header.get("etag", "")
+        self.env["file_size"] = os.path.getsize(self.env["pathname"])
+        self.env["last_modified"] = header.get("last-modified", "")
+
+        metadata_dict: dict[str, Any] = {
+            "download_url": self.env["url"],
+            "file_name": os.path.basename(self.env["pathname"]),
+            "file_size": self.env["file_size"],
+            "http_headers": {
+                "Content-Length": self.env["file_size"],
+                "ETag": self.env["etag"],
+                "Last-Modified": self.env["last_modified"],
+            },
+        }
+        if self.env.get("COMPUTE_HASHES", False):
+            hashes = self.compute_hashes()
+            metadata_dict["file_sha1"] = hashes["sha1"]
+            metadata_dict["file_sha256"] = hashes["sha256"]
+            metadata_dict["file_md5"] = hashes["md5"]
+
+        metadata_str = json.dumps(metadata_dict, indent=4, sort_keys=True)
+
+        # Write metadata atomically to avoid partial-write corruption
+        self.output(f"Storing metadata to {pathname_info_json}")
+        self.output(f"Metadata contents:\n{metadata_str}", verbose_level=2)
+        dir_name = os.path.dirname(self.env["pathname"])
+        with tempfile.NamedTemporaryFile(
+            "w", dir=dir_name, delete=False, suffix=".tmp", encoding="utf-8"
+        ) as tmp:
+            tmp.write(metadata_str)
+            tmp_path = tmp.name
+        try:
+            os.replace(tmp_path, pathname_info_json)
+        except OSError:
+            os.remove(tmp_path)
+            raise
+
+        # For backwards compatibility, set xattrs
+        self.store_headers(header)
+
     def main(self) -> None:
         # Clear and initialize data structures
         self.clear_vars()
@@ -345,7 +460,7 @@ class URLDownloader(URLGetter):
         self.move_temp_file(pathname_temporary)
 
         # Save last-modified and etag headers to files xattr
-        self.store_headers(header)
+        self.store_metadata(header)
 
         # Generate output messages and variables
         self.output(f"Downloaded {self.env['pathname']}")

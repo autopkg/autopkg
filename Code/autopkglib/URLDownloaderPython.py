@@ -206,7 +206,7 @@ class URLDownloaderPython(URLDownloader):
         pathname = self.env.get("pathname")
         pathname_info_json = pathname + ".info.json"
         # https://stackoverflow.com/questions/16267767/python-writing-json-to-file
-        with open(pathname_info_json, "w") as outfile:
+        with open(pathname_info_json, "w", encoding="utf-8") as outfile:
             json.dump(download_dictionary, outfile, indent=4)
             # add newline at end of file:
             outfile.write("\n")
@@ -217,7 +217,7 @@ class URLDownloaderPython(URLDownloader):
         pathname_info_json = pathname + ".info.json"
 
         try:
-            with open(pathname_info_json) as infile:
+            with open(pathname_info_json, encoding="utf-8") as infile:
                 info_json = json.load(infile)
         except FileNotFoundError as err:
             self.output(

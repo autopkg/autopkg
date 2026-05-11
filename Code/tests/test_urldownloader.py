@@ -285,7 +285,7 @@ class TestURLDownloader(unittest.TestCase):
                 self.skipTest("xattr not available on this platform")
 
         # Get etag headers - should work regardless of storage method
-        headers = self.processor.produce_etag_headers(test_file)
+        headers = self.processor.produce_etag_headers()
 
         self.assertEqual(headers["If-None-Match"], '"etag-value-123"')
         self.assertEqual(headers["If-Modified-Since"], "Wed, 03 Jan 2024 00:00:00 GMT")
@@ -297,7 +297,7 @@ class TestURLDownloader(unittest.TestCase):
         self.processor.env["pathname"] = test_file
         self.processor.clear_vars()
 
-        headers = self.processor.produce_etag_headers(test_file)
+        headers = self.processor.produce_etag_headers()
 
         self.assertEqual(headers, {})
 
@@ -338,7 +338,7 @@ class TestURLDownloader(unittest.TestCase):
             except Exception:
                 self.skipTest("xattr not available on this platform")
 
-        headers = self.processor.produce_etag_headers(test_file)
+        headers = self.processor.produce_etag_headers()
 
         self.assertEqual(headers["If-None-Match"], '"only-etag"')
         self.assertNotIn("If-Modified-Since", headers)
