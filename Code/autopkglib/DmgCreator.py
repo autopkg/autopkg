@@ -46,7 +46,8 @@ class DmgCreator(Processor):
         "dmg_filesystem": {
             "required": False,
             "description": (
-                f"The dmg filesystem. Defaults to {DEFAULT_DMG_FILESYSTEM}."
+                f"The dmg filesystem. Defaults to {DEFAULT_DMG_FILESYSTEM}. "
+                "Note: APFS requires macOS 10.13 or later to mount."
             ),
             "default": DEFAULT_DMG_FILESYSTEM,
         },
