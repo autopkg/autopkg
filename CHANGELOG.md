@@ -25,22 +25,29 @@ Backports the recipe map feature originally developed for the 3.x line. The reci
 
 **Implementation notes:**
 
-- Persisted files carry a `schema_version` field so future format changes trigger a clean rebuild rather than reading stale data.
-- Writes use `tempfile.mkstemp` + `os.replace` so concurrent autopkg invocations can't observe a half-written file.
 - When running as root (e.g. via `sudo autopkg`), redirecting the map path via env var or pref now emits a prominent warning. Ops teams should strip `AUTOPKG_*` from their sudoers `env_keep` if they don't want unprivileged callers to influence where autopkg writes.
-- YAML recipes are now parsed with `yaml.safe_load` (previously `yaml.FullLoader`). Recipes only use plain mappings of primitives, so no legitimate recipe is affected.
+- YAML recipes are now parsed with a more restrictive loader, improving safety given that the recipe map causes every recipe file in `RECIPE_SEARCH_DIRS` to be parsed during map builds.
 
-Fixes #869, #874, #886, #894, #901, #903, #908, #918.
+Fixes #869, #874, #884, #886, #893, #894, #898, #901, #903, #908, #918 (#1027).
+
+### URLDownloader metadata and hashing
+
+URLDownloader now persists download metadata — including ETag, Last-Modified, and file size — to a `.info.json` sidecar file alongside each downloaded file (#978, thanks to @MScottBlake). This improves reliability on filesystems and network volumes that don't support extended attributes (xattrs).
+
+A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand computation of MD5, SHA1, and SHA256 hashes of the downloaded file. When enabled, hash values are available as output variables in subsequent processors.
 
 ### Other
 
 - URLDownloader: `prefetch_filename` now includes `curl_common_opts` (e.g. `Authorization` request headers) in the HEAD request used to determine the filename, preventing prefetch failures on authenticated endpoints (#925, thanks to @n8felton)
-- Updated virtualenv to 20.36.1
-- Updated filelock to 3.20.3
+- Updated virtualenv to 20.36.1 (#1009)
+- Updated filelock to 3.20.3 (#1010)
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
 - Replace deprecated imp module with importlib
 - CodeSignatureVerifier now returns a ProcessorError if executed on a platform other than macOS
 - Improved testing automation by skipping macOS-only tests on Ubuntu and Windows
+- DmgCreator: default `dmg_filesystem` changed from `HFS+` to `APFS` and default `dmg_format` changed from `UDZO` to `ULFO` (lzfse compression) (#905, thanks to @erikng). Note that APFS requires macOS 10.13 or later to mount. If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly. `ULFO` and `ULMO` are now accepted as valid `dmg_format` values.
+- Reduced the likelihood that float-looking version strings in YAML recipes (e.g. `VERSION: 1.0`) will be silently coerced to a Python float instead of remaining a string, causing subtle inconsistencies compared to plist recipes (#1023).
+- Fixed `%key%` variable substitution raising a `TypeError` when the recipe environment contains non-string values (#1038, thanks to @jgstew).
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
