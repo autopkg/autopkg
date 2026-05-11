@@ -159,20 +159,22 @@ class URLDownloader(URLGetter):
         self.add_curl_common_opts(curl_cmd)
         # Clear out a potentially zero-byte file
         self.clear_zero_file(self.env["pathname"])
-        self.add_curl_headers(curl_cmd, self.produce_etag_headers(self.env["pathname"]))
+        self.add_curl_headers(curl_cmd, self.produce_etag_headers())
         return curl_cmd
 
-    def produce_etag_headers(self, filename) -> dict[str, str]:
+    def produce_etag_headers(self) -> dict[str, str]:
         """Produce a dict of curl headers containing etag headers from the download."""
         headers = {}
         # If the download file already exists and CHECK_FILESIZE_ONLY is not
         # set, add etag/last-modified headers so we skip re-downloading
         # unchanged content.
-        if os.path.exists(filename):
+        if os.path.exists(self.env["pathname"]):
             metadata = self.get_metadata()
             file_size = metadata.get("file_size")
             self.existing_file_size = (
-                file_size if file_size is not None else os.path.getsize(filename)
+                file_size
+                if file_size is not None
+                else os.path.getsize(self.env["pathname"])
             )
             if not self.env.get("CHECK_FILESIZE_ONLY"):
                 http_headers: dict[str, Any] = metadata.get("http_headers", {})
@@ -287,22 +289,13 @@ class URLDownloader(URLGetter):
             return {}
 
     def compute_hashes(self) -> dict[str, str]:
-        """
-        Computes cryptographic hash values (SHA-1, SHA-256, and MD5) for the file located at
-        the current environment's pathname.
-
-        This method reads the file in chunks (4KB at a time) to efficiently handle large files
-        without excessive memory usage. Hashes are computed concurrently for:
-        - SHA-1
-        - SHA-256
-        - MD5
-        """
+        """Compute and return SHA-1, SHA-256, and MD5 hashes of the downloaded file."""
         sha1_hasher = sha1()
         sha256_hasher = sha256()
         md5_hasher = md5()
 
         with open(self.env["pathname"], "rb") as infile:
-            for chunk in iter(lambda: infile.read(4096), b""):
+            for chunk in iter(lambda: infile.read(4096 * 100), b""):
                 sha1_hasher.update(chunk)
                 sha256_hasher.update(chunk)
                 md5_hasher.update(chunk)
@@ -417,7 +410,8 @@ class URLDownloader(URLGetter):
         metadata_str = json.dumps(metadata_dict, indent=4, sort_keys=True)
 
         # Write metadata to file
-        self.output(f"Storing metadata:\n{metadata_str}")
+        self.output(f"Storing metadata to {pathname_info_json}")
+        self.output(f"Metadata contents:\n{metadata_str}", verbose_level=2)
         with open(pathname_info_json, "w") as outfile:
             outfile.write(metadata_str)
 
