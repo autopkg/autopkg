@@ -1124,9 +1124,9 @@ def update_data(a_dict, key, value) -> None:
     """Update a_dict keys with value. Existing data can be referenced
     by wrapping the key in %percent% signs."""
 
-    def getdata(match) -> Any:
-        """Returns data from a match object"""
-        return a_dict[match.group("key")]
+    def getdata(match) -> str:
+        """Returns data from a match object, coerced to str for substitution."""
+        return str(a_dict[match.group("key")])
 
     def do_variable_substitution(item) -> Any:
         """Do variable substitution for item"""
