@@ -162,7 +162,8 @@ class URLDownloader(URLGetter):
         # so we don't retrieve the content if it hasn't changed
         if os.path.exists(filename):
             metadata = self.get_metadata()
-            self.existing_file_size = metadata.get("file_size", 0)
+            file_size = metadata.get("file_size")
+            self.existing_file_size = file_size if file_size is not None else os.path.getsize(filename)
             http_headers: dict[str, Any] = metadata.get("http_headers", {})
             if etag := http_headers.get("ETag"):
                 headers["If-None-Match"] = etag
