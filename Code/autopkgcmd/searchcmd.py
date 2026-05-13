@@ -117,10 +117,11 @@ def check_search_cache(cache_path: str) -> None:
         "retrieval (100 MB). Please open an issue here if one was not already "
         "created: https://github.com/autopkg/autopkg/issues"
     )
-    if cache_meta["size"] > (90 * 1024 * 1024):
-        log_err(search_index_size_msg % "nearing")
-    elif cache_meta["size"] > (100 * 1024 * 1024):
+    cache_size = cache_meta.get("size", 0)
+    if cache_size > (100 * 1024 * 1024):
         log_err(search_index_size_msg % "greater than")
+    elif cache_size > (90 * 1024 * 1024):
+        log_err(search_index_size_msg % "nearing")
 
     # If cache exists locally, check whether it's current
     if os.path.isfile(cache_path) and os.path.isfile(cache_path + ".etag"):
