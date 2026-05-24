@@ -603,12 +603,9 @@ class TestSearchCmd(unittest.TestCase):
             stdout_output = mock_stdout.getvalue()
             stderr_output = mock_stderr.getvalue()
 
-        # Should warn about exceeding limit (note: due to elif, this actually
-        # shows "nearing" instead of "greater than" - see searchcmd.py:115-117)
         combined_output = stdout_output + stderr_output
         self.assertIn("WARNING", combined_output)
-        # Due to the elif logic, size > 100MB will show "nearing" not "greater than"
-        self.assertIn("nearing", combined_output)
+        self.assertIn("greater than", combined_output)
 
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.path.isfile")
