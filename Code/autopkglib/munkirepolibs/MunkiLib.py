@@ -1,4 +1,5 @@
 import os
+import plistlib
 import sys
 from urllib.parse import urlparse
 
@@ -59,6 +60,12 @@ class MunkiLib:
             return self._full_path(path)
 
         return None
+
+    def put_pkginfo_to_repo(self, pkginfo, pkginfo_path) -> None:
+        """Updates an existing pkginfo file in the repo via the repo plugin."""
+        relative_path = os.path.relpath(pkginfo_path, self.munki_repo)
+        content = plistlib.dumps(pkginfo)
+        self.repo.put(relative_path, content)
 
     def extract_and_copy_icon_to_repo(
         self, pkg_path, pkginfo, import_multiple=True

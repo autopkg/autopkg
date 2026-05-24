@@ -215,3 +215,13 @@ class AutoPkgLib:
                 f"Could not write pkginfo {pkginfo_path}: {err.strerror}"
             )
         return pkginfo_path
+
+    def put_pkginfo_to_repo(self, pkginfo, pkginfo_path) -> None:
+        """Updates an existing pkginfo file in the repo."""
+        try:
+            with open(pkginfo_path, "wb") as f:
+                plistlib.dump(pkginfo, f)
+        except OSError as err:
+            raise ProcessorError(
+                f"Could not write pkginfo {pkginfo_path}: {err.strerror}"
+            )
