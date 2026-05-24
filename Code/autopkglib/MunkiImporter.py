@@ -21,7 +21,7 @@ import subprocess
 from datetime import datetime
 
 from autopkglib import Processor, ProcessorError
-from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
+from autopkglib.munkirepolibs import fetch_repo_library
 from autopkglib.munkirepolibs.MunkiLib import MunkiLib
 
 __all__ = ["MunkiImporter"]
@@ -154,21 +154,6 @@ class MunkiImporter(Processor):
         },
     }
 
-    def _fetch_repo_library(
-        self,
-        munki_repo,
-        munki_repo_plugin,
-        munkilib_dir,
-        repo_subdirectory,
-        force_munki_lib,
-    ):
-        if munki_repo_plugin == "FileRepo" and not force_munki_lib:
-            return AutoPkgLib(munki_repo, repo_subdirectory)
-        else:
-            return MunkiLib(
-                munki_repo, munki_repo_plugin, munkilib_dir, repo_subdirectory
-            )
-
     def _find_matching_pkginfo(self, repo_library, pkginfo):
         """Looks through all catalog for items matching the one
         described by pkginfo. Returns a list of matching items if found."""
@@ -294,7 +279,7 @@ class MunkiImporter(Processor):
         return None
 
     def main(self) -> None:
-        library = self._fetch_repo_library(
+        library = fetch_repo_library(
             self.env["MUNKI_REPO"],
             self.env["MUNKI_REPO_PLUGIN"],
             self.env["MUNKILIB_DIR"],
