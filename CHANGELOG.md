@@ -38,10 +38,15 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 
 ### Other
 
+- PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
+- MunkiOptionalReceiptEditor now routes pkginfo updates through the Munki repo plugin API, fixing silent data loss when using `GitFileRepo` or other non-filesystem repo plugins (#1031)
+- `make-override --format` can now be set globally via the `RECIPE_OVERRIDE_FORMAT` preference, so you don't need to pass `--format yaml` on every invocation (#1024)
 - URLDownloader: `prefetch_filename` now includes `curl_common_opts` (e.g. `Authorization` request headers) in the HEAD request used to determine the filename, preventing prefetch failures on authenticated endpoints (#925, thanks to @n8felton)
 - Updated virtualenv to 20.36.1 (#1009)
 - Updated filelock to 3.20.3 (#1010)
+- Updated lxml to 6.1.0
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
+- Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039)
 - Replace deprecated imp module with importlib
 - CodeSignatureVerifier now returns a ProcessorError if executed on a platform other than macOS
 - Improved testing automation by skipping macOS-only tests on Ubuntu and Windows
