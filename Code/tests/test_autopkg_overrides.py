@@ -136,6 +136,160 @@ class TestAutoPkgOverrides(unittest.TestCase):
             # Should log a warning
             mock_log_err.assert_called_once()
 
+    def test_find_scripts_dir_path_none_input(self):
+        """find_scripts_dir_path returns None for None or empty scripts_dir."""
+        self.assertIsNone(autopkg.find_scripts_dir_path(None, {}))
+        self.assertIsNone(autopkg.find_scripts_dir_path("", {}))
+
+    def test_find_scripts_dir_path_absolute(self):
+        """find_scripts_dir_path returns normalized path for existing absolute dir."""
+        scripts_dir = os.path.join(self.tmp_dir.name, "Scripts")
+        os.makedirs(scripts_dir)
+        result = autopkg.find_scripts_dir_path(scripts_dir, {})
+        self.assertEqual(result, os.path.normpath(scripts_dir))
+
+    def test_find_scripts_dir_path_absolute_missing(self):
+        """find_scripts_dir_path returns None for non-existent absolute dir."""
+        result = autopkg.find_scripts_dir_path("/no/such/dir", {})
+        self.assertIsNone(result)
+
+    def test_find_scripts_dir_path_relative_in_recipe_dir(self):
+        """find_scripts_dir_path finds scripts dir relative to recipe dir."""
+        recipe_dir = os.path.join(self.tmp_dir.name, "repo")
+        scripts_dir = os.path.join(recipe_dir, "Scripts")
+        os.makedirs(scripts_dir)
+        recipe = {"RECIPE_PATH": os.path.join(recipe_dir, "Test.recipe")}
+        result = autopkg.find_scripts_dir_path("Scripts", recipe)
+        self.assertEqual(result, os.path.normpath(scripts_dir))
+
+    def test_find_scripts_dir_path_relative_in_parent_recipe_dir(self):
+        """find_scripts_dir_path finds scripts dir relative to parent recipe dir."""
+        recipe_dir = os.path.join(self.tmp_dir.name, "override")
+        parent_dir = os.path.join(self.tmp_dir.name, "parent")
+        scripts_dir = os.path.join(parent_dir, "Scripts")
+        os.makedirs(recipe_dir)
+        os.makedirs(scripts_dir)
+        recipe = {
+            "RECIPE_PATH": os.path.join(recipe_dir, "Test.recipe"),
+            "PARENT_RECIPES": [os.path.join(parent_dir, "Parent.recipe")],
+        }
+        result = autopkg.find_scripts_dir_path("Scripts", recipe)
+        self.assertEqual(result, os.path.normpath(scripts_dir))
+
+    def test_find_scripts_dir_path_relative_not_found(self):
+        """find_scripts_dir_path returns None when relative dir not found."""
+        recipe_dir = os.path.join(self.tmp_dir.name, "repo")
+        os.makedirs(recipe_dir)
+        recipe = {"RECIPE_PATH": os.path.join(recipe_dir, "Test.recipe")}
+        result = autopkg.find_scripts_dir_path("NoSuchDir", recipe)
+        self.assertIsNone(result)
+
+    def test_find_scripts_dir_path_no_recipe(self):
+        """find_scripts_dir_path returns None when recipe is None."""
+        self.assertIsNone(autopkg.find_scripts_dir_path("Scripts", None))
+
+    def test_get_trust_info_pkgcreator_scripts(self):
+        """Test get_trust_info captures preinstall/postinstall script trust data."""
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/test.recipe",
+            "PARENT_RECIPES": [],
+            "Process": [
+                {"Processor": "URLDownloader"},
+                {
+                    "Processor": "PkgCreator",
+                    "Arguments": {"pkg_request": {"scripts": "Scripts"}},
+                },
+            ],
+        }
+
+        with (
+            patch.object(autopkg, "getsha256hash") as mock_hash,
+            patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_identifier") as mock_get_identifier,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch.object(autopkg, "find_scripts_dir_path") as mock_find_scripts_dir,
+            patch.object(autopkg, "os_path_compressuser") as mock_compress,
+            patch("autopkg.os.path.isfile") as mock_isfile,
+        ):
+            mock_hash.side_effect = ["recipe_hash", "pre_hash", "post_hash"]
+            mock_git_hash.side_effect = ["recipe_git", "pre_git", "post_git"]
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_identifier.return_value = "com.test.recipe"
+            mock_core_processors.return_value = ["URLDownloader", "PkgCreator"]
+            mock_find_scripts_dir.return_value = "/path/to/Scripts"
+            mock_compress.side_effect = lambda x: x
+            mock_isfile.side_effect = lambda p: (
+                p
+                in {
+                    "/path/to/Scripts/preinstall",
+                    "/path/to/Scripts/postinstall",
+                }
+            )
+
+            result = autopkg.get_trust_info(mock_recipe)
+
+            self.assertIn("scripts", result)
+            self.assertIn("Scripts/preinstall", result["scripts"])
+            self.assertIn("Scripts/postinstall", result["scripts"])
+            self.assertEqual(
+                result["scripts"]["Scripts/preinstall"]["sha256_hash"],
+                "pre_hash",
+            )
+            self.assertEqual(
+                result["scripts"]["Scripts/preinstall"]["path"],
+                "/path/to/Scripts/preinstall",
+            )
+            self.assertEqual(
+                result["scripts"]["Scripts/postinstall"]["sha256_hash"],
+                "post_hash",
+            )
+            self.assertEqual(
+                result["scripts"]["Scripts/postinstall"]["path"],
+                "/path/to/Scripts/postinstall",
+            )
+
+    def test_get_trust_info_pkgcreator_scripts_dedupes_same_path(self):
+        """Test get_trust_info dedupes scripts used by multiple PkgCreator steps."""
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/test.recipe",
+            "PARENT_RECIPES": [],
+            "Process": [
+                {
+                    "Processor": "PkgCreator",
+                    "Arguments": {"pkg_request": {"scripts": "Scripts"}},
+                },
+                {
+                    "Processor": "PkgCreator",
+                    "Arguments": {"pkg_request": {"scripts": "Scripts"}},
+                },
+            ],
+        }
+
+        with (
+            patch.object(autopkg, "getsha256hash") as mock_hash,
+            patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_identifier") as mock_get_identifier,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch.object(autopkg, "find_scripts_dir_path") as mock_find_scripts_dir,
+            patch.object(autopkg, "os_path_compressuser") as mock_compress,
+            patch("autopkg.os.path.isfile") as mock_isfile,
+        ):
+            mock_hash.return_value = "hash"
+            mock_git_hash.return_value = "git_hash"
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_identifier.return_value = "com.test.recipe"
+            mock_core_processors.return_value = []
+            mock_find_scripts_dir.return_value = "/path/to/Scripts"
+            mock_compress.side_effect = lambda x: x
+            mock_isfile.side_effect = lambda p: p == "/path/to/Scripts/preinstall"
+
+            result = autopkg.get_trust_info(mock_recipe)
+
+            self.assertEqual(len(result["scripts"]), 1)
+            self.assertIn("Scripts/preinstall", result["scripts"])
+
     def test_verify_parent_trust_no_trust_info_override(self):
         """Test verify_parent_trust with no trust info in override recipe."""
         mock_recipe = {
@@ -247,6 +401,94 @@ class TestAutoPkgOverrides(unittest.TestCase):
                 autopkg.verify_parent_trust(mock_recipe, ["/overrides"], ["/recipes"])
 
             self.assertIn("TestProcessor contents differ", str(context.exception))
+
+    def test_verify_parent_trust_mismatched_script_hash(self):
+        """Test verify_parent_trust with mismatched script hash."""
+        mock_recipe = {
+            "RECIPE_PATH": "/overrides/test.recipe",
+            "ParentRecipe": "com.test.parent",
+            "ParentRecipeTrustInfo": {
+                "non_core_processors": {},
+                "scripts": {
+                    "Scripts/preinstall": {
+                        "path": "/path/to/Scripts/preinstall",
+                        "sha256_hash": "old_hash",
+                    }
+                },
+                "parent_recipes": {},
+            },
+        }
+
+        with (
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "recipe_from_external_repo") as mock_external,
+            patch.object(autopkg, "get_pref") as mock_get_pref,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_trust_info") as mock_get_trust_info,
+        ):
+            mock_in_override.return_value = True
+            mock_external.return_value = False
+            mock_get_pref.return_value = "~/Library/AutoPkg/RecipeRepos"
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_trust_info.return_value = {
+                "non_core_processors": {},
+                "scripts": {
+                    "Scripts/preinstall": {
+                        "path": "/path/to/Scripts/preinstall",
+                        "sha256_hash": "new_hash",
+                    }
+                },
+                "parent_recipes": {},
+            }
+
+            with self.assertRaises(autopkg.TrustVerificationError) as context:
+                autopkg.verify_parent_trust(mock_recipe, ["/overrides"], ["/recipes"])
+
+            self.assertIn(
+                "Script Scripts/preinstall contents differ",
+                str(context.exception),
+            )
+
+    def test_verify_parent_trust_legacy_trust_info_warns_for_scripts(self):
+        """Test older trust info warns (not errors) when scripts now exist."""
+        mock_recipe = {
+            "RECIPE_PATH": "/overrides/test.recipe",
+            "ParentRecipe": "com.test.parent",
+            "ParentRecipeTrustInfo": {
+                "non_core_processors": {},
+                "parent_recipes": {},
+            },
+        }
+
+        with (
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "recipe_from_external_repo") as mock_external,
+            patch.object(autopkg, "get_pref") as mock_get_pref,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_trust_info") as mock_get_trust_info,
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
+            mock_in_override.return_value = True
+            mock_external.return_value = False
+            mock_get_pref.return_value = "~/Library/AutoPkg/RecipeRepos"
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_trust_info.return_value = {
+                "non_core_processors": {},
+                "scripts": {
+                    "Scripts/preinstall": {
+                        "path": "/path/to/Scripts/preinstall",
+                        "sha256_hash": "new_hash",
+                    }
+                },
+                "parent_recipes": {},
+            }
+
+            autopkg.verify_parent_trust(mock_recipe, ["/overrides"], ["/recipes"])
+
+            mock_log_err.assert_called_once()
+            warning_msg = mock_log_err.call_args[0][0]
+            self.assertIn("Scripts/preinstall", warning_msg)
+            self.assertIn("3.0.1", warning_msg)
 
     @patch("sys.argv", ["autopkg", "update-trust-info", "test.recipe"])
     def test_update_trust_info_success(self):

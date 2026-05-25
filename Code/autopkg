@@ -1577,6 +1577,35 @@ def find_processor_path(processor_name, recipe, env=None):
     return None
 
 
+def find_scripts_dir_path(scripts_dir, recipe):
+    """Returns the pathname to a PkgCreator scripts directory.
+
+    NOTE: If multiple parent recipes each contain a subdirectory matching
+    scripts_dir, only the first one found is returned.  This means two
+    PkgCreator steps that specify the same relative scripts directory but
+    originate from different parent recipes will silently resolve to the
+    same path.  Fixing this would require associating each Process step
+    with the recipe it came from during recipe flattening.
+    """
+    if not scripts_dir:
+        return None
+    if os.path.isabs(scripts_dir) and os.path.isdir(scripts_dir):
+        return os.path.normpath(scripts_dir)
+    if recipe:
+        recipe_dir = os.path.dirname(recipe["RECIPE_PATH"])
+        scripts_search_dirs = [recipe_dir]
+        if recipe.get("PARENT_RECIPES"):
+            parent_recipe_dirs = list(
+                {os.path.dirname(item) for item in recipe["PARENT_RECIPES"]}
+            )
+            scripts_search_dirs.extend(parent_recipe_dirs)
+        for directory in scripts_search_dirs:
+            scripts_path = os.path.join(directory, scripts_dir)
+            if os.path.isdir(scripts_path):
+                return os.path.normpath(scripts_path)
+    return None
+
+
 def os_path_compressuser(pathname):
     """Sort of the inverse of os.path.expanduser"""
     home_dir = os.path.expanduser("~")
@@ -1629,9 +1658,33 @@ def get_trust_info(recipe, search_dirs=None):
         if git_hash:
             non_core_processor_hashes[processor]["git_hash"] = git_hash
 
+    # generate hashes for preinstall/postinstall scripts used by PkgCreator
+    script_hashes = {}
+    for step in recipe.get("Process", []):
+        if step.get("Processor") != "PkgCreator":
+            continue
+        scripts_dir = step.get("Arguments", {}).get("pkg_request", {}).get("scripts")
+        scripts_path = find_scripts_dir_path(scripts_dir, recipe)
+        if not scripts_path:
+            continue
+        for script_name in ("preinstall", "postinstall"):
+            script_path = os.path.join(scripts_path, script_name)
+            if not os.path.isfile(script_path):
+                continue
+            script_key = os.path.join(scripts_dir, script_name)
+            script_hash = getsha256hash(script_path)
+            git_hash = get_git_commit_hash(script_path)
+            script_hashes[script_key] = {
+                "path": os_path_compressuser(script_path),
+                "sha256_hash": script_hash,
+            }
+            if git_hash:
+                script_hashes[script_key]["git_hash"] = git_hash
+
     # return a dictionary containing the hashes we generated
     return {
         "non_core_processors": non_core_processor_hashes,
+        "scripts": script_hashes,
         "parent_recipes": parent_recipe_hashes,
     }
 
@@ -1851,6 +1904,39 @@ def verify_parent_trust(recipe, override_dirs, search_dirs, verbosity=0):
             processor_path = find_processor_path(processor, recipe)
             if processor_path:
                 trust_errors += f"    Path: {processor_path}\n"
+
+    # get detail on scripts
+    expected_scripts = expected_trust_info.get("scripts", {})
+    actual_scripts = actual_trust_info.get("scripts", {})
+    expected_script_keys = set(expected_scripts.keys())
+    actual_script_keys = set(actual_scripts.keys())
+    for script_key in expected_script_keys:
+        expected_hash = expected_scripts[script_key]["sha256_hash"]
+        git_hash = expected_scripts[script_key].get("git_hash")
+        script_path = expected_scripts[script_key].get("path", "")
+        actual_script = actual_scripts.get(script_key, {})
+        actual_hash = actual_script.get("sha256_hash")
+        if expected_hash != actual_hash:
+            if actual_script:
+                trust_errors += f"Script {script_key} contents differ from expected.\n"
+            else:
+                trust_errors += f"Expected script {script_key} can't be found.\n"
+            if script_path:
+                trust_errors += f"    Path: {script_path}\n"
+            if verbosity > 1 and git_hash and script_path:
+                trust_errors += get_git_diff(script_path, git_hash)
+                trust_errors += get_git_log(script_path, git_hash)
+                trust_errors += "\n"
+    for script_key in actual_script_keys:
+        if script_key not in expected_script_keys:
+            script_path = actual_scripts[script_key].get("path", "")
+            log_err(
+                f"WARNING: Script trust info missing for {script_key}.\n"
+                f"    Path: {script_path}\n"
+                f"    Run `autopkg update-trust-info` to add script trust info.\n"
+                f"    Starting in AutoPkg 3.0.1, this will be a trust verification "
+                f"error."
+            )
 
     # get detail on parent_recipes
     expected_parent_recipes = list(expected_trust_info["parent_recipes"].keys())
