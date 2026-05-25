@@ -477,6 +477,8 @@ class Packager:
                 cmd.extend(["--info", self.request["infofile"]])
             if self.request["scripts"]:
                 cmd.extend(["--scripts", self.request["scripts"]])
+            if self.request.get("pkgbuild_args"):
+                cmd.extend(self.request["pkgbuild_args"])
             cmd.append(temppkgpath)
 
             # Execute pkgbuild.
