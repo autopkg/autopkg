@@ -1688,7 +1688,8 @@ def get_trust_info(recipe, search_dirs=None):
                 if tracked_files is not None and script_path not in tracked_files:
                     continue
                 script_key = os.path.join(
-                    scripts_dir, os.path.relpath(script_path, scripts_path)
+                    os.path.normpath(scripts_dir),
+                    os.path.relpath(script_path, scripts_path),
                 )
                 if script_key in script_hashes:
                     continue
