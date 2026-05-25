@@ -1606,6 +1606,20 @@ def find_scripts_dir_path(scripts_dir, recipe):
     return None
 
 
+def get_git_tracked_files(dirpath):
+    """Return the set of absolute paths of git-tracked files under dirpath,
+    or None if dirpath is not inside a git working tree."""
+    try:
+        output = run_git(["ls-files", "-z"], git_directory=dirpath)
+    except GitError:
+        return None
+    return {
+        os.path.normpath(os.path.join(dirpath, entry))
+        for entry in output.split("\0")
+        if entry
+    }
+
+
 def os_path_compressuser(pathname):
     """Sort of the inverse of os.path.expanduser"""
     home_dir = os.path.expanduser("~")
@@ -1658,7 +1672,7 @@ def get_trust_info(recipe, search_dirs=None):
         if git_hash:
             non_core_processor_hashes[processor]["git_hash"] = git_hash
 
-    # generate hashes for preinstall/postinstall scripts used by PkgCreator
+    # generate hashes for all files in PkgCreator scripts directories
     script_hashes = {}
     for step in recipe.get("Process", []):
         if step.get("Processor") != "PkgCreator":
@@ -1667,19 +1681,25 @@ def get_trust_info(recipe, search_dirs=None):
         scripts_path = find_scripts_dir_path(scripts_dir, recipe)
         if not scripts_path:
             continue
-        for script_name in ("preinstall", "postinstall"):
-            script_path = os.path.join(scripts_path, script_name)
-            if not os.path.isfile(script_path):
-                continue
-            script_key = os.path.join(scripts_dir, script_name)
-            script_hash = getsha256hash(script_path)
-            git_hash = get_git_commit_hash(script_path)
-            script_hashes[script_key] = {
-                "path": os_path_compressuser(script_path),
-                "sha256_hash": script_hash,
-            }
-            if git_hash:
-                script_hashes[script_key]["git_hash"] = git_hash
+        tracked_files = get_git_tracked_files(scripts_path)
+        for dirpath, _, filenames in os.walk(scripts_path):
+            for filename in sorted(filenames):
+                script_path = os.path.normpath(os.path.join(dirpath, filename))
+                if tracked_files is not None and script_path not in tracked_files:
+                    continue
+                script_key = os.path.join(
+                    scripts_dir, os.path.relpath(script_path, scripts_path)
+                )
+                if script_key in script_hashes:
+                    continue
+                script_hash = getsha256hash(script_path)
+                git_hash = get_git_commit_hash(script_path)
+                script_hashes[script_key] = {
+                    "path": os_path_compressuser(script_path),
+                    "sha256_hash": script_hash,
+                }
+                if git_hash:
+                    script_hashes[script_key]["git_hash"] = git_hash
 
     # return a dictionary containing the hashes we generated
     return {

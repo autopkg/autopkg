@@ -189,7 +189,7 @@ class TestAutoPkgOverrides(unittest.TestCase):
         self.assertIsNone(autopkg.find_scripts_dir_path("Scripts", None))
 
     def test_get_trust_info_pkgcreator_scripts(self):
-        """Test get_trust_info captures preinstall/postinstall script trust data."""
+        """Test get_trust_info captures all files in the scripts directory."""
         mock_recipe = {
             "RECIPE_PATH": "/path/to/test.recipe",
             "PARENT_RECIPES": [],
@@ -205,48 +205,50 @@ class TestAutoPkgOverrides(unittest.TestCase):
         with (
             patch.object(autopkg, "getsha256hash") as mock_hash,
             patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "get_git_tracked_files") as mock_tracked,
             patch.object(autopkg, "load_recipe") as mock_load_recipe,
             patch.object(autopkg, "get_identifier") as mock_get_identifier,
             patch.object(autopkg, "core_processor_names") as mock_core_processors,
             patch.object(autopkg, "find_scripts_dir_path") as mock_find_scripts_dir,
             patch.object(autopkg, "os_path_compressuser") as mock_compress,
-            patch("autopkg.os.path.isfile") as mock_isfile,
+            patch("autopkg.os.walk") as mock_walk,
         ):
-            mock_hash.side_effect = ["recipe_hash", "pre_hash", "post_hash"]
-            mock_git_hash.side_effect = ["recipe_git", "pre_git", "post_git"]
+            mock_walk.return_value = [
+                ("/path/to/Scripts", [], ["helper.sh", "postinstall", "preinstall"]),
+            ]
+            mock_tracked.return_value = None
+            mock_hash.side_effect = [
+                "recipe_hash",
+                "helper_hash",
+                "post_hash",
+                "pre_hash",
+            ]
+            mock_git_hash.side_effect = [
+                "recipe_git",
+                "helper_git",
+                "post_git",
+                "pre_git",
+            ]
             mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
             mock_get_identifier.return_value = "com.test.recipe"
             mock_core_processors.return_value = ["URLDownloader", "PkgCreator"]
             mock_find_scripts_dir.return_value = "/path/to/Scripts"
             mock_compress.side_effect = lambda x: x
-            mock_isfile.side_effect = lambda p: (
-                p
-                in {
-                    "/path/to/Scripts/preinstall",
-                    "/path/to/Scripts/postinstall",
-                }
-            )
 
             result = autopkg.get_trust_info(mock_recipe)
 
             self.assertIn("scripts", result)
+            self.assertEqual(len(result["scripts"]), 3)
             self.assertIn("Scripts/preinstall", result["scripts"])
             self.assertIn("Scripts/postinstall", result["scripts"])
+            self.assertIn("Scripts/helper.sh", result["scripts"])
+            self.assertEqual(
+                result["scripts"]["Scripts/helper.sh"]["sha256_hash"],
+                "helper_hash",
+            )
             self.assertEqual(
                 result["scripts"]["Scripts/preinstall"]["sha256_hash"],
                 "pre_hash",
-            )
-            self.assertEqual(
-                result["scripts"]["Scripts/preinstall"]["path"],
-                "/path/to/Scripts/preinstall",
-            )
-            self.assertEqual(
-                result["scripts"]["Scripts/postinstall"]["sha256_hash"],
-                "post_hash",
-            )
-            self.assertEqual(
-                result["scripts"]["Scripts/postinstall"]["path"],
-                "/path/to/Scripts/postinstall",
             )
 
     def test_get_trust_info_pkgcreator_scripts_dedupes_same_path(self):
@@ -269,13 +271,18 @@ class TestAutoPkgOverrides(unittest.TestCase):
         with (
             patch.object(autopkg, "getsha256hash") as mock_hash,
             patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "get_git_tracked_files") as mock_tracked,
             patch.object(autopkg, "load_recipe") as mock_load_recipe,
             patch.object(autopkg, "get_identifier") as mock_get_identifier,
             patch.object(autopkg, "core_processor_names") as mock_core_processors,
             patch.object(autopkg, "find_scripts_dir_path") as mock_find_scripts_dir,
             patch.object(autopkg, "os_path_compressuser") as mock_compress,
-            patch("autopkg.os.path.isfile") as mock_isfile,
+            patch("autopkg.os.walk") as mock_walk,
         ):
+            mock_walk.return_value = [
+                ("/path/to/Scripts", [], ["preinstall"]),
+            ]
+            mock_tracked.return_value = None
             mock_hash.return_value = "hash"
             mock_git_hash.return_value = "git_hash"
             mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
@@ -283,12 +290,61 @@ class TestAutoPkgOverrides(unittest.TestCase):
             mock_core_processors.return_value = []
             mock_find_scripts_dir.return_value = "/path/to/Scripts"
             mock_compress.side_effect = lambda x: x
-            mock_isfile.side_effect = lambda p: p == "/path/to/Scripts/preinstall"
 
             result = autopkg.get_trust_info(mock_recipe)
 
             self.assertEqual(len(result["scripts"]), 1)
             self.assertIn("Scripts/preinstall", result["scripts"])
+
+    def test_get_trust_info_skips_untracked_scripts_in_git_repo(self):
+        """Test get_trust_info skips untracked files when scripts dir is in a git repo."""
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/test.recipe",
+            "PARENT_RECIPES": [],
+            "Process": [
+                {
+                    "Processor": "PkgCreator",
+                    "Arguments": {"pkg_request": {"scripts": "Scripts"}},
+                },
+            ],
+        }
+
+        with (
+            patch.object(autopkg, "getsha256hash") as mock_hash,
+            patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "get_git_tracked_files") as mock_tracked,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_identifier") as mock_get_identifier,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch.object(autopkg, "find_scripts_dir_path") as mock_find_scripts_dir,
+            patch.object(autopkg, "os_path_compressuser") as mock_compress,
+            patch("autopkg.os.walk") as mock_walk,
+        ):
+            mock_walk.return_value = [
+                (
+                    "/path/to/Scripts",
+                    [],
+                    [".DS_Store", "postinstall", "preinstall"],
+                ),
+            ]
+            mock_tracked.return_value = {
+                "/path/to/Scripts/preinstall",
+                "/path/to/Scripts/postinstall",
+            }
+            mock_hash.side_effect = ["recipe_hash", "post_hash", "pre_hash"]
+            mock_git_hash.side_effect = ["recipe_git", "post_git", "pre_git"]
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_identifier.return_value = "com.test.recipe"
+            mock_core_processors.return_value = []
+            mock_find_scripts_dir.return_value = "/path/to/Scripts"
+            mock_compress.side_effect = lambda x: x
+
+            result = autopkg.get_trust_info(mock_recipe)
+
+            self.assertEqual(len(result["scripts"]), 2)
+            self.assertIn("Scripts/preinstall", result["scripts"])
+            self.assertIn("Scripts/postinstall", result["scripts"])
+            self.assertNotIn("Scripts/.DS_Store", result["scripts"])
 
     def test_verify_parent_trust_no_trust_info_override(self):
         """Test verify_parent_trust with no trust info in override recipe."""
