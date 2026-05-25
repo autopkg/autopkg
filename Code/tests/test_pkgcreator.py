@@ -42,6 +42,7 @@ class TestPkgCreator(unittest.TestCase):
                 "infofile": "",
                 "scripts": "",
                 "chown": [],
+                "pkgbuild_args": [],
             },
             "RECIPE_CACHE_DIR": self.tmp_dir.name,
             "RECIPE_DIR": self.tmp_dir.name,
@@ -376,6 +377,39 @@ class TestPkgCreator(unittest.TestCase):
         self.assertIn("summary_text", summary)
         self.assertIn("data", summary)
         self.assertEqual(summary["data"]["pkg_path"], pkg_path)
+
+    def test_fills_in_default_pkgbuild_args(self):
+        """The processor should default pkgbuild_args to empty list."""
+        self.processor.env = deepcopy(self.minimal_env)
+
+        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+            self.processor.main()
+
+        request = self.processor.env["pkg_request"]
+        self.assertEqual(request["pkgbuild_args"], [])
+
+    def test_pkgbuild_args_from_env(self):
+        """The processor should use pkgbuild_args from env if not in request."""
+        self.processor.env = deepcopy(self.minimal_env)
+        self.processor.env["pkgbuild_args"] = ["--filter", ".git"]
+
+        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+            self.processor.main()
+
+        request = self.processor.env["pkg_request"]
+        self.assertEqual(request["pkgbuild_args"], ["--filter", ".git"])
+
+    def test_pkgbuild_args_in_request_not_overridden(self):
+        """pkgbuild_args in request should take precedence over env."""
+        self.processor.env = deepcopy(self.good_env)
+        self.processor.env["pkg_request"]["pkgbuild_args"] = ["--large-payload"]
+        self.processor.env["pkgbuild_args"] = ["--filter", ".git"]
+
+        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+            self.processor.main()
+
+        request = self.processor.env["pkg_request"]
+        self.assertEqual(request["pkgbuild_args"], ["--large-payload"])
 
     def test_force_pkg_build_overrides_existing(self):
         """Test that force_pkg_build overrides existing package check."""

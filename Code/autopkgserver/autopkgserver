@@ -176,6 +176,17 @@ class PkgHandler(socketserver.StreamRequestHandler):
                             )
                             syntax_ok = False
 
+            # Default pkgbuild_args to empty list if absent.
+            plist.setdefault("pkgbuild_args", [])
+            if not isinstance(plist["pkgbuild_args"], list):
+                errors.append(f"Request key pkgbuild_args is not of type {str(list)}")
+                syntax_ok = False
+            else:
+                for arg in plist["pkgbuild_args"]:
+                    if not isinstance(arg, str):
+                        errors.append(f"pkgbuild_args entry is not a string: {arg!r}")
+                        syntax_ok = False
+
         return (syntax_ok, errors)
 
     def getpeerid(self) -> tuple[int, tuple[int, ...]]:

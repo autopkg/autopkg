@@ -85,6 +85,7 @@ class TestPkgHandler(unittest.TestCase):
             "infofile": "",
             "chown": [],
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -128,6 +129,7 @@ class TestPkgHandler(unittest.TestCase):
             "infofile": "",
             "chown": "not_a_list",  # Should be a list
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -146,6 +148,7 @@ class TestPkgHandler(unittest.TestCase):
             "infofile": "",
             "chown": [],
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -164,6 +167,7 @@ class TestPkgHandler(unittest.TestCase):
             "infofile": "",
             "chown": ["not_a_dict"],  # Should be list of dicts
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -189,6 +193,7 @@ class TestPkgHandler(unittest.TestCase):
                 }
             ],
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -209,6 +214,7 @@ class TestPkgHandler(unittest.TestCase):
                 {"path": "Applications", "user": "root"}  # Missing group and mode
             ],
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -227,11 +233,69 @@ class TestPkgHandler(unittest.TestCase):
             "infofile": "",
             "chown": [{"path": "Applications", "user": 0, "group": 0, "mode": "0755"}],
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
         self.assertTrue(syntax_ok)
         self.assertEqual(errors, [])
+
+    def test_verify_request_syntax_valid_pkgbuild_args(self):
+        """Should return True for valid pkgbuild_args."""
+        plist = {
+            "pkgroot": "/tmp/pkgroot",
+            "pkgdir": "/tmp/output",
+            "pkgname": "TestPackage",
+            "pkgtype": "flat",
+            "id": "com.example.test",
+            "version": "1.0.0",
+            "infofile": "",
+            "chown": [],
+            "scripts": "",
+            "pkgbuild_args": ["--filter", ".git", "--large-payload"],
+        }
+        syntax_ok, errors = self.handler.verify_request_syntax(plist)
+
+        self.assertTrue(syntax_ok)
+        self.assertEqual(errors, [])
+
+    def test_verify_request_syntax_invalid_pkgbuild_args_entry(self):
+        """Should return False when pkgbuild_args contains non-string."""
+        plist = {
+            "pkgroot": "/tmp/pkgroot",
+            "pkgdir": "/tmp/output",
+            "pkgname": "TestPackage",
+            "pkgtype": "flat",
+            "id": "com.example.test",
+            "version": "1.0.0",
+            "infofile": "",
+            "chown": [],
+            "scripts": "",
+            "pkgbuild_args": ["--filter", 123],
+        }
+        syntax_ok, errors = self.handler.verify_request_syntax(plist)
+
+        self.assertFalse(syntax_ok)
+        self.assertTrue(any("pkgbuild_args" in error for error in errors))
+
+    def test_verify_request_syntax_missing_pkgbuild_args_defaults(self):
+        """Should default pkgbuild_args to empty list when absent."""
+        plist = {
+            "pkgroot": "/tmp/pkgroot",
+            "pkgdir": "/tmp/output",
+            "pkgname": "TestPackage",
+            "pkgtype": "flat",
+            "id": "com.example.test",
+            "version": "1.0.0",
+            "infofile": "",
+            "chown": [],
+            "scripts": "",
+        }
+        syntax_ok, errors = self.handler.verify_request_syntax(plist)
+
+        self.assertTrue(syntax_ok)
+        self.assertEqual(errors, [])
+        self.assertEqual(plist["pkgbuild_args"], [])
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")

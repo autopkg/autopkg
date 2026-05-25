@@ -73,6 +73,24 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             ),
             "default": False,
         },
+        "pkgbuild_args": {
+            "required": False,
+            "description": (
+                "A list of additional arguments to pass to the pkgbuild "
+                "tool. For example, ['--large-payload'] for packages "
+                "over 8GB. You can also override pkgbuild's "
+                "default file exclusion filters. By default, pkgbuild "
+                "excludes .svn, CVS, .DS_Store, and .git from the "
+                "payload. Specifying even one --filter replaces ALL "
+                "default filters, so to keep .git files in your "
+                "package while still filtering out .DS_Store, use: "
+                "['--filter', '\\.DS_Store$']. Each --filter value is "
+                "a regular expression (use backslash escapes for "
+                "literal dots, etc.) matched against paths in the "
+                "package root."
+            ),
+            "default": None,
+        },
     }
     output_variables = {
         "new_package_request": {
@@ -196,6 +214,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             "infofile": "",
             "chown": [{"path": "Applications", "user": "root", "group": "admin"}],
             "scripts": "",
+            "pkgbuild_args": self.env.get("pkgbuild_args") or [],
         }
 
         # Send packaging request.
