@@ -278,6 +278,25 @@ class TestPkgHandler(unittest.TestCase):
         self.assertFalse(syntax_ok)
         self.assertTrue(any("pkgbuild_args" in error for error in errors))
 
+    def test_verify_request_syntax_missing_pkgbuild_args_defaults(self):
+        """Should default pkgbuild_args to empty list when absent."""
+        plist = {
+            "pkgroot": "/tmp/pkgroot",
+            "pkgdir": "/tmp/output",
+            "pkgname": "TestPackage",
+            "pkgtype": "flat",
+            "id": "com.example.test",
+            "version": "1.0.0",
+            "infofile": "",
+            "chown": [],
+            "scripts": "",
+        }
+        syntax_ok, errors = self.handler.verify_request_syntax(plist)
+
+        self.assertTrue(syntax_ok)
+        self.assertEqual(errors, [])
+        self.assertEqual(plist["pkgbuild_args"], [])
+
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestAutoPkgServer(unittest.TestCase):
@@ -391,7 +410,6 @@ class TestConstants(unittest.TestCase):
             "infofile",
             "chown",
             "scripts",
-            "pkgbuild_args",
         ]
         for key in required_keys:
             self.assertIn(key, request_structure)

@@ -110,7 +110,6 @@ request_structure = {
     "infofile": str,
     "chown": list,
     "scripts": str,
-    "pkgbuild_args": list,
 }
 chown_structure = {"path": str, "user": (str, int), "group": (str, int), "mode": str}
 
@@ -177,11 +176,16 @@ class PkgHandler(socketserver.StreamRequestHandler):
                             )
                             syntax_ok = False
 
-            # Make sure all pkgbuild_args entries are strings.
-            for arg in plist["pkgbuild_args"]:
-                if not isinstance(arg, str):
-                    errors.append(f"pkgbuild_args entry is not a string: {arg!r}")
-                    syntax_ok = False
+            # Default pkgbuild_args to empty list if absent.
+            plist.setdefault("pkgbuild_args", [])
+            if not isinstance(plist["pkgbuild_args"], list):
+                errors.append(f"Request key pkgbuild_args is not of type {str(list)}")
+                syntax_ok = False
+            else:
+                for arg in plist["pkgbuild_args"]:
+                    if not isinstance(arg, str):
+                        errors.append(f"pkgbuild_args entry is not a string: {arg!r}")
+                        syntax_ok = False
 
         return (syntax_ok, errors)
 
