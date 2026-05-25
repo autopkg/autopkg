@@ -2,11 +2,11 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [2.9.1](https://github.com/autopkg/autopkg/compare/v2.9.0...HEAD) (Unreleased)
+## [3.0.0](https://github.com/autopkg/autopkg/compare/v2.9.0...HEAD) (Unreleased)
 
 ### Recipe map
 
-Backports the recipe map feature originally developed for the 3.x line. The recipe map is an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the system, indexed by identifier and shortname. Recipe resolution becomes O(1) instead of walking every configured `RECIPE_SEARCH_DIRS` entry.
+Reimplements a "recipe map," an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the local AutoPkg setup, indexed by identifier and shortname. This results in noticeable performance improvement because recipe resolution becomes O(1) instead of walking every configured `RECIPE_SEARCH_DIRS` entry.
 
 **What you'll notice:**
 
@@ -17,7 +17,7 @@ Backports the recipe map feature originally developed for the 3.x line. The reci
 - CLI `--search-dir` / `--override-dir` flags still scope resolution to exactly the supplied directories when they differ from the configured preferences (preserves the dev-2.x "recipes in `~/Library/AutoPkg/Recipes` override installed repos" contract).
 - Trust-info verification (`verify-trust-info`, `update-trust-info`) correctly classifies override files passed by path.
 
-**If something goes wrong:**
+**Troubleshooting recipe map issues:**
 
 - Run `autopkg generate-recipe-map` to force a clean rebuild.
 - Set `RECIPE_MAP_PATH` preference or `AUTOPKG_RECIPE_MAP_PATH` env var to redirect the cache to a writable location (e.g. CI workspaces that don't use `~/Library/AutoPkg`).
@@ -28,7 +28,7 @@ Backports the recipe map feature originally developed for the 3.x line. The reci
 - When running as root (e.g. via `sudo autopkg`), redirecting the map path via env var or pref now emits a prominent warning. Ops teams should strip `AUTOPKG_*` from their sudoers `env_keep` if they don't want unprivileged callers to influence where autopkg writes.
 - YAML recipes are now parsed with a more restrictive loader, improving safety given that the recipe map causes every recipe file in `RECIPE_SEARCH_DIRS` to be parsed during map builds.
 
-Fixes #869, #874, #884, #886, #893, #894, #898, #901, #903, #908, #918 (#1027).
+Closes #869, #874, #884, #886, #893, #894, #898, #901, #903, #908, #918 (#1027, thanks to @jgstew).
 
 ### URLDownloader metadata and hashing
 
