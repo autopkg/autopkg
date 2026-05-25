@@ -38,6 +38,11 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 
 ### Other
 
+- Files in PkgCreator `scripts` directories are now included in recipe override trust information. Changes to preinstall/postinstall scripts or any other files bundled into packages will now trigger trust verification failures. Only git-tracked files are hashed when the scripts directory is inside a git repo, so untracked files like `.DS_Store` won't cause false trust failures. (#980)
+
+    > [!NOTE]
+    > Overrides of recipes that use PkgCreator scripts should be updated with `autopkg update-trust-info` to add script trust info. In AutoPkg 3.0.0, missing script trust info produces a warning; starting in AutoPkg 3.0.1, this will be a trust verification error.
+
 - PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
 - MunkiOptionalReceiptEditor now routes pkginfo updates through the Munki repo plugin API, fixing silent data loss when using `GitFileRepo` or other non-filesystem repo plugins (#1031)
 - `make-override --format` can now be set globally via the `RECIPE_OVERRIDE_FORMAT` preference, so you don't need to pass `--format yaml` on every invocation (#1024)
