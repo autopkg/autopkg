@@ -70,7 +70,7 @@ class PkgPayloadUnpacker(Processor):
                     raise ProcessorError(f"Can't remove {path}: {err.strerror}")
 
         # set an error string when ditto or aa fail
-        error = ""
+        ditto_error = ""
         try:
             dittocmd = [
                 "/usr/bin/ditto",
@@ -84,15 +84,15 @@ class PkgPayloadUnpacker(Processor):
             )
             _, err_out = proc.communicate()
         except OSError as err:
-            error = (
+            ditto_error = (
                 f"ditto execution failed with error code {err.errno}: {err.strerror}"
             )
-        if proc.returncode != 0:
-            error = (
+        if not ditto_error and proc.returncode != 0:
+            ditto_error = (
                 f"extraction of {self.env['pkg_payload_path']} with ditto failed: "
                 f"{err_out}"
             )
-        if error and os.path.exists("/usr/bin/aa"):
+        if ditto_error and os.path.exists("/usr/bin/aa"):
             try:
                 unpack_cmd = [
                     "/usr/bin/aa",
@@ -108,19 +108,24 @@ class PkgPayloadUnpacker(Processor):
                     stderr=subprocess.PIPE,
                     text=True,
                 )
-                proc.communicate()
-                # clear the error
-                error = ""
+                _, aa_err_out = proc.communicate()
             except OSError as err:
-                error = (
+                raise ProcessorError(
+                    f"{ditto_error}; "
                     f"aa execution failed with error code {err.errno}: {err.strerror}"
                 )
             if proc.returncode != 0:
-                error = f"extraction of {self.env['pkg_payload_path']} with aa failed"
+                raise ProcessorError(
+                    f"{ditto_error}; "
+                    f"extraction of {self.env['pkg_payload_path']} with aa failed: "
+                    f"{aa_err_out}"
+                )
+            # aa succeeded, clear ditto error
+            ditto_error = ""
 
-        if error:
+        if ditto_error:
             # show the error string
-            raise ProcessorError(error)
+            raise ProcessorError(ditto_error)
 
         self.output(
             f"Unpacked {self.env['pkg_payload_path']} to {self.env['destination_path']}"
