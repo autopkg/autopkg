@@ -430,7 +430,7 @@ class ChocolateyPackager(Processor):
         ):
             raise ProcessorError(
                 "Variable `installer_args` must have type list or string, "
-                f"got {self.env['installer_args'].__class_.__name__}"
+                f"got {self.env['installer_args'].__class__.__name__}"
             )
 
         output_dir = self.env.get(
