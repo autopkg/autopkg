@@ -449,6 +449,83 @@ class TestSharedProcessorScope(_RecipeMapIsolation, unittest.TestCase):
             )
         self.assertNotIn(processor_name, autopkglib.__dict__)
 
+    def test_get_processor_without_env_uses_configured_search_dirs(self):
+        search_dir = os.path.join(self.tmpdir, "search")
+        outside_dir = os.path.join(self.tmpdir, "outside")
+        os.makedirs(search_dir)
+        os.makedirs(outside_dir)
+
+        processor_name = "DefaultScopeProc"
+        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+
+        shared_recipe = os.path.join(outside_dir, "Shared.recipe")
+        _write_plist_recipe(
+            shared_recipe,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        self._write_processor(
+            os.path.join(outside_dir, f"{processor_name}.py"), "Other"
+        )
+
+        in_scope_recipe = os.path.join(search_dir, "Shared.recipe")
+        _write_plist_recipe(
+            in_scope_recipe,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        processor_path = os.path.join(search_dir, f"{processor_name}.py")
+        with open(processor_path, "w", encoding="utf-8") as f:
+            f.write(
+                "from autopkglib import Processor\n"
+                f"class {processor_name}(Processor):\n"
+                '    origin = "inside"\n'
+                "    input_variables = {}\n"
+                "    output_variables = {}\n"
+                "    def main(self):\n"
+                "        pass\n"
+            )
+
+        autopkglib.globalRecipeMap["identifiers"]["com.example.shared"] = shared_recipe
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
+
+        with patch("autopkglib.get_search_dirs", return_value=[search_dir]) as mock_get:
+            processor = autopkglib.get_processor(
+                f"com.example.shared/{processor_name}",
+                recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
+            )
+
+        self.assertEqual(processor.origin, "inside")
+        mock_get.assert_called_once_with()
+
+    def test_get_processor_without_env_rejects_out_of_scope_map_hit(self):
+        search_dir = os.path.join(self.tmpdir, "search")
+        outside_dir = os.path.join(self.tmpdir, "outside")
+        os.makedirs(search_dir)
+        os.makedirs(outside_dir)
+
+        processor_name = "DefaultScopeRejectProc"
+        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+
+        shared_recipe = os.path.join(outside_dir, "Shared.recipe")
+        _write_plist_recipe(
+            shared_recipe,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        self._write_processor(
+            os.path.join(outside_dir, f"{processor_name}.py"), processor_name
+        )
+        autopkglib.globalRecipeMap["identifiers"]["com.example.shared"] = shared_recipe
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
+
+        with (
+            patch("autopkglib.get_search_dirs", return_value=[search_dir]),
+            self.assertRaises(KeyError),
+        ):
+            autopkglib.get_processor(
+                f"com.example.shared/{processor_name}",
+                recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
+            )
+        self.assertNotIn(processor_name, autopkglib.__dict__)
+
 
 class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
     """Recipe-map scope checks must resolve symlinks before deciding

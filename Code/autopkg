@@ -1136,7 +1136,11 @@ def processor_info(argv):
         recipe = load_recipe(options.recipe, override_dirs, search_dirs)
 
     try:
-        processor_class = get_processor(processor_name, recipe=recipe)
+        processor_class = get_processor(
+            processor_name,
+            recipe=recipe,
+            env={"RECIPE_SEARCH_DIRS": search_dirs},
+        )
     except (KeyError, AttributeError):
         log_err(f"Unknown processor '{processor_name}'")
         return -1

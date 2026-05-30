@@ -721,7 +721,11 @@ class TestAutoPkgOther(unittest.TestCase):
             )
 
             # Verify processor lookup
-            mock_get_processor.assert_called_once_with("URLDownloader", recipe=None)
+            mock_get_processor.assert_called_once_with(
+                "URLDownloader",
+                recipe=None,
+                env={"RECIPE_SEARCH_DIRS": ["/search"]},
+            )
 
             # Verify output
             mock_print.assert_any_call("Description: Downloads URLs to a file")
@@ -774,7 +778,9 @@ class TestAutoPkgOther(unittest.TestCase):
 
             # Verify processor lookup with recipe
             mock_get_processor.assert_called_once_with(
-                "URLDownloader", recipe=mock_recipe
+                "URLDownloader",
+                recipe=mock_recipe,
+                env={"RECIPE_SEARCH_DIRS": ["/search"]},
             )
 
     def test_processor_info_no_arguments(self):
@@ -1154,7 +1160,11 @@ class TestAutoPkgOther(unittest.TestCase):
             self.assertIsNone(result)
 
             # Verify that custom directories are used (not the default functions)
-            mock_get_processor.assert_called_once_with("TestProcessor", recipe=None)
+            mock_get_processor.assert_called_once_with(
+                "TestProcessor",
+                recipe=None,
+                env={"RECIPE_SEARCH_DIRS": ["/custom/search"]},
+            )
 
     def test_list_processors_basic_functionality(self):
         """Test list_processors basic functionality."""

@@ -1868,7 +1868,9 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            search_dirs = env.get("RECIPE_SEARCH_DIRS", [])
+            search_dirs = env.get("RECIPE_SEARCH_DIRS")
+            if search_dirs is None:
+                search_dirs = get_search_dirs()
             # Prefer the recipe map (cheap, O(1) lookup); fall back to an
             # on-disk scan when the map doesn't know about this identifier.
             shared_processor_recipe_path = find_recipe_by_identifier_in_map(
