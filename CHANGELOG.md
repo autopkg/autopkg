@@ -75,6 +75,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - InstallFromDMG now copies every requested item from disk images instead of stopping after the first.
 - ChocolateyPackager now rejects package IDs and versions that could escape the build or output directories.
 - ChocolateyPackager now builds `installer_url` packages with checksum fields and errors clearly when `installer_checksum` is missing.
+- ChocolateyPackager now preserves Chocolatey command output and processor diagnostics when packaging fails.
 - ChocolateyInstallGenerator now escapes single quotes in generated PowerShell string literals.
 - AutoPkg now expands `CACHE_DIR` to an absolute path, so `~` or relative `CACHE_DIR` preferences no longer create literal or working-directory-relative cache folders.
 - Recipe scanning, recipe-map building, and shared-processor loading now ignore symlinks that point outside configured search directories. Symlinked search directories themselves still work.

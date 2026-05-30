@@ -156,6 +156,46 @@ class TestChocolateyPackagerPathSafety(unittest.TestCase):
                 self.processor(env).process()
             popen_mock.assert_not_called()
 
+    def test_nonzero_choco_pack_error_includes_output(self):
+        processor = self.processor()
+        build_dir = os.path.join(self.test_dir.name, "build")
+        output_dir = os.path.join(self.test_dir.name, "output")
+        os.mkdir(build_dir)
+        os.mkdir(output_dir)
+
+        proc_mock = unittest.mock.Mock()
+        proc_mock.communicate.return_value = (
+            "choco stdout\nchoco stderr\n",
+            None,
+        )
+        proc_mock.returncode = 2
+
+        with unittest.mock.patch("subprocess.Popen", return_value=proc_mock):
+            with self.assertRaises(ProcessorError) as cm:
+                processor.choco_pack(build_dir, output_dir)
+
+        self.assertIn("returned: 2", str(cm.exception))
+        self.assertIn("choco stdout", str(cm.exception))
+        self.assertIn("choco stderr", str(cm.exception))
+
+    def test_main_preserves_build_processor_error(self):
+        processor = self.processor()
+
+        with unittest.mock.patch.object(
+            processor,
+            "write_build_configs",
+            side_effect=ProcessorError("specific packaging failure"),
+        ):
+            with unittest.mock.patch("subprocess.Popen") as popen_mock:
+                with self.assertRaisesRegex(
+                    ProcessorError,
+                    "specific packaging failure",
+                ) as cm:
+                    processor.process()
+
+        self.assertNotIn("Chocolatey packaging failed unexpectedly", str(cm.exception))
+        popen_mock.assert_not_called()
+
 
 @unittest.skipUnless(sys.platform.startswith("win"), "requires Windows")
 @unittest.skipUnless(check_for_choco(), "requires chocolatey")

@@ -411,10 +411,10 @@ class ChocolateyPackager(Processor):
         output, _ = proc.communicate()
         self.log(output.splitlines(), 1)
         if proc.returncode != 0:
-            raise ProcessorError(
-                f"Command: ``{' '.join(command)}`` returned: {proc.returncode}",
-                proc.returncode,
-            )
+            msg = f"Command: ``{' '.join(command)}`` returned: {proc.returncode}"
+            if output:
+                msg = f"{msg}\nOutput:\n{output}"
+            raise ProcessorError(msg)
         expected_nupkg_path = self._path_under_dir(output_dir, f"{self.idver}.nupkg")
         os.stat(expected_nupkg_path)  # Test for package existence, or raise.
         return expected_nupkg_path
@@ -507,8 +507,12 @@ class ChocolateyPackager(Processor):
                     "pkg_path": self.env["nuget_package_path"],
                 },
             }
-        except Exception:
-            raise ProcessorError("Chocolatey packaging failed unexpectedly.")
+        except ProcessorError:
+            raise
+        except Exception as err:
+            raise ProcessorError(
+                f"Chocolatey packaging failed unexpectedly: {err}"
+            ) from err
         finally:
             if not keep_build_directory and build_dir is not None:
                 rmtree(build_dir)
