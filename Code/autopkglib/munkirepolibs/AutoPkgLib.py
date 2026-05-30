@@ -85,7 +85,7 @@ class AutoPkgLib:
                                 app_version = install["CFBundleShortVersionString"]
                             if install["path"] not in app_table:
                                 app_table[install["path"]] = {}
-                            if vers not in app_table[install["path"]]:
+                            if app_version not in app_table[install["path"]]:
                                 app_table[install["path"]][app_version] = []
                             app_table[install["path"]][app_version].append(itemindex)
                     if install.get("type") == "file":
