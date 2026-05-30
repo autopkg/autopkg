@@ -58,6 +58,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - DmgCreator: default `dmg_filesystem` changed from `HFS+` to `APFS` and default `dmg_format` changed from `UDZO` to `ULFO` (lzfse compression) (#905, thanks to @erikng). Note that APFS requires macOS 10.13 or later to mount. If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly. `ULFO` and `ULMO` are now accepted as valid `dmg_format` values.
 - Reduced the likelihood that float-looking version strings in YAML recipes (e.g. `VERSION: 1.0`) will be silently coerced to a Python float instead of remaining a string, causing subtle inconsistencies compared to plist recipes (#1023).
 - Fixed `%key%` variable substitution raising a `TypeError` when the recipe environment contains non-string values (#1038, thanks to @jgstew).
+- PkgPayloadUnpacker: when both `ditto` and the `aa` fallback fail to extract a payload, the resulting `ProcessorError` now reports the diagnostic output from both tools (previously only the `aa` failure was shown) and includes `aa`'s stderr. Also fixed a latent `UnboundLocalError` that occurred when `ditto` could not be executed (#1048, thanks to @n8felton).
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
