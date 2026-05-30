@@ -33,7 +33,7 @@ from installer import Installer, InstallerError
 from itemcopier import ItemCopier, ItemCopierError
 
 APPNAME = "autopkginstalld"
-VERSION = "0.3"
+VERSION = "0.4"
 
 
 class RunHandler(socketserver.StreamRequestHandler):
@@ -52,7 +52,7 @@ class RunHandler(socketserver.StreamRequestHandler):
             return False, errors
 
         syntax_ok = True
-        for key in ["package"]:
+        for key in ["package", "recipe_cache_dir"]:
             if key not in plist:
                 syntax_ok = False
                 errors.append(f"Request does not contain {key}")

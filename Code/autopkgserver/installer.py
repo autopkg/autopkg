@@ -16,13 +16,42 @@
 """Runs installer to install a package. Can install a package located inside a
 disk image file."""
 
+import os
 import subprocess
+
+PRIVATE_TMP = "/private/tmp"
 
 
 class InstallerError(Exception):
     """Base error for Installer errors"""
 
     pass
+
+
+def is_path_under(path, root):
+    """Return True if path is at or below root."""
+    try:
+        return os.path.commonpath([path, root]) == root
+    except ValueError:
+        return False
+
+
+def path_has_mountpoint_under(path, root):
+    """Return True if path is within a mounted volume under root."""
+    root = os.path.realpath(root)
+    path = os.path.realpath(path)
+    if not is_path_under(path, root):
+        return False
+
+    check_path = path if os.path.isdir(path) else os.path.dirname(path)
+    while is_path_under(check_path, root):
+        if check_path != root and os.path.ismount(check_path):
+            return True
+        parent_path = os.path.dirname(check_path)
+        if parent_path == check_path:
+            break
+        check_path = parent_path
+    return False
 
 
 class Installer:
@@ -39,17 +68,50 @@ class Installer:
         self.log = log
         self.socket = socket
         self.request = request
+        self.package_path = None
+
+    def allowed_package_roots(self):
+        """Return roots from which package paths may be installed."""
+        return (
+            os.path.realpath(self.request["recipe_cache_dir"]),
+            os.path.realpath(PRIVATE_TMP),
+        )
+
+    def package_path_is_allowed(self, package_path):
+        """Return True if package_path is in the recipe cache or a temp mount."""
+        cache_root, tmp_root = self.allowed_package_roots()
+        if is_path_under(package_path, cache_root):
+            return True
+        return path_has_mountpoint_under(package_path, tmp_root)
 
     def verify_request(self) -> None:
         """Make sure copy request has everything we need"""
         self.log.debug("Verifying install request")
-        for key in ["package"]:
+        for key in ["package", "recipe_cache_dir"]:
             if key not in self.request:
                 raise InstallerError(f"ERROR:No {key} in request")
+        if not isinstance(self.request["package"], str) or not self.request["package"]:
+            raise InstallerError("Package path is required")
+        if (
+            not isinstance(self.request["recipe_cache_dir"], str)
+            or not self.request["recipe_cache_dir"]
+        ):
+            raise InstallerError("Recipe cache directory is required")
+
+        package_path = os.path.realpath(self.request["package"])
+        if not self.package_path_is_allowed(package_path):
+            raise InstallerError(
+                f"Package path {self.request['package']} is not in an allowed location"
+            )
+        if not os.path.exists(package_path):
+            raise InstallerError(
+                f"Package path {self.request['package']} does not exist"
+            )
+        self.package_path = package_path
 
     def do_install(self) -> bool | None:
         """Call /usr/sbin/installer"""
-        pkg_path = self.request["package"]
+        pkg_path = self.package_path
         try:
             cmd = ["/usr/sbin/installer", "-verboseR", "-pkg", pkg_path, "-target", "/"]
             proc = subprocess.Popen(

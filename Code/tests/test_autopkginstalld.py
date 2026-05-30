@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import plistlib
 import sys
 import types
 import unittest
@@ -70,7 +71,10 @@ class TestRunHandler(unittest.TestCase):
 
     def test_verify_request_syntax_valid_package_request(self):
         """Should return True and no errors for valid package request."""
-        plist = {"package": "/path/to/package.pkg"}
+        plist = {
+            "package": "/path/to/package.pkg",
+            "recipe_cache_dir": "/path/to/cache",
+        }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
         self.assertTrue(syntax_ok)
@@ -81,8 +85,7 @@ class TestRunHandler(unittest.TestCase):
         plist = {"mount_point": "/Volumes/Something"}
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
-        # mount_point is handled separately in the handle method
-        # verify_request_syntax only checks for 'package' key
+        # mount_point is handled separately in the handle method.
         self.assertFalse(syntax_ok)
         self.assertIn("Request does not contain package", errors[0])
 
@@ -101,8 +104,61 @@ class TestRunHandler(unittest.TestCase):
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
         self.assertFalse(syntax_ok)
-        self.assertEqual(len(errors), 1)
+        self.assertEqual(len(errors), 2)
         self.assertIn("Request does not contain package", errors[0])
+
+    def test_verify_request_syntax_missing_recipe_cache_dir_key(self):
+        """Should return False and error when recipe_cache_dir is missing."""
+        plist = {"package": "/path/to/package.pkg"}
+        syntax_ok, errors = self.handler.verify_request_syntax(plist)
+
+        self.assertFalse(syntax_ok)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("Request does not contain recipe_cache_dir", errors[0])
+
+    def _handler_for_plist(self, plist):
+        handler = RunHandler.__new__(RunHandler)
+        handler.server = types.SimpleNamespace(log=MagicMock())
+        handler.request = MagicMock()
+        handler.request.recv.return_value = plistlib.dumps(plist)
+        handler.getpeerid = MagicMock(return_value=(501, (20,)))
+        return handler
+
+    def test_handle_dispatches_package_requests_to_installer(self):
+        """Should dispatch package requests to Installer workers."""
+        plist = {
+            "package": "/path/to/package.pkg",
+            "recipe_cache_dir": "/path/to/cache",
+        }
+        handler = self._handler_for_plist(plist)
+
+        with patch("autopkginstalld.Installer") as mock_installer:
+            handler.handle()
+
+        mock_installer.assert_called_once_with(
+            handler.server.log, handler.request, plist
+        )
+        mock_installer.return_value.install.assert_called_once_with()
+        handler.request.send.assert_called_with(b"OK:DONE\n")
+
+    def test_handle_dispatches_mount_requests_to_itemcopier(self):
+        """Should dispatch mount requests to ItemCopier workers."""
+        plist = {
+            "mount_point": "/private/tmp/mount",
+            "items_to_copy": [
+                {"source_item": "Test.app", "destination_path": "/Applications"}
+            ],
+        }
+        handler = self._handler_for_plist(plist)
+
+        with patch("autopkginstalld.ItemCopier") as mock_itemcopier:
+            handler.handle()
+
+        mock_itemcopier.assert_called_once_with(
+            handler.server.log, handler.request, plist
+        )
+        mock_itemcopier.return_value.copy.assert_called_once_with()
+        handler.request.send.assert_called_with(b"OK:DONE\n")
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")

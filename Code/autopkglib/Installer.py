@@ -114,7 +114,10 @@ class Installer(DmgMounter):
                     f"'{pkg_path}'."
                 )
 
-            request = {"package": matched_pkg_path}
+            request = {
+                "package": matched_pkg_path,
+                "recipe_cache_dir": self.env["RECIPE_CACHE_DIR"],
+            }
             result = None
             # Send install request.
             try:

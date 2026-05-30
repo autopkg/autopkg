@@ -19,16 +19,27 @@ drag-n-drop vendor disk images so we don't have to package it first to install
 it"""
 
 import os
+import re
 import stat
 import subprocess
 
 import xattr
+
+PRIVATE_TMP = "/private/tmp"
 
 
 class ItemCopierError(Exception):
     """Base error for ItemCopier errors"""
 
     pass
+
+
+def is_path_under(path, root):
+    """Return True if path is at or below root."""
+    try:
+        return os.path.commonpath([path, root]) == root
+    except ValueError:
+        return False
 
 
 class ItemCopier:
@@ -45,6 +56,88 @@ class ItemCopier:
         self.log = log
         self.socket = socket
         self.request = request
+        self.mountpoint = None
+
+    def reject_parent_reference(self, path, field):
+        """Reject empty paths and paths with parent-directory references."""
+        if not isinstance(path, str) or not path:
+            raise ItemCopierError(f"{field} is required")
+        parts = [part for part in path.replace("\\", "/").split("/") if part]
+        if ".." in parts:
+            raise ItemCopierError(
+                f"{field} may not contain parent-directory references"
+            )
+
+    def verify_relative_path(self, path, field):
+        """Verify a request path that must be relative."""
+        self.reject_parent_reference(path, field)
+        if os.path.isabs(path):
+            raise ItemCopierError(f"{field} must be relative")
+
+    def verify_mode(self, mode):
+        """Reject mode changes that would set setuid or setgid bits."""
+        mode = str(mode).strip()
+        if not mode:
+            raise ItemCopierError("mode is required")
+
+        if re.fullmatch(r"[0-7]+", mode):
+            if int(mode, 8) & (stat.S_ISUID | stat.S_ISGID):
+                raise ItemCopierError("mode may not set setuid or setgid bits")
+            return
+
+        mode = mode.lower()
+        if re.search(r"(^|,)[ugoa]*\+[^,]*s", mode) or re.search(
+            r"(^|,)[ugoa]*=[^,]*s", mode
+        ):
+            raise ItemCopierError("mode may not set setuid or setgid bits")
+
+    def verify_mountpoint(self):
+        """Verify and return the real mount point path."""
+        mountpoint = self.request["mount_point"]
+        self.reject_parent_reference(mountpoint, "mount_point")
+        mountpoint = os.path.realpath(mountpoint)
+        if not is_path_under(mountpoint, os.path.realpath(PRIVATE_TMP)):
+            raise ItemCopierError("mount_point is not in an allowed location")
+        if not os.path.isdir(mountpoint):
+            raise ItemCopierError(
+                f"mount_point {self.request['mount_point']} is not a directory"
+            )
+        if not os.path.ismount(mountpoint):
+            raise ItemCopierError("mount_point is not a mounted volume")
+        return mountpoint
+
+    def paths_for_item(self, item):
+        """Verify item paths and return source, destination dir, and final path."""
+        mountpoint = self.mountpoint or self.verify_mountpoint()
+
+        source_itemname = item.get("source_item")
+        self.verify_relative_path(source_itemname, "source_item")
+        source_itempath = os.path.normpath(os.path.join(mountpoint, source_itemname))
+        real_source_itempath = os.path.realpath(source_itempath)
+        if not is_path_under(real_source_itempath, mountpoint):
+            raise ItemCopierError(
+                f"Source item {source_itemname} resolves outside the mount point"
+            )
+        if not os.path.exists(source_itempath):
+            raise ItemCopierError(f"Source item {source_itemname} does not exist!")
+
+        destpath = item.get("destination_path")
+        self.reject_parent_reference(destpath, "destination_path")
+        if not os.path.isabs(destpath):
+            raise ItemCopierError("destination_path must be absolute")
+        destpath = os.path.realpath(destpath)
+
+        dest_itemname = item.get("destination_item")
+        if dest_itemname:
+            self.verify_relative_path(dest_itemname, "destination_item")
+            target_name = os.path.basename(dest_itemname)
+        else:
+            target_name = os.path.basename(source_itemname)
+        if not target_name:
+            raise ItemCopierError("Destination item name is required")
+
+        full_destpath = os.path.realpath(os.path.join(destpath, target_name))
+        return source_itempath, destpath, full_destpath
 
     def verify_request(self) -> None:
         """Make sure copy request has everything we need"""
@@ -52,11 +145,14 @@ class ItemCopier:
         for key in ["mount_point", "items_to_copy"]:
             if key not in self.request:
                 raise ItemCopierError(f"No {key} in request")
+        self.mountpoint = self.verify_mountpoint()
         for item in self.request["items_to_copy"]:
             if "source_item" not in item:
                 raise ItemCopierError("Missing source_item in items_to_copy item")
             if "destination_path" not in item:
                 raise ItemCopierError("Missing destination_path in items_to_copy item")
+            self.paths_for_item(item)
+            self.verify_mode(item.get("mode", "o-w"))
 
     def copy_items(self) -> None:
         """copies items from the mountpoint to the startup disk
@@ -68,21 +164,16 @@ class ItemCopier:
         destination_item to rename the item on copy
         user, group and mode to explicitly set those items
         """
-        mountpoint = self.request["mount_point"]
         for item in self.request["items_to_copy"]:
             # get itemname
             source_itemname = item.get("source_item")
-            dest_itemname = item.get("destination_item")
             if not source_itemname:
                 raise ItemCopierError("Missing name of item to copy!")
 
-            # check source path
-            source_itempath = os.path.join(mountpoint, source_itemname)
-            if not os.path.exists(source_itempath):
-                raise ItemCopierError(f"Source item {source_itemname} does not exist!")
+            source_itempath, destpath, full_destpath = self.paths_for_item(item)
+            self.verify_mode(item.get("mode", "o-w"))
 
             # check destination path
-            destpath = item.get("destination_path")
             if not os.path.exists(destpath):
                 self.log.info(
                     "Destination path %s does not exist, will determine "
@@ -117,14 +208,6 @@ class ItemCopier:
                 # chown each new dir
                 for new_path in new_paths:
                     os.chown(new_path, parent_uid, parent_gid)
-
-            # setup full destination path using 'destination_item', if supplied
-            if dest_itemname:
-                full_destpath = os.path.join(destpath, os.path.basename(dest_itemname))
-            else:
-                full_destpath = os.path.join(
-                    destpath, os.path.basename(source_itemname)
-                )
 
             # remove item if it already exists
             if os.path.exists(full_destpath):
