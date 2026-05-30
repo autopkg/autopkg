@@ -699,6 +699,61 @@ class TestAutoPkgOverrides(unittest.TestCase):
         with self.assertRaises(autopkg.TrustVerificationError):
             raise autopkg.TrustVerificationError("Test error")
 
+    def test_verify_parent_trust_parent_recipes_list_differs(self):
+        """Trust error should report both expected and actual parent recipe lists."""
+        mock_recipe = {
+            "RECIPE_PATH": "/overrides/test.recipe",
+            "ParentRecipe": "com.test.parent",
+            "ParentRecipeTrustInfo": {
+                "non_core_processors": {},
+                "scripts": {},
+                "parent_recipes": {
+                    "com.test.parent1": {
+                        "sha256_hash": "abc123",
+                        "path": "/path/parent1.recipe",
+                    },
+                },
+            },
+        }
+
+        with (
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "recipe_from_external_repo") as mock_external,
+            patch.object(autopkg, "get_pref") as mock_get_pref,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_trust_info") as mock_get_trust_info,
+        ):
+            mock_in_override.return_value = True
+            mock_external.return_value = False
+            mock_get_pref.return_value = "~/Library/AutoPkg/RecipeRepos"
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            # Expected has parent1, actual has parent2 - they differ
+            mock_get_trust_info.return_value = {
+                "non_core_processors": {},
+                "scripts": {},
+                "parent_recipes": {
+                    "com.test.parent2": {
+                        "sha256_hash": "def456",
+                        "path": "/path/parent2.recipe",
+                    },
+                },
+            }
+
+            with self.assertRaises(autopkg.TrustVerificationError) as context:
+                autopkg.verify_parent_trust(mock_recipe, ["/overrides"], ["/recipes"])
+
+            error_msg = str(context.exception)
+            # The error must show each list with its real value. The original bug
+            # printed the expected list on both lines, hiding what actually changed.
+            self.assertIn(
+                "Expected parent recipe list: ['com.test.parent1']", error_msg
+            )
+            self.assertIn("Actual parent recipe list: ['com.test.parent2']", error_msg)
+            # Regression guard: the actual-list line must not echo the expected list.
+            self.assertNotIn(
+                "Actual parent recipe list: ['com.test.parent1']", error_msg
+            )
+
     def test_make_override_success_plist_format(self):
         """Test successful override creation in plist format."""
         with (
