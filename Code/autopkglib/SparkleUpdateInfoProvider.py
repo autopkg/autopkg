@@ -18,6 +18,7 @@
 """See docstring for SparkleUpdateInfoProvider class"""
 
 import os
+from ipaddress import ip_address
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree
 
@@ -149,6 +150,38 @@ class SparkleUpdateInfoProvider(URLGetter):
         curl_cmd = self.prepare_curl_cmd(url, headers)
         content = self.download_with_curl(curl_cmd)
         return content
+
+    def validate_description_url(self, url):
+        """Validate a Sparkle feed description URL before fetching it."""
+
+        try:
+            url_bits = urlsplit(url)
+        except ValueError as err:
+            raise ProcessorError(
+                "Sparkle feed description URL must be an http(s) URL "
+                "with a non-loopback hostname."
+            ) from err
+
+        hostname = url_bits.hostname
+        if url_bits.scheme.lower() not in ("http", "https") or not hostname:
+            raise ProcessorError(
+                "Sparkle feed description URL must be an http(s) URL "
+                "with a non-loopback hostname."
+            )
+
+        normalized_hostname = hostname.rstrip(".").lower()
+        if normalized_hostname == "localhost":
+            raise ProcessorError("Sparkle feed description URL cannot use localhost.")
+
+        try:
+            if ip_address(normalized_hostname).is_loopback:
+                raise ProcessorError(
+                    "Sparkle feed description URL cannot use a loopback address."
+                )
+        except ValueError:
+            pass
+
+        return url
 
     def get_feed_data(self, url):
         """Downloads raw feed XML"""
@@ -299,7 +332,9 @@ class SparkleUpdateInfoProvider(URLGetter):
             # Format description
             if "description" in sparkle_pkginfo_keys:
                 if "description_url" in latest.keys():
-                    description = self.fetch_content(latest["description_url"])
+                    description = self.fetch_content(
+                        self.validate_description_url(latest["description_url"])
+                    )
                 elif "description_data" in latest.keys():
                     description = (
                         "<html><body>" + latest["description_data"] + "</html></body>"

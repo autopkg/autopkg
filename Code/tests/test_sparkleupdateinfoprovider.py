@@ -335,10 +335,57 @@ class TestSparkleUpdateInfoProvider(unittest.TestCase):
 
         with patch.object(
             self.processor, "fetch_content", return_value=description_content
-        ):
+        ) as mock_fetch:
             pkginfo = self.processor.handle_pkginfo(latest)
 
         self.assertEqual(pkginfo["description"], "<p>Release notes content</p>")
+        mock_fetch.assert_called_once_with("https://example.com/notes.html")
+
+    def test_handle_pkginfo_rejects_file_description_url(self):
+        """Test that file description URLs are not fetched."""
+        self.processor.env["pkginfo_keys_to_copy_from_sparkle_feed"] = ["description"]
+
+        latest = {"description_url": "file:///etc/passwd"}
+
+        with patch.object(self.processor, "fetch_content") as mock_fetch:
+            with self.assertRaises(ProcessorError) as context:
+                self.processor.handle_pkginfo(latest)
+
+        self.assertIn("http(s) URL", str(context.exception))
+        mock_fetch.assert_not_called()
+
+    def test_handle_pkginfo_rejects_loopback_description_urls(self):
+        """Test that loopback description URLs are not fetched."""
+        self.processor.env["pkginfo_keys_to_copy_from_sparkle_feed"] = ["description"]
+
+        loopback_urls = [
+            "http://localhost/notes.html",
+            "http://localhost./notes.html",
+            "http://127.0.0.1/notes.html",
+            "http://[::1]/notes.html",
+        ]
+
+        for url in loopback_urls:
+            with self.subTest(url=url):
+                latest = {"description_url": url}
+                with patch.object(self.processor, "fetch_content") as mock_fetch:
+                    with self.assertRaises(ProcessorError):
+                        self.processor.handle_pkginfo(latest)
+
+                mock_fetch.assert_not_called()
+
+    def test_handle_pkginfo_rejects_relative_description_url(self):
+        """Test that relative description URLs are not fetched."""
+        self.processor.env["pkginfo_keys_to_copy_from_sparkle_feed"] = ["description"]
+
+        latest = {"description_url": "/notes.html"}
+
+        with patch.object(self.processor, "fetch_content") as mock_fetch:
+            with self.assertRaises(ProcessorError) as context:
+                self.processor.handle_pkginfo(latest)
+
+        self.assertIn("http(s) URL", str(context.exception))
+        mock_fetch.assert_not_called()
 
     def test_handle_pkginfo_with_description_data(self):
         """Test that handle_pkginfo formats inline description data."""
