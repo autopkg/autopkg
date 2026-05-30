@@ -22,7 +22,7 @@ from io import BytesIO
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from autopkglib import find_binary
+from autopkglib import ProcessorError, find_binary
 from autopkglib.ChocolateyPackager import ChocolateyPackager
 
 VarDict = dict[str, Any]
@@ -48,6 +48,84 @@ def check_for_choco() -> bool:
     except FileNotFoundError:
         pass
     return False
+
+
+class TestChocolateyPackagerPathSafety(unittest.TestCase):
+    """Path validation tests that do not require Windows or Chocolatey."""
+
+    def setUp(self):
+        self.test_dir = TemporaryDirectory()
+        self.choco_path = os.path.join(self.test_dir.name, "choco.exe")
+        self.installer_path = os.path.join(self.test_dir.name, "installer.exe")
+        open(self.choco_path, "wb").close()
+        open(self.installer_path, "wb").close()
+        self.good_file_vars: VarDict = {
+            "RECIPE_CACHE_DIR": self.test_dir.name,
+            "chocoexe_path": self.choco_path,
+            "id": "a-package",
+            "version": "1.4.4",
+            "title": "A package",
+            "authors": "package people",
+            "description": "Yeah",
+            "installer_path": self.installer_path,
+            "installer_checksum": "781FBCCE29C1BA769055E3D012A69562",
+            "installer_checksum_type": "md5",
+            "installer_type": "exe",
+        }
+
+    def tearDown(self):
+        self.test_dir.cleanup()
+
+    def processor(self, env: VarDict | None = None) -> ChocolateyPackager:
+        return ChocolateyPackager(
+            env=deepcopy(env or self.good_file_vars),
+            infile=BytesIO(),
+            outfile=BytesIO(),
+        )
+
+    def test_id_and_version_reject_path_traversal_components(self):
+        cases = [
+            ("id", "../escape"),
+            ("id", "nested/name"),
+            ("id", r"nested\name"),
+            ("version", "../1.4.4"),
+            ("version", "nested/1.4.4"),
+            ("version", r"nested\1.4.4"),
+        ]
+
+        for varname, value in cases:
+            with self.subTest(varname=varname, value=value):
+                env = deepcopy(self.good_file_vars)
+                env[varname] = value
+                with unittest.mock.patch("subprocess.Popen") as popen_mock:
+                    with self.assertRaisesRegex(
+                        ProcessorError,
+                        f"Variable `{varname}` may not contain path separators",
+                    ):
+                        self.processor(env).process()
+                    popen_mock.assert_not_called()
+
+    def test_generated_package_paths_stay_under_their_base_directories(self):
+        processor = self.processor()
+        build_dir = os.path.join(self.test_dir.name, "build")
+        output_dir = os.path.join(self.test_dir.name, "output")
+
+        self.assertEqual(processor.idver, "a-package.1.4.4")
+        self.assertEqual(
+            processor._nuspec_path(build_dir),
+            os.path.join(build_dir, "a-package.nuspec"),
+        )
+        self.assertEqual(
+            processor._path_under_dir(output_dir, f"{processor.idver}.log"),
+            os.path.join(output_dir, "a-package.1.4.4.log"),
+        )
+
+    def test_generated_package_paths_reject_escaping_parts(self):
+        processor = self.processor()
+        build_dir = os.path.join(self.test_dir.name, "build")
+
+        with self.assertRaisesRegex(ProcessorError, "resolves outside"):
+            processor._build_path(build_dir, "..", "escape")
 
 
 @unittest.skipUnless(sys.platform.startswith("win"), "requires Windows")

@@ -19,7 +19,7 @@ from shutil import copy2, rmtree
 from tempfile import mkdtemp
 from typing import Any
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, is_path_under
 from nuget import (
     CHOCO_CHECKSUM_TYPES,
     CHOCO_FILE_TYPES,
@@ -262,6 +262,35 @@ class ChocolateyPackager(Processor):
             self.env[varname] = path
         return path
 
+    def _safe_path_component(self, varname: str) -> str:
+        value = self.env[varname]
+        if not isinstance(value, str) or not value:
+            raise ProcessorError(
+                f"Variable `{varname}` must be a non-empty string path component."
+            )
+        normalized = value.replace("\\", "/")
+        if (
+            "/" in normalized
+            or os.path.isabs(value)
+            or value in (".", "..")
+            or ".." in [part for part in normalized.split("/") if part]
+        ):
+            raise ProcessorError(
+                f"Variable `{varname}` may not contain path separators, absolute "
+                f"paths, or parent-directory references: {value!r}"
+            )
+        return value
+
+    def _validate_package_path_components(self) -> None:
+        self._safe_path_component("id")
+        self._safe_path_component("version")
+
+    def _path_under_dir(self, base_dir: str, *parts: str) -> str:
+        path = os.path.abspath(os.path.join(base_dir, *parts))
+        if not is_path_under(path, base_dir):
+            raise ProcessorError(f"Path resolves outside {base_dir}: {path}")
+        return path
+
     def _build_path(self, build_dir: str, *additional_parts: str) -> str:
         r"""Return absolute path of `build_dir` and any additional path parts.
         Example:
@@ -270,14 +299,16 @@ class ChocolateyPackager(Processor):
         # C:\choco_builds\build_xy2820.44\tools\chocolateyInstall.ps1
         ```
         """
-        return os.path.abspath(os.path.join(build_dir, *additional_parts))
+        return self._path_under_dir(build_dir, *additional_parts)
 
     @property
     def idver(self) -> str:
-        return f"{self.env['id']}.{self.env['version']}"
+        return (
+            f"{self._safe_path_component('id')}.{self._safe_path_component('version')}"
+        )
 
     def _nuspec_path(self, build_dir: str) -> str:
-        return self._build_path(build_dir, f"{self.env['id']}.nuspec")
+        return self._build_path(build_dir, f"{self._safe_path_component('id')}.nuspec")
 
     def _chocolateyinstall_path(self, build_dir: str) -> str:
         return self._build_path(build_dir, "tools", "chocolateyInstall.ps1")
@@ -369,7 +400,7 @@ class ChocolateyPackager(Processor):
             "pack",
             nuspec_filename,
             f"--output-directory={output_dir}",
-            f"--log-file={os.path.join(output_dir, f'{self.idver}.log')}",
+            f"--log-file={self._path_under_dir(output_dir, f'{self.idver}.log')}",
         ]
         self.log(f"Running: {' '.join(command)}", 1)
         proc = subprocess.Popen(
@@ -386,9 +417,7 @@ class ChocolateyPackager(Processor):
                 f"Command: ``{' '.join(command)}`` returned: {proc.returncode}",
                 proc.returncode,
             )
-        expected_nupkg_path = os.path.abspath(
-            os.path.join(output_dir, f"{self.idver}.nupkg")
-        )
+        expected_nupkg_path = self._path_under_dir(output_dir, f"{self.idver}.nupkg")
         os.stat(expected_nupkg_path)  # Test for package existence, or raise.
         return expected_nupkg_path
 
@@ -401,6 +430,7 @@ class ChocolateyPackager(Processor):
 
     def main(self) -> None:
         # Validate arguments, apply dynamic defaults as needed.
+        self._validate_package_path_components()
         self._ensure_path_var("chocoexe_path")
         if (
             self.env.get("installer_url") is not None
@@ -433,9 +463,11 @@ class ChocolateyPackager(Processor):
                 f"got {self.env['installer_args'].__class__.__name__}"
             )
 
-        output_dir = self.env.get(
-            "output_directory",
-            os.path.abspath(os.path.join(self.env["RECIPE_CACHE_DIR"], "nupkgs")),
+        output_dir = os.path.abspath(
+            self.env.get(
+                "output_directory",
+                os.path.abspath(os.path.join(self.env["RECIPE_CACHE_DIR"], "nupkgs")),
+            )
         )
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -451,7 +483,9 @@ class ChocolateyPackager(Processor):
         self.env["chocolatey_packager_summary_result"] = {}
         build_dir: str | None = None
         try:
-            build_dir = mkdtemp(prefix=f"{self.env['id']}.", dir=build_dir_base)
+            build_dir = mkdtemp(
+                prefix=f"{self._safe_path_component('id')}.", dir=build_dir_base
+            )
 
             self.write_build_configs(build_dir)
             nuget_package_path = self.choco_pack(build_dir, output_dir)
