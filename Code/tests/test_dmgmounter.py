@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
@@ -71,6 +72,11 @@ class TestDmgMounterPathConfinement(unittest.TestCase):
 
         with self.assertRaises(ProcessorError):
             self.processor.glob_paths_in_mount(self.mount_point, "*.pkg")
+
+    def test_dmg_has_sla_wraps_launch_error(self):
+        with patch("subprocess.Popen", side_effect=OSError(2, "missing")):
+            with self.assertRaisesRegex(ProcessorError, "hdiutil execution failed"):
+                self.processor.dmg_has_sla("/path/to/test.dmg")
 
 
 if __name__ == "__main__":

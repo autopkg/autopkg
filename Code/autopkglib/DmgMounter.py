@@ -111,13 +111,18 @@ class DmgMounter(Processor):
         """Returns true if dmg has a Software License Agreement.
         These dmgs normally cannot be attached without user intervention"""
         has_sla = False
-        proc = subprocess.Popen(
-            ["/usr/bin/hdiutil", "imageinfo", dmgpath, "-plist"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        stdout, stderr = proc.communicate()
+        try:
+            proc = subprocess.Popen(
+                ["/usr/bin/hdiutil", "imageinfo", dmgpath, "-plist"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = proc.communicate()
+        except OSError as err:
+            raise ProcessorError(
+                f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
+            )
         if stderr:
             # some error with hdiutil. Print it, but try to continue anyway.
             # (APFS disk images generate extraneous output to stderr)

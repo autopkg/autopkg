@@ -165,14 +165,19 @@ class CodeSignatureVerifier(DmgMounter):
         if self.env.get("CODE_SIGNATURE_VERIFICATION_DEBUG"):
             self.output(f"{' '.join(process)}")
 
-        proc = subprocess.Popen(
-            process,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        output, error = proc.communicate()
+        try:
+            proc = subprocess.Popen(
+                process,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            output, error = proc.communicate()
+        except OSError as err:
+            raise ProcessorError(
+                f"codesign execution failed with error code {err.errno}: {err.strerror}"
+            )
 
         # Log all output. codesign seems to output only
         # to stderr but check the stdout too
@@ -193,10 +198,15 @@ class CodeSignatureVerifier(DmgMounter):
         """
         process = ["/usr/sbin/pkgutil", "--check-signature", path]
 
-        proc = subprocess.Popen(
-            process, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        output, error = proc.communicate()
+        try:
+            proc = subprocess.Popen(
+                process, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            output, error = proc.communicate()
+        except OSError as err:
+            raise ProcessorError(
+                f"pkgutil execution failed with error code {err.errno}: {err.strerror}"
+            )
 
         # Log everything
         if output:

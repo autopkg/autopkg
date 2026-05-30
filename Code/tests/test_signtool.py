@@ -37,6 +37,27 @@ class TestSignToolVerifier(unittest.TestCase):
             "WARNING: Authenticode verification disabled for this recipe run."
         )
 
+    def test_main_rejects_missing_signtool_path(self):
+        env: dict[str, Any] = {
+            "input_path": r"C:\Fake\Path\To.exe",
+            "signtool_path": None,
+            "additional_arguments": None,
+        }
+        processor = SignToolVerifier(env)
+
+        with self.assertRaisesRegex(ProcessorError, "No signtool_path configured"):
+            processor.main()
+
+    def test_codesign_verify_wraps_launch_error(self):
+        processor = SignToolVerifier({})
+
+        with patch("subprocess.Popen", side_effect=OSError(2, "missing")):
+            with self.assertRaisesRegex(ProcessorError, "signtool execution failed"):
+                processor.codesign_verify(
+                    r"C:\Program Files\signtool.exe",
+                    r"C:\Fake\Path\To.exe",
+                )
+
     @unittest.skipUnless(sys.platform == "win32", "Requires Windows")
     def test_verify_ntdll(self):
         env: dict[str, str] = {"input_path": r"C:\Windows\System32\ntdll.dll"}

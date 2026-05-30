@@ -64,6 +64,26 @@ class TestCodeSignatureVerifierCommon(unittest.TestCase):
         mock_uname.assert_not_called()
         mock_process.assert_not_called()
 
+    def test_codesign_verify_wraps_launch_error(self):
+        processor = CodeSignatureVerifier()
+        processor.env = {}
+        module = sys.modules[CodeSignatureVerifier.__module__]
+
+        with (
+            patch.object(module.sys, "platform", "darwin"),
+            patch.object(module.os, "uname", return_value=("", "", "20.0", "", "")),
+            patch("subprocess.Popen", side_effect=OSError(2, "missing")),
+        ):
+            with self.assertRaisesRegex(ProcessorError, "codesign execution failed"):
+                processor.codesign_verify("/path/to/test.app")
+
+    def test_pkgutil_check_signature_wraps_launch_error(self):
+        processor = CodeSignatureVerifier()
+
+        with patch("subprocess.Popen", side_effect=OSError(2, "missing")):
+            with self.assertRaisesRegex(ProcessorError, "pkgutil execution failed"):
+                processor.pkgutil_check_signature("/path/to/test.pkg")
+
 
 @unittest.skipUnless(sys.platform == "darwin", "macOS codesign utility only")
 class TestCodeSignatureVerifier(unittest.TestCase):

@@ -45,6 +45,10 @@ class FlatPkgPacker(Processor):
             subprocess.check_call(
                 ["/usr/sbin/pkgutil", "--flatten", source_dir, dest_pkg]
             )
+        except OSError as err:
+            raise ProcessorError(
+                f"pkgutil execution failed with error code {err.errno}: {err.strerror}"
+            )
         except subprocess.CalledProcessError as err:
             raise ProcessorError(f"{err} flattening {source_dir}")
 
