@@ -1075,8 +1075,12 @@ class TestSearchCmd(unittest.TestCase):
 
         # Search term with spaces and special characters
         argv = ["autopkg", "search", "App Name+Special"]
-        with patch("sys.stdout", new=StringIO()):
-            search_recipes(argv)
+        with patch("sys.stderr", new=StringIO()) as fake_err:
+            result = search_recipes(argv)
+
+        self.assertEqual(result, 0)
+        self.assertIn("Nothing found.", fake_err.getvalue())
+        mock_check_cache.assert_called_once()
 
     @patch("autopkgcmd.searchcmd.check_search_cache")
     @patch("builtins.open", new_callable=mock_open)

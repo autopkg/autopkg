@@ -263,8 +263,10 @@ class TestProcessorBase(unittest.TestCase):
         processor = ConcreteProcessor()
         processor.env = None
 
-        # Should return early without error
-        processor.write_output_plist()
+        with patch("builtins.open") as mock_file:
+            processor.write_output_plist()
+
+        mock_file.assert_not_called()
 
     def test_write_output_plist_filters_none_values(self):
         """Test that write_output_plist filters out None values."""
@@ -976,63 +978,68 @@ class TestProcessorBase(unittest.TestCase):
         The correct pattern is to leave defaults implicit and handle them
         programmatically in the processor's main() method.
         """
-        import glob
-        import importlib.util
-        import inspect
+        import ast
         import os
         import re
 
-        # Pattern to match %variable_name%
         percent_var_pattern = re.compile(r"%[^%]+%")
-
-        # Get all processor files
         autopkglib_dir = os.path.join(os.path.dirname(__file__), "..", "autopkglib")
-        processor_files = glob.glob(os.path.join(autopkglib_dir, "*.py"))
-
         violations = []
 
-        for processor_file in processor_files:
-            # Skip __init__ and other utility files
-            if os.path.basename(processor_file).startswith("__"):
+        for filename in sorted(os.listdir(autopkglib_dir)):
+            if not filename.endswith(".py") or filename.startswith("__"):
                 continue
+            processor_file = os.path.join(autopkglib_dir, filename)
+            with open(processor_file, "r", encoding="utf-8") as f:
+                tree = ast.parse(f.read(), filename=processor_file)
 
-            try:
-                # Load the module
-                module_name = os.path.splitext(os.path.basename(processor_file))[0]
-                spec = importlib.util.spec_from_file_location(
-                    module_name, processor_file
-                )
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+            classes = [
+                node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
+            ]
+            for cls in classes:
+                for stmt in cls.body:
+                    targets = []
+                    if isinstance(stmt, ast.Assign):
+                        targets = stmt.targets
+                        value = stmt.value
+                    elif isinstance(stmt, ast.AnnAssign):
+                        targets = [stmt.target]
+                        value = stmt.value
+                    else:
+                        continue
+                    if value is None:
+                        continue
 
-                # Find all classes in the module
-                for name, obj in inspect.getmembers(module, inspect.isclass):
-                    # Check if it has input_variables (likely a Processor)
-                    if hasattr(obj, "input_variables") and isinstance(
-                        obj.input_variables, dict
+                    if not any(
+                        isinstance(target, ast.Name) and target.id == "input_variables"
+                        for target in targets
                     ):
-                        # Check each input variable for defaults with %...%
-                        for var_name, var_config in obj.input_variables.items():
-                            if isinstance(var_config, dict) and "default" in var_config:
-                                default_value = var_config["default"]
-                                # Only check string defaults
-                                if isinstance(default_value, str):
-                                    if percent_var_pattern.search(default_value):
-                                        violations.append(
-                                            {
-                                                "processor": name,
-                                                "variable": var_name,
-                                                "default": default_value,
-                                                "file": os.path.basename(
-                                                    processor_file
-                                                ),
-                                            }
-                                        )
-            except Exception:
-                # Skip files that can't be imported (dependencies, etc.)
-                continue
+                        continue
 
-        # Assert no violations found
+                    for node in ast.walk(value):
+                        if not isinstance(node, ast.Dict):
+                            continue
+                        for key, default_value in zip(node.keys, node.values):
+                            if not (
+                                isinstance(key, ast.Constant) and key.value == "default"
+                            ):
+                                continue
+                            for string_node in ast.walk(default_value):
+                                if not (
+                                    isinstance(string_node, ast.Constant)
+                                    and isinstance(string_node.value, str)
+                                ):
+                                    continue
+                                if percent_var_pattern.search(string_node.value):
+                                    violations.append(
+                                        {
+                                            "processor": cls.name,
+                                            "default": string_node.value,
+                                            "file": filename,
+                                            "line": string_node.lineno,
+                                        }
+                                    )
+
         if violations:
             error_msg = (
                 "Found processor input variables with defaults containing %variable% patterns.\n"
@@ -1041,7 +1048,10 @@ class TestProcessorBase(unittest.TestCase):
                 "Violations:\n"
             )
             for v in violations:
-                error_msg += f'  {v["file"]}: {v["processor"]}.{v["variable"]} = "{v["default"]}"\n'
+                error_msg += (
+                    f'  {v["file"]}:{v["line"]}: '
+                    f'{v["processor"]} default = "{v["default"]}"\n'
+                )
             self.fail(error_msg)
 
 

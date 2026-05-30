@@ -27,13 +27,6 @@ class TestFileFinder(unittest.TestCase):
             self.processor.main()
 
     @patch("autopkglib.FileFinder.globfind")
-    def test_no_fail_if_good_env(self, mock_glob):
-        """The processor should not raise any exceptions if run normally."""
-        self.processor.env = self.good_env
-        mock_glob.return_value = "test"
-        self.processor.main()
-
-    @patch("autopkglib.FileFinder.globfind")
     def test_found_a_match(self, mock_glob):
         """If we find a match, it should be in the env."""
         self.processor.env = self.good_env

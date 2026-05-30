@@ -98,12 +98,6 @@ class TestVersioner(unittest.TestCase):
 
     @patch("autopkglib.Versioner.load_plist_from_file")
     @patch("autopkglib.Versioner.parsePathForDMG")
-    def test_no_fail_if_good_env(self, mock_dmg, mock_plist):
-        """The processor should not raise any exceptions if run normally."""
-        self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)
-
-    @patch("autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkglib.Versioner.parsePathForDMG")
     def test_find_cfbundle_short_version(self, mock_dmg, mock_plist):
         """The processor should find version in default `CFBundleShortVersionString`."""
         self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)

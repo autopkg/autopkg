@@ -1095,24 +1095,24 @@ class TestAutoPkgOther(unittest.TestCase):
 
             result = autopkg.processor_info(argv)
 
-            self.assertIsNone(
-                result
-            )  # Verify that complex variables are printed with proper indentation
-            print_calls = [str(call) for call in mock_print.call_args_list]
-
-            # Check that nested structures are handled - print_vars uses multiple args
-            found_calls = []
-            for call_str in print_calls:
-                if (
-                    "simple_var" in call_str
-                    or "complex_var" in call_str
-                    or "result" in call_str
-                    or "metadata" in call_str
-                ):
-                    found_calls.append(call_str)
-
-            # Should have found some variable calls
-            self.assertGreater(len(found_calls), 0)
+            self.assertIsNone(result)
+            output = "\n".join(
+                " ".join(str(arg) for arg in call.args)
+                for call in mock_print.call_args_list
+            )
+            for expected in (
+                "simple_var:",
+                "complex_var:",
+                "default:",
+                "nested: value",
+                "list: ['item1', 'item2']",
+                "result:",
+                "metadata:",
+                "type:",
+                "name: string",
+                "version: string",
+            ):
+                self.assertIn(expected, output)
 
     def test_processor_info_with_custom_directories(self):
         """Test processor_info with custom override and search directories."""

@@ -54,13 +54,6 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
     @patch.object(
         GitHubReleasesInfoProvider, "get_releases", return_value=_fake_release()
     )
-    def test_no_fail_if_good_env(self, _mock):
-        """The processor should not raise any exceptions if run normally."""
-        self._run()
-
-    @patch.object(
-        GitHubReleasesInfoProvider, "get_releases", return_value=_fake_release()
-    )
     def test_returns_version_from_tag(self, _mock):
         """The processor should return a version derived from a tag."""
         env = self._run()

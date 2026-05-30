@@ -24,14 +24,6 @@ class TestPkgCopier(unittest.TestCase):
 
     @patch("autopkglib.PkgCopier.copy")
     @patch("autopkglib.glob.glob")
-    def test_no_fail_if_good_env(self, mock_glob, mock_copy):
-        """The processor should not raise any exceptions if run normally."""
-        self.processor.env = self.good_env
-        mock_glob.return_value = ["source.pkg"]
-        self.processor.main()
-
-    @patch("autopkglib.PkgCopier.copy")
-    @patch("autopkglib.glob.glob")
     def test_no_pkgpath_uses_source_name(self, mock_glob, mock_copy):
         """If pkg_path is not specified, it should use the source name."""
         self.processor.env = self.good_glob_env

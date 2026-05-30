@@ -24,7 +24,7 @@ class TestSignToolVerifier(unittest.TestCase):
     def test_verify_ntdll(self):
         env: dict[str, str] = {"input_path": r"C:\Windows\System32\ntdll.dll"}
         processor = SignToolVerifier(env)
-        processor.process()
+        self.assertIs(processor.process(), processor.env)
 
     @unittest.skipUnless(sys.platform == "win32", "Requires Windows")
     def test_verify_nopath(self):

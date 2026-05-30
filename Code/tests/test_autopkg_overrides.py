@@ -421,8 +421,17 @@ class TestAutoPkgOverrides(unittest.TestCase):
             mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
             mock_get_trust_info.return_value = {"test": "info"}  # Matching info
 
-            # Should not raise any exception
             autopkg.verify_parent_trust(mock_recipe, ["/overrides"], ["/recipes"])
+            mock_load_recipe.assert_called_once_with(
+                "com.test.parent",
+                ["/overrides"],
+                ["/recipes"],
+                make_suggestions=False,
+                search_github=False,
+            )
+            mock_get_trust_info.assert_called_once_with(
+                mock_load_recipe.return_value, ["/recipes"]
+            )
 
     def test_verify_parent_trust_mismatched_processor_hash(self):
         """Test verify_parent_trust with mismatched processor hash."""
@@ -586,8 +595,12 @@ class TestAutoPkgOverrides(unittest.TestCase):
                 ["autopkg", "update-trust-info", "test.recipe"]
             )
 
-            # Should complete without error
             self.assertIsNone(result)
+            self.assertEqual(mock_recipe["ParentRecipeTrustInfo"], mock_trust_info)
+            mock_get_trust_info.assert_called_once_with(
+                mock_parent_recipe, search_dirs=["/recipes"]
+            )
+            mock_plist_serializer.assert_called_once_with(mock_recipe)
 
     @patch("sys.argv", ["autopkg", "update-trust-info"])
     def test_update_trust_info_no_recipes(self):

@@ -108,7 +108,12 @@ class TestMunkiOptionalReceiptEditor(unittest.TestCase):
         """Empty pkginfo_repo_path causes early return."""
         self.processor.env = deepcopy(self.good_env)
         self.processor.env["pkginfo_repo_path"] = ""
-        self.processor.main()
+
+        with patch.object(self.processor, "output") as mock_output:
+            self.processor.main()
+
+        mock_output.assert_called_once_with("No pkginfo_repo_path specified, skipping")
+        self.assertNotIn("munki_info", self.processor.env)
 
     def test_reads_from_munki_info_when_available(self):
         """Uses in-memory munki_info instead of reading from disk."""

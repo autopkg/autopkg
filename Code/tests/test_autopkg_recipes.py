@@ -2789,6 +2789,32 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_log.assert_any_call("Input values: ")
             mock_pformat.assert_called_once_with({}, indent=4)
 
+    def _write_get_recipe_list_fixture(self):
+        search_dir = os.path.join(self.tmp_dir.name, "recipes")
+        override_dir = os.path.join(self.tmp_dir.name, "overrides")
+        os.makedirs(search_dir)
+        os.makedirs(override_dir)
+
+        recipe_path = os.path.join(search_dir, "TestApp.recipe")
+        override_path = os.path.join(override_dir, "TestApp.recipe")
+        recipe = {
+            "Description": "Download TestApp",
+            "Identifier": "com.test.download",
+            "Input": {},
+            "Process": [],
+        }
+        override = {
+            "ParentRecipe": "com.test.download",
+            "Input": {"NAME": "CustomTestApp"},
+        }
+
+        with open(recipe_path, "wb") as f:
+            plistlib.dump(recipe, f)
+        with open(override_path, "wb") as f:
+            plistlib.dump(override, f)
+
+        return override_dir, search_dir, recipe_path, override_path
+
     def test_get_recipe_list_no_directories_provided(self):
         """Test get_recipe_list when no directories are provided."""
         with (
@@ -2814,135 +2840,40 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
     def test_get_recipe_list_augmented_list_option(self):
         """Test get_recipe_list with augmented_list=True."""
-        override_dirs = ["/overrides"]
-        search_dirs = ["/recipes"]
+        override_dir, search_dir, recipe_path, override_path = (
+            self._write_get_recipe_list_fixture()
+        )
 
-        # Mock a recipe and its override with same name and matching parent
-        mock_recipe = {
-            "Description": "Download TestApp",
-            "Identifier": "com.test.download",
-            "Input": {},
-            "Process": [],
-        }
-        mock_override = {
-            "ParentRecipe": "com.test.download",
-            "Input": {"NAME": "CustomTestApp"},
-        }
+        result = autopkg.get_recipe_list(
+            [override_dir], [search_dir], augmented_list=True, show_all=False
+        )
 
-        with (
-            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
-            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
-            patch("os.path.isdir") as mock_isdir,
-            patch("glob.glob") as mock_glob,
-            patch("autopkg.recipe_from_file") as mock_recipe_from_file,
-            patch("autopkg.valid_recipe_dict") as mock_valid_recipe,
-            patch("autopkg.valid_override_dict") as mock_valid_override,
-            patch("autopkg.get_identifier") as mock_get_identifier,
-            patch("autopkg.remove_recipe_extension") as mock_remove_ext,
-            patch("os.path.basename") as mock_basename,
-        ):
-            mock_get_override_dirs.return_value = override_dirs
-            mock_get_search_dirs.return_value = search_dirs
-            mock_isdir.return_value = True
-
-            def glob_side_effect(pattern):
-                # Handle both Unix and Windows path separators
-                pattern_normalized = pattern.replace("\\", "/")
-                if "/recipes/" in pattern_normalized:
-                    return ["/recipes/TestApp.recipe"]
-                elif "/overrides/" in pattern_normalized:
-                    return ["/overrides/TestApp.recipe"]
-                return []
-
-            mock_glob.side_effect = glob_side_effect
-
-            def recipe_from_file_side_effect(path):
-                if "/recipes/" in path:
-                    return mock_recipe.copy()
-                elif "/overrides/" in path:
-                    return mock_override.copy()
-                return {}
-
-            mock_recipe_from_file.side_effect = recipe_from_file_side_effect
-            mock_valid_recipe.return_value = True
-            mock_valid_override.return_value = True
-            mock_get_identifier.return_value = None
-            mock_remove_ext.return_value = "TestApp"
-            mock_basename.return_value = "TestApp.recipe"
-
-            result = autopkg.get_recipe_list(
-                override_dirs, search_dirs, augmented_list=True, show_all=False
-            )
-
-            # With augmented_list=True and show_all=False,
-            # the parent recipe should be removed when override has same name
-            self.assertIsInstance(result, list)
-
-            # Check that IsOverride flag is set for overrides
-            override_items = [item for item in result if item.get("IsOverride")]
-            self.assertGreater(len(override_items), 0)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["Name"], "TestApp")
+        self.assertEqual(result[0]["Path"], override_path)
+        self.assertTrue(result[0]["IsOverride"])
+        self.assertNotEqual(result[0]["Path"], recipe_path)
 
     def test_get_recipe_list_show_all_option(self):
         """Test get_recipe_list with show_all=True."""
-        override_dirs = ["/overrides"]
-        search_dirs = ["/recipes"]
+        override_dir, search_dir, recipe_path, override_path = (
+            self._write_get_recipe_list_fixture()
+        )
 
-        mock_recipe = {
-            "Description": "Download TestApp",
-            "Identifier": "com.test.download",
-            "Input": {},
-            "Process": [],
-        }
-        mock_override = {
-            "ParentRecipe": "com.test.download",
-            "Input": {"NAME": "CustomTestApp"},
-        }
+        result = autopkg.get_recipe_list(
+            [override_dir], [search_dir], augmented_list=True, show_all=True
+        )
 
-        with (
-            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
-            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
-            patch("os.path.isdir") as mock_isdir,
-            patch("glob.glob") as mock_glob,
-            patch("autopkg.recipe_from_file") as mock_recipe_from_file,
-            patch("autopkg.valid_recipe_dict") as mock_valid_recipe,
-            patch("autopkg.valid_override_dict") as mock_valid_override,
-            patch("autopkg.get_identifier") as mock_get_identifier,
-            patch("autopkg.remove_recipe_extension") as mock_remove_ext,
-            patch("os.path.basename") as mock_basename,
-        ):
-            mock_get_override_dirs.return_value = override_dirs
-            mock_get_search_dirs.return_value = search_dirs
-            mock_isdir.return_value = True
-
-            def glob_side_effect(pattern):
-                if "/recipes/" in pattern:
-                    return ["/recipes/TestApp.recipe"]
-                elif "/overrides/" in pattern:
-                    return ["/overrides/TestApp.recipe"]
-                return []
-
-            mock_glob.side_effect = glob_side_effect
-
-            def recipe_from_file_side_effect(path):
-                if "/recipes/" in path:
-                    return mock_recipe.copy()
-                elif "/overrides/" in path:
-                    return mock_override.copy()
-                return {}
-
-            mock_recipe_from_file.side_effect = recipe_from_file_side_effect
-            mock_valid_recipe.return_value = True
-            mock_valid_override.return_value = True
-            mock_get_identifier.return_value = None
-            mock_remove_ext.return_value = "TestApp"
-            mock_basename.return_value = "TestApp.recipe"
-
-            result = autopkg.get_recipe_list(
-                override_dirs, search_dirs, augmented_list=True, show_all=True
-            )
-
-            # With show_all=True, both recipe and override should be in the list
-            self.assertIsInstance(result, list)
+        self.assertEqual(
+            [
+                (item["Name"], item.get("IsOverride", False), item["Path"])
+                for item in result
+            ],
+            [
+                ("TestApp", False, recipe_path),
+                ("TestApp", True, override_path),
+            ],
+        )
 
     def test_get_recipe_list_invalid_recipe(self):
         """Test get_recipe_list with invalid recipe files."""

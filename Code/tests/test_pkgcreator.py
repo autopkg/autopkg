@@ -316,8 +316,12 @@ class TestPkgCreator(unittest.TestCase):
         mock_socket.close.side_effect = OSError("Close failed")
         self.processor.socket = mock_socket
 
-        # Should not raise an exception, just log
-        self.processor.disconnect()
+        with patch.object(self.processor, "output") as mock_output:
+            self.processor.disconnect()
+
+        mock_output.assert_called_once_with(
+            "Failed to close socket: Close failed", verbose_level=2
+        )
 
     @patch("autopkglib.PkgCreator.disconnect")
     @patch("autopkglib.PkgCreator.send_request")

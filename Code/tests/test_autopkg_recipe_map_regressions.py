@@ -1286,7 +1286,6 @@ class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
         """A map entry pointing at a file that exists but isn't a
         recipe must not cause its directory to be appended to the
         processor search path."""
-        # Non-recipe file (plain text, wrong shape).
         bad_dir = os.path.join(self.tmpdir, "notarecipe")
         os.makedirs(bad_dir)
         bad_path = os.path.join(bad_dir, "X.recipe")
@@ -1295,20 +1294,28 @@ class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
 
         autopkglib.globalRecipeMap["identifiers"]["com.example.evil"] = bad_path
 
-        # A separate directory where the attacker would have placed a
-        # matching <processor_name>.py; we assert THIS directory does
-        # not get added to the import search path.
         recipe = {"RECIPE_PATH": os.path.join(self.tmpdir, "r.recipe")}
-        env = {"RECIPE_SEARCH_DIRS": []}
+        env = {"RECIPE_SEARCH_DIRS": [self.tmpdir]}
+
+        self.assertEqual(
+            autopkglib.find_recipe_by_identifier_in_map("com.example.evil"),
+            bad_path,
+        )
+        self.assertTrue(
+            autopkglib.is_path_under_any(bad_path, env["RECIPE_SEARCH_DIRS"])
+        )
+        self.assertFalse(
+            autopkglib.valid_recipe_file(bad_path),
+            "Setup invariant: the bad file must not parse as a recipe.",
+        )
+
+        checked_paths = []
 
         def tracking_exists(path):
+            checked_paths.append(path)
             return False  # Ensure we don't actually import anything.
 
         with (
-            patch(
-                "autopkglib.extract_processor_name_with_recipe_identifier",
-                return_value=("P", "com.example.evil"),
-            ),
             patch("os.path.exists", side_effect=tracking_exists),
             patch("autopkglib.add_processor"),  # Never reached but mocked for safety.
         ):
@@ -1319,16 +1326,10 @@ class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
                 # that the evil dir wasn't added to the search path.
                 pass
 
-        # The bad_dir must NOT appear in any os.path.exists call. We
-        # confirm via a second pass that traces processor_search_dirs.
-        # Simpler assertion: the bad_path must not be treated as a valid
-        # recipe, which is what find_recipe_by_identifier_in_map +
-        # valid_recipe_file guard together prevent.
-        from autopkglib import valid_recipe_file
-
-        self.assertFalse(
-            valid_recipe_file(bad_path),
-            "Setup invariant: the bad file must not parse as a recipe.",
+        self.assertNotIn(
+            os.path.join(bad_dir, "P.py"),
+            checked_paths,
+            "Invalid map entries must not add their directory to processor search paths.",
         )
 
 

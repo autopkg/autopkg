@@ -59,12 +59,6 @@ class TestURLTextSearcher(unittest.TestCase):
         self.assertTrue(NO_MATCH_MESSAGE in str(err.exception))
 
     @patch("autopkglib.URLTextSearcher.download_with_curl")
-    def test_no_fail_if_good_env(self, mock_download):
-        """The processor should not raise any exceptions if run normally."""
-        mock_download.return_value = self.web_page
-        self.processor.main()
-
-    @patch("autopkglib.URLTextSearcher.download_with_curl")
     def test_found_a_match(self, mock_download):
         """If processor finds a match, it should be in the env."""
         self.match_first(mock_download)
