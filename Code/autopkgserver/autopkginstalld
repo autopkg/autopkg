@@ -112,7 +112,7 @@ class RunHandler(socketserver.StreamRequestHandler):
             # Try to parse it.
             try:
                 plist = plistlib.loads(plist_string)
-            except BaseException:
+            except Exception:
                 self.log.error("Malformed request")
                 self.request.send(b"ERROR:Malformed request\n")
                 return
@@ -146,7 +146,7 @@ class RunHandler(socketserver.StreamRequestHandler):
                 self.log.error("Unsupported request format")
                 self.request.send(b"ERROR:Unsupported request format")
 
-        except BaseException as err:
+        except Exception as err:
             self.log.error("Caught exception: %r", err)
             self.request.send(f"ERROR:Caught exception: {repr(err)}".encode())
 

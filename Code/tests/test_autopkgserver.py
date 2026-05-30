@@ -297,6 +297,50 @@ class TestPkgHandler(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(plist["pkgbuild_args"], [])
 
+    def _handler_for_request(self, request_bytes=b""):
+        handler = PkgHandler.__new__(PkgHandler)
+        handler.server = types.SimpleNamespace(log=MagicMock())
+        handler.request = MagicMock()
+        handler.request.recv.return_value = request_bytes
+        handler.getpeerid = MagicMock(return_value=(501, (20,)))
+        return handler
+
+    def test_handle_reports_malformed_request_for_parse_error(self):
+        """Should report malformed requests for ordinary parse errors."""
+        handler = self._handler_for_request()
+
+        with patch("autopkgserver.plistlib.loads", side_effect=ValueError):
+            handler.handle()
+
+        handler.request.send.assert_called_once_with(b"ERROR:Malformed request\n")
+
+    def test_handle_parse_does_not_wrap_keyboard_interrupt(self):
+        """Should let process termination exceptions propagate."""
+        handler = self._handler_for_request()
+
+        with (
+            patch("autopkgserver.plistlib.loads", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            handler.handle()
+
+    def test_handle_reports_ordinary_outer_errors(self):
+        """Should report ordinary unexpected request handling errors."""
+        handler = self._handler_for_request()
+        handler.getpeerid.side_effect = RuntimeError("boom")
+
+        handler.handle()
+
+        handler.request.send.assert_called_once_with(b"ERROR:Caught exception: boom")
+
+    def test_handle_outer_error_does_not_wrap_keyboard_interrupt(self):
+        """Should let process termination exceptions propagate."""
+        handler = self._handler_for_request()
+        handler.getpeerid.side_effect = KeyboardInterrupt
+
+        with self.assertRaises(KeyboardInterrupt):
+            handler.handle()
+
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestAutoPkgServer(unittest.TestCase):

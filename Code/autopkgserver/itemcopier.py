@@ -1,5 +1,3 @@
-#!/usr/local/autopkg/python
-#
 # Copyright 2014 Greg Neagle
 # Borrowing liberally from Munki's munkilib/installer.py et al
 #

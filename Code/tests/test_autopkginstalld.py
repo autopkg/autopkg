@@ -160,6 +160,44 @@ class TestRunHandler(unittest.TestCase):
         mock_itemcopier.return_value.copy.assert_called_once_with()
         handler.request.send.assert_called_with(b"OK:DONE\n")
 
+    def test_handle_reports_malformed_request_for_parse_error(self):
+        """Should report malformed requests for ordinary parse errors."""
+        handler = self._handler_for_plist({})
+
+        with patch("autopkginstalld.plistlib.loads", side_effect=ValueError):
+            handler.handle()
+
+        handler.request.send.assert_called_once_with(b"ERROR:Malformed request\n")
+
+    def test_handle_parse_does_not_wrap_keyboard_interrupt(self):
+        """Should let process termination exceptions propagate."""
+        handler = self._handler_for_plist({})
+
+        with (
+            patch("autopkginstalld.plistlib.loads", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            handler.handle()
+
+    def test_handle_reports_ordinary_outer_errors(self):
+        """Should report ordinary unexpected request handling errors."""
+        handler = self._handler_for_plist({})
+        handler.getpeerid.side_effect = RuntimeError("boom")
+
+        handler.handle()
+
+        handler.request.send.assert_called_once_with(
+            b"ERROR:Caught exception: RuntimeError('boom')"
+        )
+
+    def test_handle_outer_error_does_not_wrap_keyboard_interrupt(self):
+        """Should let process termination exceptions propagate."""
+        handler = self._handler_for_plist({})
+        handler.getpeerid.side_effect = KeyboardInterrupt
+
+        with self.assertRaises(KeyboardInterrupt):
+            handler.handle()
+
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
 class TestAutoPkgInstallDaemon(unittest.TestCase):

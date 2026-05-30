@@ -242,7 +242,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
             # Try to parse it.
             try:
                 plist = plistlib.loads(plist_string)
-            except BaseException:
+            except Exception:
                 self.log.error("Malformed request")
                 self.request.send(b"ERROR:Malformed request\n")
                 return
@@ -273,7 +273,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
                 self.log.error("Packaging failed: %s", err)
                 self.request.send(f"{err}\n".encode())
 
-        except BaseException as err:
+        except Exception as err:
             self.log.error("Caught exception: %s", err)
             self.request.send(f"ERROR:Caught exception: {err}".encode())
             return
