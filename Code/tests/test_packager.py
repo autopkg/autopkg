@@ -16,7 +16,7 @@ import importlib.util
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 # Only load the module on Darwin, otherwise create dummy
 if sys.platform == "darwin":
@@ -27,9 +27,11 @@ if sys.platform == "darwin":
     sys.modules["packager"] = packager_module
     spec.loader.exec_module(packager_module)
     Packager = packager_module.Packager
+    PackagerError = packager_module.PackagerError
 else:
     # Create dummy Packager for non-Darwin platforms
     Packager = MagicMock
+    PackagerError = Exception
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Uses Unix grp module")
@@ -67,6 +69,58 @@ class TestPackager(unittest.TestCase):
                 length,
                 f"Expected length {length}, got {len(result)}: {result}",
             )
+
+    @patch("packager.subprocess.Popen")
+    def test_component_plist_read_wraps_ordinary_errors(self, mock_popen):
+        """Should still wrap ordinary plist read errors."""
+        mock_proc = MagicMock()
+        mock_proc.communicate.return_value = ("", "")
+        mock_proc.returncode = 0
+        mock_popen.return_value = mock_proc
+        self.packager.tmproot = "/tmp/tmproot"
+        self.packager.tmp_pkgroot = "/tmp/pkgroot"
+
+        with (
+            patch("builtins.open", mock_open()),
+            patch("packager.plistlib.load", side_effect=ValueError),
+            self.assertRaises(PackagerError),
+        ):
+            self.packager.make_component_property_list()
+
+    @patch("packager.subprocess.Popen")
+    def test_component_plist_read_does_not_wrap_keyboard_interrupt(self, mock_popen):
+        """Should let process termination exceptions propagate."""
+        mock_proc = MagicMock()
+        mock_proc.communicate.return_value = ("", "")
+        mock_proc.returncode = 0
+        mock_popen.return_value = mock_proc
+        self.packager.tmproot = "/tmp/tmproot"
+        self.packager.tmp_pkgroot = "/tmp/pkgroot"
+
+        with (
+            patch("builtins.open", mock_open()),
+            patch("packager.plistlib.load", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            self.packager.make_component_property_list()
+
+    @patch("packager.subprocess.Popen")
+    def test_component_plist_write_does_not_wrap_keyboard_interrupt(self, mock_popen):
+        """Should let process termination exceptions propagate."""
+        mock_proc = MagicMock()
+        mock_proc.communicate.return_value = ("", "")
+        mock_proc.returncode = 0
+        mock_popen.return_value = mock_proc
+        self.packager.tmproot = "/tmp/tmproot"
+        self.packager.tmp_pkgroot = "/tmp/pkgroot"
+
+        with (
+            patch("builtins.open", mock_open()),
+            patch("packager.plistlib.load", return_value=[{}]),
+            patch("packager.plistlib.dump", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            self.packager.make_component_property_list()
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Uses Unix grp module")

@@ -134,7 +134,7 @@ class Installer:
                 raise InstallerError(f"ERROR:{proc.returncode}\n")
             self.log.info("install request completed.")
             return True
-        except BaseException as err:
+        except Exception as err:
             self.log.error("Install failed: %s", err)
             raise InstallerError(f"ERROR:{err}\n")
 
@@ -143,5 +143,5 @@ class Installer:
         try:
             self.verify_request()
             self.do_install()
-        except BaseException as err:
+        except Exception as err:
             raise InstallerError(err)

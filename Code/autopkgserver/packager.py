@@ -413,7 +413,7 @@ class Packager:
         try:
             with open(self.component_plist, "rb") as f:
                 plist = plistlib.load(f)
-        except BaseException:
+        except Exception:
             raise PackagerError(f"Couldn't read {self.component_plist}")
         # plist is an array of dicts, iterate through
         for bundle in plist:
@@ -422,7 +422,7 @@ class Packager:
         try:
             with open(self.component_plist, "wb") as f:
                 plist = plistlib.dump(plist, f)
-        except BaseException:
+        except Exception:
             raise PackagerError(f"Couldn't write {self.component_plist}")
 
     def create_pkg(self) -> None:

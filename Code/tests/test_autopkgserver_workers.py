@@ -156,6 +156,29 @@ class TestInstallerValidation(unittest.TestCase):
         with self.assertRaises(installer.InstallerError):
             worker.verify_request()
 
+    def test_do_install_does_not_wrap_keyboard_interrupt(self):
+        """Should let process termination exceptions propagate."""
+        package_path = os.path.join(self.recipe_cache, "Test.pkg")
+        worker = self._installer(package_path)
+        worker.package_path = package_path
+
+        with (
+            patch.object(installer.subprocess, "Popen", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            worker.do_install()
+
+    def test_install_does_not_wrap_keyboard_interrupt(self):
+        """Should let process termination exceptions propagate."""
+        package_path = os.path.join(self.recipe_cache, "Test.pkg")
+        worker = self._installer(package_path)
+
+        with (
+            patch.object(worker, "verify_request", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            worker.install()
+
 
 class TestItemCopierValidation(unittest.TestCase):
     """Test class for ItemCopier request validation."""
@@ -346,6 +369,34 @@ class TestItemCopierValidation(unittest.TestCase):
             [args[0] for args, _ in xattr_call.call_args_list],
             [dest_path for _, dest_path in copy_pairs],
         )
+
+    def test_copy_items_does_not_wrap_keyboard_interrupt_from_xattr(self):
+        """Should let process termination exceptions propagate."""
+        destination_path = os.path.join(self.cache, "installed")
+        os.makedirs(destination_path)
+        request = self._request(destination_path=destination_path)
+        copied_attrs = MagicMock()
+        copied_attrs.list.side_effect = KeyboardInterrupt
+
+        with (
+            self._patched_environment(),
+            patch.object(itemcopier.subprocess, "call", return_value=0),
+            patch.object(itemcopier.xattr, "xattr", return_value=copied_attrs),
+        ):
+            worker = self._copier(request)
+            worker.verify_request()
+            with self.assertRaises(KeyboardInterrupt):
+                worker.copy_items()
+
+    def test_copy_does_not_wrap_keyboard_interrupt(self):
+        """Should let process termination exceptions propagate."""
+        worker = self._copier(self._request())
+
+        with (
+            patch.object(worker, "verify_request", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            worker.copy()
 
 
 if __name__ == "__main__":

@@ -256,7 +256,7 @@ class ItemCopier:
             try:
                 if "com.apple.quarantine" in xattr.xattr(full_destpath).list():
                     xattr.xattr(full_destpath).remove("com.apple.quarantine")
-            except BaseException as err:
+            except Exception as err:
                 raise ItemCopierError(f"Error removing xattr: {err}")
         return True
 
@@ -265,5 +265,5 @@ class ItemCopier:
         try:
             self.verify_request()
             self.copy_items()
-        except BaseException as err:
+        except Exception as err:
             raise ItemCopierError(err)
