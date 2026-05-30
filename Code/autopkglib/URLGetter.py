@@ -115,6 +115,14 @@ class URLGetter(Processor):
 
         return curl_err
 
+    def _curl_stderr_text(self, proc_stderr) -> str:
+        """Return curl stderr as text for error reporting."""
+        if isinstance(proc_stderr, bytes):
+            return proc_stderr.decode("utf-8", errors="replace")
+        if proc_stderr is None:
+            return "curl failed without diagnostic output"
+        return str(proc_stderr)
+
     def parse_ftp_header(self, line, header) -> None:
         """Parse single FTP header line."""
         part = line.split(None, 1)
@@ -172,8 +180,9 @@ class URLGetter(Processor):
                 errors=errors,
             )
         except subprocess.CalledProcessError as e:
-            self.output(f"ERROR: {e.stderr.removeprefix('curl: ')}")
-            raise ProcessorError(e.stderr) from e
+            stderr = self._curl_stderr_text(e.stderr)
+            self.output(f"ERROR: {stderr.removeprefix('curl: ')}")
+            raise ProcessorError(stderr) from e
         return result.stdout, result.stderr, result.returncode
 
     def download_with_curl(self, curl_cmd, text=True) -> str:

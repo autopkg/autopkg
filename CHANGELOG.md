@@ -83,6 +83,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - `audit` now recognizes `URLDownloaderPython` as a downloader, so it flags a missing `CodeSignatureVerifier` for recipes that download with it (previously only `URLDownloader` and `CURLDownloader` were checked).
 - `audit` now recognizes `AppPkgCreator` and `ChocolateyPackager` as artifact creators, so modification processors preceding them are surfaced (previously only `DmgCreator`, `FlatPkgPacker`, and `PkgCreator` were recognized).
 - `audit` now reports path-sensitive recipe values that deserve closer inspection, including identifiers with path traversal markers, suspicious privileged install/copy paths, `PkgRootCreator` parent-directory references, unsafe DMG pseudo-paths, and Chocolatey package identifiers or versions containing path separators.
+- URLGetter now reports curl diagnostics correctly when file downloads fail in binary mode.
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
