@@ -70,13 +70,10 @@ class TestPackager(unittest.TestCase):
                 f"Expected length {length}, got {len(result)}: {result}",
             )
 
-    @patch("packager.subprocess.Popen")
-    def test_component_plist_read_wraps_ordinary_errors(self, mock_popen):
+    @patch("packager.subprocess.run")
+    def test_component_plist_read_wraps_ordinary_errors(self, mock_run):
         """Should still wrap ordinary plist read errors."""
-        mock_proc = MagicMock()
-        mock_proc.communicate.return_value = ("", "")
-        mock_proc.returncode = 0
-        mock_popen.return_value = mock_proc
+        mock_run.return_value = MagicMock(stdout="", stderr="", returncode=0)
         self.packager.tmproot = "/tmp/tmproot"
         self.packager.tmp_pkgroot = "/tmp/pkgroot"
 
@@ -87,13 +84,10 @@ class TestPackager(unittest.TestCase):
         ):
             self.packager.make_component_property_list()
 
-    @patch("packager.subprocess.Popen")
-    def test_component_plist_read_does_not_wrap_keyboard_interrupt(self, mock_popen):
+    @patch("packager.subprocess.run")
+    def test_component_plist_read_does_not_wrap_keyboard_interrupt(self, mock_run):
         """Should let process termination exceptions propagate."""
-        mock_proc = MagicMock()
-        mock_proc.communicate.return_value = ("", "")
-        mock_proc.returncode = 0
-        mock_popen.return_value = mock_proc
+        mock_run.return_value = MagicMock(stdout="", stderr="", returncode=0)
         self.packager.tmproot = "/tmp/tmproot"
         self.packager.tmp_pkgroot = "/tmp/pkgroot"
 
@@ -104,13 +98,10 @@ class TestPackager(unittest.TestCase):
         ):
             self.packager.make_component_property_list()
 
-    @patch("packager.subprocess.Popen")
-    def test_component_plist_write_does_not_wrap_keyboard_interrupt(self, mock_popen):
+    @patch("packager.subprocess.run")
+    def test_component_plist_write_does_not_wrap_keyboard_interrupt(self, mock_run):
         """Should let process termination exceptions propagate."""
-        mock_proc = MagicMock()
-        mock_proc.communicate.return_value = ("", "")
-        mock_proc.returncode = 0
-        mock_popen.return_value = mock_proc
+        mock_run.return_value = MagicMock(stdout="", stderr="", returncode=0)
         self.packager.tmproot = "/tmp/tmproot"
         self.packager.tmp_pkgroot = "/tmp/pkgroot"
 
@@ -137,15 +128,12 @@ class TestPackagerCreatePkgCommand(unittest.TestCase):
 
     @patch("packager.os.chown")
     @patch("packager.os.rename")
-    @patch("packager.subprocess.Popen")
+    @patch("packager.subprocess.run")
     def test_pkgbuild_args_appear_before_output_path(
-        self, mock_popen, mock_rename, mock_chown
+        self, mock_run, mock_rename, mock_chown
     ):
         """Extra pkgbuild_args should appear after standard flags but before the output path."""
-        mock_proc = MagicMock()
-        mock_proc.communicate.return_value = ("", "")
-        mock_proc.returncode = 0
-        mock_popen.return_value = mock_proc
+        mock_run.return_value = MagicMock(stdout="", stderr="", returncode=0)
 
         request = {
             "pkgtype": "flat",
@@ -160,7 +148,7 @@ class TestPackagerCreatePkgCommand(unittest.TestCase):
         pkgr = self._make_packager(request)
         pkgr.create_pkg()
 
-        cmd = mock_popen.call_args[0][0]
+        cmd = mock_run.call_args[0][0]
         # Extra args should be present
         self.assertIn("--filter", cmd)
         self.assertIn("\\.DS_Store$", cmd)
@@ -173,15 +161,12 @@ class TestPackagerCreatePkgCommand(unittest.TestCase):
 
     @patch("packager.os.chown")
     @patch("packager.os.rename")
-    @patch("packager.subprocess.Popen")
+    @patch("packager.subprocess.run")
     def test_no_pkgbuild_args_omits_extra_flags(
-        self, mock_popen, mock_rename, mock_chown
+        self, mock_run, mock_rename, mock_chown
     ):
         """Without pkgbuild_args, command should have no extra flags."""
-        mock_proc = MagicMock()
-        mock_proc.communicate.return_value = ("", "")
-        mock_proc.returncode = 0
-        mock_popen.return_value = mock_proc
+        mock_run.return_value = MagicMock(stdout="", stderr="", returncode=0)
 
         request = {
             "pkgtype": "flat",
@@ -195,7 +180,7 @@ class TestPackagerCreatePkgCommand(unittest.TestCase):
         pkgr = self._make_packager(request)
         pkgr.create_pkg()
 
-        cmd = mock_popen.call_args[0][0]
+        cmd = mock_run.call_args[0][0]
         self.assertEqual(cmd[0], "/usr/bin/pkgbuild")
         self.assertTrue(cmd[-1].endswith(".pkg"))
         self.assertNotIn("--filter", cmd)

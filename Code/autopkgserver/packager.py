@@ -85,11 +85,11 @@ class Packager:
                 raise PackagerError(f"{path} is not a directory")
 
         def cmd_output(cmd) -> tuple[bytes, bytes]:
-            """Outputs a stdout, stderr tuple from command output using a Popen"""
-            p = subprocess.Popen(
+            """Return a stdout, stderr tuple from command output."""
+            result = subprocess.run(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
             )
-            out, err = p.communicate()
+            out, err = result.stdout, result.stderr
             if err:
                 self.log.debug("WARNING: errors from command '%s':", ", ".join(cmd))
                 self.log.debug(err.decode())
@@ -271,21 +271,20 @@ class Packager:
         os.chmod(self.tmp_pkgroot, 0o1775)
         os.chown(self.tmp_pkgroot, 0, 80)
         try:
-            p = subprocess.Popen(
+            result = subprocess.run(
                 ("/usr/bin/ditto", self.request["pkgroot"], self.tmp_pkgroot),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            _, err = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"ditto execution failed with error code {e.errno}: {e.strerror}"
             )
-        if p.returncode != 0:
+        if result.returncode != 0:
             raise PackagerError(
                 f"Couldn't copy pkgroot from {self.request['pkgroot']} to "
-                f"{self.tmp_pkgroot}: {' '.join(str(err).split())}"
+                f"{self.tmp_pkgroot}: {' '.join(str(result.stderr).split())}"
             )
 
         self.log.info("Package root copied to %s", self.tmp_pkgroot)
@@ -386,7 +385,7 @@ class Packager:
         turn off package relocation"""
         self.component_plist = os.path.join(self.tmproot, "component.plist")
         try:
-            p = subprocess.Popen(
+            result = subprocess.run(
                 (
                     "/usr/bin/pkgbuild",
                     "--analyze",
@@ -398,15 +397,14 @@ class Packager:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            _, err = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
             )
-        if p.returncode != 0:
+        if result.returncode != 0:
             raise PackagerError(
-                f"pkgbuild failed with exit code {p.returncode}: "
-                f"{' '.join(str(err).split())}"
+                f"pkgbuild failed with exit code {result.returncode}: "
+                f"{' '.join(str(result.stderr).split())}"
             )
         try:
             with open(self.component_plist, "rb") as f:
@@ -482,18 +480,17 @@ class Packager:
             # Execute pkgbuild.
             self.log.info("Sending package build command")
             try:
-                p = subprocess.Popen(
+                result = subprocess.run(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
                 )
-                _, err = p.communicate()
             except OSError as e:
                 raise PackagerError(
                     f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
                 )
-            if p.returncode != 0:
+            if result.returncode != 0:
                 raise PackagerError(
-                    f"pkgbuild failed with exit code {p.returncode}: "
-                    f"{' '.join(str(err).split())}"
+                    f"pkgbuild failed with exit code {result.returncode}: "
+                    f"{' '.join(str(result.stderr).split())}"
                 )
             self.log.info("Changing name and owner")
             # Change to final name and owner.
