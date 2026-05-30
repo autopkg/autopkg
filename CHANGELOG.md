@@ -59,6 +59,8 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - Reduced the likelihood that float-looking version strings in YAML recipes (e.g. `VERSION: 1.0`) will be silently coerced to a Python float instead of remaining a string, causing subtle inconsistencies compared to plist recipes (#1023).
 - Fixed `%key%` variable substitution raising a `TypeError` when the recipe environment contains non-string values (#1038, thanks to @jgstew).
 - PkgPayloadUnpacker: when both `ditto` and the `aa` fallback fail to extract a payload, the resulting `ProcessorError` now reports the diagnostic output from both tools (previously only the `aa` failure was shown) and includes `aa`'s stderr. Also fixed a latent `UnboundLocalError` that occurred when `ditto` could not be executed (#1048, thanks to @n8felton).
+- Fixed a trust verification error message that printed the expected parent recipe list twice; it now shows both the expected and the actual parent recipe lists so it's clear what changed.
+- `RECIPE_CACHE_DIR` is now confined to `CACHE_DIR`. A recipe `Identifier` containing `..` or an absolute path could previously place the cache directory outside `CACHE_DIR`, letting a recipe read or write another recipe's cache; such identifiers are now rejected.
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
