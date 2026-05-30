@@ -7,8 +7,10 @@ import json
 import os
 import plistlib
 import sys
+import tempfile
 import unittest
 from textwrap import dedent
+from types import SimpleNamespace
 from unittest.mock import mock_open, patch
 
 import autopkglib
@@ -250,6 +252,70 @@ class TestAutoPkg(unittest.TestCase):
         del mock_read.return_value["Identifier"]
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertIsNone(id)
+
+
+class TestPathContainment(unittest.TestCase):
+    """Tests for filesystem path containment helpers."""
+
+    def test_is_path_under_accepts_base_and_child(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            child = os.path.join(tmp_dir, "child")
+
+            self.assertTrue(autopkglib.is_path_under(tmp_dir, tmp_dir))
+            self.assertTrue(autopkglib.is_path_under(child, tmp_dir))
+
+    def test_is_path_under_rejects_sibling_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base = os.path.join(tmp_dir, "cache")
+            sibling = os.path.join(tmp_dir, "cache-evil")
+
+            self.assertFalse(autopkglib.is_path_under(sibling, base))
+
+
+class TestAutoPackagerRecipeCacheDir(unittest.TestCase):
+    """Tests for AutoPackager RECIPE_CACHE_DIR creation."""
+
+    def _packager(self, cache_dir):
+        options = SimpleNamespace(verbose=0)
+        return autopkglib.AutoPackager(options, {"CACHE_DIR": cache_dir})
+
+    def _recipe(self, identifier):
+        return {"Identifier": identifier, "Input": {}, "Process": []}
+
+    def test_process_sets_recipe_cache_dir_under_cache_dir(self):
+        with tempfile.TemporaryDirectory() as cache_dir:
+            packager = self._packager(cache_dir)
+
+            packager.process(self._recipe("com.example.safe"))
+
+            expected = os.path.join(cache_dir, "com.example.safe")
+            self.assertEqual(packager.env["RECIPE_CACHE_DIR"], expected)
+            self.assertTrue(os.path.isdir(expected))
+
+    def test_process_rejects_parent_directory_identifier_escape(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_dir = os.path.join(tmp_dir, "cache")
+            packager = self._packager(cache_dir)
+
+            with self.assertRaisesRegex(
+                autopkglib.AutoPackagerError, "resolves outside CACHE_DIR"
+            ):
+                packager.process(self._recipe("../escape"))
+
+            self.assertFalse(os.path.exists(os.path.join(tmp_dir, "escape")))
+
+    def test_process_rejects_absolute_identifier_escape(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_dir = os.path.join(tmp_dir, "cache")
+            outside_dir = os.path.join(tmp_dir, "outside")
+            packager = self._packager(cache_dir)
+
+            with self.assertRaisesRegex(
+                autopkglib.AutoPackagerError, "resolves outside CACHE_DIR"
+            ):
+                packager.process(self._recipe(outside_dir))
+
+            self.assertFalse(os.path.exists(outside_dir))
 
 
 class TestUpdateData(unittest.TestCase):

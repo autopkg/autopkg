@@ -59,6 +59,16 @@ def is_linux() -> bool:
     return "linux" in sys.platform.lower()
 
 
+def is_path_under(path, base) -> bool:
+    """Return True if path resolves to base or a child of base."""
+    try:
+        real_path = os.path.realpath(path)
+        real_base = os.path.realpath(base)
+        return os.path.commonpath([real_base, real_path]) == real_base
+    except ValueError:
+        return False
+
+
 def log(msg, error=False) -> None:
     """Message logger, prints to stdout/stderr."""
     if error:
@@ -1552,7 +1562,13 @@ class AutoPackager:
         cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
             "~/Library/AutoPkg/Cache"
         )
-        self.env["RECIPE_CACHE_DIR"] = os.path.join(cache_dir, identifier)
+        recipe_cache_dir = os.path.normpath(os.path.join(cache_dir, identifier))
+        if not is_path_under(recipe_cache_dir, cache_dir):
+            raise AutoPackagerError(
+                f"Recipe identifier {identifier!r} resolves outside CACHE_DIR "
+                f"{cache_dir!r}"
+            )
+        self.env["RECIPE_CACHE_DIR"] = recipe_cache_dir
 
         recipe_input_dict = {}
         for key in list(self.env.keys()):
