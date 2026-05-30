@@ -66,6 +66,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - PkgRootCreator: the containment check for recipe-supplied `pkgdirs` is now path-aware. The previous string-prefix check let a relative path such as `../pkgroot-evil` create directories outside the pkgroot (which would then be packaged); these are now correctly rejected.
 - `CACHE_DIR` is now expanded to an absolute path before it reaches the packager, so a `CACHE_DIR` preference containing `~` or a relative path no longer results in a literal `~` directory or a working-directory-relative cache being created.
 - On-disk recipe scanning, recipe-map building, and shared-processor loading now reject paths that resolve outside their search directory via a symlink, so a symlink inside a search dir or repo can no longer cause a recipe or processor to be indexed or loaded from outside the declared scope. As a result, a recipe reachable only through such an escaping symlink is no longer found (a symlinked search directory itself still works normally).
+- CodeSignatureVerifier and SignToolVerifier now always warn when verification is disabled via `DISABLE_CODE_SIGNATURE_VERIFICATION` (previously silent at the default verbosity). `autopkg run` also warns up front when it is set globally via environment variable, recipe list, or `-k`/`--key`.
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 

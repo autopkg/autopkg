@@ -22,6 +22,27 @@ from autopkglib import ProcessorError
 from autopkglib.CodeSignatureVerifier import CodeSignatureVerifier
 
 
+class TestCodeSignatureVerifierCommon(unittest.TestCase):
+    """Platform-independent CodeSignatureVerifier tests."""
+
+    def test_main_warns_unconditionally_when_disabled(self):
+        """Disabled verification should warn even without verbose output."""
+        processor = CodeSignatureVerifier()
+        processor.env = {
+            "DISABLE_CODE_SIGNATURE_VERIFICATION": "1",
+            "input_path": "/path/to/test.app",
+            "verbose": 0,
+        }
+
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with patch.object(module, "log_err") as mock_log_err:
+            processor.main()
+
+        mock_log_err.assert_called_once_with(
+            "WARNING: Code signature verification disabled for this recipe run."
+        )
+
+
 @unittest.skipUnless(sys.platform == "darwin", "macOS codesign utility only")
 class TestCodeSignatureVerifier(unittest.TestCase):
     """Test cases for CodeSignatureVerifier processor."""
@@ -50,11 +71,12 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         """Test that main() skips verification when disabled."""
         self.processor.env["DISABLE_CODE_SIGNATURE_VERIFICATION"] = "1"
 
-        with patch.object(self.processor, "output") as mock_output:
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with patch.object(module, "log_err") as mock_log_err:
             self.processor.main()
 
-        mock_output.assert_called_with(
-            "Code signature verification disabled for this recipe run."
+        mock_log_err.assert_called_with(
+            "WARNING: Code signature verification disabled for this recipe run."
         )
 
     def test_main_processes_app_bundle(self):

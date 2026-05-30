@@ -18,7 +18,7 @@ import os.path
 import subprocess
 from typing import Any
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, log_err
 
 __all__ = ["SignToolVerifier"]
 
@@ -138,7 +138,7 @@ class SignToolVerifier(Processor):
 
     def main(self) -> None:
         if self.env.get("DISABLE_CODE_SIGNATURE_VERIFICATION"):
-            self.output("Authenticode verification disabled for this recipe run.")
+            log_err("WARNING: Authenticode verification disabled for this recipe run.")
             return
 
         input_path = self.env["input_path"]

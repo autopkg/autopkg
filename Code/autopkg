@@ -2454,13 +2454,16 @@ def run_recipes(argv):  # noqa: C901
         postprocessors = options.postprocessors
 
     # Add variables from environment
+    code_signature_disable_key = "DISABLE_CODE_SIGNATURE_VERIFICATION"
     cli_values = {}
+    cli_value_sources = {}
     for key, value in list(os.environ.items()):
         if key.startswith("AUTOPKG_"):
             if options.verbose > 1:
                 log(f"Using environment var {key}={value}")
             local_key = key[8:]
             cli_values[local_key] = value
+            cli_value_sources[local_key] = f"{key} environment variable"
 
     # Add variables from recipe list. These might override those from
     # environment variables
@@ -2468,6 +2471,7 @@ def run_recipes(argv):  # noqa: C901
         for key, value in list(recipe_list.items()):
             if key not in ["recipes", "preprocessors", "postprocessors"]:
                 cli_values[key] = value
+                cli_value_sources[key] = "recipe list"
 
     # Add variables from commandline. These might override those from
     # environment variables and recipe_list
@@ -2478,6 +2482,7 @@ def run_recipes(argv):  # noqa: C901
             log_err(parser.get_usage())
             return 1
         cli_values[key] = value
+        cli_value_sources[key] = "-k/--key"
 
     if options.pkg:
         cli_values["PKG"] = options.pkg
@@ -2485,6 +2490,19 @@ def run_recipes(argv):  # noqa: C901
     if len(recipe_paths) > 1 and options.pkg:
         log_err("-p/--pkg option can't be used with multiple recipes!")
         return -1
+
+    if cli_values.get(code_signature_disable_key):
+        disable_scope = (
+            f"all {len(recipe_paths)} recipes in this run"
+            if len(recipe_paths) > 1
+            else "this recipe run"
+        )
+        log_err(
+            f"WARNING: {code_signature_disable_key} is set via "
+            f"{cli_value_sources.get(code_signature_disable_key, 'runtime input')}; "
+            "this global runtime override "
+            f"will be available to {disable_scope}."
+        )
 
     cache_dir = os.path.abspath(
         os.path.expanduser(get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache")

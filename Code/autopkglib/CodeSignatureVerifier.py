@@ -22,7 +22,7 @@ import sys
 from distutils.version import StrictVersion
 from glob import glob
 
-from autopkglib import ProcessorError
+from autopkglib import ProcessorError, log_err
 from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["CodeSignatureVerifier"]
@@ -306,7 +306,9 @@ class CodeSignatureVerifier(DmgMounter):
 
     def main(self) -> None:
         if self.env.get("DISABLE_CODE_SIGNATURE_VERIFICATION"):
-            self.output("Code signature verification disabled for this recipe run.")
+            log_err(
+                "WARNING: Code signature verification disabled for this recipe run."
+            )
             return
         # Check if we're trying to read something inside a dmg.
         input_path = self.env["input_path"]

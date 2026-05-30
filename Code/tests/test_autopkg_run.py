@@ -156,6 +156,66 @@ class TestAutoPkgRun(unittest.TestCase):
             result = autopkg.run_recipes(argv)
             self.assertEqual(result, 1)
 
+    def test_run_recipes_warns_for_global_codesign_disable_env(self):
+        """Global env disable should warn once before recipe processing."""
+        argv = ["autopkg", "run", "TestApp1.recipe", "TestApp2.recipe"]
+
+        with (
+            patch.dict(
+                os.environ,
+                {"AUTOPKG_DISABLE_CODE_SIGNATURE_VERIFICATION": "1"},
+                clear=True,
+            ),
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_search_dirs", return_value=[]),
+            patch.object(autopkg, "get_pref", return_value=self.tmp_dir.name),
+            patch.object(autopkg, "load_recipe", return_value=None),
+            patch.object(autopkg, "plist_serializer", return_value={}),
+            patch.object(autopkg.plistlib, "dump"),
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
+            autopkg.run_recipes(argv)
+
+        messages = [call.args[0] for call in mock_log_err.call_args_list]
+        self.assertTrue(
+            any(
+                "AUTOPKG_DISABLE_CODE_SIGNATURE_VERIFICATION environment variable"
+                in message
+                and "all 2 recipes" in message
+                for message in messages
+            )
+        )
+
+    def test_run_recipes_warns_for_global_codesign_disable_cli_key(self):
+        """Global CLI disable should identify -k/--key as the source."""
+        argv = [
+            "autopkg",
+            "run",
+            "-k",
+            "DISABLE_CODE_SIGNATURE_VERIFICATION=1",
+            "TestApp.recipe",
+        ]
+
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_search_dirs", return_value=[]),
+            patch.object(autopkg, "get_pref", return_value=self.tmp_dir.name),
+            patch.object(autopkg, "load_recipe", return_value=None),
+            patch.object(autopkg, "plist_serializer", return_value={}),
+            patch.object(autopkg.plistlib, "dump"),
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
+            autopkg.run_recipes(argv)
+
+        messages = [call.args[0] for call in mock_log_err.call_args_list]
+        self.assertTrue(
+            any(
+                "-k/--key" in message and "this recipe run" in message
+                for message in messages
+            )
+        )
+
     def test_run_recipes_recipe_not_found(self):
         """Test run_recipes when recipe is not found."""
         argv = ["autopkg", "run", "NonExistentRecipe.recipe"]
