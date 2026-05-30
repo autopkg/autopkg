@@ -72,6 +72,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - PkgRootCreator: the containment check for recipe-supplied `pkgdirs` is now path-aware. The previous string-prefix check let a relative path such as `../pkgroot-evil` create directories outside the pkgroot (which would then be packaged); these are now correctly rejected.
 - Paths that refer to files inside a DMG are now confined to the mounted image. DMG-relative paths containing `..` or starting with `/`, and glob matches or symlinks that resolve outside the mount point, are now rejected.
 - Installer and InstallFromDMG now reject package/source paths outside the recipe cache or mounted disk image; InstallFromDMG also rejects setuid/setgid copy modes.
+- InstallFromDMG now copies every requested item from disk images instead of stopping after the first.
 - ChocolateyPackager now rejects package IDs and versions that could escape the build or output directories.
 - ChocolateyPackager now builds `installer_url` packages with checksum fields and errors clearly when `installer_checksum` is missing.
 - ChocolateyInstallGenerator now escapes single quotes in generated PowerShell string literals.

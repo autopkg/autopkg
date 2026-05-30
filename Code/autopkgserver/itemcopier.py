@@ -258,7 +258,7 @@ class ItemCopier:
                     xattr.xattr(full_destpath).remove("com.apple.quarantine")
             except BaseException as err:
                 raise ItemCopierError(f"Error removing xattr: {err}")
-            return True
+        return True
 
     def copy(self) -> None:
         """Main method."""

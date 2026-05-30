@@ -288,6 +288,65 @@ class TestItemCopierValidation(unittest.TestCase):
             with self.subTest(mode=mode):
                 worker.verify_mode(mode)
 
+    def test_copy_items_processes_all_items(self):
+        """Should copy every requested item."""
+        destination_path = os.path.join(self.cache, "installed")
+        os.makedirs(destination_path)
+        Path(os.path.join(self.mountpoint, "Second.app")).touch()
+        request = self._request(destination_path=destination_path)
+        request["items_to_copy"].append(
+            {
+                "source_item": "Second.app",
+                "destination_path": destination_path,
+            }
+        )
+        real_mountpoint = os.path.realpath(self.mountpoint)
+        real_destination_path = os.path.realpath(destination_path)
+        copy_pairs = [
+            (
+                os.path.join(real_mountpoint, "Test.app"),
+                os.path.join(real_destination_path, "Test.app"),
+            ),
+            (
+                os.path.join(real_mountpoint, "Second.app"),
+                os.path.join(real_destination_path, "Second.app"),
+            ),
+        ]
+        expected_calls = []
+        for source_path, dest_path in copy_pairs:
+            expected_calls.extend(
+                [
+                    ["/bin/cp", "-pR", source_path, dest_path],
+                    ["/usr/sbin/chown", "-R", "root", dest_path],
+                    ["/usr/bin/chgrp", "-R", "admin", dest_path],
+                    ["/bin/chmod", "-R", "o-w", dest_path],
+                ]
+            )
+        copied_attrs = MagicMock()
+        copied_attrs.list.return_value = []
+
+        with (
+            self._patched_environment(),
+            patch.object(
+                itemcopier.subprocess, "call", return_value=0
+            ) as subprocess_call,
+            patch.object(
+                itemcopier.xattr, "xattr", return_value=copied_attrs
+            ) as xattr_call,
+        ):
+            worker = self._copier(request)
+            worker.verify_request()
+            self.assertTrue(worker.copy_items())
+
+        self.assertEqual(
+            [args[0] for args, _ in subprocess_call.call_args_list],
+            expected_calls,
+        )
+        self.assertEqual(
+            [args[0] for args, _ in xattr_call.call_args_list],
+            [dest_path for _, dest_path in copy_pairs],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
