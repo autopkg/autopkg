@@ -18,7 +18,7 @@
 import os.path
 import shutil
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, is_path_under
 
 __all__ = ["PkgRootCreator"]
 
@@ -67,18 +67,17 @@ class PkgRootCreator(Processor):
             raise ProcessorError(f"Can't create {self.env['pkgroot']}: {err.strerror}")
 
         # Create directories.
-        absroot = os.path.abspath(self.env["pkgroot"])
+        absroot = os.path.realpath(self.env["pkgroot"])
         for directory, mode in sorted(self.env["pkgdirs"].items()):
             self.output(f"Creating {directory}", verbose_level=2)
             # Make sure we don't get an absolute path.
-            if directory.startswith("/"):
+            if os.path.isabs(directory):
                 raise ProcessorError(f"{directory} in pkgroot is absolute.")
-            dirpath = os.path.join(absroot, directory)
+            dirpath = os.path.normpath(os.path.join(absroot, directory))
 
             # Make sure we're not trying to make a directory outside the
             # pkgroot.
-            abspath = os.path.abspath(dirpath)
-            if os.path.commonprefix((absroot, abspath)) != absroot:
+            if not is_path_under(dirpath, absroot):
                 raise ProcessorError(f"{directory} is outside pkgroot")
 
             try:

@@ -63,6 +63,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - `RECIPE_CACHE_DIR` is now confined to `CACHE_DIR`. A recipe `Identifier` containing `..` or an absolute path could previously place the cache directory outside `CACHE_DIR`, letting a recipe read or write another recipe's cache; such identifiers are now rejected.
 - URLDownloader: a filename supplied via a server's `Content-Disposition` header is now reduced to its base name, preventing a malicious server from using `..` or path separators to write the downloaded file outside `download_dir`.
 - PkgExtractor: the `IFPkgFlagDefaultLocation` value from a package's `Info.plist` is now confined to the extraction root. A malicious package using `..` in this field could previously redirect extraction outside the intended directory; such paths are now rejected before any files are removed or extracted.
+- PkgRootCreator: the containment check for recipe-supplied `pkgdirs` is now path-aware. The previous string-prefix check let a relative path such as `../pkgroot-evil` create directories outside the pkgroot (which would then be packaged); these are now correctly rejected.
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
