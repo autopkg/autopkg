@@ -40,6 +40,8 @@ from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
+    _normalize_dirs,
+    _path_under_dirs,
     _recipe_map_path,
     add_recipe_to_map,
     calculate_recipe_map,
@@ -165,38 +167,6 @@ def find_recipe_by_name(name, search_dirs) -> str | None:
     """Legacy helper retained for call-site compatibility. Defers to the
     canonical on-disk scanner now defined in autopkglib."""
     return find_recipe_by_name_on_disk(name, search_dirs)
-
-
-def _normalize_dirs(dirs) -> list[str]:
-    """Return a list of real, expanded paths from ``dirs``. ``None`` and
-    empty iterables become an empty list."""
-    if not dirs:
-        return []
-    if isinstance(dirs, str):
-        dirs = [dirs]
-    return [os.path.realpath(os.path.expanduser(d)) for d in dirs]
-
-
-def _path_under_dirs(path: str, dirs) -> bool:
-    """Return True when ``path`` resides under any directory in ``dirs``.
-
-    Uses realpath-backed containment so sibling-prefix false positives
-    (``/a/AutoPkg2`` vs ``/a/AutoPkg``) and symlink escapes are avoided.
-    An empty or missing ``dirs`` returns True — callers that haven't
-    constrained the scope accept any path.
-
-    This is a security helper for the recipe-map lookups: we use it to
-    refuse a map hit that points outside the caller-declared search
-    scope."""
-    if not dirs:
-        # No scope declared; callers that want scope enforcement must
-        # pass a non-empty list.
-        return True
-    normalized_path = os.path.realpath(os.path.expanduser(path))
-    for directory in _normalize_dirs(dirs):
-        if is_path_under(normalized_path, directory):
-            return True
-    return False
 
 
 def _dirs_match_prefs(caller_search_dirs, caller_override_dirs) -> bool:

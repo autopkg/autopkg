@@ -271,6 +271,18 @@ class TestPathContainment(unittest.TestCase):
 
             self.assertFalse(autopkglib.is_path_under(sibling, base))
 
+    def test_path_under_dirs_checks_each_declared_scope(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base = os.path.join(tmp_dir, "recipes")
+            child = os.path.join(base, "Shared.recipe")
+            sibling = os.path.join(tmp_dir, "recipes-other", "Shared.recipe")
+
+            self.assertTrue(autopkglib._path_under_dirs(child, [base]))
+            self.assertFalse(autopkglib._path_under_dirs(sibling, [base]))
+
+    def test_path_under_dirs_accepts_missing_scope(self):
+        self.assertTrue(autopkglib._path_under_dirs("/outside/Shared.recipe", []))
+
 
 class TestAutoPackagerRecipeCacheDir(unittest.TestCase):
     """Tests for AutoPackager RECIPE_CACHE_DIR creation."""

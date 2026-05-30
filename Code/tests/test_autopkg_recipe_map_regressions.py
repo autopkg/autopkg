@@ -69,6 +69,7 @@ class _RecipeMapIsolation:
         self._saved_map = dict(autopkglib.globalRecipeMap)
         self._saved_default = autopkglib.DEFAULT_RECIPE_MAP
         self._saved_write_disabled = autopkglib._recipe_map_write_disabled
+        self._saved_cwd_rebuild_attempted = autopkglib._recipe_map_cwd_rebuild_attempted
         autopkglib._recipe_map_write_disabled = False
         autopkglib.DEFAULT_RECIPE_MAP = os.path.join(self.tmpdir, "recipe_map.json")
 
@@ -83,12 +84,14 @@ class _RecipeMapIsolation:
         # Reset the cross-test latch so one test's miss-rebuild doesn't
         # prevent another test from exercising the same code path.
         autopkg._locate_recipe_rebuild_attempted = False
+        autopkglib._recipe_map_cwd_rebuild_attempted = False
 
     def tearDown(self):
         autopkglib.globalRecipeMap.clear()
         autopkglib.globalRecipeMap.update(self._saved_map)
         autopkglib.DEFAULT_RECIPE_MAP = self._saved_default
         autopkglib._recipe_map_write_disabled = self._saved_write_disabled
+        autopkglib._recipe_map_cwd_rebuild_attempted = self._saved_cwd_rebuild_attempted
 
 
 class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCase):
@@ -350,6 +353,102 @@ class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
                 "Pathological multi-miss runs must not trigger N full rebuilds.",
             )
 
+    def test_get_processor_triggers_cwd_rebuild_once(self):
+        """The code-import path should recover from the same cwd map miss
+        as the trust-info lookup path."""
+        autopkglib._recipe_map_cwd_rebuild_attempted = False
+
+        cwd_dir = os.path.join(self.tmpdir, "cwd")
+        os.makedirs(cwd_dir)
+        shared_recipe = os.path.join(cwd_dir, "Shared.recipe")
+        _write_plist_recipe(
+            shared_recipe,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.cwd.shared"},
+        )
+        processor_name = "CwdSharedProc"
+        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+        processor_path = os.path.join(cwd_dir, f"{processor_name}.py")
+        with open(processor_path, "w", encoding="utf-8") as f:
+            f.write(
+                "from autopkglib import Processor\n"
+                f"class {processor_name}(Processor):\n"
+                "    input_variables = {}\n"
+                "    output_variables = {}\n"
+                "    def main(self):\n"
+                "        pass\n"
+            )
+
+        def fake_calc(*args, **kwargs):
+            autopkglib.globalRecipeMap["identifiers"][
+                "com.example.cwd.shared"
+            ] = shared_recipe
+
+        with (
+            patch(
+                "autopkglib.calculate_recipe_map",
+                side_effect=fake_calc,
+            ) as mock_calc,
+            patch("autopkglib.find_recipe_by_identifier_on_disk", return_value=None),
+        ):
+            processor = autopkglib.get_processor(
+                f"com.example.cwd.shared/{processor_name}",
+                recipe={"RECIPE_PATH": "/recipes/x.recipe"},
+                env={"RECIPE_SEARCH_DIRS": []},
+            )
+            self.assertEqual(processor.__name__, processor_name)
+            mock_calc.assert_called_once_with(skip_cwd=False, persist=False)
+
+            with self.assertRaises(KeyError):
+                autopkglib.get_processor(
+                    "com.example.other.shared/OtherProc",
+                    recipe={"RECIPE_PATH": "/recipes/x.recipe"},
+                    env={"RECIPE_SEARCH_DIRS": []},
+                )
+            mock_calc.assert_called_once()
+
+
+class TestSharedProcessorScope(_RecipeMapIsolation, unittest.TestCase):
+    """Shared processor imports must respect the caller's recipe search dirs."""
+
+    def _write_processor(self, path, class_name):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(
+                "from autopkglib import Processor\n"
+                f"class {class_name}(Processor):\n"
+                "    input_variables = {}\n"
+                "    output_variables = {}\n"
+                "    def main(self):\n"
+                "        pass\n"
+            )
+
+    def test_get_processor_rejects_map_hit_outside_search_dirs(self):
+        search_dir = os.path.join(self.tmpdir, "search")
+        outside_dir = os.path.join(self.tmpdir, "outside")
+        os.makedirs(search_dir)
+        os.makedirs(outside_dir)
+
+        processor_name = "OutsideMapProc"
+        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+
+        shared_recipe = os.path.join(outside_dir, "Shared.recipe")
+        _write_plist_recipe(
+            shared_recipe,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        self._write_processor(
+            os.path.join(outside_dir, f"{processor_name}.py"), processor_name
+        )
+        autopkglib.globalRecipeMap["identifiers"]["com.example.shared"] = shared_recipe
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
+
+        with self.assertRaises(KeyError):
+            autopkglib.get_processor(
+                f"com.example.shared/{processor_name}",
+                recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
+                env={"RECIPE_SEARCH_DIRS": [search_dir]},
+            )
+        self.assertNotIn(processor_name, autopkglib.__dict__)
+
 
 class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
     """Recipe-map scope checks must resolve symlinks before deciding
@@ -477,6 +576,7 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
         autopkglib.globalRecipeMap["identifiers"]["com.example.shared"] = os.path.join(
             link_dir, "Shared.recipe"
         )
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
 
         with self.assertRaises(KeyError):
             autopkglib.get_processor(
@@ -499,6 +599,7 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
         self._write_processor(
             os.path.join(outside_dir, f"{processor_name}.py"), processor_name
         )
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
 
         with self.assertRaises(KeyError):
             autopkglib.get_processor(
@@ -1293,6 +1394,7 @@ class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
             f.write("this is not a recipe")
 
         autopkglib.globalRecipeMap["identifiers"]["com.example.evil"] = bad_path
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
 
         recipe = {"RECIPE_PATH": os.path.join(self.tmpdir, "r.recipe")}
         env = {"RECIPE_SEARCH_DIRS": [self.tmpdir]}

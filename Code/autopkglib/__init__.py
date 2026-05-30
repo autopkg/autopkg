@@ -62,22 +62,39 @@ def is_linux() -> bool:
 def is_path_under(path, base) -> bool:
     """Return True if path resolves to base or a child of base."""
     try:
-        real_path = os.path.realpath(path)
-        real_base = os.path.realpath(base)
+        real_path = os.path.realpath(os.path.expanduser(path))
+        real_base = os.path.realpath(os.path.expanduser(base))
         return os.path.commonpath([real_base, real_path]) == real_base
-    except ValueError:
+    except (TypeError, ValueError):
         return False
+
+
+def _normalize_dirs(dirs) -> list[str]:
+    """Return a list of real, expanded paths from ``dirs``."""
+    if not dirs:
+        return []
+    if isinstance(dirs, str):
+        dirs = [dirs]
+    return [os.path.realpath(os.path.expanduser(d)) for d in dirs]
+
+
+def _path_under_dirs(path: str, dirs) -> bool:
+    """Return True when ``path`` resides under any directory in ``dirs``.
+
+    An empty or missing ``dirs`` accepts any path. Callers that need scoped
+    resolution must pass a non-empty list.
+    """
+    if not dirs:
+        return True
+    normalized_path = os.path.realpath(os.path.expanduser(path))
+    return any(
+        is_path_under(normalized_path, directory) for directory in _normalize_dirs(dirs)
+    )
 
 
 def is_path_under_any(path, bases) -> bool:
     """Return True if path resolves under any base in bases."""
-    if not bases:
-        return True
-    if isinstance(bases, str):
-        bases = [bases]
-    return any(
-        is_path_under(path, os.path.abspath(os.path.expanduser(base))) for base in bases
-    )
+    return _path_under_dirs(path, bases)
 
 
 def log(msg, error=False) -> None:
@@ -859,6 +876,20 @@ def calculate_recipe_map(
         persist = not (extra_search_dirs or extra_override_dirs)
     if persist:
         write_recipe_map_to_disk()
+
+
+_recipe_map_cwd_rebuild_attempted = False
+
+
+def _try_cwd_rebuild_once(reason: str) -> bool:
+    """Perform a one-shot cwd-inclusive recipe-map rebuild."""
+    global _recipe_map_cwd_rebuild_attempted
+    if _recipe_map_cwd_rebuild_attempted:
+        return False
+    _recipe_map_cwd_rebuild_attempted = True
+    log(f"Rebuilding recipe map with current working directories ({reason})...")
+    calculate_recipe_map(skip_cwd=False, persist=False)
+    return True
 
 
 # Schema version baked into the persisted map. Increment when the on-disk
@@ -1817,19 +1848,31 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
+            search_dirs = env.get("RECIPE_SEARCH_DIRS", [])
             # Prefer the recipe map (cheap, O(1) lookup); fall back to an
             # on-disk scan when the map doesn't know about this identifier.
             shared_processor_recipe_path = find_recipe_by_identifier_in_map(
                 processor_recipe_id
             )
-            if shared_processor_recipe_path and not is_path_under_any(
-                shared_processor_recipe_path, env.get("RECIPE_SEARCH_DIRS", [])
+            if shared_processor_recipe_path and not _path_under_dirs(
+                shared_processor_recipe_path, search_dirs
             ):
                 shared_processor_recipe_path = None
             if shared_processor_recipe_path is None:
                 shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
-                    processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+                    processor_recipe_id, search_dirs
                 )
+            if shared_processor_recipe_path is None and _try_cwd_rebuild_once(
+                f"resolving shared processor {processor_recipe_id!r}"
+            ):
+                shared_processor_recipe_path = find_recipe_by_identifier_in_map(
+                    processor_recipe_id
+                )
+                if shared_processor_recipe_path and not _path_under_dirs(
+                    shared_processor_recipe_path,
+                    search_dirs,
+                ):
+                    shared_processor_recipe_path = None
             # Re-validate the map-returned path is actually a recipe before
             # adding its directory to the Python import path below. The map
             # lookup only stat's the file (for speed); this call site feeds
