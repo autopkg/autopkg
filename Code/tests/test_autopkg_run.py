@@ -323,3 +323,71 @@ TestApp2.recipe
                 self.assertIn("message", failure)
                 self.assertEqual(failure["message"], "Test error")
                 self.assertIn("traceback", failure)
+
+    def test_run_recipes_passes_normalized_cache_dir_to_packager(self):
+        """run_recipes should keep shared prefs untouched but pass an absolute cache path."""
+        argv = ["autopkg", "run", "TestApp.recipe"]
+        cache_pref = "~/Library/AutoPkg/Cache"
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/TestApp.recipe",
+            "Identifier": "com.test.TestApp",
+            "Input": {},
+            "Process": [],
+        }
+
+        with TemporaryDirectory() as tmp_dir:
+            cwd_dir = os.path.join(tmp_dir, "cwd")
+            home_dir = os.path.join(tmp_dir, "home")
+            os.makedirs(cwd_dir)
+            expected_cache_dir = os.path.join(home_dir, "Library", "AutoPkg", "Cache")
+            original_expanduser = os.path.expanduser
+            original_cwd = os.getcwd()
+            captured_prefs = {}
+
+            def expanduser(path):
+                if path.startswith("~"):
+                    return path.replace("~", home_dir, 1)
+                return original_expanduser(path)
+
+            def make_packager(_options, prefs):
+                captured_prefs.update(prefs)
+                packager = Mock()
+                packager.results = []
+                packager.env = {
+                    "CACHE_DIR": prefs["CACHE_DIR"],
+                    "RECIPE_CACHE_DIR": os.path.join(
+                        prefs["CACHE_DIR"], "com.test.TestApp"
+                    ),
+                }
+                return packager
+
+            with (
+                patch.object(autopkg, "get_override_dirs", return_value=[]),
+                patch.object(autopkg, "get_search_dirs", return_value=[]),
+                patch.object(autopkg, "get_pref", return_value=cache_pref),
+                patch.object(
+                    autopkg,
+                    "get_all_prefs",
+                    return_value={"CACHE_DIR": cache_pref},
+                ),
+                patch.object(autopkg, "load_recipe", return_value=mock_recipe),
+                patch.object(autopkg, "AutoPackager", side_effect=make_packager),
+                patch.object(autopkg.os.path, "expanduser", side_effect=expanduser),
+                patch.object(autopkg, "plist_serializer", return_value={}),
+                patch.object(autopkg.plistlib, "dump"),
+                patch.object(autopkg, "log"),
+                patch.object(autopkg, "log_err"),
+                patch.object(autopkg, "set_pref") as mock_set_pref,
+            ):
+                try:
+                    os.chdir(cwd_dir)
+                    result = autopkg.run_recipes(argv)
+                finally:
+                    os.chdir(original_cwd)
+
+            self.assertFalse(os.path.exists(os.path.join(cwd_dir, "~")))
+
+        self.assertIsNone(result)
+        self.assertEqual(captured_prefs["CACHE_DIR"], expected_cache_dir)
+        self.assertTrue(os.path.isabs(captured_prefs["CACHE_DIR"]))
+        mock_set_pref.assert_not_called()

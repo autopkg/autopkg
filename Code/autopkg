@@ -2516,8 +2516,9 @@ def run_recipes(argv):  # noqa: C901
         log_err("-p/--pkg option can't be used with multiple recipes!")
         return -1
 
-    cache_dir = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
-    cache_dir = os.path.expanduser(cache_dir)
+    cache_dir = os.path.abspath(
+        os.path.expanduser(get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache")
+    )
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0o755)
     current_run_results_plist = os.path.join(cache_dir, "autopkg_results.plist")
@@ -2578,6 +2579,7 @@ def run_recipes(argv):  # noqa: C901
 
         # Create a local copy of preferences
         prefs = copy.deepcopy(dict(get_all_prefs()))
+        prefs["CACHE_DIR"] = cache_dir
         # Add RECIPE_PATH and RECIPE_DIR variables for use by processors
         prefs["RECIPE_PATH"] = os.path.abspath(recipe["RECIPE_PATH"])
         prefs["RECIPE_DIR"] = os.path.dirname(prefs["RECIPE_PATH"])

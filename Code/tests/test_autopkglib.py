@@ -289,6 +289,50 @@ class TestAutoPackagerRecipeCacheDir(unittest.TestCase):
             packager.process(self._recipe("com.example.safe"))
 
             expected = os.path.join(cache_dir, "com.example.safe")
+            self.assertEqual(packager.env["CACHE_DIR"], cache_dir)
+            self.assertEqual(packager.env["RECIPE_CACHE_DIR"], expected)
+            self.assertTrue(os.path.isdir(expected))
+
+    def test_process_expands_tilde_cache_dir(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            home_dir = os.path.join(tmp_dir, "home")
+            expected_cache_dir = os.path.join(home_dir, "Library", "AutoPkg", "Cache")
+            original_expanduser = os.path.expanduser
+
+            def expanduser(path):
+                if path.startswith("~"):
+                    return path.replace("~", home_dir, 1)
+                return original_expanduser(path)
+
+            original_cwd = os.getcwd()
+            os.chdir(tmp_dir)
+            try:
+                packager = self._packager("~/Library/AutoPkg/Cache")
+                with patch.object(
+                    autopkglib.os.path, "expanduser", side_effect=expanduser
+                ):
+                    packager.process(self._recipe("com.example.safe"))
+            finally:
+                os.chdir(original_cwd)
+
+            expected = os.path.join(expected_cache_dir, "com.example.safe")
+            self.assertEqual(packager.env["CACHE_DIR"], expected_cache_dir)
+            self.assertEqual(packager.env["RECIPE_CACHE_DIR"], expected)
+            self.assertTrue(os.path.isdir(expected))
+
+    def test_process_makes_relative_cache_dir_absolute(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            original_cwd = os.getcwd()
+            os.chdir(tmp_dir)
+            try:
+                cwd_cache_dir = os.path.join(os.getcwd(), "relative-cache")
+                packager = self._packager("relative-cache")
+                packager.process(self._recipe("com.example.safe"))
+            finally:
+                os.chdir(original_cwd)
+
+            expected = os.path.join(cwd_cache_dir, "com.example.safe")
+            self.assertEqual(packager.env["CACHE_DIR"], cwd_cache_dir)
             self.assertEqual(packager.env["RECIPE_CACHE_DIR"], expected)
             self.assertTrue(os.path.isdir(expected))
 

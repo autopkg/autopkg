@@ -1559,8 +1559,8 @@ class AutoPackager:
         """Process a recipe."""
         identifier = self.get_recipe_identifier(recipe)
         # define a cache/work directory for use by the recipe
-        cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
-            "~/Library/AutoPkg/Cache"
+        cache_dir = os.path.abspath(
+            os.path.expanduser(self.env.get("CACHE_DIR") or "~/Library/AutoPkg/Cache")
         )
         recipe_cache_dir = os.path.normpath(os.path.join(cache_dir, identifier))
         if not is_path_under(recipe_cache_dir, cache_dir):
@@ -1568,6 +1568,7 @@ class AutoPackager:
                 f"Recipe identifier {identifier!r} resolves outside CACHE_DIR "
                 f"{cache_dir!r}"
             )
+        self.env["CACHE_DIR"] = cache_dir
         self.env["RECIPE_CACHE_DIR"] = recipe_cache_dir
 
         recipe_input_dict = {}
