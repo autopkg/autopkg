@@ -171,12 +171,7 @@ class URLDownloader(URLGetter):
         # unchanged content.
         if os.path.exists(self.env["pathname"]):
             metadata = self.get_metadata()
-            file_size = metadata.get("file_size")
-            self.existing_file_size = (
-                file_size
-                if file_size is not None
-                else os.path.getsize(self.env["pathname"])
-            )
+            self.existing_file_size = os.path.getsize(self.env["pathname"])
             if not self.env.get("CHECK_FILESIZE_ONLY"):
                 http_headers: dict[str, Any] = metadata.get("http_headers", {})
                 if etag := http_headers.get("ETag"):

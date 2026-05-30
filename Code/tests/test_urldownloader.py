@@ -326,6 +326,40 @@ class TestURLDownloader(unittest.TestCase):
 
         self.assertEqual(headers, {})
 
+    def test_size_only_check_uses_real_file_size_not_stale_metadata(self):
+        """A stale .info.json file_size must not make a changed cache look unchanged."""
+        if not hasattr(self.processor, "get_metadata"):
+            self.skipTest("metadata sidecar not available in this branch")
+
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as f:
+            f.write(b"short")
+
+        metadata = {
+            "file_size": 100,
+            "http_headers": {
+                "Content-Length": 100,
+            },
+        }
+        with open(test_file + ".info.json", "w", encoding="utf-8") as f:
+            json.dump(metadata, f)
+
+        self.processor.env["pathname"] = test_file
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self.processor.clear_vars()
+
+        headers = self.processor.produce_etag_headers()
+        changed = self.processor.download_changed(
+            {
+                "http_result_code": "200",
+                "content-length": "100",
+            }
+        )
+
+        self.assertEqual(headers, {})
+        self.assertEqual(self.processor.existing_file_size, os.path.getsize(test_file))
+        self.assertTrue(changed)
+
     @unittest.skipUnless(
         sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
     )
