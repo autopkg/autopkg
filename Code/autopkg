@@ -2839,7 +2839,13 @@ def audit(argv):
     DOWNLOAD_PROCESSORS = {"CURLDownloader", "URLDownloader", "URLDownloaderPython"}
 
     # these processors build packages or dmgs
-    CREATOR_PROCESSORS = {"DmgCreator", "FlatPkgPacker", "PkgCreator"}
+    CREATOR_PROCESSORS = {
+        "AppPkgCreator",
+        "ChocolateyPackager",
+        "DmgCreator",
+        "FlatPkgPacker",
+        "PkgCreator",
+    }
 
     # these processors could be used to modify the contents of a vendor
     # distribution (pkg, dmg, etc)
