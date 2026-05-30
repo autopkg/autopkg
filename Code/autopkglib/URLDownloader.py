@@ -117,6 +117,9 @@ class URLDownloader(URLGetter):
                 "last time it was downloaded."
             )
         },
+        "file_sha1": {"description": "SHA-1 hash of the downloaded file."},
+        "file_sha256": {"description": "SHA-256 hash of the downloaded file."},
+        "file_md5": {"description": "MD5 hash of the downloaded file."},
         "url_downloader_summary_result": {
             "description": "Description of interesting results."
         },
@@ -305,6 +308,12 @@ class URLDownloader(URLGetter):
             "md5": md5_hasher.hexdigest(),
         }
 
+    def store_hashes_in_env(self, hashes: dict[str, str]) -> None:
+        """Store computed hashes for downstream processors."""
+        self.env["file_sha1"] = hashes["sha1"]
+        self.env["file_sha256"] = hashes["sha256"]
+        self.env["file_md5"] = hashes["md5"]
+
     def create_temp_file(self, download_dir) -> str:
         """Create temporary file and return its path."""
         temporary_file = tempfile.NamedTemporaryFile(dir=download_dir, delete=False)
@@ -401,10 +410,14 @@ class URLDownloader(URLGetter):
             },
         }
         if self.env.get("COMPUTE_HASHES", False):
-            hashes = self.compute_hashes()
-            metadata_dict["file_sha1"] = hashes["sha1"]
-            metadata_dict["file_sha256"] = hashes["sha256"]
-            metadata_dict["file_md5"] = hashes["md5"]
+            self.store_hashes_in_env(self.compute_hashes())
+            metadata_dict.update(
+                {
+                    "file_sha1": self.env["file_sha1"],
+                    "file_sha256": self.env["file_sha256"],
+                    "file_md5": self.env["file_md5"],
+                }
+            )
 
         metadata_str = json.dumps(metadata_dict, indent=4, sort_keys=True)
 
@@ -450,6 +463,8 @@ class URLDownloader(URLGetter):
         else:
             # Discard the temp file
             os.remove(pathname_temporary)
+            if self.env.get("COMPUTE_HASHES", False):
+                self.store_hashes_in_env(self.compute_hashes())
             return
 
         # New resource was downloaded. Move the temporary download file to the pathname

@@ -482,9 +482,19 @@ class TestURLDownloader(unittest.TestCase):
         self.assertIn("file_sha256", metadata)
         self.assertIn("file_md5", metadata)
 
-        # Verify hash values are correct
+        # Verify hash values are correct and available to downstream processors
+        expected_sha1 = sha1(test_content).hexdigest()
         expected_sha256 = sha256(test_content).hexdigest()
+        expected_md5 = md5(test_content).hexdigest()
+        self.assertEqual(metadata["file_sha1"], expected_sha1)
         self.assertEqual(metadata["file_sha256"], expected_sha256)
+        self.assertEqual(metadata["file_md5"], expected_md5)
+        self.assertEqual(self.processor.env["file_sha1"], expected_sha1)
+        self.assertEqual(self.processor.env["file_sha256"], expected_sha256)
+        self.assertEqual(self.processor.env["file_md5"], expected_md5)
+        self.assertIn("file_sha1", self.processor.output_variables)
+        self.assertIn("file_sha256", self.processor.output_variables)
+        self.assertIn("file_md5", self.processor.output_variables)
 
     def test_store_metadata_excludes_hashes_when_disabled(self):
         """Test that store_metadata excludes hashes when COMPUTE_HASHES is False (PR #978 only)."""
@@ -681,6 +691,56 @@ class TestURLDownloader(unittest.TestCase):
                 self.assertEqual(result, '"same-etag"')
             except Exception:
                 self.skipTest("xattr not available on this platform")
+
+    def test_cache_hit_populates_hash_outputs_when_enabled(self):
+        """Test that cache hits expose hashes when COMPUTE_HASHES is True."""
+        if not hasattr(self.processor, "compute_hashes"):
+            self.skipTest("compute_hashes not available in dev-2.x")
+
+        cached_content = b"cached content for hashing"
+        download_dir = os.path.join(self.temp_dir, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        cached_file = os.path.join(download_dir, "file.dmg")
+
+        with open(cached_file, "wb") as f:
+            f.write(cached_content)
+        with open(cached_file + ".info.json", "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "file_size": len(cached_content),
+                    "http_headers": {
+                        "Content-Length": len(cached_content),
+                    },
+                },
+                f,
+            )
+
+        self.processor.env["COMPUTE_HASHES"] = True
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+
+        with (
+            patch("autopkglib.URLDownloader.download_with_curl") as mock_download,
+            patch("autopkglib.URLDownloader.parse_headers") as mock_parse_headers,
+        ):
+            mock_download.return_value = ""
+            mock_parse_headers.return_value = {
+                "http_result_code": "200",
+                "http_result_description": "OK",
+                "content-length": str(len(cached_content)),
+            }
+
+            self.processor.main()
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertEqual(
+            self.processor.env["file_sha1"], sha1(cached_content).hexdigest()
+        )
+        self.assertEqual(
+            self.processor.env["file_sha256"], sha256(cached_content).hexdigest()
+        )
+        self.assertEqual(
+            self.processor.env["file_md5"], md5(cached_content).hexdigest()
+        )
 
     # Clear vars test
 
