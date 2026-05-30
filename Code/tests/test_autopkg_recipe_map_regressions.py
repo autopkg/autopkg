@@ -351,6 +351,63 @@ class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
             )
 
 
+class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
+    """Recipe-map scope checks must resolve symlinks before deciding
+    whether a mapped path is under the caller-declared search dirs. A
+    symlink inside a search dir that points outside it must not let a
+    mapped recipe path pass the containment check."""
+
+    def _symlink_or_skip(self, target, link_name):
+        try:
+            os.symlink(target, link_name)
+        except (AttributeError, NotImplementedError, OSError) as err:
+            self.skipTest(f"symlink creation is unavailable: {err}")
+
+    def test_path_under_dirs_rejects_symlink_escape(self):
+        search_dir = os.path.join(self.tmpdir, "search")
+        outside_dir = os.path.join(self.tmpdir, "outside")
+        os.makedirs(search_dir)
+        os.makedirs(outside_dir)
+        link_dir = os.path.join(search_dir, "linked")
+        self._symlink_or_skip(outside_dir, link_dir)
+
+        escaped_path = os.path.join(link_dir, "Shared.recipe")
+
+        self.assertFalse(autopkg._path_under_dirs(escaped_path, [search_dir]))
+
+    def test_find_processor_path_rejects_map_hit_symlink_escape(self):
+        search_dir = os.path.join(self.tmpdir, "search")
+        outside_dir = os.path.join(self.tmpdir, "outside")
+        os.makedirs(search_dir)
+        os.makedirs(outside_dir)
+        link_dir = os.path.join(search_dir, "linked")
+        self._symlink_or_skip(outside_dir, link_dir)
+
+        shared_recipe_real_path = os.path.join(outside_dir, "Shared.recipe")
+        _write_plist_recipe(
+            shared_recipe_real_path,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        shared_recipe_symlink_path = os.path.join(link_dir, "Shared.recipe")
+        autopkglib.globalRecipeMap["identifiers"][
+            "com.example.shared"
+        ] = shared_recipe_symlink_path
+        autopkg._locate_recipe_rebuild_attempted = True
+
+        with patch(
+            "autopkg.find_recipe_by_identifier_on_disk",
+            return_value=None,
+        ) as mock_disk:
+            result = autopkg.find_processor_path(
+                "com.example.shared/MyProc",
+                recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
+                env={"RECIPE_SEARCH_DIRS": [search_dir]},
+            )
+
+        self.assertIsNone(result)
+        mock_disk.assert_called_once_with("com.example.shared", [search_dir])
+
+
 class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
     """Regression test for issue #903: `autopkg verify-trust-info
     <path/to/override.recipe>` failed to recognise the file as an override
