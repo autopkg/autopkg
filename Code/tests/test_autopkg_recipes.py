@@ -1350,48 +1350,55 @@ class TestAutoPkgRecipes(unittest.TestCase):
     @patch("sys.argv", ["autopkg", "audit", "test.recipe"])
     def test_audit_missing_code_signature_verifier(self):
         """Test audit command flagging missing CodeSignatureVerifier."""
-        mock_recipe = {
-            "RECIPE_PATH": "/path/to/test.recipe",
-            "Process": [
-                {"Processor": "URLDownloader"}  # Missing CodeSignatureVerifier
-            ],
-            "Input": {},
-        }
-
-        with (
-            patch.object(autopkg, "gen_common_parser") as mock_parser_gen,
-            patch.object(autopkg, "add_search_and_override_dir_options"),
-            patch.object(autopkg, "common_parse") as mock_parse,
-            patch.object(autopkg, "get_override_dirs") as mock_get_override_dirs,
-            patch.object(autopkg, "get_search_dirs") as mock_get_search_dirs,
-            patch.object(autopkg, "load_recipe") as mock_load_recipe,
-            patch.object(autopkg, "find_http_urls_in_recipe") as mock_find_urls,
-            patch.object(autopkg, "core_processor_names") as mock_core_processors,
-            patch.object(autopkg, "log") as mock_log,
+        for downloader_processor in (
+            "CURLDownloader",
+            "URLDownloader",
+            "URLDownloaderPython",
         ):
-            mock_parser = Mock()
-            mock_parser.add_option = Mock()
-            mock_parser_gen.return_value = mock_parser
-            mock_options = Mock()
-            mock_options.recipe_list = None
-            mock_options.plist = False
-            mock_options.override_dirs = None
-            mock_options.search_dirs = None
-            mock_parse.return_value = (mock_options, ["test.recipe"])
-            mock_get_override_dirs.return_value = ["/overrides"]
-            mock_get_search_dirs.return_value = ["/recipes"]
-            mock_load_recipe.return_value = mock_recipe
-            mock_find_urls.return_value = {}
-            mock_core_processors.return_value = [
-                "URLDownloader",
-                "CodeSignatureVerifier",
-            ]
+            with self.subTest(downloader_processor=downloader_processor):
+                mock_recipe = {
+                    "RECIPE_PATH": "/path/to/test.recipe",
+                    "Process": [{"Processor": downloader_processor}],
+                    "Input": {},
+                }
 
-            result = autopkg.audit(["autopkg", "audit", "test.recipe"])
+                with (
+                    patch.object(autopkg, "gen_common_parser") as mock_parser_gen,
+                    patch.object(autopkg, "add_search_and_override_dir_options"),
+                    patch.object(autopkg, "common_parse") as mock_parse,
+                    patch.object(
+                        autopkg, "get_override_dirs"
+                    ) as mock_get_override_dirs,
+                    patch.object(autopkg, "get_search_dirs") as mock_get_search_dirs,
+                    patch.object(autopkg, "load_recipe") as mock_load_recipe,
+                    patch.object(autopkg, "find_http_urls_in_recipe") as mock_find_urls,
+                    patch.object(
+                        autopkg, "core_processor_names"
+                    ) as mock_core_processors,
+                    patch.object(autopkg, "log") as mock_log,
+                ):
+                    mock_parser = Mock()
+                    mock_parser.add_option = Mock()
+                    mock_parser_gen.return_value = mock_parser
+                    mock_options = Mock()
+                    mock_options.recipe_list = None
+                    mock_options.plist = False
+                    mock_options.override_dirs = None
+                    mock_options.search_dirs = None
+                    mock_parse.return_value = (mock_options, ["test.recipe"])
+                    mock_get_override_dirs.return_value = ["/overrides"]
+                    mock_get_search_dirs.return_value = ["/recipes"]
+                    mock_load_recipe.return_value = mock_recipe
+                    mock_find_urls.return_value = {}
+                    mock_core_processors.return_value = [
+                        downloader_processor,
+                        "CodeSignatureVerifier",
+                    ]
 
-            self.assertIsNone(result)
-            # Should log the missing CodeSignatureVerifier warning
-            mock_log.assert_any_call("    Missing CodeSignatureVerifier")
+                    result = autopkg.audit(["autopkg", "audit", "test.recipe"])
+
+                    self.assertIsNone(result)
+                    mock_log.assert_any_call("    Missing CodeSignatureVerifier")
 
     @patch("sys.argv", ["autopkg", "audit", "test.recipe"])
     def test_audit_http_urls_found(self):

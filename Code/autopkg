@@ -2836,7 +2836,7 @@ def audit(argv):
     search_dirs = options.search_dirs or get_search_dirs()
 
     # these processors download items
-    DOWNLOAD_PROCESSORS = {"CURLDownloader", "URLDownloader"}
+    DOWNLOAD_PROCESSORS = {"CURLDownloader", "URLDownloader", "URLDownloaderPython"}
 
     # these processors build packages or dmgs
     CREATOR_PROCESSORS = {"DmgCreator", "FlatPkgPacker", "PkgCreator"}
