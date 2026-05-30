@@ -128,7 +128,7 @@ class AutoPkgLib:
         """Copies an item to the appropriate place in the repo.
         If pkg_path is a path within the repo/pkgs directory, copies nothing.
         Renames the item if an item already exists with that name.
-        Returns the relative path to the item.
+        Returns the full path to the item.
         uninstaller_pkg should be True if the item is an uninstaller (Adobe).
         """
 
@@ -151,8 +151,8 @@ class AutoPkgLib:
 
         if pkg_path == destination_pathname:
             # we've been asked to 'import' an item already in the repo.
-            # just return the relative path
-            return os.path.join(self.repo_subdirectory, item_name)
+            # just return the existing path
+            return destination_pathname
 
         if item_version:
             name, ext = os.path.splitext(item_name)

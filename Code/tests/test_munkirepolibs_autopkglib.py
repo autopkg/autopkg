@@ -21,6 +21,19 @@ class TestAutoPkgLib(unittest.TestCase):
         with open(os.path.join(self.munki_repo, "catalogs", "all"), "wb") as f:
             plistlib.dump(items, f)
 
+    def test_copy_pkg_to_repo_returns_full_path_for_package_already_in_repo(self):
+        pkgs_subdir = os.path.join(self.munki_repo, "pkgs", "apps")
+        os.makedirs(pkgs_subdir)
+        pkg_path = os.path.join(pkgs_subdir, "TestApp-1.0.pkg")
+        with open(pkg_path, "w") as f:
+            f.write("test package")
+
+        result = AutoPkgLib(self.munki_repo, "apps").copy_pkg_to_repo(
+            {"version": "1.0"}, pkg_path
+        )
+
+        self.assertEqual(result, pkg_path)
+
     def test_make_catalog_db_preserves_application_matches_with_same_app_version(self):
         app_path = "/Applications/TestApp.app"
         self._write_all_catalog(

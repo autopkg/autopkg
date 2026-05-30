@@ -46,6 +46,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
 - MunkiOptionalReceiptEditor now routes pkginfo updates through the Munki repo plugin API, fixing silent data loss when using `GitFileRepo` or other non-filesystem repo plugins (#1031)
 - Munki repo catalog matching now preserves all installed-application matches when pkginfos share an app path and app version.
+- MunkiImporter now writes correct pkginfo paths when importing an uncataloged package already under the Munki repo's `pkgs` directory.
 - `make-override --format` can now be set globally via the `RECIPE_OVERRIDE_FORMAT` preference, so you don't need to pass `--format yaml` on every invocation (#1024)
 - URLDownloader: `prefetch_filename` now includes `curl_common_opts` (e.g. `Authorization` request headers) in the HEAD request used to determine the filename, preventing prefetch failures on authenticated endpoints (#925, thanks to @n8felton)
 - Updated virtualenv to 20.36.1 (#1009)
