@@ -1645,7 +1645,27 @@ class AutoPackager:
             )[0]
             processor_class = get_processor(processor_name, verbose=self.verbose)
             processor = processor_class(self.env)
-            processor.inject(step.get("Arguments", {}))
+            arguments = step.get("Arguments", {})
+            if processor_name == "PkgCreator" and isinstance(arguments, dict):
+                pkg_request = arguments.get("pkg_request", {})
+                pkg_scripts = (
+                    pkg_request.get("scripts")
+                    if isinstance(pkg_request, dict)
+                    else None
+                )
+                if (
+                    isinstance(pkg_scripts, str)
+                    and "%scripts%" in pkg_scripts
+                    and self.env.get("scripts")
+                ):
+                    log_err(
+                        "WARNING: PkgCreator package scripts reference the recipe "
+                        "input/runtime variable 'scripts'. Package scripts supplied "
+                        "this way are not represented in parent recipe trust "
+                        "information. Confirm this scripts path is expected for this "
+                        "run. Processing will continue."
+                    )
+            processor.inject(arguments)
 
             input_dict = {}
             for key in list(processor.input_variables.keys()):

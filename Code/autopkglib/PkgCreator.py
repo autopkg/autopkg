@@ -21,7 +21,7 @@ import socket
 import subprocess
 from xml.etree import ElementTree as ET
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, log_err
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
 
@@ -186,6 +186,16 @@ class PkgCreator(Processor):
         request = self.env["pkg_request"]
         if "pkgdir" not in request:
             request["pkgdir"] = self.env["RECIPE_CACHE_DIR"]
+
+        if "scripts" not in request and self.env.get("scripts"):
+            log_err(
+                "WARNING: PkgCreator package scripts are being supplied from "
+                "the recipe input/runtime variable 'scripts' because "
+                "pkg_request.scripts is not set. Package scripts supplied this "
+                "way are not represented in parent recipe trust information. "
+                "Confirm this scripts path is expected for this run. Processing "
+                "will continue."
+            )
 
         # Set variables, and check that all keys are in request.
         for key in (

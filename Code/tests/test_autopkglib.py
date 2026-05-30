@@ -348,6 +348,42 @@ class TestAutoPackagerRecipeCacheDir(unittest.TestCase):
             self.assertEqual(packager.env["RECIPE_CACHE_DIR"], expected)
             self.assertTrue(os.path.isdir(expected))
 
+    def test_process_warns_when_pkgcreator_scripts_reference_input(self):
+        class NoOpProcessor(autopkglib.Processor):
+            input_variables = {}
+            output_variables = {}
+
+            def main(self):
+                pass
+
+        with tempfile.TemporaryDirectory() as cache_dir:
+            packager = self._packager(cache_dir)
+            packager.env["scripts"] = "/tmp/Scripts"
+            recipe = {
+                "Identifier": "com.example.pkg",
+                "Input": {},
+                "Process": [
+                    {
+                        "Processor": "PkgCreator",
+                        "Arguments": {
+                            "pkg_request": {
+                                "pkgroot": "/tmp/root",
+                                "scripts": "%scripts%",
+                            }
+                        },
+                    }
+                ],
+            }
+
+            with (
+                patch.object(autopkglib, "get_processor", return_value=NoOpProcessor),
+                patch.object(autopkglib, "log_err") as mock_log_err,
+            ):
+                packager.process(recipe)
+
+        mock_log_err.assert_called_once()
+        self.assertIn("reference the recipe", mock_log_err.call_args[0][0])
+
     def test_process_rejects_parent_directory_identifier_escape(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             cache_dir = os.path.join(tmp_dir, "cache")

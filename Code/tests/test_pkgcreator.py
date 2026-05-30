@@ -128,6 +128,20 @@ class TestPkgCreator(unittest.TestCase):
         self.assertEqual(request["scripts"], "")
         self.assertEqual(request["chown"], [])
 
+    def test_warns_when_scripts_are_filled_from_input(self):
+        """Runtime scripts input should warn when pkg_request.scripts is absent."""
+        self.processor.env = deepcopy(self.minimal_env)
+        self.processor.env["scripts"] = self.tmp_dir.name
+
+        with (
+            patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True),
+            patch.object(sys.modules[PkgCreator.__module__], "log_err") as mock_log_err,
+        ):
+            self.processor.main()
+
+        mock_log_err.assert_called_once()
+        self.assertIn("pkg_request.scripts is not set", mock_log_err.call_args[0][0])
+
     def test_find_path_for_relpath_cache_dir(self):
         """Test finding relative paths in RECIPE_CACHE_DIR."""
         # Create a test file in cache dir
