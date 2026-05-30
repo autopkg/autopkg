@@ -121,12 +121,10 @@ class PkgInfoCreator(Processor):
         if template_path.endswith(".plist"):
             # Try to load Info.plist in bundle format.
             try:
-                with open(self.env["template_path"], "rb") as f:
+                with open(template_path, "rb") as f:
                     info = plistlib.load(f)
             except Exception:
-                raise ProcessorError(
-                    f"Malformed Info.plist template {self.env['template_path']}"
-                )
+                raise ProcessorError(f"Malformed Info.plist template {template_path}")
             if template_type == "bundle":
                 return info
             else:

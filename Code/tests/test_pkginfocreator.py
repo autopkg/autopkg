@@ -127,6 +127,27 @@ class TestPkgInfoCreator(unittest.TestCase):
             "Bundle package creation no longer supported", str(context.exception)
         )
 
+    def test_main_loads_relative_plist_template_from_recipe_dir(self):
+        """Test main() loads a relative plist template resolved from RECIPE_DIR."""
+        self._create_plist_template("RelativeInfo.plist")
+        self.processor.env["template_path"] = "RelativeInfo.plist"
+
+        original_cwd = os.getcwd()
+        with TemporaryDirectory() as unrelated_cwd:
+            try:
+                os.chdir(unrelated_cwd)
+                self.processor.main()
+            finally:
+                os.chdir(original_cwd)
+
+        self.assertTrue(os.path.exists(self.infofile))
+        tree = ElementTree.parse(self.infofile)
+        root = tree.getroot()
+
+        self.assertEqual(root.tag, "pkg-info")
+        self.assertEqual(root.get("identifier"), "com.example.testapp")
+        self.assertEqual(root.get("version"), "1.0.0")
+
     # Test template finding
     def test_find_template_absolute_path_exists(self):
         """Test finding template with absolute path that exists."""

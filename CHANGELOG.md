@@ -44,6 +44,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
     > Overrides of recipes that use PkgCreator scripts should be updated with `autopkg update-trust-info` to add script trust info. In AutoPkg 3.0.0, missing script trust info produces a warning; starting in AutoPkg 3.0.1, this will be a trust verification error.
 
 - PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
+- PkgInfoCreator now finds relative Info.plist templates stored beside a recipe or parent recipe.
 - MunkiOptionalReceiptEditor now routes pkginfo updates through the Munki repo plugin API, fixing silent data loss when using `GitFileRepo` or other non-filesystem repo plugins (#1031)
 - Munki repo catalog matching now preserves all installed-application matches when pkginfos share an app path and app version.
 - MunkiImporter now writes correct pkginfo paths when importing an uncataloged package already under the Munki repo's `pkgs` directory.
