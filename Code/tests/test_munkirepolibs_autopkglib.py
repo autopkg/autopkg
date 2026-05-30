@@ -34,6 +34,19 @@ class TestAutoPkgLib(unittest.TestCase):
 
         self.assertEqual(result, pkg_path)
 
+    def test_copy_pkginfo_to_repo_strips_version_from_collision_filenames(self):
+        pkginfo = {"name": "TestApp", "version": " 1.0 "}
+        autopkg_lib = AutoPkgLib(self.munki_repo, "apps")
+
+        first_result = autopkg_lib.copy_pkginfo_to_repo(pkginfo)
+        second_result = autopkg_lib.copy_pkginfo_to_repo(pkginfo)
+
+        self.assertEqual(os.path.basename(first_result), "TestApp-1.0.plist")
+        self.assertEqual(os.path.basename(second_result), "TestApp-1.0__1.plist")
+        with open(second_result, "rb") as f:
+            saved_pkginfo = plistlib.load(f)
+        self.assertEqual(saved_pkginfo["version"], " 1.0 ")
+
     def test_make_catalog_db_preserves_application_matches_with_same_app_version(self):
         app_path = "/Applications/TestApp.app"
         self._write_all_catalog(
