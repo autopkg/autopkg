@@ -23,6 +23,7 @@ import hashlib
 import os
 import plistlib
 import pprint
+import re
 import shutil
 import subprocess
 import sys
@@ -2806,6 +2807,216 @@ def find_http_urls_in_recipe(recipe):
     return recipe_urls
 
 
+AUDIT_DMG_EXTENSIONS = (".dmg/", ".iso/")
+AUDIT_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
+AUDIT_RUNTIME_PATH_PREFIXES = ("%RECIPE_CACHE_DIR%", "%CACHE_DIR%")
+
+
+def _audit_path_has_parent_reference(value) -> bool:
+    return ".." in value.replace("\\", "/").split("/")
+
+
+def _audit_path_is_absolute(value) -> bool:
+    normalized = value.replace("\\", "/")
+    return normalized.startswith("/") or (len(normalized) > 1 and normalized[1] == ":")
+
+
+def _audit_value_uses_runtime_path_prefix(value) -> bool:
+    normalized = value.replace("\\", "/")
+    return any(
+        normalized == prefix or normalized.startswith(f"{prefix}/")
+        for prefix in AUDIT_RUNTIME_PATH_PREFIXES
+    )
+
+
+def _audit_string_contains_path_marker(value) -> bool:
+    return "/" in value or "\\" in value or ".." in value
+
+
+def _audit_substitute_recipe_variables(value, env, depth=0):
+    """Resolve simple %VAR% recipe references for static audit checks."""
+    if depth > 5:
+        return value
+    if isinstance(value, str):
+        full_match = AUDIT_KEYREF.fullmatch(value)
+        if full_match:
+            key = full_match.group("key")
+            if key in env:
+                return _audit_substitute_recipe_variables(env[key], env, depth + 1)
+
+        def getdata(match):
+            key = match.group("key")
+            return str(env.get(key, match.group(0)))
+
+        return AUDIT_KEYREF.sub(getdata, value)
+    if isinstance(value, list):
+        return [
+            _audit_substitute_recipe_variables(item, env, depth + 1) for item in value
+        ]
+    if isinstance(value, dict):
+        return {
+            key: _audit_substitute_recipe_variables(item, env, depth + 1)
+            for key, item in value.items()
+        }
+    return value
+
+
+def _audit_step_value(recipe, step, key):
+    """Return a step argument or recipe Input value with static substitutions."""
+    input_values = recipe.get("Input", {})
+    arguments = step.get("Arguments", {})
+    if key in arguments:
+        value = arguments[key]
+    elif key in input_values:
+        value = input_values[key]
+    else:
+        return None
+    env = dict(input_values)
+    env.update(arguments)
+    return _audit_substitute_recipe_variables(value, env)
+
+
+def _audit_iter_string_values(value, location):
+    if isinstance(value, str):
+        yield location, value
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            yield from _audit_iter_string_values(item, f"{location}[{index}]")
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from _audit_iter_string_values(item, f"{location}.{key}")
+
+
+def _audit_iter_recipe_string_values(recipe):
+    for key, value in recipe.get("Input", {}).items():
+        yield from _audit_iter_string_values(value, f"Input.{key}")
+    for step in recipe.get("Process", []):
+        processor = step.get("Processor", "UnknownProcessor")
+        for key, value in step.get("Arguments", {}).items():
+            yield from _audit_iter_string_values(value, f"{processor}.{key}")
+
+
+def _audit_dmg_inner_path(value):
+    lower_value = value.lower()
+    for extension in AUDIT_DMG_EXTENSIONS:
+        index = lower_value.find(extension)
+        if index != -1:
+            return value[index + len(extension) :]
+    return None
+
+
+def _audit_static_install_path_is_outside_expected_locations(value) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    if _audit_path_has_parent_reference(value):
+        return True
+    if _audit_dmg_inner_path(value) is not None:
+        return False
+    if _audit_value_uses_runtime_path_prefix(value):
+        return False
+    if "%" in value:
+        return _audit_path_is_absolute(value)
+    return True
+
+
+def find_path_safety_warnings_in_recipe(recipe):
+    """Find static path values that deserve extra audit attention."""
+    warnings = []
+
+    def add_warning(location, reason, value):
+        warnings.append({"location": location, "reason": reason, "value": str(value)})
+
+    identifier = recipe.get("Identifier") or recipe.get("Input", {}).get("IDENTIFIER")
+    if isinstance(identifier, str) and _audit_string_contains_path_marker(identifier):
+        add_warning(
+            "Identifier",
+            "contains path separators or parent-directory references",
+            identifier,
+        )
+
+    for location, value in _audit_iter_recipe_string_values(recipe):
+        if "://" in value:
+            continue
+        inner_path = _audit_dmg_inner_path(value)
+        if inner_path and (
+            _audit_path_is_absolute(inner_path)
+            or _audit_path_has_parent_reference(inner_path)
+        ):
+            add_warning(
+                location,
+                (
+                    "DMG pseudo-path contains an absolute path or "
+                    "parent-directory reference after the disk image boundary"
+                ),
+                value,
+            )
+
+    for step in recipe.get("Process", []):
+        processor = step.get("Processor")
+        if processor == "Installer":
+            pkg_path = _audit_step_value(recipe, step, "pkg_path")
+            if _audit_static_install_path_is_outside_expected_locations(pkg_path):
+                add_warning(
+                    "Installer.pkg_path",
+                    (
+                        "package path is not explicitly inside AutoPkg cache "
+                        "or a mounted disk image"
+                    ),
+                    pkg_path,
+                )
+        elif processor == "InstallFromDMG":
+            items_to_copy = _audit_step_value(recipe, step, "items_to_copy")
+            if not isinstance(items_to_copy, list):
+                continue
+            for index, item in enumerate(items_to_copy):
+                if not isinstance(item, dict):
+                    continue
+                source_item = item.get("source_item")
+                if isinstance(source_item, str) and (
+                    _audit_path_is_absolute(source_item)
+                    or _audit_path_has_parent_reference(source_item)
+                ):
+                    add_warning(
+                        f"InstallFromDMG.items_to_copy[{index}].source_item",
+                        "copy source may resolve outside the mounted disk image",
+                        source_item,
+                    )
+                destination_path = item.get("destination_path")
+                if _audit_static_install_path_is_outside_expected_locations(
+                    destination_path
+                ):
+                    add_warning(
+                        f"InstallFromDMG.items_to_copy[{index}].destination_path",
+                        (
+                            "privileged copy destination is not explicitly inside "
+                            "AutoPkg cache"
+                        ),
+                        destination_path,
+                    )
+        elif processor == "PkgRootCreator":
+            pkgdirs = _audit_step_value(recipe, step, "pkgdirs")
+            if not isinstance(pkgdirs, dict):
+                continue
+            for directory in pkgdirs:
+                if isinstance(directory, str) and ".." in directory:
+                    add_warning(
+                        f"PkgRootCreator.pkgdirs[{directory}]",
+                        "pkgdirs key contains parent-directory references",
+                        directory,
+                    )
+        elif processor == "ChocolateyPackager":
+            for key in ("id", "version"):
+                value = _audit_step_value(recipe, step, key)
+                if isinstance(value, str) and _audit_string_contains_path_marker(value):
+                    add_warning(
+                        f"ChocolateyPackager.{key}",
+                        "contains path separators or parent-directory references",
+                        value,
+                    )
+
+    return warnings
+
+
 def audit(argv):
     """Audit one or more recipes."""
     verb = argv[1]
@@ -2893,6 +3104,9 @@ def audit(argv):
         http_urls = find_http_urls_in_recipe(recipe)
         if http_urls:
             audit_results[recipe_path]["http_urls"] = http_urls
+        path_safety_warnings = find_path_safety_warnings_in_recipe(recipe)
+        if path_safety_warnings:
+            audit_results[recipe_path]["path_safety_warnings"] = path_safety_warnings
         recipe_processors = [step["Processor"] for step in recipe["Process"]]
         if (
             set(recipe_processors).intersection(DOWNLOAD_PROCESSORS)
@@ -2940,6 +3154,14 @@ def audit(argv):
             if audit_results[recipe_path].get("http_urls"):
                 log("    The following http URLs were found in the recipe:")
                 printplist(audit_results[recipe_path]["http_urls"])
+            path_safety_warnings = audit_results[recipe_path].get(
+                "path_safety_warnings"
+            )
+            if path_safety_warnings:
+                log("    The following path values should be more closely inspected:")
+                for warning in path_safety_warnings:
+                    log(f"        {warning['location']}: {warning['reason']}")
+                    log(f"            {warning['value']}")
             if audit_results[recipe_path].get("non_core_processors"):
                 log(
                     "    The following processors are non-core and can execute "

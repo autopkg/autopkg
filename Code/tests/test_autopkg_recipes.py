@@ -1300,6 +1300,79 @@ class TestAutoPkgRecipes(unittest.TestCase):
         # Should default to "0" when missing
         self.assertEqual(result["MinimumVersion"], "0")
 
+    def test_find_path_safety_warnings_in_recipe(self):
+        """Test audit path-safety warnings for path-sensitive recipe values."""
+        recipe = {
+            "Identifier": "../com.example.Test",
+            "Input": {
+                "pkg_path": "/tmp/%NAME%.pkg",
+                "items_to_copy": [
+                    {
+                        "source_item": "../Evil.app",
+                        "destination_path": "/Applications",
+                    }
+                ],
+                "pkgdirs": {"Applications/../../escape": "0755"},
+                "id": "nested/package",
+                "version": "../1.0",
+                "input_path": "Downloads/Test.dmg//tmp/Evil.app",
+            },
+            "Process": [
+                {"Processor": "Installer"},
+                {"Processor": "InstallFromDMG"},
+                {"Processor": "PkgRootCreator"},
+                {"Processor": "ChocolateyPackager"},
+                {
+                    "Processor": "CodeSignatureVerifier",
+                    "Arguments": {"input_path": "%input_path%"},
+                },
+            ],
+        }
+
+        warnings = autopkg.find_path_safety_warnings_in_recipe(recipe)
+        locations = {warning["location"] for warning in warnings}
+        expected_locations = {
+            "Identifier",
+            "Installer.pkg_path",
+            "InstallFromDMG.items_to_copy[0].source_item",
+            "InstallFromDMG.items_to_copy[0].destination_path",
+            "PkgRootCreator.pkgdirs[Applications/../../escape]",
+            "ChocolateyPackager.id",
+            "ChocolateyPackager.version",
+            "Input.input_path",
+        }
+
+        self.assertEqual(locations, expected_locations)
+
+    def test_find_path_safety_warnings_ignores_expected_paths(self):
+        """Test audit path-safety warnings ignore ordinary confined values."""
+        recipe = {
+            "Identifier": "com.example.Test",
+            "Input": {
+                "pkg_path": "%RECIPE_CACHE_DIR%/downloads/Test.pkg",
+                "items_to_copy": [
+                    {
+                        "source_item": "Test.app",
+                        "destination_path": "%RECIPE_CACHE_DIR%/installed",
+                    }
+                ],
+                "pkgdirs": {"Applications/Test": "0755"},
+                "id": "test-package",
+                "version": "1.0.0",
+                "input_path": "Downloads/Test.dmg/Test.app",
+            },
+            "Process": [
+                {"Processor": "Installer"},
+                {"Processor": "InstallFromDMG"},
+                {"Processor": "PkgRootCreator"},
+                {"Processor": "ChocolateyPackager"},
+            ],
+        }
+
+        warnings = autopkg.find_path_safety_warnings_in_recipe(recipe)
+
+        self.assertEqual(warnings, [])
+
     @patch("sys.argv", ["autopkg", "audit", "test.recipe"])
     def test_audit_basic_recipe_no_issues(self):
         """Test audit command with a basic recipe that has no issues."""
@@ -1346,6 +1419,54 @@ class TestAutoPkgRecipes(unittest.TestCase):
             # Should complete without error
             self.assertIsNone(result)
             mock_log.assert_called_with("test.recipe: no audit flags triggered.")
+
+    @patch("sys.argv", ["autopkg", "audit", "test.recipe"])
+    def test_audit_path_safety_warnings(self):
+        """Test audit command logging path-safety warnings."""
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/test.recipe",
+            "Identifier": "../com.example.Test",
+            "Process": [],
+            "Input": {},
+        }
+
+        with (
+            patch.object(autopkg, "gen_common_parser") as mock_parser_gen,
+            patch.object(autopkg, "add_search_and_override_dir_options"),
+            patch.object(autopkg, "common_parse") as mock_parse,
+            patch.object(autopkg, "get_override_dirs") as mock_get_override_dirs,
+            patch.object(autopkg, "get_search_dirs") as mock_get_search_dirs,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "find_http_urls_in_recipe") as mock_find_urls,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch.object(autopkg, "log") as mock_log,
+        ):
+            mock_parser = Mock()
+            mock_parser.add_option = Mock()
+            mock_parser_gen.return_value = mock_parser
+            mock_options = Mock()
+            mock_options.recipe_list = None
+            mock_options.plist = False
+            mock_options.override_dirs = None
+            mock_options.search_dirs = None
+            mock_parse.return_value = (mock_options, ["test.recipe"])
+            mock_get_override_dirs.return_value = ["/overrides"]
+            mock_get_search_dirs.return_value = ["/recipes"]
+            mock_load_recipe.return_value = mock_recipe
+            mock_find_urls.return_value = {}
+            mock_core_processors.return_value = []
+
+            result = autopkg.audit(["autopkg", "audit", "test.recipe"])
+
+            self.assertIsNone(result)
+            mock_log.assert_any_call(
+                "    The following path values should be more closely inspected:"
+            )
+            mock_log.assert_any_call(
+                "        Identifier: contains path separators or "
+                "parent-directory references"
+            )
+            mock_log.assert_any_call("            ../com.example.Test")
 
     @patch("sys.argv", ["autopkg", "audit", "test.recipe"])
     def test_audit_missing_code_signature_verifier(self):
