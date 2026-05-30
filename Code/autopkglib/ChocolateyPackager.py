@@ -349,10 +349,8 @@ class ChocolateyPackager(Processor):
         installer_kwargs = {}
         if "installer_url" in self.env:
             installer_kwargs["url"] = self.env["installer_url"]
-            installer_kwargs["installer_checksum"] = self.env["installer_checksum"]
-            installer_kwargs["installer_checksum_type"] = self.env[
-                "installer_checksum_type"
-            ]
+            installer_kwargs["checksum"] = self.env["installer_checksum"]
+            installer_kwargs["checksumType"] = self.env["installer_checksum_type"]
         else:
             installer_kwargs["file"] = self.env["installer_path"]
 
@@ -449,6 +447,14 @@ class ChocolateyPackager(Processor):
             del self.env["installer_path"]
             # Set the path from `pathname`, an output variable from `URLDownloader`.
             self._ensure_path_var("installer_path", "pathname")
+
+        if self.env.get("installer_url") is not None and not self.env.get(
+            "installer_checksum"
+        ):
+            raise ProcessorError(
+                "Variable `installer_checksum` is required when "
+                "`installer_url` is provided."
+            )
 
         self._check_enum_var("installer_type", CHOCO_FILE_TYPES)
         self._check_enum_var("installer_checksum_type", CHOCO_CHECKSUM_TYPES)

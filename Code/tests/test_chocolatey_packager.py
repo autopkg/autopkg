@@ -127,6 +127,35 @@ class TestChocolateyPackagerPathSafety(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "resolves outside"):
             processor._build_path(build_dir, "..", "escape")
 
+    def test_remote_installer_renders_url_checksum_fields(self):
+        env = deepcopy(self.good_file_vars)
+        env["installer_url"] = "https://example.com/downloads/installer.exe"
+        env["installer_checksum"] = (
+            "4A8F3C1B5E6D7A9B0C2D4E6F8A1B3C5D" "7E9F0A2B4C6D8E1F3A5B7C9D0E2F4A6B"
+        )
+        env["installer_checksum_type"] = "sha256"
+        del env["installer_path"]
+
+        rendered = self.processor(env).chocolateyinstall_ps1().render_str()
+
+        self.assertIn("url = 'https://example.com/downloads/installer.exe'", rendered)
+        self.assertIn(f"checksum = '{env['installer_checksum']}'", rendered)
+        self.assertIn("checksumType = 'sha256'", rendered)
+
+    def test_remote_installer_requires_checksum_before_packaging(self):
+        env = deepcopy(self.good_file_vars)
+        env["installer_url"] = "https://example.com/downloads/installer.exe"
+        del env["installer_path"]
+        del env["installer_checksum"]
+
+        with unittest.mock.patch("subprocess.Popen") as popen_mock:
+            with self.assertRaisesRegex(
+                ProcessorError,
+                "`installer_checksum` is required when `installer_url` is provided",
+            ):
+                self.processor(env).process()
+            popen_mock.assert_not_called()
+
 
 @unittest.skipUnless(sys.platform.startswith("win"), "requires Windows")
 @unittest.skipUnless(check_for_choco(), "requires chocolatey")
