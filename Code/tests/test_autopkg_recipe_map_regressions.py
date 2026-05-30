@@ -363,25 +363,34 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
         except (AttributeError, NotImplementedError, OSError) as err:
             self.skipTest(f"symlink creation is unavailable: {err}")
 
-    def test_path_under_dirs_rejects_symlink_escape(self):
+    def _make_search_with_escaped_link(self):
         search_dir = os.path.join(self.tmpdir, "search")
         outside_dir = os.path.join(self.tmpdir, "outside")
         os.makedirs(search_dir)
         os.makedirs(outside_dir)
         link_dir = os.path.join(search_dir, "linked")
         self._symlink_or_skip(outside_dir, link_dir)
+        return search_dir, outside_dir, link_dir
 
+    def _write_processor(self, path, class_name):
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(
+                "from autopkglib import Processor\n"
+                f"class {class_name}(Processor):\n"
+                "    input_variables = {}\n"
+                "    output_variables = {}\n"
+                "    def main(self):\n"
+                "        pass\n"
+            )
+
+    def test_path_under_dirs_rejects_symlink_escape(self):
+        search_dir, _, link_dir = self._make_search_with_escaped_link()
         escaped_path = os.path.join(link_dir, "Shared.recipe")
 
         self.assertFalse(autopkg._path_under_dirs(escaped_path, [search_dir]))
 
     def test_find_processor_path_rejects_map_hit_symlink_escape(self):
-        search_dir = os.path.join(self.tmpdir, "search")
-        outside_dir = os.path.join(self.tmpdir, "outside")
-        os.makedirs(search_dir)
-        os.makedirs(outside_dir)
-        link_dir = os.path.join(search_dir, "linked")
-        self._symlink_or_skip(outside_dir, link_dir)
+        search_dir, outside_dir, link_dir = self._make_search_with_escaped_link()
 
         shared_recipe_real_path = os.path.join(outside_dir, "Shared.recipe")
         _write_plist_recipe(
@@ -406,6 +415,98 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
 
         self.assertIsNone(result)
         mock_disk.assert_called_once_with("com.example.shared", [search_dir])
+
+    def test_find_processor_path_rejects_disk_fallback_symlink_escape(self):
+        search_dir, outside_dir, _ = self._make_search_with_escaped_link()
+
+        shared_recipe_real_path = os.path.join(outside_dir, "Shared.recipe")
+        _write_plist_recipe(
+            shared_recipe_real_path,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        with open(os.path.join(outside_dir, "MyProc.py"), "w", encoding="utf-8") as f:
+            f.write("")
+        autopkg._locate_recipe_rebuild_attempted = True
+
+        result = autopkg.find_processor_path(
+            "com.example.shared/MyProc",
+            recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
+            env={"RECIPE_SEARCH_DIRS": [search_dir]},
+        )
+
+        self.assertIsNone(result)
+
+    def test_name_lookup_rejects_disk_fallback_symlink_escape(self):
+        search_dir, outside_dir, _ = self._make_search_with_escaped_link()
+
+        _write_plist_recipe(
+            os.path.join(outside_dir, "Escaped.recipe"),
+            {**SAMPLE_RECIPE, "Identifier": "com.example.escaped"},
+        )
+
+        result = autopkglib.find_recipe_by_name_on_disk("Escaped", [search_dir])
+
+        self.assertIsNone(result)
+
+    def test_recipe_map_scan_rejects_symlink_escape(self):
+        search_dir, outside_dir, _ = self._make_search_with_escaped_link()
+
+        _write_plist_recipe(
+            os.path.join(outside_dir, "Escaped.recipe"),
+            {**SAMPLE_RECIPE, "Identifier": "com.example.escaped"},
+        )
+
+        result = autopkglib.map_key_to_paths("identifiers", search_dir)
+
+        self.assertNotIn("com.example.escaped", result)
+
+    def test_get_processor_rejects_map_hit_symlink_escape(self):
+        search_dir, outside_dir, link_dir = self._make_search_with_escaped_link()
+
+        processor_name = "EscapingMapProc"
+        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+
+        shared_recipe_real_path = os.path.join(outside_dir, "Shared.recipe")
+        _write_plist_recipe(
+            shared_recipe_real_path,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        self._write_processor(
+            os.path.join(outside_dir, f"{processor_name}.py"), processor_name
+        )
+        autopkglib.globalRecipeMap["identifiers"]["com.example.shared"] = os.path.join(
+            link_dir, "Shared.recipe"
+        )
+
+        with self.assertRaises(KeyError):
+            autopkglib.get_processor(
+                f"com.example.shared/{processor_name}",
+                recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
+                env={"RECIPE_SEARCH_DIRS": [search_dir]},
+            )
+        self.assertNotIn(processor_name, autopkglib.__dict__)
+
+    def test_get_processor_rejects_disk_fallback_symlink_escape(self):
+        search_dir, outside_dir, _ = self._make_search_with_escaped_link()
+
+        processor_name = "EscapingDiskProc"
+        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+
+        _write_plist_recipe(
+            os.path.join(outside_dir, "Shared.recipe"),
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        self._write_processor(
+            os.path.join(outside_dir, f"{processor_name}.py"), processor_name
+        )
+
+        with self.assertRaises(KeyError):
+            autopkglib.get_processor(
+                f"com.example.shared/{processor_name}",
+                recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
+                env={"RECIPE_SEARCH_DIRS": [search_dir]},
+            )
+        self.assertNotIn(processor_name, autopkglib.__dict__)
 
 
 class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):

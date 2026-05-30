@@ -69,6 +69,17 @@ def is_path_under(path, base) -> bool:
         return False
 
 
+def is_path_under_any(path, bases) -> bool:
+    """Return True if path resolves under any base in bases."""
+    if not bases:
+        return True
+    if isinstance(bases, str):
+        bases = [bases]
+    return any(
+        is_path_under(path, os.path.abspath(os.path.expanduser(base))) for base in bases
+    )
+
+
 def log(msg, error=False) -> None:
     """Message logger, prints to stdout/stderr."""
     if error:
@@ -512,22 +523,39 @@ def get_override_dirs() -> list[str]:
     return dirs or default
 
 
+def _recipe_glob_patterns(directory, name=None):
+    if name is None:
+        for ext in RECIPE_EXTS:
+            yield os.path.join(directory, f"*{ext}")
+        for ext in RECIPE_EXTS:
+            yield os.path.join(directory, "*", f"*{ext}")
+    else:
+        for ext in RECIPE_EXTS:
+            yield os.path.join(directory, f"{name}{ext}")
+        for ext in RECIPE_EXTS:
+            yield os.path.join(directory, "*", f"{name}{ext}")
+
+
+def _iter_recipe_glob_matches(search_dirs, name=None):
+    """Yield recipe glob matches that resolve inside each search directory."""
+    if isinstance(search_dirs, str):
+        search_dirs = [search_dirs]
+    for directory in search_dirs:
+        normalized_dir = os.path.abspath(os.path.expanduser(directory))
+        for pattern in _recipe_glob_patterns(normalized_dir, name=name):
+            for match in glob.glob(pattern):
+                if is_path_under(match, normalized_dir):
+                    yield match
+
+
 def find_recipe_by_identifier_on_disk(identifier, search_dirs) -> str | None:
     """Search search_dirs on disk for a recipe with the given identifier.
 
     This is the legacy on-disk scan used as a fallback when the recipe map
     cannot resolve a recipe."""
-    for directory in search_dirs:
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
-        patterns.extend(
-            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
-        )
-        for pattern in patterns:
-            matches = glob.glob(pattern)
-            for match in matches:
-                if get_identifier_from_recipe_file(match) == identifier:
-                    return match
+    for match in _iter_recipe_glob_matches(search_dirs):
+        if get_identifier_from_recipe_file(match) == identifier:
+            return match
 
     return None
 
@@ -541,17 +569,9 @@ def find_recipe_by_name_on_disk(name, search_dirs) -> str | None:
     # going to add it back on...
     name = remove_recipe_extension(name)
     # search by "Name", using file/directory hierarchy rules
-    for directory in search_dirs:
-        normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [os.path.join(normalized_dir, f"{name}{ext}") for ext in RECIPE_EXTS]
-        patterns.extend(
-            [os.path.join(normalized_dir, f"*/{name}{ext}") for ext in RECIPE_EXTS]
-        )
-        for pattern in patterns:
-            matches = glob.glob(pattern)
-            for match in matches:
-                if valid_recipe_file(match):
-                    return match
+    for match in _iter_recipe_glob_matches(search_dirs, name=name):
+        if valid_recipe_file(match):
+            return match
 
     return None
 
@@ -703,27 +723,23 @@ def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
     First-wins: if a key is already present in the return dict or in
     ``globalRecipeMap[keyname]`` the new path is ignored."""
     recipe_map: dict[str, str] = {}
-    normalized_dir = os.path.abspath(os.path.expanduser(repo_dir))
-    patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
-    patterns.extend([os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS])
     use_identifier = keyname in _IDENTIFIER_KEYS
-    for pattern in patterns:
-        for match in glob.glob(pattern):
-            if use_identifier:
-                key = get_identifier_from_recipe_file(match)
-            else:
-                key = remove_recipe_extension(os.path.basename(match))
-            if not key:
-                log_err(
-                    f"WARNING: {match} is potentially an invalid file, not "
-                    "adding it to the recipe map! Please file a GitHub Issue "
-                    "for this repo."
-                )
-                continue
-            if key in recipe_map or key in globalRecipeMap.get(keyname, {}):
-                # first-wins; do not overwrite an existing entry
-                continue
-            recipe_map[key] = match
+    for match in _iter_recipe_glob_matches([repo_dir]):
+        if use_identifier:
+            key = get_identifier_from_recipe_file(match)
+        else:
+            key = remove_recipe_extension(os.path.basename(match))
+        if not key:
+            log_err(
+                f"WARNING: {match} is potentially an invalid file, not "
+                "adding it to the recipe map! Please file a GitHub Issue "
+                "for this repo."
+            )
+            continue
+        if key in recipe_map or key in globalRecipeMap.get(keyname, {}):
+            # first-wins; do not overwrite an existing entry
+            continue
+        recipe_map[key] = match
     return recipe_map
 
 
@@ -1806,6 +1822,10 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             shared_processor_recipe_path = find_recipe_by_identifier_in_map(
                 processor_recipe_id
             )
+            if shared_processor_recipe_path and not is_path_under_any(
+                shared_processor_recipe_path, env.get("RECIPE_SEARCH_DIRS", [])
+            ):
+                shared_processor_recipe_path = None
             if shared_processor_recipe_path is None:
                 shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
                     processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
