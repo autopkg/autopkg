@@ -1774,7 +1774,7 @@ def recipe_in_override_dir(recipe_path, override_dirs):
     is listed in the recipe map's overrides tables AND the listed path
     also resides under a configured override directory.
 
-    The directory-prefix check is the authoritative answer; the map
+    The directory containment check is the authoritative answer; the map
     lookup is an optimisation that lets us short-circuit for paths that
     have already been classified.
 
@@ -1786,20 +1786,18 @@ def recipe_in_override_dir(recipe_path, override_dirs):
     the path to still live under a configured override dir to preserve
     the invariant that override-ness is determined by on-disk location,
     not by a cache."""
-    normalized_recipe_path = os.path.abspath(os.path.expanduser(recipe_path))
+    normalized_recipe_path = os.path.realpath(os.path.expanduser(recipe_path))
     normalized_override_dirs = [
-        os.path.abspath(os.path.expanduser(directory)) for directory in override_dirs
+        os.path.realpath(os.path.expanduser(directory)) for directory in override_dirs
     ]
 
     def _under_configured_override_dir(path: str) -> bool:
         for override_dir in normalized_override_dirs:
-            if path == override_dir:
-                return True
-            if path.startswith(override_dir + os.sep):
+            if is_path_under(path, override_dir):
                 return True
         return False
 
-    # Directory-prefix check against the caller-supplied override_dirs.
+    # Directory containment check against the caller-supplied override_dirs.
     if _under_configured_override_dir(normalized_recipe_path):
         return True
 
@@ -1810,7 +1808,7 @@ def recipe_in_override_dir(recipe_path, override_dirs):
     # easy trust-bypass via a tampered map.
     for key in ("overrides", "overrides-identifiers"):
         for path in globalRecipeMap.get(key, {}).values():
-            resolved = os.path.abspath(os.path.expanduser(path))
+            resolved = os.path.realpath(os.path.expanduser(path))
             if resolved != normalized_recipe_path:
                 continue
             if _under_configured_override_dir(resolved):

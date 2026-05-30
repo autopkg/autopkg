@@ -415,6 +415,12 @@ class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
     user-supplied path. The fix uses the recipe map's overrides tables
     as the source of truth."""
 
+    def _symlink_or_skip(self, target, link_name):
+        try:
+            os.symlink(target, link_name)
+        except (AttributeError, NotImplementedError, OSError) as err:
+            self.skipTest(f"symlink creation is unavailable: {err}")
+
     def test_recipe_in_override_dir_via_map_and_configured_dir(self):
         """A file listed in globalRecipeMap['overrides'] AND residing
         under a configured override dir is considered an override. The
@@ -478,6 +484,39 @@ class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
         self.assertFalse(
             autopkg.recipe_in_override_dir("/a/AutoPkg2/file.recipe", ["/a/AutoPkg"])
         )
+
+    def test_recipe_in_override_dir_symlink_escape_not_matched(self):
+        """A symlink inside RECIPE_OVERRIDE_DIRS pointing outside must not
+        make the outside target classify as an override."""
+        override_dir = os.path.join(self.tmpdir, "overrides")
+        outside_dir = os.path.join(self.tmpdir, "outside")
+        os.makedirs(override_dir)
+        os.makedirs(outside_dir)
+        link_dir = os.path.join(override_dir, "linked")
+        self._symlink_or_skip(outside_dir, link_dir)
+
+        escaped_path = os.path.join(link_dir, "Escaped.recipe")
+
+        self.assertFalse(autopkg.recipe_in_override_dir(escaped_path, [override_dir]))
+
+    def test_recipe_in_override_dir_map_symlink_escape_not_matched(self):
+        """A recipe-map override entry still must resolve under a
+        configured override dir."""
+        override_dir = os.path.join(self.tmpdir, "overrides")
+        outside_dir = os.path.join(self.tmpdir, "outside")
+        os.makedirs(override_dir)
+        os.makedirs(outside_dir)
+        link_dir = os.path.join(override_dir, "linked")
+        self._symlink_or_skip(outside_dir, link_dir)
+
+        escaped_path = os.path.join(link_dir, "Mapped.recipe")
+        autopkglib.globalRecipeMap["overrides"]["Mapped"] = escaped_path
+
+        with patch.object(autopkg, "log_err") as mock_log_err:
+            self.assertFalse(
+                autopkg.recipe_in_override_dir(escaped_path, [override_dir])
+            )
+            mock_log_err.assert_called()
 
 
 class TestIssue874MissingOverridesIdentifiers(_RecipeMapIsolation, unittest.TestCase):
