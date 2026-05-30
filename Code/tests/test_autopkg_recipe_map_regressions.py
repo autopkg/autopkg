@@ -963,9 +963,8 @@ class TestIssue901RecipeMapPathOverride(unittest.TestCase):
 
 
 class TestRecipeMapPathSecurityWarning(unittest.TestCase):
-    """Tests for the security warning emitted by _recipe_map_path() when
-    autopkg is running as root and the map path has been redirected via an
-    env var or pref (issue #901 review finding)."""
+    """Tests for _recipe_map_path() handling of redirects when autopkg is
+    running as root."""
 
     def setUp(self):
         # A non-existent path is sufficient — _recipe_map_path only
@@ -977,20 +976,80 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
     def _any_call_contains(self, mock, text):
         return any(text in str(c) for c in mock.call_args_list)
 
-    def test_root_with_env_var_logs_security_warning(self):
-        """Running as root with AUTOPKG_RECIPE_MAP_PATH must emit a
-        SECURITY WARNING via log_err."""
+    def test_root_with_env_var_ignores_override_and_logs_security_warning(self):
+        """Running as root with AUTOPKG_RECIPE_MAP_PATH must ignore the env
+        var and emit a SECURITY WARNING via log_err."""
+        pref_path = os.path.join(tempfile.gettempdir(), "autopkg_test_pref_map.json")
         with (
             patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
             patch("os.geteuid", return_value=0),
+            patch.object(
+                autopkglib,
+                "get_pref",
+                side_effect=lambda k: pref_path if k == "RECIPE_MAP_PATH" else None,
+            ),
             patch("autopkglib.log_err") as mock_log_err,
         ):
-            autopkglib._recipe_map_path()
+            result = autopkglib._recipe_map_path()
 
+        self.assertEqual(result, pref_path)
         self.assertTrue(
             self._any_call_contains(mock_log_err, "SECURITY WARNING"),
             "Expected SECURITY WARNING from log_err when euid=0.",
         )
+
+    def test_root_default_tilde_expansion_uses_root_home(self):
+        """Running as root must expand the default ~/ path using uid 0's
+        home, not the caller's HOME-derived expanduser result."""
+        root_home = os.path.join(tempfile.gettempdir(), "autopkg_test_root_home")
+        caller_home_map = os.path.join(
+            tempfile.gettempdir(),
+            "caller_home",
+            "Library",
+            "AutoPkg",
+            "recipe_map.json",
+        )
+        with (
+            patch.dict(os.environ, {}, clear=False),
+            patch.object(autopkglib, "get_pref", return_value=None),
+            patch("os.geteuid", return_value=0),
+            patch("pwd.getpwuid", return_value=Mock(pw_dir=root_home)),
+            patch("os.path.expanduser", return_value=caller_home_map),
+        ):
+            os.environ.pop("AUTOPKG_RECIPE_MAP_PATH", None)
+            result = autopkglib._recipe_map_path()
+
+        self.assertEqual(
+            result,
+            os.path.abspath(
+                os.path.join(root_home, "Library", "AutoPkg", "recipe_map.json")
+            ),
+        )
+
+    def test_root_write_does_not_create_recipe_map_under_caller_home(self):
+        """Root recipe-map writes must not create paths under inherited HOME."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root_home = os.path.join(tmpdir, "root_home")
+            caller_home = os.path.join(tmpdir, "caller_home")
+            with (
+                patch.dict(
+                    os.environ,
+                    {"HOME": caller_home},
+                    clear=True,
+                ),
+                patch.object(autopkglib, "get_pref", return_value=None),
+                patch.object(autopkglib, "_recipe_map_write_disabled", False),
+                patch("os.geteuid", return_value=0),
+                patch("pwd.getpwuid", return_value=Mock(pw_dir=root_home)),
+            ):
+                autopkglib.write_recipe_map_to_disk()
+
+            self.assertTrue(
+                os.path.exists(
+                    os.path.join(root_home, "Library", "AutoPkg", "recipe_map.json")
+                )
+            )
+            self.assertFalse(os.path.exists(caller_home))
 
     def test_unprivileged_with_env_var_logs_redirect_not_warning(self):
         """An unprivileged user redirecting the map path must get a plain

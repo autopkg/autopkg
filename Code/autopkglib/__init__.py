@@ -898,43 +898,63 @@ def _try_cwd_rebuild_once(reason: str) -> bool:
 RECIPE_MAP_SCHEMA_VERSION = 1
 
 
+def _expanduser_for_euid(path: str, euid: int) -> str:
+    """Expand ``~`` without trusting inherited HOME when running as root."""
+    if euid == 0 and (path == "~" or path.startswith("~/")):
+        try:
+            import pwd
+
+            root_home = pwd.getpwuid(0).pw_dir
+        except (ImportError, KeyError):
+            root_home = None
+        if root_home:
+            return os.path.join(root_home, path[2:]) if path != "~" else root_home
+    return os.path.expanduser(path)
+
+
 def _recipe_map_path() -> str:
     """Return the absolute, expanded path to the recipe map file on disk.
 
     Resolution order (issue #901):
-    1. ``AUTOPKG_RECIPE_MAP_PATH`` environment variable (CI/CD friendly).
+    1. ``AUTOPKG_RECIPE_MAP_PATH`` environment variable (CI/CD friendly;
+       ignored when running as root).
     2. ``RECIPE_MAP_PATH`` preference key (per-user override).
     3. The default location under ``autopkg_user_folder()``.
 
     Security notes:
-    * Environment variables are honoured regardless of effective UID,
-      but when running as root we log a prominent warning so operators
-      noticing the deviation in their logs can investigate. Users who
-      run ``sudo autopkg`` in CI pipelines should strip ``AUTOPKG_*``
-      from their ``env_keep`` list to avoid letting an unprivileged
-      caller influence a privileged process's write target.
+    * Environment variables are ignored when running as root so an
+      unprivileged caller cannot influence a privileged process's write
+      target via sudo environment preservation.
     * ``DEFAULT_RECIPE_MAP`` is stored unexpanded (with a leading ``~``)
       so tests can monkey-patch ``os.path.expanduser``; resolve it
       lazily here."""
+    try:
+        euid = os.geteuid()
+    except AttributeError:
+        # Windows doesn't have geteuid; treat as unprivileged.
+        euid = -1
+
     override_source: str | None = None
     override = os.environ.get("AUTOPKG_RECIPE_MAP_PATH")
-    if override:
+    if override and euid == 0:
+        log_err(
+            "SECURITY WARNING: autopkg is running as root and "
+            "AUTOPKG_RECIPE_MAP_PATH was ignored. Consider stripping "
+            "AUTOPKG_* from your sudoers env_keep configuration."
+        )
+        override = None
+    elif override:
         override_source = "AUTOPKG_RECIPE_MAP_PATH environment variable"
-    else:
+    if not override:
         pref = get_pref("RECIPE_MAP_PATH")
         if pref:
             override = pref
             override_source = "RECIPE_MAP_PATH preference"
 
     target = override or DEFAULT_RECIPE_MAP
-    resolved = os.path.abspath(os.path.expanduser(target))
+    resolved = os.path.abspath(_expanduser_for_euid(target, euid))
 
     if override and override_source:
-        try:
-            euid = os.geteuid()
-        except AttributeError:
-            # Windows doesn't have geteuid; treat as unprivileged.
-            euid = -1
         if euid == 0:
             log_err(
                 "SECURITY WARNING: autopkg is running as root and the "
@@ -988,10 +1008,8 @@ def write_recipe_map_to_disk() -> None:
         return
 
     target = _recipe_map_path()
-    # Ensure the containing directory exists. autopkg_user_folder() handles
-    # the default location; if the user pointed RECIPE_MAP_PATH at a
-    # custom spot we need to ensure its directory is present too.
-    autopkg_user_folder()
+    # Ensure the containing directory exists for both default and custom
+    # map paths.
     target_dir = os.path.dirname(target)
     if target_dir:
         try:
