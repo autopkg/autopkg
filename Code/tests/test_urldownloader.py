@@ -728,6 +728,26 @@ class TestURLDownloader(unittest.TestCase):
             result = self.processor.prefetch_filename()
         self.assertEqual(result, "MyApp-1.0.dmg")
 
+    def test_prefetch_filename_strips_content_disposition_path_components(self):
+        """Content-Disposition filenames must not escape download_dir."""
+        self._require_prefetch_filename()
+        prepare, add_opts, download, parse = self._prefetch_patches(
+            {"content-disposition": 'attachment; filename="../../tmp/evil.pkg"'}
+        )
+        with prepare, add_opts, download, parse:
+            result = self.processor.prefetch_filename()
+        self.assertEqual(result, "evil.pkg")
+
+    def test_prefetch_filename_strips_backslash_path_components(self):
+        """Backslash-separated filenames are unsafe on Windows and must be stripped."""
+        self._require_prefetch_filename()
+        prepare, add_opts, download, parse = self._prefetch_patches(
+            {"content-disposition": 'attachment; filename="..\\..\\tmp\\evil.pkg"'}
+        )
+        with prepare, add_opts, download, parse:
+            result = self.processor.prefetch_filename()
+        self.assertEqual(result, "evil.pkg")
+
     def test_prefetch_filename_falls_back_to_redirect_url(self):
         """When there's no Content-Disposition header but the response
         includes an http_redirected URL, the filename is taken from

@@ -61,6 +61,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - PkgPayloadUnpacker: when both `ditto` and the `aa` fallback fail to extract a payload, the resulting `ProcessorError` now reports the diagnostic output from both tools (previously only the `aa` failure was shown) and includes `aa`'s stderr. Also fixed a latent `UnboundLocalError` that occurred when `ditto` could not be executed (#1048, thanks to @n8felton).
 - Fixed a trust verification error message that printed the expected parent recipe list twice; it now shows both the expected and the actual parent recipe lists so it's clear what changed.
 - `RECIPE_CACHE_DIR` is now confined to `CACHE_DIR`. A recipe `Identifier` containing `..` or an absolute path could previously place the cache directory outside `CACHE_DIR`, letting a recipe read or write another recipe's cache; such identifiers are now rejected.
+- URLDownloader: a filename supplied via a server's `Content-Disposition` header is now reduced to its base name, preventing a malicious server from using `..` or path separators to write the downloaded file outside `download_dir`.
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 

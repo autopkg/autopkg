@@ -220,6 +220,7 @@ class URLDownloader(URLGetter):
                 .rpartition("filename=")[2]
                 .replace('"', "")
             )
+            filename = os.path.basename(filename.replace("\\", "/"))
             self.output(
                 f"Filename prefetched from the HTTP Content-Disposition header: {filename}",
                 verbose_level=2,
