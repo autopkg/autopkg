@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. This projec
 
 ### Recipe map
 
-Reimplements a "recipe map," an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the local AutoPkg setup, indexed by identifier and shortname. This results in noticeable performance improvement because recipe resolution becomes O(1) instead of walking every configured `RECIPE_SEARCH_DIRS` entry.
+Reimplements a "recipe map," an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the local AutoPkg setup, indexed by identifier and shortname. This makes recipe resolution much faster on systems with many configured recipe repos.
 
 **What you'll notice:**
 
@@ -46,18 +46,18 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
 - PkgInfoCreator now finds relative Info.plist templates stored beside a recipe or parent recipe.
 - MunkiOptionalReceiptEditor now routes pkginfo updates through the Munki repo plugin API, fixing silent data loss when using `GitFileRepo` or other non-filesystem repo plugins (#1031)
-- Munki repo catalog matching now preserves all installed-application matches when pkginfos share an app path and app version.
+- MunkiImporter now correctly handles multiple pkginfos for apps with the same installed path and app version.
 - MunkiImporter now writes correct pkginfo paths when importing an uncataloged package already under the Munki repo's `pkgs` directory.
-- Munki imports now use consistently trimmed version strings for duplicate pkginfo filenames while preserving the stored pkginfo version value.
+- MunkiImporter now avoids duplicate pkginfo filenames caused by leading or trailing whitespace in version strings.
 - `make-override --format` can now be set globally via the `RECIPE_OVERRIDE_FORMAT` preference, so you don't need to pass `--format yaml` on every invocation (#1024)
-- URLDownloader: `prefetch_filename` now includes `curl_common_opts` (e.g. `Authorization` request headers) in the HEAD request used to determine the filename, preventing prefetch failures on authenticated endpoints (#925, thanks to @n8felton)
+- URLDownloader now applies `curl_common_opts`, such as authorization headers, when prefetching filenames from authenticated URLs (#925, thanks to @n8felton)
 - Updated virtualenv to 20.36.1 (#1009)
 - Updated filelock to 3.20.3 (#1010)
 - Updated lxml to 6.1.0
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
 - Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039)
-- Replace deprecated imp module with importlib
-- CodeSignatureVerifier now returns a ProcessorError if executed on a platform other than macOS
+- Replaced deprecated imp module with importlib
+- CodeSignatureVerifier now fails clearly on non-macOS instead of silently skipping verification that requires macOS tools.
 - Improved testing automation by skipping macOS-only tests on Ubuntu and Windows
 - DmgCreator: default `dmg_filesystem` changed from `HFS+` to `APFS` and default `dmg_format` changed from `UDZO` to `ULFO` (lzfse compression) (#905, thanks to @erikng). Note that APFS requires macOS 10.13 or later to mount. If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly. `ULFO` and `ULMO` are now accepted as valid `dmg_format` values.
 - Reduced the likelihood that float-looking version strings in YAML recipes (e.g. `VERSION: 1.0`) will be silently coerced to a Python float instead of remaining a string, causing subtle inconsistencies compared to plist recipes (#1023).
@@ -67,17 +67,16 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - `RECIPE_CACHE_DIR` is now confined to `CACHE_DIR`. A recipe `Identifier` containing `..` or an absolute path could previously place the cache directory outside `CACHE_DIR`, letting a recipe read or write another recipe's cache; such identifiers are now rejected.
 - URLDownloader: a filename supplied via a server's `Content-Disposition` header is now reduced to its base name, preventing a malicious server from using `..` or path separators to write the downloaded file outside `download_dir`.
 - URLDownloaderPython now validates cached files against their actual size, exposes computed hashes, and preserves downloads when ETag or Last-Modified headers are missing.
-- SparkleUpdateInfoProvider now rejects non-HTTP(S) and loopback Sparkle feed description URLs before copying their content into pkginfo descriptions.
+- SparkleUpdateInfoProvider now rejects non-HTTP(S) and loopback description links found in Sparkle feeds before copying their content into pkginfo descriptions.
 - PkgExtractor: the `IFPkgFlagDefaultLocation` value from a package's `Info.plist` is now confined to the extraction root. A malicious package using `..` in this field could previously redirect extraction outside the intended directory; such paths are now rejected before any files are removed or extracted.
 - PkgRootCreator: the containment check for recipe-supplied `pkgdirs` is now path-aware. The previous string-prefix check let a relative path such as `../pkgroot-evil` create directories outside the pkgroot (which would then be packaged); these are now correctly rejected.
 - Paths that refer to files inside a DMG are now confined to the mounted image. DMG-relative paths containing `..` or starting with `/`, and glob matches or symlinks that resolve outside the mount point, are now rejected.
-- Installer daemon requests now restrict package paths to the effective recipe cache or mounted images; InstallFromDMG daemon requests now confine source paths to the mounted image and reject setuid/setgid copy modes.
+- Installer and InstallFromDMG now reject package/source paths outside the recipe cache or mounted disk image; InstallFromDMG also rejects setuid/setgid copy modes.
 - ChocolateyPackager now rejects package IDs and versions that could escape the build or output directories.
-- ChocolateyPackager now builds remote-installer packages with checksum fields and errors clearly when the checksum is missing.
-- `CACHE_DIR` is now expanded to an absolute path before it reaches the packager, so a `CACHE_DIR` preference containing `~` or a relative path no longer results in a literal `~` directory or a working-directory-relative cache being created.
-- On-disk recipe scanning, recipe-map building, and shared-processor loading now reject paths that resolve outside their search directory via a symlink, so a symlink inside a search dir or repo can no longer cause a recipe or processor to be indexed or loaded from outside the declared scope. As a result, a recipe reachable only through such an escaping symlink is no longer found (a symlinked search directory itself still works normally).
+- ChocolateyPackager now builds `installer_url` packages with checksum fields and errors clearly when `installer_checksum` is missing.
+- AutoPkg now expands `CACHE_DIR` to an absolute path, so `~` or relative `CACHE_DIR` preferences no longer create literal or working-directory-relative cache folders.
+- Recipe scanning, recipe-map building, and shared-processor loading now ignore symlinks that point outside configured search directories. Symlinked search directories themselves still work.
 - CodeSignatureVerifier and SignToolVerifier now always warn when verification is disabled via `DISABLE_CODE_SIGNATURE_VERIFICATION` (previously silent at the default verbosity). `autopkg run` also warns up front when it is set globally via environment variable, recipe list, or `-k`/`--key`.
-- CodeSignatureVerifier now fails on non-macOS instead of skipping installer package verification.
 - `audit` now recognizes `URLDownloaderPython` as a downloader, so it flags a missing `CodeSignatureVerifier` for recipes that download with it (previously only `URLDownloader` and `CURLDownloader` were checked).
 - `audit` now recognizes `AppPkgCreator` and `ChocolateyPackager` as artifact creators, so modification processors preceding them are surfaced (previously only `DmgCreator`, `FlatPkgPacker`, and `PkgCreator` were recognized).
 - `audit` now reports path-sensitive recipe values that deserve closer inspection, including identifiers with path traversal markers, suspicious privileged install/copy paths, `PkgRootCreator` parent-directory references, unsafe DMG pseudo-paths, and Chocolatey package identifiers or versions containing path separators.
