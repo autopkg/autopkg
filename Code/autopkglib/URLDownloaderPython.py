@@ -122,10 +122,19 @@ class URLDownloaderPython(URLDownloader):
                 "last time it was downloaded."
             )
         },
+        "file_sha1": {"description": "SHA-1 hash of the downloaded file."},
+        "file_sha256": {"description": "SHA-256 hash of the downloaded file."},
+        "file_md5": {"description": "MD5 hash of the downloaded file."},
         "url_downloader_summary_result": {
             "description": "Description of interesting results."
         },
     }
+
+    def store_hashes_in_env(self, file_sha1, file_sha256, file_md5) -> None:
+        """Store computed hashes for downstream processors."""
+        self.env["file_sha1"] = file_sha1
+        self.env["file_sha256"] = file_sha256
+        self.env["file_md5"] = file_md5
 
     def download_changed(self, header) -> bool:
         """Check if downloaded file changed on server."""
@@ -133,7 +142,10 @@ class URLDownloaderPython(URLDownloader):
         self.output(f"HTTP Headers: \n{header}", 2)
 
         # get the list of headers to check
-        headers_to_test = self.env.get("HEADERS_TO_TEST", None)
+        headers_to_test = (
+            self.env.get("HEADERS_TO_TEST")
+            or self.input_variables["HEADERS_TO_TEST"]["default"]
+        )
 
         self.output(
             "headers_to_test: {headers_to_test}".format(
@@ -156,21 +168,23 @@ class URLDownloaderPython(URLDownloader):
 
         # check that previous download exits:
         previous_download_path = self.env.get("pathname", None)
-        if not os.path.isfile(previous_download_path):
+        if not previous_download_path or not os.path.isfile(previous_download_path):
             # previous download doesn't exist!
             return True
 
+        previous_http_headers = {}
+        if previous_download_info:
+            previous_http_headers = previous_download_info.get("http_headers", {})
+
         try:
             # check Content-Length:
-            if "Content-Length" in headers_to_test and (
-                int(previous_download_info["http_headers"]["Content-Length"])
-                != int(header.get("Content-Length"))
-            ):
-                self.output("Content-Length is different", 2)
-                return True
-            else:
+            if "Content-Length" in headers_to_test:
+                previous_file_size = os.path.getsize(previous_download_path)
+                if previous_file_size != int(header.get("Content-Length")):
+                    self.output("Content-Length is different", 2)
+                    return True
                 header_matches += 1
-        except (KeyError, TypeError) as err:
+        except (KeyError, TypeError, ValueError) as err:
             self.output(
                 "WARNING: 'Content-Length' missing. ({err_type}) {err}".format(
                     err=err, err_type=type(err).__name__
@@ -182,12 +196,16 @@ class URLDownloaderPython(URLDownloader):
         for test in headers_to_test:
             if test != "Content-Length":
                 try:
-                    if previous_download_info["http_headers"][test] != header.get(test):
+                    previous_header = previous_http_headers[test]
+                    current_header = header.get(test)
+                    if current_header is None and previous_header in ("", None):
+                        continue
+                    if previous_header != current_header:
                         self.output(f"{test} is different", 2)
                         return True
                     else:
                         header_matches += 1
-                except (KeyError, TypeError) as err:
+                except (KeyError, TypeError, ValueError) as err:
                     self.output(
                         "WARNING: header missing. ({err_type}) {err}".format(
                             err=err, err_type=type(err).__name__
@@ -282,9 +300,6 @@ class URLDownloaderPython(URLDownloader):
 
         file_save = None
 
-        if file_save_path:
-            file_save = open(file_save_path, "wb")
-
         # Build request, adding any provided request headers
         request_headers = self.env.get("request_headers") or {}
         if request_headers and not isinstance(request_headers, dict):
@@ -306,56 +321,71 @@ class URLDownloaderPython(URLDownloader):
         if not self.env.get("download_changed", None):
             # Discard the temp file
             os.remove(file_save_path)
+            if hashes:
+                existing_hashes = self.compute_hashes()
+                self.store_hashes_in_env(
+                    existing_hashes["sha1"],
+                    existing_hashes["sha256"],
+                    existing_hashes["md5"],
+                )
             return None
 
         # download file
-        while True:
-            chunk = response.read(chunksize)
-            if not chunk:
-                break
-            # get size of chunk and add to existing size
-            size += len(chunk)
-            # add chunk to hash computations
-            if hashes:
-                for a_hash in hashes:
-                    a_hash.update(chunk)
-            # save file if handler
-            if file_save:
-                file_save.write(chunk)
+        if file_save_path:
+            file_save = open(file_save_path, "wb")
 
-        # close file handler if used
-        if file_save:
-            file_save.close()
+        try:
+            while True:
+                chunk = response.read(chunksize)
+                if not chunk:
+                    break
+                # get size of chunk and add to existing size
+                size += len(chunk)
+                # add chunk to hash computations
+                if hashes:
+                    for a_hash in hashes:
+                        a_hash.update(chunk)
+                # save file if handler
+                if file_save:
+                    file_save.write(chunk)
+        finally:
+            # close file handler if used
+            if file_save:
+                file_save.close()
 
         download_dictionary["file_name"] = self.env.get("filename", "")
         download_dictionary["file_size"] = size
+        self.env["file_size"] = size
         if hashes:
-            download_dictionary["file_sha1"] = hashes[0].hexdigest()
-            download_dictionary["file_sha256"] = hashes[1].hexdigest()
-            download_dictionary["file_md5"] = hashes[2].hexdigest()
+            self.store_hashes_in_env(
+                hashes[0].hexdigest(), hashes[1].hexdigest(), hashes[2].hexdigest()
+            )
+            download_dictionary["file_sha1"] = self.env["file_sha1"]
+            download_dictionary["file_sha256"] = self.env["file_sha256"]
+            download_dictionary["file_md5"] = self.env["file_md5"]
         download_dictionary["download_url"] = url
         # download_dictionary['http_headers'] = response.info()
+        download_dictionary["http_headers"] = {}
         try:
-            # save http header info to dict
-            download_dictionary["http_headers"] = {}
-            download_dictionary["http_headers"]["Content-Length"] = int(
-                response.headers["content-length"]
-            )
-            download_dictionary["http_headers"]["ETag"] = response.headers["ETag"]
-            download_dictionary["http_headers"]["Last-Modified"] = response.headers[
-                "Last-Modified"
-            ]
-            if download_dictionary["http_headers"]["Content-Length"] != size:
-                # should this be a halting error?
-                self.output("WARNING: file size != content-length header")
-        except (KeyError, TypeError) as err:
-            # probably need to handle a missing header better than this
+            content_length = int(response.headers.get("Content-Length", size))
+        except (TypeError, ValueError) as err:
             self.output(
-                "ERROR: header issue ({err_type})\n{err}\n".format(
+                "WARNING: invalid Content-Length header ({err_type})\n{err}\n".format(
                     err=err, err_type=type(err).__name__
-                )
+                ),
+                1,
             )
-            return None
+            content_length = size
+        download_dictionary["http_headers"]["Content-Length"] = content_length
+        download_dictionary["http_headers"]["ETag"] = response.headers.get("ETag") or ""
+        download_dictionary["http_headers"]["Last-Modified"] = (
+            response.headers.get("Last-Modified") or ""
+        )
+        self.env["etag"] = download_dictionary["http_headers"]["ETag"]
+        self.env["last_modified"] = download_dictionary["http_headers"]["Last-Modified"]
+        if download_dictionary["http_headers"]["Content-Length"] != size:
+            # should this be a halting error?
+            self.output("WARNING: file size != content-length header")
 
         if self.env.get("download_changed", None):
             # Move the new temporary download file to the pathname
@@ -415,6 +445,9 @@ class URLDownloaderPython(URLDownloader):
         self.clear_zero_file(pathname_temporary)
 
         if self.env.get("download_changed", None):
+            if download_dictionary is None:
+                raise ProcessorError("Download did not produce metadata.")
+
             # store download info for checking for existing download
             self.store_download_info_json(download_dictionary)
 
