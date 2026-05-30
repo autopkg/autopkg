@@ -142,7 +142,7 @@ class TestPkgHandler(unittest.TestCase):
             "pkgroot": "/tmp/pkgroot",
             "pkgdir": "/tmp/output",
             "pkgname": "TestPackage",
-            "pkgtype": "bundle",  # Not supported
+            "pkgtype": "flat",
             "id": "com.example.test",
             "version": "1.0.0",
             "infofile": "",
@@ -150,10 +150,17 @@ class TestPkgHandler(unittest.TestCase):
             "scripts": "",
             "pkgbuild_args": [],
         }
-        syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
-        self.assertFalse(syntax_ok)
-        self.assertTrue(any("pkgtype must be flat" in error for error in errors))
+        for pkgtype in ("bundle", "f", "la", "t"):
+            with self.subTest(pkgtype=pkgtype):
+                syntax_ok, errors = self.handler.verify_request_syntax(
+                    dict(plist, pkgtype=pkgtype)
+                )
+
+                self.assertFalse(syntax_ok)
+                self.assertTrue(
+                    any("pkgtype must be flat" in error for error in errors)
+                )
 
     def test_verify_request_syntax_invalid_chown_entry(self):
         """Should return False and error when chown entry is invalid."""
