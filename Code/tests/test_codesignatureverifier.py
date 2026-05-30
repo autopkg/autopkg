@@ -42,6 +42,28 @@ class TestCodeSignatureVerifierCommon(unittest.TestCase):
             "WARNING: Code signature verification disabled for this recipe run."
         )
 
+    def test_main_fails_closed_on_non_macos(self):
+        """Verification requires macOS tools for both app and installer paths."""
+        processor = CodeSignatureVerifier()
+        processor.env = {
+            "input_path": "/path/to/test.pkg",
+        }
+
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with (
+            patch.object(module.sys, "platform", "linux"),
+            patch.object(module.os, "uname") as mock_uname,
+            patch.object(processor, "process_installer_package") as mock_process,
+        ):
+            with self.assertRaisesRegex(
+                ProcessorError,
+                "Code signature verification is only supported on macOS",
+            ):
+                processor.main()
+
+        mock_uname.assert_not_called()
+        mock_process.assert_not_called()
+
 
 @unittest.skipUnless(sys.platform == "darwin", "macOS codesign utility only")
 class TestCodeSignatureVerifier(unittest.TestCase):

@@ -310,6 +310,12 @@ class CodeSignatureVerifier(DmgMounter):
                 "WARNING: Code signature verification disabled for this recipe run."
             )
             return
+        if sys.platform != "darwin":
+            raise ProcessorError(
+                "Code signature verification is only supported on macOS. "
+                "The 'codesign' and 'pkgutil' utilities are not available "
+                "on this platform."
+            )
         # Check if we're trying to read something inside a dmg.
         input_path = self.env["input_path"]
         dmg_path, dmg, dmg_source_path = self.parsePathForDMG(input_path)
