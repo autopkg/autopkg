@@ -257,9 +257,10 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             if dmg:
                 # Mount dmg and return path inside.
                 mount_point = self.mount(dmg_path)
-                app_path = os.path.join(mount_point, dmg_app_path)
-            # process path with glob.glob
-            matches = glob(app_path)
+                app_path, matches = self.glob_paths_in_mount(mount_point, dmg_app_path)
+            else:
+                # process path with glob.glob
+                matches = glob(app_path)
             if len(matches) == 0:
                 raise ProcessorError(f"Error processing path '{app_path}' with glob. ")
             matched_app_path = matches[0]

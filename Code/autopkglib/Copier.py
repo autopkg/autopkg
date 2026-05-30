@@ -89,9 +89,12 @@ class Copier(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                source_path = os.path.join(mount_point, dmg_source_path)
-            # process path with glob.glob
-            matches = glob.glob(source_path, recursive=True)
+                source_path, matches = self.glob_paths_in_mount(
+                    mount_point, dmg_source_path, recursive=True
+                )
+            else:
+                # process path with glob.glob
+                matches = glob.glob(source_path, recursive=True)
             if len(matches) == 0:
                 raise ProcessorError(
                     f"Error processing path '{source_path}' with glob. "

@@ -128,7 +128,7 @@ class PlistReader(DmgMounter):
             dmg_path, dmg, dmg_source_path = self.parsePathForDMG(path)
             if dmg:
                 mount_point = self.mount(dmg_path)
-                path = os.path.join(mount_point, dmg_source_path.lstrip("/"))
+                path = self.path_in_mount(mount_point, dmg_source_path)
 
             # Finally check whether this is at least a valid path
             if not os.path.exists(path):

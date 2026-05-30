@@ -100,7 +100,7 @@ class PkgExtractor(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                pkg_path = os.path.join(mount_point, dmg_source_path)
+                pkg_path = self.path_in_mount(mount_point, dmg_source_path)
             else:
                 # just use the given path
                 pkg_path = self.env["pkg_path"]

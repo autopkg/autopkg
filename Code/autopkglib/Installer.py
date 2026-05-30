@@ -94,9 +94,10 @@ class Installer(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                pkg_path = os.path.join(mount_point, dmg_pkg_path)
-            # process path with glob.glob
-            matches = glob(pkg_path)
+                pkg_path, matches = self.glob_paths_in_mount(mount_point, dmg_pkg_path)
+            else:
+                # process path with glob.glob
+                matches = glob(pkg_path)
             if len(matches) == 0:
                 raise ProcessorError(f"Error processing path '{pkg_path}' with glob. ")
             matched_pkg_path = matches[0]

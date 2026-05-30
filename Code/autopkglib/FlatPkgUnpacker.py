@@ -20,7 +20,6 @@
 import os.path
 import shutil
 import subprocess
-from glob import glob
 
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
@@ -165,7 +164,9 @@ class FlatPkgUnpacker(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                self.source_path = glob(os.path.join(mount_point, dmg_source_path))
+                _, self.source_path = self.glob_paths_in_mount(
+                    mount_point, dmg_source_path
+                )
                 if not self.source_path:
                     raise ProcessorError(
                         f"No valid path found as given by 'flat_pkg_path': "

@@ -81,9 +81,16 @@ class FileFinder(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                source_path = os.path.join(mount_point, dmg_source_path)
-            # process path with globbing
-            match = self.globfind(source_path)
+                source_path, matches = self.glob_paths_in_mount(
+                    mount_point, dmg_source_path, recursive=True
+                )
+                if len(matches) < 1:
+                    raise ProcessorError("No matching filename found")
+                matches.sort()
+                match = matches[-1]
+            else:
+                # process path with globbing
+                match = self.globfind(source_path)
             self.env["found_filename"] = match
             self.output(
                 f"Found file match: '{self.env['found_filename']}' from globbed '{source_path}'"

@@ -72,7 +72,7 @@ class TestCopier(unittest.TestCase):
     def test_no_fail_if_dmg_env(self, mock_copy, mock_glob, mock_mount, mock_unmount):
         """The processor should not raise any exceptions if run with a DMG."""
         self.processor.env = self.dmg_env
-        mock_glob.return_value = ["source"]
+        mock_glob.return_value = ["/fake/mount/source"]
         mock_copy.return_value = True
         mock_mount.return_value = "/fake/mount"
         self.processor.main()
@@ -88,7 +88,7 @@ class TestCopier(unittest.TestCase):
     ):
         """The processor should not raise any exceptions if run with a DMG and glob."""
         self.processor.env = self.dmg_glob_env
-        mock_glob.return_value = ["source"]
+        mock_glob.return_value = ["/fake/mount/source"]
         mock_copy.return_value = True
         mock_mount.return_value = "/fake/mount"
         self.processor.main()

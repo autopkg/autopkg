@@ -160,9 +160,7 @@ class Versioner(DmgMounter):
             dmg_path = os.path.normpath(dmg_path)
             # Mount dmg and copy path inside.
             mount_point = self.mount(dmg_path)
-            input_plist_path = os.path.normpath(
-                os.path.join(mount_point, dmg_source_path)
-            )
+            input_plist_path = self.path_in_mount(mount_point, dmg_source_path)
             if not os.path.exists(input_plist_path):
                 return None
             try:

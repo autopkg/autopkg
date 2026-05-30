@@ -65,13 +65,14 @@ class PkgCopier(Copier):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                source_pkg = os.path.join(mount_point, dmg_source_path)
+                source_pkg, matches = self.glob_paths_in_mount(
+                    mount_point, dmg_source_path
+                )
             else:
                 # Straight copy from file system.
                 source_pkg = self.env["source_pkg"]
-
-            # Process the path for globs
-            matches = glob.glob(source_pkg)
+                # Process the path for globs
+                matches = glob.glob(source_pkg)
             matched_source_path = matches[0]
             if len(matches) > 1:
                 self.output(

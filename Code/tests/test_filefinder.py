@@ -36,7 +36,7 @@ class TestFileFinder(unittest.TestCase):
 
     @patch("autopkglib.FileFinder.unmount")
     @patch("autopkglib.FileFinder.mount")
-    @patch("autopkglib.FileFinder.globfind")
+    @patch("glob.glob")
     def test_found_a_dmg_match(self, mock_glob, mock_mount, mock_unmount):
         """If we find a match inside a DMG, it should be in the env."""
         self.processor.env = {
@@ -44,10 +44,12 @@ class TestFileFinder(unittest.TestCase):
             "pattern": "/tmp/fake.dmg/whatever",
         }
         mock_mount.return_value = "/tmp/fake_dmg_mount"
-        mock_glob.return_value = "/tmp/fake_dmg_mount/whatever"
+        mock_glob.return_value = ["/tmp/fake_dmg_mount/whatever"]
         mock_unmount.return_value = None
         self.processor.main()
-        self.assertEqual(self.processor.env["found_filename"], mock_glob.return_value)
+        self.assertEqual(
+            self.processor.env["found_filename"], mock_glob.return_value[0]
+        )
         self.assertEqual(self.processor.env["dmg_found_filename"], "whatever")
 
 

@@ -15,11 +15,13 @@
 # limitations under the License.
 """See docstring for DmgMounter class"""
 
+import glob
+import os
 import plistlib
 import subprocess
 import sys
 
-from autopkglib import Processor, ProcessorError, log, log_err
+from autopkglib import Processor, ProcessorError, is_path_under, log, log_err
 
 __all__ = ["DmgMounter"]
 
@@ -45,6 +47,40 @@ class DmgMounter(Processor):
                 return dmg_path, dmg, dmg_source_path
         # no disk image in path
         return pathname, "", ""
+
+    def path_in_mount(self, mount_point, dmg_source_path):
+        """Return a path under mount_point for a DMG-relative path."""
+        validation_path = dmg_source_path.replace("\\", "/")
+        if validation_path.startswith("/"):
+            raise ProcessorError(
+                f"DMG path '{dmg_source_path}' must be relative to the mounted image."
+            )
+        if ".." in [part for part in validation_path.split("/") if part]:
+            raise ProcessorError(
+                f"DMG path '{dmg_source_path}' may not contain parent-directory references."
+            )
+
+        mounted_path = os.path.normpath(os.path.join(mount_point, dmg_source_path))
+        if not is_path_under(mounted_path, mount_point):
+            raise ProcessorError(
+                f"DMG path '{dmg_source_path}' resolves outside the mounted image."
+            )
+        return mounted_path
+
+    def validate_paths_in_mount(self, mount_point, paths):
+        """Raise if any resolved path is outside mount_point."""
+        for path in paths:
+            if not is_path_under(path, mount_point):
+                raise ProcessorError(
+                    f"DMG path '{path}' resolves outside the mounted image."
+                )
+
+    def glob_paths_in_mount(self, mount_point, dmg_source_path, recursive=False):
+        """Glob a DMG-relative path and ensure all matches stay in mount_point."""
+        mounted_path = self.path_in_mount(mount_point, dmg_source_path)
+        matches = glob.glob(mounted_path, recursive=recursive)
+        self.validate_paths_in_mount(mount_point, matches)
+        return mounted_path, matches
 
     def get_first_plist(self, text_string):
         """Gets the first plist from a text string that may contain one or

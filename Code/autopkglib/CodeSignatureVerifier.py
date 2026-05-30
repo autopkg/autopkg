@@ -317,9 +317,12 @@ class CodeSignatureVerifier(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                input_path = os.path.join(mount_point, dmg_source_path)
-            # process path with glob.glob
-            matches = glob(input_path)
+                input_path, matches = self.glob_paths_in_mount(
+                    mount_point, dmg_source_path
+                )
+            else:
+                # process path with glob.glob
+                matches = glob(input_path)
             if len(matches) == 0:
                 raise ProcessorError(
                     f"Error processing path '{input_path}' with glob. "
