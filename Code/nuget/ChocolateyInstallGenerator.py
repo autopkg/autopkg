@@ -24,6 +24,11 @@ CHOCO_CHECKSUM_TYPES: Sequence[str] = ("md5", "sha1", "sha256", "sha512")
 CHOCO_FILE_TYPES: Sequence[str] = ("exe", "msi", "msu", "zip")
 
 
+def _render_powershell_string(value: str) -> str:
+    escaped = value.replace("'", "''")
+    return f"'{escaped}'"
+
+
 class ChocolateyValidationError(Exception):
     pass
 
@@ -104,15 +109,21 @@ class ChocolateyInstallGenerator:
         # tools directory _at the time choco install_ runs.
         if key in ("file", "file64"):
             preamble_lines.append(
-                f"${key} = Join-Path $toolsDir '{os.path.basename(value)}'"
+                f"${key} = Join-Path $toolsDir "
+                f"{_render_powershell_string(os.path.basename(value))}"
             )
             return f"${key}"
-        elif isinstance(value, str):
-            return f"'{value}'"
+        return self._render_value(value)
+
+    def _render_value(self, value: Any) -> str:
+        if isinstance(value, str):
+            return _render_powershell_string(value)
         elif isinstance(value, list):
-            return f"@({','.join([x.__str__() for x in value])})"
+            return f"@({','.join(self._render_value(x) for x in value)})"
         elif isinstance(value, bool):
             return f"${value}"
+        elif isinstance(value, int):
+            return str(value)
         raise ValueError(f"Unhandled value type: {type(value)}")
 
     def _validate(self) -> None:

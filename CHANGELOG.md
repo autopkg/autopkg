@@ -74,6 +74,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - Installer and InstallFromDMG now reject package/source paths outside the recipe cache or mounted disk image; InstallFromDMG also rejects setuid/setgid copy modes.
 - ChocolateyPackager now rejects package IDs and versions that could escape the build or output directories.
 - ChocolateyPackager now builds `installer_url` packages with checksum fields and errors clearly when `installer_checksum` is missing.
+- ChocolateyInstallGenerator now escapes single quotes in generated PowerShell string literals.
 - AutoPkg now expands `CACHE_DIR` to an absolute path, so `~` or relative `CACHE_DIR` preferences no longer create literal or working-directory-relative cache folders.
 - Recipe scanning, recipe-map building, and shared-processor loading now ignore symlinks that point outside configured search directories. Symlinked search directories themselves still work.
 - CodeSignatureVerifier and SignToolVerifier now always warn when verification is disabled via `DISABLE_CODE_SIGNATURE_VERIFICATION` (previously silent at the default verbosity). `autopkg run` also warns up front when it is set globally via environment variable, recipe list, or `-k`/`--key`.
