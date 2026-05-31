@@ -36,6 +36,10 @@ URLDownloader now persists download metadata — including ETag, Last-Modified, 
 
 A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand computation of MD5, SHA1, and SHA256 hashes of the downloaded file. When enabled, hash values are available as output variables in subsequent processors.
 
+### New `clear-cache` verb
+
+AutoPkg 3.0.0 adds `autopkg clear-cache` for removing cached files when troubleshooting a recipe or reclaiming disk space. Pass a recipe name or identifier to clear that recipe's cache using the same recipe resolution behavior as `run` and `info`, or use `autopkg clear-cache all` to empty the configured cache directory. Recipes must have an explicit identifier to clear their cache. (#1035)
+
 ### Other
 
 - Files in PkgCreator `scripts` directories are now included in recipe override trust information. Changes to preinstall/postinstall scripts or any other files bundled into packages will now trigger trust verification failures. Only git-tracked files are hashed when the scripts directory is inside a git repo, so untracked files like `.DS_Store` won't cause false trust failures. (#980)
