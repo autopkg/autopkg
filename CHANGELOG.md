@@ -55,6 +55,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 - Updated filelock to 3.20.3 (#1010)
 - Updated lxml to 6.1.0
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
+- `GITHUB_TOKEN` is now available for recipe variable substitution when the token comes from `~/.autopkg_gh_token`, matching tokens stored in preferences (#923).
 - Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039)
 - Replaced deprecated imp module with importlib
 - CodeSignatureVerifier now fails clearly on non-macOS instead of silently skipping verification that requires macOS tools.

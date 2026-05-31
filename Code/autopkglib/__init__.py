@@ -1535,6 +1535,11 @@ class AutoPackager:
         self.env = env
         self.results = []
         self.env["AUTOPKG_VERSION"] = get_autopkg_version()
+        if "GITHUB_TOKEN" not in self.env:
+            from autopkglib.github import get_github_token
+
+            if token := get_github_token():
+                self.env["GITHUB_TOKEN"] = token
 
     def output(self, msg, verbose_level=1) -> None:
         """Print msg if verbosity is >= than verbose_level"""

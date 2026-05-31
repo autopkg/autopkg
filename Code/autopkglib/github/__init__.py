@@ -30,6 +30,22 @@ TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 DEFAULT_SEARCH_USER = "autopkg"
 
 
+def get_github_token(token_path: str | None = None) -> str | None:
+    """Read token from preferences, then token_path."""
+    token = get_pref("GITHUB_TOKEN")
+    token_path = os.path.expanduser(token_path or TOKEN_LOCATION)
+    if not token and os.path.exists(token_path):
+        try:
+            with open(token_path) as tokenf:
+                token = tokenf.read().strip()
+        except OSError as err:
+            log_err(f"Couldn't read token file at {token_path}! Error: {err}")
+            token = None
+    # TODO: validate token given we found one but haven't checked its
+    # auth status
+    return token
+
+
 class GitHubSession(URLGetter):
     """Handles a session with the GitHub API"""
 
@@ -48,28 +64,14 @@ class GitHubSession(URLGetter):
         else:
             self.url = BASE_URL
         self.http_result_code = None
-        if token_path.startswith("~"):
-            token_abspath = os.path.expanduser(token_path)
-        else:
-            token_abspath = token_path
-        self.token = self._get_token(token_path=token_abspath)
+        self.token = self._get_token(token_path=token_path)
 
     def _get_token(self, token_path: str = TOKEN_LOCATION) -> str | None:
         """Reads token from preferences or provided token path.
         Defaults to TOKEN_LOCATION for the token path.
         Otherwise returns None.
         """
-        token = get_pref("GITHUB_TOKEN")
-        if not token and os.path.exists(token_path):
-            try:
-                with open(token_path) as tokenf:
-                    token = tokenf.read().strip()
-            except OSError as err:
-                log_err(f"Couldn't read token file at {token_path}! Error: {err}")
-                token = None
-        # TODO: validate token given we found one but haven't checked its
-        # auth status
-        return token
+        return get_github_token(token_path)
 
     def get_or_setup_token(self) -> str:
         """Setup a GitHub OAuth token string. Will help to create one if necessary.

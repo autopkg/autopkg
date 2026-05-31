@@ -410,6 +410,49 @@ class TestAutoPackagerRecipeCacheDir(unittest.TestCase):
             self.assertFalse(os.path.exists(outside_dir))
 
 
+class TestAutoPackagerGithubToken(unittest.TestCase):
+    def _packager(self, env):
+        return autopkglib.AutoPackager(SimpleNamespace(verbose=0), env)
+
+    @patch("autopkglib.github.get_github_token", return_value="disk-token")
+    def test_init_adds_github_token_without_overriding_existing(self, mock_get_token):
+        env = {}
+        self._packager(env)
+        self.assertEqual(env["GITHUB_TOKEN"], "disk-token")
+
+        env = {"GITHUB_TOKEN": "prefs-token"}
+        self._packager(env)
+        self.assertEqual(env["GITHUB_TOKEN"], "prefs-token")
+        mock_get_token.assert_called_once_with()
+
+    @patch("autopkglib.github.get_github_token", return_value="disk-token")
+    def test_github_token_is_available_for_processor_argument_substitution(
+        self, _mock_get_token
+    ):
+        with tempfile.TemporaryDirectory() as cache_dir:
+            packager = self._packager({"CACHE_DIR": cache_dir})
+            recipe = {
+                "Identifier": "com.example.github-token",
+                "Input": {},
+                "Process": [
+                    {
+                        "Processor": "EndOfCheckPhase",
+                        "Arguments": {
+                            "request_headers": {
+                                "Authorization": "token %GITHUB_TOKEN%",
+                            },
+                        },
+                    }
+                ],
+            }
+
+            packager.process(recipe)
+
+        self.assertEqual(
+            packager.env["request_headers"]["Authorization"], "token disk-token"
+        )
+
+
 class TestUpdateData(unittest.TestCase):
     """Tests for update_data / getdata variable substitution."""
 
