@@ -2322,6 +2322,123 @@ def parse_recipe_list(filename):
     return recipe_list
 
 
+def _list_cache_tree(path, action) -> None:
+    """Log every file and directory under path (for -vv output)."""
+    if os.path.isdir(path) and not os.path.islink(path):
+        for root, dirnames, filenames in os.walk(path):
+            for name in sorted(dirnames + filenames):
+                log(f"{action} {os.path.join(root, name)}")
+
+
+def _remove_cache_item(path, dry_run=False) -> bool:
+    """Remove a file or directory tree. Returns True on success."""
+    if dry_run:
+        return True
+    try:
+        if os.path.isdir(path) and not os.path.islink(path):
+            shutil.rmtree(path)
+        else:
+            os.unlink(path)
+    except OSError as err:
+        log_err(f"ERROR: Could not remove {path}: {err}")
+        return False
+    return True
+
+
+def clear_cache(argv):
+    """Clear cached artifacts for one recipe, or the whole cache."""
+    verb = argv[1]
+    parser = gen_common_parser()
+    parser.set_usage(
+        f"Usage: %prog {verb} [options] <recipe|all>\n"
+        "Remove cached download/work artifacts for a recipe, or all cache contents."
+    )
+    parser.add_option(
+        "--dry-run",
+        action="store_true",
+        help="Print what would be removed without deleting anything.",
+    )
+    parser.add_option(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help=(
+            "Verbose output. -v lists each recipe cache directory removed; "
+            "-vv also lists every file within."
+        ),
+    )
+    add_search_and_override_dir_options(parser)
+    options, arguments = common_parse(parser, argv)
+
+    if len(arguments) != 1:
+        log_err(parser.get_usage())
+        return 1
+
+    cache_dir = os.path.abspath(
+        os.path.expanduser(get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache")
+    )
+    if not os.path.isdir(cache_dir):
+        log_err(f"ERROR: Cache directory does not exist: {cache_dir}")
+        return 1
+
+    action = "Would remove" if options.dry_run else "Removing"
+
+    if arguments[0] == "all":
+        try:
+            items = sorted(
+                os.path.join(cache_dir, name) for name in os.listdir(cache_dir)
+            )
+        except OSError as err:
+            log_err(f"ERROR: Could not list {cache_dir}: {err}")
+            return 1
+        if not items:
+            if options.verbose:
+                log(f"Cache directory is empty: {cache_dir}")
+            return 0
+        if not options.verbose:
+            log(f"{action} all cached items from {cache_dir}")
+        ok = True
+        for item in items:
+            if options.verbose:
+                log(f"{action} {item}")
+                if options.verbose >= 2:
+                    _list_cache_tree(item, action)
+            if not _remove_cache_item(item, options.dry_run):
+                ok = False
+        return 0 if ok else 1
+
+    override_dirs = options.override_dirs or get_override_dirs()
+    search_dirs = options.search_dirs or get_search_dirs()
+    recipe = load_recipe(
+        arguments[0],
+        override_dirs,
+        search_dirs,
+        make_suggestions=False,
+        search_github=False,
+    )
+    if not recipe:
+        log_err(f"No valid recipe found for {arguments[0]}")
+        return 1
+    identifier = get_identifier(recipe)
+    if not identifier:
+        log_err(f"ERROR: Could not determine recipe identifier for {arguments[0]}")
+        return 1
+    target = os.path.normpath(os.path.join(cache_dir, identifier))
+    if not is_path_under(target, cache_dir):
+        log_err(
+            f"ERROR: Recipe cache path {target} resolves outside CACHE_DIR {cache_dir}"
+        )
+        return 1
+    if not os.path.exists(target):
+        log_err(f"ERROR: Recipe cache directory does not exist: {target}")
+        return 1
+    log(f"{action} {target}")
+    if options.verbose >= 2:
+        _list_cache_tree(target, action)
+    return 0 if _remove_cache_item(target, options.dry_run) else 1
+
+
 def run_recipes(argv):  # noqa: C901
     """Run one or more recipes. If called with 'install' verb, run .install
     recipe"""
@@ -3334,6 +3451,10 @@ def main(argv):
     subcommands = {
         "help": {"function": display_help, "help": "Display this help"},
         "audit": {"function": audit, "help": "Audit one or more recipes."},
+        "clear-cache": {
+            "function": clear_cache,
+            "help": "Remove cached artifacts for a recipe or all cache contents",
+        },
         "info": {
             "function": get_info,
             "help": "Get info about configuration or a recipe",
