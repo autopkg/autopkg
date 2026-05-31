@@ -775,6 +775,8 @@ def add_recipe_to_map(recipe_path: str, is_override: bool) -> None:
     Silently no-ops when the recipe map is disabled."""
     if _recipe_map_disabled():
         return
+    if not globalRecipeMap.get("identifiers") and os.path.exists(_recipe_map_path()):
+        read_recipe_map()
     recipe_dict = recipe_from_file(recipe_path)
     if recipe_dict is None:
         log_err(

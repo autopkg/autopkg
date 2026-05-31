@@ -1309,6 +1309,48 @@ class TestIncrementalMapUpdateForSingleFile(_RecipeMapIsolation, unittest.TestCa
             "Second add must not overwrite the first (first-wins).",
         )
 
+    def test_add_recipe_to_map_preserves_existing_persisted_map(self):
+        """A fresh process adding one recipe must merge with the on-disk
+        map instead of replacing it with only the new recipe."""
+        existing = {
+            "identifiers": {
+                "com.example.a": "/tmp/A.recipe",
+                "com.example.b": "/tmp/B.recipe",
+            },
+            "shortnames": {"A": "/tmp/A.recipe", "B": "/tmp/B.recipe"},
+            "overrides": {},
+            "overrides-identifiers": {},
+        }
+        with open(autopkglib.DEFAULT_RECIPE_MAP, "w") as f:
+            json.dump(existing, f)
+
+        for sub in (
+            "identifiers",
+            "shortnames",
+            "overrides",
+            "overrides-identifiers",
+        ):
+            autopkglib.globalRecipeMap.setdefault(sub, {}).clear()
+
+        recipes_dir = os.path.join(self.tmpdir, "repo")
+        os.makedirs(recipes_dir)
+        recipe_path = os.path.join(recipes_dir, "Sample.recipe")
+        _write_plist_recipe(recipe_path, SAMPLE_RECIPE)
+
+        autopkglib.add_recipe_to_map(recipe_path, is_override=False)
+
+        with open(autopkglib.DEFAULT_RECIPE_MAP) as f:
+            persisted = json.load(f)
+        self.assertEqual(persisted["identifiers"]["com.example.a"], "/tmp/A.recipe")
+        self.assertEqual(persisted["identifiers"]["com.example.b"], "/tmp/B.recipe")
+        self.assertEqual(
+            persisted["identifiers"][SAMPLE_RECIPE["Identifier"]],
+            recipe_path,
+        )
+        self.assertEqual(persisted["shortnames"]["A"], "/tmp/A.recipe")
+        self.assertEqual(persisted["shortnames"]["B"], "/tmp/B.recipe")
+        self.assertEqual(persisted["shortnames"]["Sample"], recipe_path)
+
     def test_add_recipe_to_map_noops_when_disabled(self):
         """Escape hatch: when the map is disabled, add_recipe_to_map
         is a silent no-op."""

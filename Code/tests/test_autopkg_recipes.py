@@ -49,6 +49,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
         self._recipe_map_patches = [
             patch("autopkg.calculate_recipe_map"),
             patch("autopkg.read_recipe_map"),
+            patch("autopkg.add_recipe_to_map"),
         ]
         for patcher in self._recipe_map_patches:
             patcher.start()
