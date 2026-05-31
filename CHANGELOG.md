@@ -38,7 +38,7 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 
 ### New `clear-cache` verb
 
-AutoPkg 3.0.0 adds `autopkg clear-cache` for removing cached files when troubleshooting a recipe or reclaiming disk space. Pass a recipe name or identifier to clear that recipe's cache using the same lookup behavior as `run` and `info`, or use `autopkg clear-cache all` to empty the configured cache directory. (#1035)
+AutoPkg 3.0.0 adds `autopkg clear-cache` for removing cached files when troubleshooting a recipe or reclaiming disk space. Pass a recipe name or identifier to clear that recipe's cache using the same recipe resolution behavior as `run` and `info`, or use `autopkg clear-cache all` to empty the configured cache directory. Recipes must have an explicit identifier to clear their cache. (#1035)
 
 ### Other
 

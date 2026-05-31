@@ -199,6 +199,36 @@ class TestAutoPkgOther(unittest.TestCase):
             self.assertEqual(stdout, "")
             self.assertIn("Recipe cache directory does not exist", stderr)
 
+    def test_clear_cache_recipe_requires_explicit_identifier(self):
+        """Recipe cache deletion does not use the run-time pseudo identifier."""
+        recipe = {
+            "Description": "Test recipe",
+            "Input": {},
+            "Process": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_dir = os.path.join(tmp_dir, "cache")
+            recipes_dir = os.path.join(tmp_dir, "recipes")
+            recipe_path = os.path.join(recipes_dir, "NoIdentifier.recipe")
+            self._write_recipe(recipe_path, recipe)
+
+            pseudo_identifier = "-".join(
+                autopkg.remove_recipe_extension(recipe_path).split("/")
+            )
+            pseudo_target = os.path.join(cache_dir, pseudo_identifier)
+            os.makedirs(pseudo_target)
+
+            result, stdout, stderr = self._run_clear_cache(
+                ["--search-dir", recipes_dir, "NoIdentifier"],
+                cache_dir,
+                search_dirs=[recipes_dir],
+            )
+
+            self.assertEqual(result, 1)
+            self.assertEqual(stdout, "")
+            self.assertIn("Could not determine recipe identifier", stderr)
+            self.assertTrue(os.path.isdir(pseudo_target))
+
     def test_clear_cache_all_removes_contents_not_cache_dir(self):
         """The all target clears cache contents but leaves CACHE_DIR itself."""
         with tempfile.TemporaryDirectory() as tmp_dir:

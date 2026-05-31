@@ -2364,8 +2364,8 @@ def clear_cache(argv):
         action="count",
         default=0,
         help=(
-            "Verbose output. -v lists each recipe cache directory removed; "
-            "-vv also lists every file within."
+            "Verbose output. With 'all', -v lists each top-level cache item. "
+            "-vv lists each item within removed directories."
         ),
     )
     add_search_and_override_dir_options(parser)
@@ -2420,6 +2420,8 @@ def clear_cache(argv):
     if not recipe:
         log_err(f"No valid recipe found for {arguments[0]}")
         return 1
+    # Require an explicit recipe identifier for deletion rather than using
+    # AutoPackager.get_recipe_identifier()'s path-derived fallback.
     identifier = get_identifier(recipe)
     if not identifier:
         log_err(f"ERROR: Could not determine recipe identifier for {arguments[0]}")
