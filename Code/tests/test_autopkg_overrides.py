@@ -327,9 +327,11 @@ class TestAutoPkgOverrides(unittest.TestCase):
                     [".DS_Store", "postinstall", "preinstall"],
                 ),
             ]
+            # get_trust_info compares os.path.normpath()'d walk paths against
+            # this set, so normalize here too or nothing matches on Windows.
             mock_tracked.return_value = {
-                "/path/to/Scripts/preinstall",
-                "/path/to/Scripts/postinstall",
+                os.path.normpath("/path/to/Scripts/preinstall"),
+                os.path.normpath("/path/to/Scripts/postinstall"),
             }
             mock_hash.side_effect = ["recipe_hash", "post_hash", "pre_hash"]
             mock_git_hash.side_effect = ["recipe_git", "post_git", "pre_git"]

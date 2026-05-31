@@ -52,7 +52,7 @@ class TestCodeSignatureVerifierCommon(unittest.TestCase):
         module = sys.modules[CodeSignatureVerifier.__module__]
         with (
             patch.object(module.sys, "platform", "linux"),
-            patch.object(module.os, "uname") as mock_uname,
+            patch.object(module.os, "uname", create=True) as mock_uname,
             patch.object(processor, "process_installer_package") as mock_process,
         ):
             with self.assertRaisesRegex(
@@ -71,7 +71,9 @@ class TestCodeSignatureVerifierCommon(unittest.TestCase):
 
         with (
             patch.object(module.sys, "platform", "darwin"),
-            patch.object(module.os, "uname", return_value=("", "", "20.0", "", "")),
+            patch.object(
+                module.os, "uname", return_value=("", "", "20.0", "", ""), create=True
+            ),
             patch("subprocess.Popen", side_effect=OSError(2, "missing")),
         ):
             with self.assertRaisesRegex(ProcessorError, "codesign execution failed"):

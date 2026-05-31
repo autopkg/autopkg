@@ -16,6 +16,7 @@ import importlib.machinery
 import importlib.util
 import os
 import plistlib
+import re
 import sys
 import tempfile
 import unittest
@@ -212,8 +213,16 @@ class TestAutoPkgOther(unittest.TestCase):
             recipe_path = os.path.join(recipes_dir, "NoIdentifier.recipe")
             self._write_recipe(recipe_path, recipe)
 
+            # Create a path-derived cache directory standing in for the
+            # run-time pseudo identifier. Split on either separator and drop
+            # empty/drive parts so the result is a safe relative directory
+            # name on both POSIX and Windows.
             pseudo_identifier = "-".join(
-                autopkg.remove_recipe_extension(recipe_path).split("/")
+                part
+                for part in re.split(
+                    r"[\\/]", autopkg.remove_recipe_extension(recipe_path)
+                )
+                if part and ":" not in part
             )
             pseudo_target = os.path.join(cache_dir, pseudo_identifier)
             os.makedirs(pseudo_target)

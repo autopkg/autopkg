@@ -982,7 +982,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
         pref_path = os.path.join(tempfile.gettempdir(), "autopkg_test_pref_map.json")
         with (
             patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
-            patch("os.geteuid", return_value=0),
+            patch("os.geteuid", return_value=0, create=True),
             patch.object(
                 autopkglib,
                 "get_pref",
@@ -1012,7 +1012,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
         with (
             patch.dict(os.environ, {}, clear=False),
             patch.object(autopkglib, "get_pref", return_value=None),
-            patch("os.geteuid", return_value=0),
+            patch("os.geteuid", return_value=0, create=True),
             patch("pwd.getpwuid", return_value=Mock(pw_dir=root_home)),
             patch("os.path.expanduser", return_value=caller_home_map),
         ):
@@ -1039,7 +1039,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
                 ),
                 patch.object(autopkglib, "get_pref", return_value=None),
                 patch.object(autopkglib, "_recipe_map_write_disabled", False),
-                patch("os.geteuid", return_value=0),
+                patch("os.geteuid", return_value=0, create=True),
                 patch("pwd.getpwuid", return_value=Mock(pw_dir=root_home)),
             ):
                 autopkglib.write_recipe_map_to_disk()
@@ -1056,7 +1056,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
         informational log via log(), not a SECURITY WARNING via log_err."""
         with (
             patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
-            patch("os.geteuid", return_value=501),
+            patch("os.geteuid", return_value=501, create=True),
             patch("autopkglib.log") as mock_log,
             patch("autopkglib.log_err") as mock_log_err,
         ):
@@ -1076,7 +1076,11 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
         the process as unprivileged (no SECURITY WARNING)."""
         with (
             patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
-            patch("os.geteuid", side_effect=AttributeError("no geteuid on Windows")),
+            patch(
+                "os.geteuid",
+                side_effect=AttributeError("no geteuid on Windows"),
+                create=True,
+            ),
             patch("autopkglib.log_err") as mock_log_err,
         ):
             result = autopkglib._recipe_map_path()
