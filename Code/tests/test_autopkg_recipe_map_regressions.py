@@ -19,6 +19,7 @@ with a direct pointer to the original bug report."""
 
 import importlib
 import importlib.machinery
+import importlib.util
 import json
 import os
 import plistlib
@@ -29,6 +30,10 @@ import unittest
 from unittest.mock import Mock, patch
 
 import autopkglib
+
+# ``pwd`` is POSIX-only; the root-home tests patch it and must be skipped
+# on platforms (e.g. Windows) where it can't be imported.
+_HAS_PWD = importlib.util.find_spec("pwd") is not None
 
 autopkg_path = os.path.join(os.path.dirname(__file__), "..", "autopkg")
 loader = importlib.machinery.SourceFileLoader("autopkg", autopkg_path)
@@ -982,7 +987,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
         pref_path = os.path.join(tempfile.gettempdir(), "autopkg_test_pref_map.json")
         with (
             patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
-            patch("os.geteuid", return_value=0),
+            patch("os.geteuid", return_value=0, create=True),
             patch.object(
                 autopkglib,
                 "get_pref",
@@ -998,6 +1003,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
             "Expected SECURITY WARNING from log_err when euid=0.",
         )
 
+    @unittest.skipUnless(_HAS_PWD, "requires POSIX 'pwd' module")
     def test_root_default_tilde_expansion_uses_root_home(self):
         """Running as root must expand the default ~/ path using uid 0's
         home, not the caller's HOME-derived expanduser result."""
@@ -1012,7 +1018,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
         with (
             patch.dict(os.environ, {}, clear=False),
             patch.object(autopkglib, "get_pref", return_value=None),
-            patch("os.geteuid", return_value=0),
+            patch("os.geteuid", return_value=0, create=True),
             patch("pwd.getpwuid", return_value=Mock(pw_dir=root_home)),
             patch("os.path.expanduser", return_value=caller_home_map),
         ):
@@ -1026,6 +1032,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
             ),
         )
 
+    @unittest.skipUnless(_HAS_PWD, "requires POSIX 'pwd' module")
     def test_root_write_does_not_create_recipe_map_under_caller_home(self):
         """Root recipe-map writes must not create paths under inherited HOME."""
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1039,7 +1046,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
                 ),
                 patch.object(autopkglib, "get_pref", return_value=None),
                 patch.object(autopkglib, "_recipe_map_write_disabled", False),
-                patch("os.geteuid", return_value=0),
+                patch("os.geteuid", return_value=0, create=True),
                 patch("pwd.getpwuid", return_value=Mock(pw_dir=root_home)),
             ):
                 autopkglib.write_recipe_map_to_disk()
@@ -1056,7 +1063,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
         informational log via log(), not a SECURITY WARNING via log_err."""
         with (
             patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
-            patch("os.geteuid", return_value=501),
+            patch("os.geteuid", return_value=501, create=True),
             patch("autopkglib.log") as mock_log,
             patch("autopkglib.log_err") as mock_log_err,
         ):
@@ -1076,7 +1083,11 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
         the process as unprivileged (no SECURITY WARNING)."""
         with (
             patch.dict(os.environ, {"AUTOPKG_RECIPE_MAP_PATH": self.custom_map_path}),
-            patch("os.geteuid", side_effect=AttributeError("no geteuid on Windows")),
+            patch(
+                "os.geteuid",
+                side_effect=AttributeError("no geteuid on Windows"),
+                create=True,
+            ),
             patch("autopkglib.log_err") as mock_log_err,
         ):
             result = autopkglib._recipe_map_path()

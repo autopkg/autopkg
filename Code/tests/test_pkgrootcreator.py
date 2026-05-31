@@ -42,8 +42,11 @@ class TestPkgRootCreator(unittest.TestCase):
 
         self.assertTrue(os.path.isdir(applications_path))
         self.assertTrue(os.path.isdir(support_path))
-        self.assertEqual(stat.S_IMODE(os.stat(applications_path).st_mode), 0o755)
-        self.assertEqual(stat.S_IMODE(os.stat(support_path).st_mode), 0o775)
+        # Windows doesn't honor POSIX permission bits, so only assert the
+        # exact modes where they're meaningful.
+        if os.name != "nt":
+            self.assertEqual(stat.S_IMODE(os.stat(applications_path).st_mode), 0o755)
+            self.assertEqual(stat.S_IMODE(os.stat(support_path).st_mode), 0o775)
 
     def test_rejects_absolute_directory(self):
         outside_path = os.path.join(self.tmp_dir.name, "outside")
