@@ -19,6 +19,7 @@ with a direct pointer to the original bug report."""
 
 import importlib
 import importlib.machinery
+import importlib.util
 import json
 import os
 import plistlib
@@ -29,6 +30,10 @@ import unittest
 from unittest.mock import Mock, patch
 
 import autopkglib
+
+# ``pwd`` is POSIX-only; the root-home tests patch it and must be skipped
+# on platforms (e.g. Windows) where it can't be imported.
+_HAS_PWD = importlib.util.find_spec("pwd") is not None
 
 autopkg_path = os.path.join(os.path.dirname(__file__), "..", "autopkg")
 loader = importlib.machinery.SourceFileLoader("autopkg", autopkg_path)
@@ -998,6 +1003,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
             "Expected SECURITY WARNING from log_err when euid=0.",
         )
 
+    @unittest.skipUnless(_HAS_PWD, "requires POSIX 'pwd' module")
     def test_root_default_tilde_expansion_uses_root_home(self):
         """Running as root must expand the default ~/ path using uid 0's
         home, not the caller's HOME-derived expanduser result."""
@@ -1026,6 +1032,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
             ),
         )
 
+    @unittest.skipUnless(_HAS_PWD, "requires POSIX 'pwd' module")
     def test_root_write_does_not_create_recipe_map_under_caller_home(self):
         """Root recipe-map writes must not create paths under inherited HOME."""
         with tempfile.TemporaryDirectory() as tmpdir:
