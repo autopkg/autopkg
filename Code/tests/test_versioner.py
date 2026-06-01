@@ -96,23 +96,23 @@ class TestVersioner(unittest.TestCase):
         with patch("os.path.exists", return_value=True):
             self.processor.process()
 
-    @patch("autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkglib.Versioner.parsePathForDMG")
+    @patch.object(Versioner, "load_plist_from_file")
+    @patch.object(Versioner, "parsePathForDMG")
     def test_find_cfbundle_short_version(self, mock_dmg, mock_plist):
         """The processor should find version in default `CFBundleShortVersionString`."""
         self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)
         self.assertEqual(self.processor.env["version"], TEST_VERSION_DEFAULT)
 
-    @patch("autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkglib.Versioner.parsePathForDMG")
+    @patch.object(Versioner, "load_plist_from_file")
+    @patch.object(Versioner, "parsePathForDMG")
     def test_find_custom_version(self, mock_dmg, mock_plist):
         """The processor should find version under key specified by `plist_version_key`."""
         self.processor.env["plist_version_key"] = TEST_VERSION_CUSTOM_KEY
         self._run_direct_plist(TEST_VERSION_PLIST, mock_dmg, mock_plist)
         self.assertEqual(self.processor.env["version"], TEST_VERSION_CUSTOM)
 
-    @patch("autopkglib.Versioner.load_plist_from_file")
-    @patch("autopkglib.Versioner.parsePathForDMG")
+    @patch.object(Versioner, "load_plist_from_file")
+    @patch.object(Versioner, "parsePathForDMG")
     def test_no_version_found(self, mock_dmg, mock_plist):
         """The processor should not find version if plist misses it."""
         self._run_direct_plist(TEST_NO_VERSION_PLIST, mock_dmg, mock_plist)
@@ -153,7 +153,7 @@ class TestVersioner(unittest.TestCase):
         @patch.object(Versioner, "_read_from_zip")
         @patch.object(Versioner, "unmount")
         @patch.object(Versioner, "mount")
-        # @patch("autopkglib.Versioner.load_plist_from_file")
+        # @patch.object(Versioner, "load_plist_from_file")
         @patch_open(TEST_VERSION_PLIST)
         def test_for_extension(
             ext: str, mock_plist, mock_mount, mock_unmount, mock_zip, mock_exists
@@ -181,7 +181,7 @@ class TestVersioner(unittest.TestCase):
                 test_for_extension(ext_case)
 
     @patch("os.path.exists", return_value=False)
-    @patch("autopkglib.Versioner._read_from_dmg")
+    @patch.object(Versioner, "_read_from_dmg")
     def test_version_from_zip(self, mock_dmg, mock_exists):
         multi_subdir = list(
             map(

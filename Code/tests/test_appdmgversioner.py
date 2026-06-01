@@ -91,8 +91,8 @@ class TestAppDmgVersioner(unittest.TestCase):
         with self.assertRaises(ProcessorError):
             self.processor.main()
 
-    @patch("autopkglib.AppDmgVersioner.unmount")
-    @patch("autopkglib.AppDmgVersioner.mount")
+    @patch.object(AppDmgVersioner, "unmount")
+    @patch.object(AppDmgVersioner, "mount")
     @patch("glob.glob")
     @patch_open(TEST_INFO_PLIST)
     def test_no_fail_if_good_env(self, mock_plist, mock_glob, mock_mount, mock_unmount):
@@ -109,8 +109,8 @@ class TestAppDmgVersioner(unittest.TestCase):
         mock_unmount.assert_called_once_with(self.good_env["dmg_path"])
         mock_glob.assert_called_once_with(os.path.join(mount_point, "*.app"))
 
-    @patch("autopkglib.AppDmgVersioner.unmount")
-    @patch("autopkglib.AppDmgVersioner.mount")
+    @patch.object(AppDmgVersioner, "unmount")
+    @patch.object(AppDmgVersioner, "mount")
     @patch("glob.glob")
     @patch_open(TEST_INFO_PLIST)
     def test_extracts_bundle_info(
@@ -129,8 +129,8 @@ class TestAppDmgVersioner(unittest.TestCase):
         self.assertEqual(self.processor.env["bundleid"], TEST_BUNDLE_ID)
         self.assertEqual(self.processor.env["version"], TEST_VERSION)
 
-    @patch("autopkglib.AppDmgVersioner.unmount")
-    @patch("autopkglib.AppDmgVersioner.mount")
+    @patch.object(AppDmgVersioner, "unmount")
+    @patch.object(AppDmgVersioner, "mount")
     @patch("glob.glob")
     def test_no_app_found_raises(self, mock_glob, mock_mount, mock_unmount):
         """The processor should raise an exception if no app is found."""
@@ -144,8 +144,8 @@ class TestAppDmgVersioner(unittest.TestCase):
 
         mock_unmount.assert_called_once_with(self.good_env["dmg_path"])
 
-    @patch("autopkglib.AppDmgVersioner.unmount")
-    @patch("autopkglib.AppDmgVersioner.mount")
+    @patch.object(AppDmgVersioner, "unmount")
+    @patch.object(AppDmgVersioner, "mount")
     @patch("glob.glob")
     def test_multiple_apps_uses_first(self, mock_glob, mock_mount, mock_unmount):
         """The processor should use the first app if multiple apps are found."""
@@ -161,8 +161,8 @@ class TestAppDmgVersioner(unittest.TestCase):
 
         self.assertEqual(self.processor.env["app_name"], "FirstApp.app")
 
-    @patch("autopkglib.AppDmgVersioner.unmount")
-    @patch("autopkglib.AppDmgVersioner.mount")
+    @patch.object(AppDmgVersioner, "unmount")
+    @patch.object(AppDmgVersioner, "mount")
     @patch("glob.glob")
     @patch("builtins.open", side_effect=FileNotFoundError("Info.plist not found"))
     def test_missing_info_plist_raises(
@@ -180,8 +180,8 @@ class TestAppDmgVersioner(unittest.TestCase):
 
         mock_unmount.assert_called_once_with(self.good_env["dmg_path"])
 
-    @patch("autopkglib.AppDmgVersioner.unmount")
-    @patch("autopkglib.AppDmgVersioner.mount")
+    @patch.object(AppDmgVersioner, "unmount")
+    @patch.object(AppDmgVersioner, "mount")
     @patch("glob.glob")
     @patch_open(TEST_INCOMPLETE_INFO_PLIST)
     def test_missing_bundle_info_raises(
@@ -199,8 +199,8 @@ class TestAppDmgVersioner(unittest.TestCase):
 
         mock_unmount.assert_called_once_with(self.good_env["dmg_path"])
 
-    @patch("autopkglib.AppDmgVersioner.unmount")
-    @patch("autopkglib.AppDmgVersioner.mount")
+    @patch.object(AppDmgVersioner, "unmount")
+    @patch.object(AppDmgVersioner, "mount")
     @patch("glob.glob")
     @patch_open(b"invalid plist data")
     def test_invalid_plist_raises(
@@ -257,14 +257,14 @@ class TestAppDmgVersioner(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "Can't read.*Info.plist"):
             self.processor.read_bundle_info(app_dir)
 
-    @patch("autopkglib.AppDmgVersioner.mount", side_effect=Exception("Mount failed"))
+    @patch.object(AppDmgVersioner, "mount", side_effect=Exception("Mount failed"))
     def test_mount_failure_raises(self, mock_mount):
         """The processor should raise an exception if mounting fails."""
         with self.assertRaisesRegex(Exception, "Mount failed"):
             self.processor.main()
 
-    @patch("autopkglib.AppDmgVersioner.unmount")
-    @patch("autopkglib.AppDmgVersioner.mount")
+    @patch.object(AppDmgVersioner, "unmount")
+    @patch.object(AppDmgVersioner, "mount")
     @patch("glob.glob", side_effect=Exception("Glob failed"))
     def test_unmount_called_on_exception(self, mock_glob, mock_mount, mock_unmount):
         """The processor should always unmount even if an exception occurs."""

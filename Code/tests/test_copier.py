@@ -46,7 +46,7 @@ class TestCopier(unittest.TestCase):
             self.processor.main()
 
     @patch("autopkglib.glob.glob")
-    @patch("autopkglib.Copier.copy")
+    @patch.object(Copier, "copy")
     def test_no_fail_if_good_env(self, mock_copy, mock_glob):
         """The processor should not raise any exceptions if run normally."""
         self.processor.env = self.good_env
@@ -56,7 +56,7 @@ class TestCopier(unittest.TestCase):
         mock_copy.assert_called_once()
 
     @patch("autopkglib.glob.glob")
-    @patch("autopkglib.Copier.copy")
+    @patch.object(Copier, "copy")
     def test_no_fail_if_glob_env(self, mock_copy, mock_glob):
         """The processor should not raise any exceptions if run with a glob."""
         self.processor.env = self.glob_env
@@ -65,10 +65,10 @@ class TestCopier(unittest.TestCase):
         self.processor.main()
         mock_copy.assert_called_once()
 
-    @patch("autopkglib.Copier.unmount")
-    @patch("autopkglib.Copier.mount")
+    @patch.object(Copier, "unmount")
+    @patch.object(Copier, "mount")
     @patch("autopkglib.glob.glob")
-    @patch("autopkglib.Copier.copy")
+    @patch.object(Copier, "copy")
     def test_no_fail_if_dmg_env(self, mock_copy, mock_glob, mock_mount, mock_unmount):
         """The processor should not raise any exceptions if run with a DMG."""
         self.processor.env = self.dmg_env
@@ -79,10 +79,10 @@ class TestCopier(unittest.TestCase):
         mock_copy.assert_called_once()
         mock_unmount.assert_called_once()
 
-    @patch("autopkglib.Copier.unmount")
-    @patch("autopkglib.Copier.mount")
+    @patch.object(Copier, "unmount")
+    @patch.object(Copier, "mount")
     @patch("autopkglib.glob.glob")
-    @patch("autopkglib.Copier.copy")
+    @patch.object(Copier, "copy")
     def test_no_fail_if_dmg_glob_env(
         self, mock_copy, mock_glob, mock_mount, mock_unmount
     ):
@@ -96,7 +96,7 @@ class TestCopier(unittest.TestCase):
         mock_unmount.assert_called_once()
 
     @patch("autopkglib.glob.glob")
-    @patch("autopkglib.Copier.copy")
+    @patch.object(Copier, "copy")
     def test_multiple_matches(self, mock_copy, mock_glob):
         """The processor should not raise any exceptions if run with a glob."""
         self.processor.env = self.glob_env

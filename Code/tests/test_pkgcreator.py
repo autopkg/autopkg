@@ -84,10 +84,10 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "Request key pkgroot missing"):
             self.processor.main()
 
-    @patch("autopkglib.PkgCreator.disconnect")
-    @patch("autopkglib.PkgCreator.send_request")
-    @patch("autopkglib.PkgCreator.connect")
-    @patch("autopkglib.PkgCreator.pkg_already_exists")
+    @patch.object(PkgCreator, "disconnect")
+    @patch.object(PkgCreator, "send_request")
+    @patch.object(PkgCreator, "connect")
+    @patch.object(PkgCreator, "pkg_already_exists")
     def test_builds_package_successfully(
         self, mock_exists, mock_connect, mock_send, mock_disconnect
     ):
@@ -104,7 +104,7 @@ class TestPkgCreator(unittest.TestCase):
         mock_send.assert_called_once()
         mock_disconnect.assert_called_once()
 
-    @patch("autopkglib.PkgCreator.pkg_already_exists")
+    @patch.object(PkgCreator, "pkg_already_exists")
     def test_skips_build_if_package_exists(self, mock_exists):
         """The processor should skip building if package already exists."""
         mock_exists.return_value = True
@@ -119,7 +119,7 @@ class TestPkgCreator(unittest.TestCase):
         """The processor should fill in default values for optional keys."""
         self.processor.env = deepcopy(self.minimal_env)
 
-        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
             self.processor.main()
 
         request = self.processor.env["pkg_request"]
@@ -134,7 +134,7 @@ class TestPkgCreator(unittest.TestCase):
         self.processor.env["scripts"] = self.tmp_dir.name
 
         with (
-            patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True),
+            patch.object(PkgCreator, "pkg_already_exists", return_value=True),
             patch.object(sys.modules[PkgCreator.__module__], "log_err") as mock_log_err,
         ):
             self.processor.main()
@@ -207,7 +207,7 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "xar execution failed"):
             self.processor.xar_expand(test_pkg)
 
-    @patch("autopkglib.PkgCreator.xar_expand")
+    @patch.object(PkgCreator, "xar_expand")
     def test_pkg_already_exists_true(self, mock_xar):
         """Test pkg_already_exists returns True for matching package."""
         # Create test package file
@@ -229,7 +229,7 @@ class TestPkgCreator(unittest.TestCase):
         result = self.processor.pkg_already_exists(pkg_path, "com.test", "1.0.0")
         self.assertTrue(result)
 
-    @patch("autopkglib.PkgCreator.xar_expand")
+    @patch.object(PkgCreator, "xar_expand")
     def test_pkg_already_exists_false_different_version(self, mock_xar):
         """Test pkg_already_exists returns False for different version."""
         # Create test package file
@@ -256,7 +256,7 @@ class TestPkgCreator(unittest.TestCase):
         result = self.processor.pkg_already_exists(pkg_path, "com.test", "1.0.0")
         self.assertFalse(result)
 
-    @patch("autopkglib.PkgCreator.xar_expand", side_effect=ProcessorError("xar failed"))
+    @patch.object(PkgCreator, "xar_expand", side_effect=ProcessorError("xar failed"))
     @patch("os.unlink")
     def test_pkg_already_exists_xar_failure_removes_pkg(self, mock_unlink, mock_xar):
         """Test that package is removed if xar expansion fails."""
@@ -337,10 +337,10 @@ class TestPkgCreator(unittest.TestCase):
             "Failed to close socket: Close failed", verbose_level=2
         )
 
-    @patch("autopkglib.PkgCreator.disconnect")
-    @patch("autopkglib.PkgCreator.send_request")
-    @patch("autopkglib.PkgCreator.connect")
-    @patch("autopkglib.PkgCreator.pkg_already_exists")
+    @patch.object(PkgCreator, "disconnect")
+    @patch.object(PkgCreator, "send_request")
+    @patch.object(PkgCreator, "connect")
+    @patch.object(PkgCreator, "pkg_already_exists")
     def test_disconnect_called_on_exception(
         self, mock_exists, mock_connect, mock_send, mock_disconnect
     ):
@@ -370,17 +370,17 @@ class TestPkgCreator(unittest.TestCase):
             "version": "1.0.0",
         }
 
-        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
             self.processor.main()
 
         request = self.processor.env["pkg_request"]
         self.assertTrue(os.path.isabs(request["pkgroot"]))
         self.assertTrue(os.path.isabs(request["scripts"]))
 
-    @patch("autopkglib.PkgCreator.disconnect")
-    @patch("autopkglib.PkgCreator.send_request")
-    @patch("autopkglib.PkgCreator.connect")
-    @patch("autopkglib.PkgCreator.pkg_already_exists")
+    @patch.object(PkgCreator, "disconnect")
+    @patch.object(PkgCreator, "send_request")
+    @patch.object(PkgCreator, "connect")
+    @patch.object(PkgCreator, "pkg_already_exists")
     def test_sets_summary_result(
         self, mock_exists, mock_connect, mock_send, mock_disconnect
     ):
@@ -400,7 +400,7 @@ class TestPkgCreator(unittest.TestCase):
         """The processor should default pkgbuild_args to empty list."""
         self.processor.env = deepcopy(self.minimal_env)
 
-        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
             self.processor.main()
 
         request = self.processor.env["pkg_request"]
@@ -411,7 +411,7 @@ class TestPkgCreator(unittest.TestCase):
         self.processor.env = deepcopy(self.minimal_env)
         self.processor.env["pkgbuild_args"] = ["--filter", ".git"]
 
-        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
             self.processor.main()
 
         request = self.processor.env["pkg_request"]
@@ -423,7 +423,7 @@ class TestPkgCreator(unittest.TestCase):
         self.processor.env["pkg_request"]["pkgbuild_args"] = ["--large-payload"]
         self.processor.env["pkgbuild_args"] = ["--filter", ".git"]
 
-        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
             self.processor.main()
 
         request = self.processor.env["pkg_request"]

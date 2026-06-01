@@ -22,7 +22,7 @@ class TestPkgCopier(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch("autopkglib.PkgCopier.copy")
+    @patch.object(PkgCopier, "copy")
     @patch("autopkglib.glob.glob")
     def test_no_pkgpath_uses_source_name(self, mock_glob, mock_copy):
         """If pkg_path is not specified, it should use the source name."""
@@ -36,7 +36,7 @@ class TestPkgCopier(unittest.TestCase):
             overwrite=True,
         )
 
-    @patch("autopkglib.PkgCopier.copy")
+    @patch.object(PkgCopier, "copy")
     @patch("autopkglib.glob.glob")
     def test_no_pkgpath_uses_dest_name(self, mock_glob, mock_copy):
         """If pkg_path is specified, it should be used."""

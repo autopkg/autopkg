@@ -26,7 +26,7 @@ class TestFileFinder(unittest.TestCase):
         with self.assertRaises(ProcessorError):
             self.processor.main()
 
-    @patch("autopkglib.FileFinder.globfind")
+    @patch.object(FileFinder, "globfind")
     def test_found_a_match(self, mock_glob):
         """If we find a match, it should be in the env."""
         self.processor.env = self.good_env
@@ -34,8 +34,8 @@ class TestFileFinder(unittest.TestCase):
         self.processor.main()
         self.assertEqual(self.processor.env["found_filename"], "test")
 
-    @patch("autopkglib.FileFinder.unmount")
-    @patch("autopkglib.FileFinder.mount")
+    @patch.object(FileFinder, "unmount")
+    @patch.object(FileFinder, "mount")
     @patch("glob.glob")
     def test_found_a_dmg_match(self, mock_glob, mock_mount, mock_unmount):
         """If we find a match inside a DMG, it should be in the env."""

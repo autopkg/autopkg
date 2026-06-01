@@ -71,11 +71,11 @@ class TestURLDownloader(unittest.TestCase):
             storage_method = "store_headers"
 
         with (
-            patch("autopkglib.URLDownloader.download_with_curl") as mock_download,
-            patch("autopkglib.URLDownloader.parse_headers") as mock_parse_headers,
-            patch("autopkglib.URLDownloader.create_temp_file") as mock_create_temp,
-            patch("autopkglib.URLDownloader.move_temp_file"),
-            patch(f"autopkglib.URLDownloader.{storage_method}") as mock_store,
+            patch.object(URLDownloader, "download_with_curl") as mock_download,
+            patch.object(URLDownloader, "parse_headers") as mock_parse_headers,
+            patch.object(URLDownloader, "create_temp_file") as mock_create_temp,
+            patch.object(URLDownloader, "move_temp_file"),
+            patch.object(URLDownloader, storage_method) as mock_store,
         ):
             mock_create_temp.return_value = temp_file
             mock_download.return_value = ""
@@ -605,11 +605,11 @@ class TestURLDownloader(unittest.TestCase):
             storage_method = "store_headers"
 
         with (
-            patch("autopkglib.URLDownloader.download_with_curl") as mock_download,
-            patch("autopkglib.URLDownloader.parse_headers") as mock_parse_headers,
-            patch("autopkglib.URLDownloader.create_temp_file") as mock_create_temp,
-            patch("autopkglib.URLDownloader.move_temp_file") as mock_move,
-            patch(f"autopkglib.URLDownloader.{storage_method}"),
+            patch.object(URLDownloader, "download_with_curl") as mock_download,
+            patch.object(URLDownloader, "parse_headers") as mock_parse_headers,
+            patch.object(URLDownloader, "create_temp_file") as mock_create_temp,
+            patch.object(URLDownloader, "move_temp_file") as mock_move,
+            patch.object(URLDownloader, storage_method),
         ):
             mock_create_temp.return_value = temp_file
             mock_download.return_value = ""
@@ -719,8 +719,8 @@ class TestURLDownloader(unittest.TestCase):
         self.processor.env["CHECK_FILESIZE_ONLY"] = True
 
         with (
-            patch("autopkglib.URLDownloader.download_with_curl") as mock_download,
-            patch("autopkglib.URLDownloader.parse_headers") as mock_parse_headers,
+            patch.object(URLDownloader, "download_with_curl") as mock_download,
+            patch.object(URLDownloader, "parse_headers") as mock_parse_headers,
         ):
             mock_download.return_value = ""
             mock_parse_headers.return_value = {

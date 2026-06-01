@@ -96,7 +96,7 @@ class TestAppPkgCreator(unittest.TestCase):
             self.processor.main()
 
     # Test package_app() version and bundle ID extraction logic
-    @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=True)
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=True)
     def test_package_app_extracts_version_from_info_plist(self, mock_exists):
         """Test that package_app() extracts version from Info.plist when not provided."""
         app_path = self._create_test_app(self.app_path, version="2.1.0")
@@ -108,7 +108,7 @@ class TestAppPkgCreator(unittest.TestCase):
 
         self.assertEqual(self.processor.env["version"], "2.1.0")
 
-    @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=True)
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=True)
     def test_package_app_extracts_bundleid_from_info_plist(self, mock_exists):
         """Test that package_app() extracts bundle ID from Info.plist when not provided."""
         custom_bundle_id = "com.custom.app"
@@ -121,7 +121,7 @@ class TestAppPkgCreator(unittest.TestCase):
 
         self.assertEqual(self.processor.env["bundleid"], custom_bundle_id)
 
-    @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=True)
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=True)
     def test_package_app_uses_custom_version_key(self, mock_exists):
         """Test that package_app() can use custom version key."""
         app_path = self._create_test_app(self.app_path)
@@ -178,7 +178,7 @@ class TestAppPkgCreator(unittest.TestCase):
             self.processor.package_app(self.app_path)
 
     # Test pkg_path generation logic
-    @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=True)
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=True)
     def test_package_app_generates_default_pkg_path(self, mock_exists):
         """Test that package_app() generates correct default pkg path."""
         app_path = self._create_test_app(self.app_path)
@@ -188,7 +188,7 @@ class TestAppPkgCreator(unittest.TestCase):
         expected_path = os.path.join(self.tmp_dir.name, "TestApp-1.0.0.pkg")
         self.assertEqual(self.processor.env["pkg_path"], expected_path)
 
-    @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=True)
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=True)
     def test_package_app_uses_custom_pkg_path(self, mock_exists):
         """Test that package_app() uses provided pkg_path."""
         app_path = self._create_test_app(self.app_path)
@@ -201,7 +201,7 @@ class TestAppPkgCreator(unittest.TestCase):
         self.assertEqual(self.processor.env["pkg_path"], custom_pkg_path)
 
     # Test package existence check
-    @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=True)
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=True)
     def test_package_app_skips_build_if_package_exists(self, mock_exists):
         """Test that package_app() skips build when package already exists."""
         app_path = self._create_test_app(self.app_path)
@@ -211,10 +211,10 @@ class TestAppPkgCreator(unittest.TestCase):
         self.assertEqual(self.processor.env["new_package_request"], False)
 
     # Test summary result generation
-    @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=False)
-    @patch("autopkglib.AppPkgCreator.connect")
-    @patch("autopkglib.AppPkgCreator.disconnect")
-    @patch("autopkglib.AppPkgCreator.send_request")
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=False)
+    @patch.object(AppPkgCreator, "connect")
+    @patch.object(AppPkgCreator, "disconnect")
+    @patch.object(AppPkgCreator, "send_request")
     def test_package_app_sets_summary_result(
         self, mock_send, mock_disconnect, mock_connect, mock_exists
     ):
@@ -232,7 +232,7 @@ class TestAppPkgCreator(unittest.TestCase):
         self.assertEqual(summary["data"]["pkg_path"], expected_pkg_path)
 
     # Test error handling in pkgroot creation/cleanup
-    @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=False)
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=False)
     def test_package_app_pkgroot_creation_error_raises(self, mock_exists):
         """Test that package_app() handles pkgroot creation errors."""
         app_path = self._create_test_app(self.app_path)
@@ -242,12 +242,10 @@ class TestAppPkgCreator(unittest.TestCase):
                 self.processor.package_app(app_path)
 
     # Test exception handling ensures cleanup
-    @patch("autopkglib.AppPkgCreator.pkg_already_exists", return_value=False)
-    @patch("autopkglib.AppPkgCreator.connect")
-    @patch("autopkglib.AppPkgCreator.disconnect")
-    @patch(
-        "autopkglib.AppPkgCreator.send_request", side_effect=Exception("Network error")
-    )
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=False)
+    @patch.object(AppPkgCreator, "connect")
+    @patch.object(AppPkgCreator, "disconnect")
+    @patch.object(AppPkgCreator, "send_request", side_effect=Exception("Network error"))
     def test_package_app_disconnect_called_on_exception(
         self, mock_send, mock_disconnect, mock_connect, mock_exists
     ):
