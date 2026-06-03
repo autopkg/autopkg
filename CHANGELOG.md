@@ -54,6 +54,7 @@ AutoPkg 3.0.0 adds `autopkg clear-cache` for removing cached files when troubles
 - MunkiImporter now writes correct pkginfo paths when importing an uncataloged package already under the Munki repo's `pkgs` directory.
 - MunkiImporter now avoids duplicate pkginfo filenames caused by leading or trailing whitespace in version strings.
 - `make-override --format` can now be set globally via the `RECIPE_OVERRIDE_FORMAT` preference, so you don't need to pass `--format yaml` on every invocation (#1024)
+- `repo-update` now migrates a recipe repo's local clone from `master` to `main` when the default branch was renamed upstream, so the repo keeps updating instead of silently stalling on a deleted remote branch.
 - URLDownloader now applies `curl_common_opts`, such as authorization headers, when prefetching filenames from authenticated URLs (#925, thanks to @n8felton)
 - Updated virtualenv to 20.36.1 (#1009)
 - Updated filelock to 3.20.3 (#1010)

@@ -631,6 +631,50 @@ def run_git(git_options_and_arguments, git_directory=None):
         return cmd_out
 
 
+def _git_ref_exists(repo_dir: str, ref: str) -> bool:
+    """Return True if ref exists in repo_dir."""
+    try:
+        run_git(["show-ref", "--verify", "--quiet", ref], git_directory=repo_dir)
+    except GitError:
+        return False
+    return True
+
+
+def migrate_master_to_main(repo_dir: str) -> bool:
+    """Migrate a repo from local master to main when origin/main replaced
+    origin/master. Returns True when a migration occurred."""
+    try:
+        current_branch = run_git(
+            ["rev-parse", "--abbrev-ref", "HEAD"],
+            git_directory=repo_dir,
+        ).strip()
+    except GitError:
+        return False
+    if current_branch != "master":
+        return False
+
+    run_git(["fetch", "origin", "--prune"], git_directory=repo_dir)
+    has_origin_main = _git_ref_exists(repo_dir, "refs/remotes/origin/main")
+    has_origin_master = _git_ref_exists(repo_dir, "refs/remotes/origin/master")
+    if not has_origin_main or has_origin_master:
+        return False
+
+    log(
+        f"Repo {repo_dir} switched its default branch from master to main "
+        "upstream; migrating local clone."
+    )
+    run_git(["branch", "-m", "master", "main"], git_directory=repo_dir)
+    run_git(
+        ["branch", "--set-upstream-to=origin/main", "main"],
+        git_directory=repo_dir,
+    )
+    run_git(
+        ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"],
+        git_directory=repo_dir,
+    )
+    return True
+
+
 def get_recipe_repo(git_path) -> str | None:
     """git clone git_path to local disk and return local path"""
 
@@ -963,6 +1007,11 @@ def repo_update(argv):
         # resolve ~ and symlinks before passing to git
         repo_dir = os.path.abspath(os.path.expanduser(repo_dir))
         log(f"Attempting git pull for {repo_dir}...")
+        try:
+            migrated_to_main = migrate_master_to_main(repo_dir)
+        except GitError as err:
+            log_err(err)
+            continue
         # Capture HEAD before and after so we only rebuild the map when
         # the on-disk contents actually changed. Avoids paying a full
         # scan cost for `autopkg repo-update all` on a fully-up-to-date
@@ -985,7 +1034,12 @@ def repo_update(argv):
             )
         except GitError:
             post_hash = None
-        if pre_hash is None or post_hash is None or pre_hash != post_hash:
+        if (
+            migrated_to_main
+            or pre_hash is None
+            or post_hash is None
+            or pre_hash != post_hash
+        ):
             any_repo_changed = True
 
     # Refresh the map so new or renamed recipes are discoverable without

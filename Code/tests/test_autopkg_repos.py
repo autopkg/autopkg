@@ -40,12 +40,102 @@ class TestAutoPkgRepos(unittest.TestCase):
             patch("autopkg.calculate_recipe_map"),
             patch("autopkg.read_recipe_map"),
         ]
-        for patcher in self._recipe_map_patches:
-            patcher.start()
+        (
+            self.mock_calculate_recipe_map,
+            self.mock_read_recipe_map,
+        ) = [patcher.start() for patcher in self._recipe_map_patches]
 
     def tearDown(self):
         for patcher in self._recipe_map_patches:
             patcher.stop()
+
+    def _run_repo_update_with_git(
+        self,
+        arguments,
+        run_git_side_effect,
+        repo_path="/repo/path",
+        recipe_repos=None,
+    ):
+        """Run repo_update with common parser/path/log mocks."""
+        with (
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.gen_common_parser") as mock_gen_parser,
+            patch("autopkg.get_pref") as mock_get_pref,
+            patch("autopkg.get_repo_info") as mock_get_repo_info,
+            patch("autopkg.expand_repo_url") as mock_expand_repo_url,
+            patch("autopkg.run_git") as mock_run_git,
+            patch("autopkg.log") as mock_log,
+            patch("autopkg.log_err") as mock_log_err,
+            patch("os.path.abspath") as mock_abspath,
+            patch("os.path.expanduser") as mock_expanduser,
+        ):
+            mock_gen_parser.return_value = Mock()
+            mock_common_parse.return_value = (Mock(), arguments)
+            mock_get_pref.return_value = recipe_repos or {
+                repo_path: {"URL": "https://github.com/autopkg/recipes"}
+            }
+            mock_get_repo_info.return_value = {"path": repo_path}
+            mock_expand_repo_url.side_effect = lambda x: x
+            mock_expanduser.side_effect = lambda x: x
+            mock_abspath.side_effect = lambda x: x
+            mock_run_git.side_effect = run_git_side_effect
+
+            autopkg.repo_update([None, "repo-update", *arguments])
+
+        return mock_run_git, mock_log, mock_log_err
+
+    def _stable_repo_update_git(
+        self,
+        branch="main",
+        origin_main=False,
+        origin_master=False,
+        migration_error=None,
+    ):
+        """Return a run_git side effect for an unchanged repo_update."""
+
+        def run_git_side_effect(args, git_directory=None):
+            if args == ["rev-parse", "--abbrev-ref", "HEAD"]:
+                return f"{branch}\n"
+            if args == ["fetch", "origin", "--prune"]:
+                return "Fetched"
+            if args == [
+                "show-ref",
+                "--verify",
+                "--quiet",
+                "refs/remotes/origin/main",
+            ]:
+                if origin_main:
+                    return ""
+                raise autopkg.GitError("not found")
+            if args == [
+                "show-ref",
+                "--verify",
+                "--quiet",
+                "refs/remotes/origin/master",
+            ]:
+                if origin_master:
+                    return ""
+                raise autopkg.GitError("not found")
+            if args == ["branch", "-m", "master", "main"]:
+                if migration_error:
+                    raise migration_error
+                return ""
+            if args in (
+                ["branch", "--set-upstream-to=origin/main", "main"],
+                [
+                    "symbolic-ref",
+                    "refs/remotes/origin/HEAD",
+                    "refs/remotes/origin/main",
+                ],
+            ):
+                return ""
+            if args == ["rev-parse", "HEAD"]:
+                return "samehash\n"
+            if args == ["pull"]:
+                return "Already up to date."
+            self.fail(f"Unexpected git command: {args!r} in {git_directory!r}")
+
+        return run_git_side_effect
 
     def test_expand_single_autopkg_org_urls(self):
         """Expand single part short repo URLs in the AutoPkg org on GitHub"""
@@ -1319,6 +1409,138 @@ class TestAutoPkgRepos(unittest.TestCase):
         autopkg.repo_update([None, "repo-update", "recipes"])
 
         mock_log_err.assert_called_with(git_error)
+
+    def test_repo_update_migrates_master_to_main_when_origin_main_replaces_master(
+        self,
+    ):
+        """Test repo_update migrates local master when origin/main replaced it."""
+        mock_run_git, mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(branch="master", origin_main=True),
+        )
+
+        self.assertEqual(
+            [c.args[0] for c in mock_run_git.call_args_list],
+            [
+                ["rev-parse", "--abbrev-ref", "HEAD"],
+                ["fetch", "origin", "--prune"],
+                [
+                    "show-ref",
+                    "--verify",
+                    "--quiet",
+                    "refs/remotes/origin/main",
+                ],
+                [
+                    "show-ref",
+                    "--verify",
+                    "--quiet",
+                    "refs/remotes/origin/master",
+                ],
+                ["branch", "-m", "master", "main"],
+                ["branch", "--set-upstream-to=origin/main", "main"],
+                [
+                    "symbolic-ref",
+                    "refs/remotes/origin/HEAD",
+                    "refs/remotes/origin/main",
+                ],
+                ["rev-parse", "HEAD"],
+                ["pull"],
+                ["rev-parse", "HEAD"],
+            ],
+        )
+        self.mock_calculate_recipe_map.assert_called_once()
+        mock_log.assert_any_call(
+            "Repo /repo/path switched its default branch from master to main "
+            "upstream; migrating local clone."
+        )
+
+    def test_repo_update_does_not_migrate_when_origin_master_still_exists(self):
+        """Test local master is left alone when origin/master still exists."""
+        mock_run_git, _mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(
+                branch="master",
+                origin_main=False,
+                origin_master=True,
+            ),
+        )
+
+        git_commands = [c.args[0] for c in mock_run_git.call_args_list]
+        self.assertNotIn(["branch", "-m", "master", "main"], git_commands)
+        self.mock_calculate_recipe_map.assert_not_called()
+
+    def test_repo_update_does_not_migrate_when_origin_master_and_main_exist(self):
+        """Test local master is left alone when the remote state is ambiguous."""
+        mock_run_git, _mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(
+                branch="master",
+                origin_main=True,
+                origin_master=True,
+            ),
+        )
+
+        git_commands = [c.args[0] for c in mock_run_git.call_args_list]
+        self.assertNotIn(["branch", "-m", "master", "main"], git_commands)
+        self.mock_calculate_recipe_map.assert_not_called()
+
+    def test_repo_update_does_not_migrate_when_already_on_main(self):
+        """Test repos already on main do not fetch before the existing pull."""
+        mock_run_git, _mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(branch="main"),
+        )
+
+        git_commands = [c.args[0] for c in mock_run_git.call_args_list]
+        self.assertNotIn(["fetch", "origin", "--prune"], git_commands)
+        self.mock_calculate_recipe_map.assert_not_called()
+
+    def test_repo_update_does_not_migrate_detached_head(self):
+        """Test detached HEAD repos do not enter the master-to-main migration."""
+        mock_run_git, _mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(branch="HEAD"),
+        )
+
+        git_commands = [c.args[0] for c in mock_run_git.call_args_list]
+        self.assertNotIn(["fetch", "origin", "--prune"], git_commands)
+        self.mock_calculate_recipe_map.assert_not_called()
+
+    def test_repo_update_logs_migration_error_and_continues_to_next_repo(self):
+        """Test a failed migration skips that repo and continues updating others."""
+        git_error = autopkg.GitError("rename failed")
+
+        def run_git_side_effect(args, git_directory=None):
+            if git_directory == "/repo/one":
+                return self._stable_repo_update_git(
+                    branch="master",
+                    origin_main=True,
+                    migration_error=git_error,
+                )(args, git_directory)
+            if git_directory == "/repo/two":
+                return self._stable_repo_update_git(branch="main")(
+                    args,
+                    git_directory,
+                )
+            self.fail(f"Unexpected git directory: {git_directory!r}")
+
+        mock_run_git, _mock_log, mock_log_err = self._run_repo_update_with_git(
+            ["all"],
+            run_git_side_effect,
+            recipe_repos={
+                "/repo/one": {"URL": "https://github.com/example/one"},
+                "/repo/two": {"URL": "https://github.com/example/two"},
+            },
+        )
+
+        mock_log_err.assert_called_with(git_error)
+        pull_dirs = [
+            c.kwargs["git_directory"]
+            for c in mock_run_git.call_args_list
+            if c.args[0] == ["pull"]
+        ]
+        self.assertEqual(pull_dirs, ["/repo/two"])
+        self.mock_calculate_recipe_map.assert_not_called()
 
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")
