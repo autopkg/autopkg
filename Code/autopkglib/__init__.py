@@ -28,7 +28,6 @@ import subprocess
 import sys
 import traceback
 from copy import deepcopy
-from distutils.version import LooseVersion
 from typing import IO, Any, Union
 
 import appdirs
@@ -1192,9 +1191,9 @@ def get_autopkg_version() -> str:
 
 
 def version_equal_or_greater(this, that) -> bool:
-    """Compares two LooseVersion objects. Returns True if this is
+    """Compares two APLooseVersion objects. Returns True if this is
     equal to or greater than that"""
-    return LooseVersion(this) >= LooseVersion(that)
+    return APLooseVersion(this) >= APLooseVersion(that)
 
 
 def update_data(a_dict, key, value) -> None:
@@ -1758,8 +1757,40 @@ def _cmp(x, y) -> int:
     return (x > y) - (x < y)
 
 
-class APLooseVersion(LooseVersion):
-    """Subclass of distutils.version.LooseVersion to fix issues under Python 3"""
+class APLooseVersion:
+    """Compare version strings using the legacy distutils LooseVersion algorithm.
+
+    Vendored from distutils.version.LooseVersion (removed in Python 3.12) with some
+    AutoPkg-specific comparison fixes.
+    """
+
+    component_re = re.compile(r"(\d+ | [a-z]+ | \.)", re.VERBOSE)
+
+    def __init__(self, vstring=None) -> None:
+        """Parse vstring (treating None as an empty string)."""
+        self.parse(str(vstring) if vstring is not None else "")
+
+    def parse(self, vstring) -> None:
+        """Split a version string into a list of int/str components.
+
+        Parsing logic copied verbatim from distutils.version.LooseVersion.
+        """
+        self.vstring = vstring
+        components = [x for x in self.component_re.split(vstring) if x and x != "."]
+        for i, obj in enumerate(components):
+            try:
+                components[i] = int(obj)
+            except ValueError:
+                pass
+        self.version = components
+
+    def __str__(self) -> str:
+        """Return the original (unparsed) version string."""
+        return self.vstring
+
+    def __repr__(self) -> str:
+        """Return a debug representation."""
+        return f"APLooseVersion ('{self}')"
 
     def _pad(self, version_list, max_length) -> list:
         """Pad a version list by adding extra 0 components to the end if needed."""
@@ -1770,8 +1801,8 @@ class APLooseVersion(LooseVersion):
         return cmp_list
 
     def _compare(self, other) -> int:
-        """Complete comparison mechanism since LooseVersion's is broken in Python 3."""
-        if not isinstance(other, (LooseVersion, APLooseVersion)):
+        """Return -1/0/1; pads with zeros so 1.0 == 1.0.0, ints sort below strings."""
+        if not isinstance(other, APLooseVersion):
             other = APLooseVersion(other)
         max_length = max(len(self.version), len(other.version))
         self_cmp_version = self._pad(self.version, max_length)
