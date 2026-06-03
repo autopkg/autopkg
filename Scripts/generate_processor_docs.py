@@ -16,10 +16,11 @@
 """A utility to export info from autopkg processors and upload it as processor
 documentation for the GitHub autopkg wiki"""
 
-import imp
+import importlib.util
 import optparse
 import os
 import sys
+from importlib.machinery import SourceFileLoader
 from tempfile import mkdtemp
 from textwrap import dedent
 
@@ -37,7 +38,15 @@ except ImportError as err:
 # Don't make an "autopkgc" file
 try:
     sys.dont_write_bytecode = True
-    imp.load_source("autopkg", os.path.join(CODE_DIR, "autopkg"))
+    # Extensionless file needs an explicit SourceFileLoader; register in
+    # sys.modules so `from autopkg import run_git` resolves.
+    AUTOPKG_PATH = os.path.join(CODE_DIR, "autopkg")
+    spec = importlib.util.spec_from_file_location(
+        "autopkg", AUTOPKG_PATH, loader=SourceFileLoader("autopkg", AUTOPKG_PATH)
+    )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["autopkg"] = module
+    spec.loader.exec_module(module)
     from autopkg import run_git
 except ImportError:
     print("Unable to import code from autopkg!", file=sys.stderr)
