@@ -62,6 +62,7 @@ AutoPkg 3.0.0 adds `autopkg clear-cache` for removing cached files when troubles
 - `GITHUB_TOKEN` is now available for recipe variable substitution when the token comes from `~/.autopkg_gh_token`, matching tokens stored in preferences (#923).
 - Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039)
 - Replaced deprecated imp module with importlib
+- Removed the deprecated `distutils` module from the core library and `CodeSignatureVerifier` charting a path to AutoPkg using Python 3.12+. `APLooseVersion` now vendors the `LooseVersion` algorithm instead of subclassing it; version-comparison behavior is unchanged.
 - CodeSignatureVerifier now fails clearly on non-macOS instead of silently skipping verification that requires macOS tools.
 - Improved testing automation by skipping macOS-only tests on Ubuntu and Windows
 - DmgCreator: default `dmg_filesystem` changed from `HFS+` to `APFS` and default `dmg_format` changed from `UDZO` to `ULFO` (lzfse compression) (#905, thanks to @erikng). Note that APFS requires macOS 10.13 or later to mount. If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly. `ULFO` and `ULMO` are now accepted as valid `dmg_format` values.
