@@ -29,12 +29,25 @@ import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
-from distutils.version import LooseVersion
 from pprint import pprint
 from shutil import rmtree
 from time import strftime
 
 import certifi
+
+# Releases use a strict MAJOR.MINOR.PATCH version; beta/RC goes on the tag via
+# --prerelease, not here.
+SEMVER_RE = re.compile(r"\d+\.\d+\.\d+")
+
+
+def version_tuple(version_string):
+    """Return a (major, minor, patch) int tuple for a MAJOR.MINOR.PATCH version.
+
+    Raises ValueError if version_string is not exactly MAJOR.MINOR.PATCH.
+    """
+    if not SEMVER_RE.fullmatch(version_string):
+        raise ValueError(version_string)
+    return tuple(int(part) for part in version_string.split("."))
 
 
 class GitHubAPIError(BaseException):
@@ -165,6 +178,14 @@ def main():
     if not opts.token and not opts.dry_run:
         sys.exit("Option --token is required!")
     next_version = opts.next_version
+    try:
+        next_version_tuple = version_tuple(next_version)
+    except ValueError:
+        sys.exit(
+            f"Option --next-version must be a MAJOR.MINOR.PATCH version "
+            f"(e.g. 3.0.1); got '{next_version}'. A beta/RC designation belongs "
+            f"on the tag via --prerelease, not on the version itself."
+        )
     if opts.dry_run:
         print("** Running in 'dry-run' mode...")
     publish_user, publish_repo = opts.user_repo.split("/")
@@ -198,7 +219,14 @@ def main():
     except BaseException:
         sys.exit("Couldn't determine current autopkg version!")
     print(f"** Current AutoPkg version: {current_version}")
-    if LooseVersion(next_version) <= LooseVersion(current_version):
+    try:
+        current_version_tuple = version_tuple(current_version)
+    except ValueError:
+        sys.exit(
+            f"Current version '{current_version}' in version.plist is not a "
+            f"MAJOR.MINOR.PATCH version; cannot compare."
+        )
+    if next_version_tuple <= current_version_tuple:
         sys.exit(
             f"Next version (gave {next_version}) must be greater than current version "
             f"{current_version}!"
