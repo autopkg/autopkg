@@ -585,24 +585,19 @@ class TestCodeSignatureVerifier(unittest.TestCase):
 
                 self.assertIn("Mismatch in authority names", str(context.exception))
 
-    def test_process_installer_package_deprecated_expected_authorities(self):
-        """Test warning for deprecated 'expected_authorities' key."""
-        expected_authorities = ["Authority 1", "Authority 2"]
-        self.processor.env["expected_authorities"] = expected_authorities
+    def test_process_installer_package_rejects_expected_authorities(self):
+        """The misspelled 'expected_authorities' key should raise before pkgutil."""
+        self.processor.env["expected_authorities"] = ["Authority 1", "Authority 2"]
 
-        with patch.object(
-            self.processor,
-            "pkgutil_check_signature",
-            return_value=(True, expected_authorities),
-        ):
-            with patch.object(self.processor, "output") as mock_output:
+        with patch.object(self.processor, "pkgutil_check_signature") as mock_pkgutil:
+            with self.assertRaises(ProcessorError) as context:
                 self.processor.process_installer_package("/path/to/test.pkg")
 
-        mock_output.assert_any_call(
-            "WARNING: This recipe is using 'expected_authorities' when it "
-            "should be using 'expected_authority_names'. This will become an error "
-            "in future versions of AutoPkg."
+        self.assertIn(
+            "Use 'expected_authority_names' instead of 'expected_authorities'",
+            str(context.exception),
         )
+        mock_pkgutil.assert_not_called()
 
     def test_process_installer_package_without_expected_authorities(self):
         """Test installer package processing without expected authorities check."""

@@ -326,6 +326,12 @@ class CodeSignatureVerifier(DmgMounter):
     def process_installer_package(self, path):
         """Verifies the signature for an installer pkg"""
         self.output("Verifying installer package signature...")
+
+        if self.env.get("expected_authorities"):
+            raise ProcessorError(
+                "Use 'expected_authority_names' instead of 'expected_authorities'."
+            )
+
         # The first step is to run 'pkgutil --check-signature <path>'
         pkgutil_succeeded, authority_names = self.pkgutil_check_signature(path)
 
@@ -338,15 +344,6 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
 
-        if self.env.get("expected_authorities") and not self.env.get(
-            "expected_authority_names"
-        ):
-            self.output(
-                "WARNING: This recipe is using 'expected_authorities' when it "
-                "should be using 'expected_authority_names'. This will become an error "
-                "in future versions of AutoPkg."
-            )
-            self.env["expected_authority_names"] = self.env["expected_authorities"]
         if self.env.get("expected_authority_names"):
             expected_authority_names = self.env["expected_authority_names"]
             if authority_names != expected_authority_names:
