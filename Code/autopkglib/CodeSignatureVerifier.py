@@ -111,6 +111,9 @@ class CodeSignatureVerifier(DmgMounter):
     }
     output_variables = {}
 
+    # Most recent codesign exit status, set by codesign_verify.
+    codesign_returncode = None
+
     def codesign_verify(
         self,
         path,
@@ -201,6 +204,7 @@ class CodeSignatureVerifier(DmgMounter):
                 self.output(line)
 
         # Return True if codesign exited with 0
+        self.codesign_returncode = proc.returncode
         return proc.returncode == 0
 
     def pkgutil_check_signature(self, path):
@@ -264,10 +268,28 @@ class CodeSignatureVerifier(DmgMounter):
             codesign_additional_arguments,
         ):
             self.output("Signature is valid")
+        elif self.codesign_returncode == 3:
+            # codesign(1): exit 3 = validly signed but failed the -R requirement.
+            raise ProcessorError(
+                "Code signature verification failed: signed by an unexpected "
+                "identity. Note that all verifications can be disabled by "
+                "setting the variable DISABLE_CODE_SIGNATURE_VERIFICATION to a "
+                "non-empty value."
+            )
+        elif self.codesign_returncode == 2:
+            # codesign(1): exit 2 = invalid arguments, i.e. a recipe config error.
+            raise ProcessorError(
+                "Code signature verification failed: codesign rejected its "
+                "arguments (exit 2). Check the 'requirement' string and "
+                "'codesign_additional_arguments'. Note that all verifications "
+                "can be disabled by setting the variable "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
+            )
         else:
             raise ProcessorError(
-                "Code signature verification failed. Note that "
-                "all verifications can be disabled by setting the variable "
+                "Code signature verification failed: the code is unsigned or "
+                "has an invalid signature. Note that all verifications can be "
+                "disabled by setting the variable "
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
 

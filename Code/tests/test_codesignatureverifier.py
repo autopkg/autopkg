@@ -428,6 +428,42 @@ class TestCodeSignatureVerifier(unittest.TestCase):
 
             self.assertIn("Code signature verification failed", str(context.exception))
 
+    def test_process_code_signature_requirement_mismatch_exit_3(self):
+        """codesign exit 3 should report a signing-identity mismatch."""
+        self.processor.env["requirement"] = 'identifier "com.example.app"'
+        self.processor.codesign_returncode = 3
+
+        with patch.object(self.processor, "codesign_verify", return_value=False):
+            with patch.object(self.processor, "output"):
+                with self.assertRaises(ProcessorError) as context:
+                    self.processor.process_code_signature("/path/to/app")
+
+        self.assertIn("unexpected identity", str(context.exception))
+
+    def test_process_code_signature_invalid_signature_exit_1(self):
+        """codesign exit 1 should report an unsigned or invalid signature."""
+        self.processor.env["requirement"] = 'identifier "com.example.app"'
+        self.processor.codesign_returncode = 1
+
+        with patch.object(self.processor, "codesign_verify", return_value=False):
+            with patch.object(self.processor, "output"):
+                with self.assertRaises(ProcessorError) as context:
+                    self.processor.process_code_signature("/path/to/app")
+
+        self.assertIn("unsigned or", str(context.exception))
+
+    def test_process_code_signature_argument_error_exit_2(self):
+        """codesign exit 2 should report a codesign argument error."""
+        self.processor.env["requirement"] = 'identifier "com.example.app"'
+        self.processor.codesign_returncode = 2
+
+        with patch.object(self.processor, "codesign_verify", return_value=False):
+            with patch.object(self.processor, "output"):
+                with self.assertRaises(ProcessorError) as context:
+                    self.processor.process_code_signature("/path/to/app")
+
+        self.assertIn("codesign rejected its arguments", str(context.exception))
+
     def test_process_code_signature_deprecated_requirements_key(self):
         """Test warning for deprecated 'requirements' key."""
         self.processor.env["requirements"] = 'identifier "com.example.app"'
