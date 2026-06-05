@@ -40,6 +40,16 @@ A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand compu
 
 AutoPkg 3.0.0 adds `autopkg clear-cache` for removing cached files when troubleshooting a recipe or reclaiming disk space. Pass a recipe name or identifier to clear that recipe's cache using the same recipe resolution behavior as `run` and `info`, or use `autopkg clear-cache all` to empty the configured cache directory. Recipes must have an explicit identifier to clear their cache. (#1035)
 
+### CodeSignatureVerifier hardening
+
+Several fixes make CodeSignatureVerifier fail closed when a recipe's signature checks are weaker than they look:
+
+- **`strict_verification` now defaults to `True`** (passes `--strict` to codesign). Stricter checking may cause a few recipes to fail verification where they previously passed; setting `strict_verification` to `False` in the affected recipe should resolve this.
+- Verification failures now distinguish a wrong signing identity from an unsigned or invalid signature.
+- For app buncles, a `requirement` is now mandatory. Without one, verification only confirmed that the code was signed by *someone* with a valid Developer ID (including a potential attacker), so recipes that omit it now error instead of passing.
+- For installer packages, CodeSignatureVerifier now warns when no `expected_authority_names` is configured (any Apple-trusted signer is otherwise accepted) and when a `requirement` is set (it is ignored on this path).
+- Typoed versions of the `requirement` and `expected_authority_names` keys now result in an error instead of a warning.
+
 ### Other
 
 - Files in PkgCreator `scripts` directories are now included in recipe override trust information. Changes to preinstall/postinstall scripts or any other files bundled into packages will now trigger trust verification failures. Only git-tracked files are hashed when the scripts directory is inside a git repo, so untracked files like `.DS_Store` won't cause false trust failures. (#980)
