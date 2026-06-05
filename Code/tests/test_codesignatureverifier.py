@@ -646,6 +646,41 @@ class TestCodeSignatureVerifier(unittest.TestCase):
             "'expected_authority_names' to pin the certificate chain."
         )
 
+    def test_process_installer_package_warns_requirement_ignored(self):
+        """A 'requirement' on the pkg path is a no-op and should warn."""
+        self.processor.env["requirement"] = 'identifier "com.example.app"'
+
+        with patch.object(
+            self.processor,
+            "pkgutil_check_signature",
+            return_value=(True, ["Some Authority"]),
+        ):
+            with patch.object(self.processor, "output") as mock_output:
+                self.processor.process_installer_package("/path/to/test.pkg")
+
+        mock_output.assert_any_call(
+            "WARNING: 'requirement' is ignored when verifying installer packages."
+        )
+
+    def test_process_installer_package_requirement_and_authority_names(self):
+        """requirement + expected_authority_names: warn on requirement, still pin."""
+        authorities = ["Authority 1", "Authority 2"]
+        self.processor.env["requirement"] = 'identifier "com.example.app"'
+        self.processor.env["expected_authority_names"] = authorities
+
+        with patch.object(
+            self.processor,
+            "pkgutil_check_signature",
+            return_value=(True, authorities),
+        ):
+            with patch.object(self.processor, "output") as mock_output:
+                self.processor.process_installer_package("/path/to/test.pkg")
+
+        mock_output.assert_any_call(
+            "WARNING: 'requirement' is ignored when verifying installer packages."
+        )
+        mock_output.assert_any_call("Authority name chain is valid")
+
     # Test operating system version handling
     def test_deep_verification_skipped_on_old_macos(self):
         """Test that deep verification is skipped on macOS < 10.9.5."""

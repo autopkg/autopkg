@@ -332,6 +332,11 @@ class CodeSignatureVerifier(DmgMounter):
                 "Use 'expected_authority_names' instead of 'expected_authorities'."
             )
 
+        if self.env.get("requirement"):
+            self.output(
+                "WARNING: 'requirement' is ignored when verifying installer packages."
+            )
+
         # The first step is to run 'pkgutil --check-signature <path>'
         pkgutil_succeeded, authority_names = self.pkgutil_check_signature(path)
 
