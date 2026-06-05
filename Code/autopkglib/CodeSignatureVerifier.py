@@ -248,6 +248,23 @@ class CodeSignatureVerifier(DmgMounter):
         if self.env.get("requirements"):
             raise ProcessorError("Use 'requirement' instead of 'requirements'.")
 
+        if self.env.get("expected_authority_names"):
+            self.output(
+                "ERROR: Using 'expected_authority_names' to verify code "
+                "signature is no longer supported. Recipes should use the "
+                "'requirement' argument instead."
+            )
+            self.output(
+                "See https://github.com/autopkg/autopkg/wiki/Using-"
+                "CodeSignatureVerification for more information."
+            )
+            raise ProcessorError(
+                "Using 'expected_authority_names' to verify code signature "
+                "is no longer supported. Note that all verifications can be disabled "
+                "by setting the variable DISABLE_CODE_SIGNATURE_VERIFICATION "
+                "to a non-empty value."
+            )
+
         # The first step is to run 'codesign --verify <path>'
         requirement = self.env.get("requirement")
         strict_verification = self.env.get("strict_verification", True)
@@ -286,23 +303,6 @@ class CodeSignatureVerifier(DmgMounter):
                 "has an invalid signature. Note that all verifications can be "
                 "disabled by setting the variable "
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
-            )
-
-        if self.env.get("expected_authority_names"):
-            self.output(
-                "ERROR: Using 'expected_authority_names' to verify code "
-                "signature is no longer supported. Recipes should use the "
-                "'requirement' argument instead."
-            )
-            self.output(
-                "See https://github.com/autopkg/autopkg/wiki/Using-"
-                "CodeSignatureVerification for more information."
-            )
-            raise ProcessorError(
-                "Using 'expected_authority_names' to verify code signature "
-                "is no longer supported. Note that all verifications can be disabled "
-                "by setting the variable DISABLE_CODE_SIGNATURE_VERIFICATION "
-                "to a non-empty value."
             )
 
     def process_installer_package(self, path):

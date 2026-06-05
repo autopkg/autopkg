@@ -478,17 +478,18 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         mock_verify.assert_not_called()
 
     def test_process_code_signature_rejects_expected_authority_names(self):
-        """Test that using expected_authority_names raises error."""
+        """Using expected_authority_names should raise before verifying."""
         self.processor.env["expected_authority_names"] = ["Some Authority"]
 
-        with patch.object(self.processor, "codesign_verify", return_value=True):
+        with patch.object(self.processor, "codesign_verify") as mock_verify:
             with self.assertRaises(ProcessorError) as context:
                 self.processor.process_code_signature("/path/to/app")
 
-            self.assertIn(
-                "Using 'expected_authority_names' to verify code signature is no longer supported",
-                str(context.exception),
-            )
+        self.assertIn(
+            "Using 'expected_authority_names' to verify code signature is no longer supported",
+            str(context.exception),
+        )
+        mock_verify.assert_not_called()
 
     # Test installer package processing
     def test_process_installer_package_success(self):
