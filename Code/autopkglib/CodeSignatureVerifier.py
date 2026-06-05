@@ -365,6 +365,12 @@ class CodeSignatureVerifier(DmgMounter):
                 )
             else:
                 self.output("Authority name chain is valid")
+        else:
+            self.output(
+                "WARNING: Package signature is valid but no signer pinning is "
+                "configured; any Apple-trusted signer is accepted. Set "
+                "'expected_authority_names' to pin the certificate chain."
+            )
 
     def main(self) -> None:
         if self.env.get("DISABLE_CODE_SIGNATURE_VERIFICATION"):

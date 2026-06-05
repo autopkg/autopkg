@@ -630,7 +630,7 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         self.assertIn("set but empty", str(context.exception))
 
     def test_process_installer_package_without_expected_authorities(self):
-        """Test installer package processing without expected authorities check."""
+        """Without expected_authority_names: signature passes but warns, no raise."""
         with patch.object(
             self.processor,
             "pkgutil_check_signature",
@@ -640,7 +640,11 @@ class TestCodeSignatureVerifier(unittest.TestCase):
                 self.processor.process_installer_package("/path/to/test.pkg")
 
         mock_output.assert_any_call("Signature is valid")
-        # Should not check authority names without expected_authority_names
+        mock_output.assert_any_call(
+            "WARNING: Package signature is valid but no signer pinning is "
+            "configured; any Apple-trusted signer is accepted. Set "
+            "'expected_authority_names' to pin the certificate chain."
+        )
 
     # Test operating system version handling
     def test_deep_verification_skipped_on_old_macos(self):
