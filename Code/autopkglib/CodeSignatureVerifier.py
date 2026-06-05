@@ -245,10 +245,10 @@ class CodeSignatureVerifier(DmgMounter):
         """Verifies the code signature for a path"""
         self.output("Verifying code signature...")
 
-        if self.env.get("requirements"):
+        if "requirements" in self.env:
             raise ProcessorError("Use 'requirement' instead of 'requirements'.")
 
-        if self.env.get("expected_authority_names") is not None:
+        if "expected_authority_names" in self.env:
             self.output(
                 "ERROR: Using 'expected_authority_names' to verify code "
                 "signature is no longer supported. Recipes should use the "
@@ -327,7 +327,7 @@ class CodeSignatureVerifier(DmgMounter):
         """Verifies the signature for an installer pkg"""
         self.output("Verifying installer package signature...")
 
-        if self.env.get("expected_authorities"):
+        if "expected_authorities" in self.env:
             raise ProcessorError(
                 "Use 'expected_authority_names' instead of 'expected_authorities'."
             )

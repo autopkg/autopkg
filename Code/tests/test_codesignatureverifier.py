@@ -631,6 +631,33 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         )
         mock_verify.assert_not_called()
 
+    def test_process_code_signature_rejects_null_authority_names(self):
+        """A null expected_authority_names should raise, not be silently ignored."""
+        self.processor.env["expected_authority_names"] = None
+
+        with patch.object(self.processor, "codesign_verify") as mock_verify:
+            with self.assertRaises(ProcessorError) as context:
+                self.processor.process_code_signature("/path/to/app")
+
+        self.assertIn(
+            "Using 'expected_authority_names' to verify code signature is no longer supported",
+            str(context.exception),
+        )
+        mock_verify.assert_not_called()
+
+    def test_process_code_signature_rejects_empty_requirements_key(self):
+        """An empty 'requirements' key should still raise, not be ignored."""
+        self.processor.env["requirements"] = []
+
+        with patch.object(self.processor, "codesign_verify") as mock_verify:
+            with self.assertRaises(ProcessorError) as context:
+                self.processor.process_code_signature("/path/to/app")
+
+        self.assertIn(
+            "Use 'requirement' instead of 'requirements'", str(context.exception)
+        )
+        mock_verify.assert_not_called()
+
     # Test installer package processing
     def test_process_installer_package_success(self):
         """Test successful installer package processing."""
@@ -678,6 +705,20 @@ class TestCodeSignatureVerifier(unittest.TestCase):
     def test_process_installer_package_rejects_expected_authorities(self):
         """The misspelled 'expected_authorities' key should raise before pkgutil."""
         self.processor.env["expected_authorities"] = ["Authority 1", "Authority 2"]
+
+        with patch.object(self.processor, "pkgutil_check_signature") as mock_pkgutil:
+            with self.assertRaises(ProcessorError) as context:
+                self.processor.process_installer_package("/path/to/test.pkg")
+
+        self.assertIn(
+            "Use 'expected_authority_names' instead of 'expected_authorities'",
+            str(context.exception),
+        )
+        mock_pkgutil.assert_not_called()
+
+    def test_process_installer_package_rejects_empty_expected_authorities(self):
+        """An empty/null 'expected_authorities' key should still raise."""
+        self.processor.env["expected_authorities"] = []
 
         with patch.object(self.processor, "pkgutil_check_signature") as mock_pkgutil:
             with self.assertRaises(ProcessorError) as context:
