@@ -344,8 +344,16 @@ class CodeSignatureVerifier(DmgMounter):
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
 
-        if self.env.get("expected_authority_names"):
+        if "expected_authority_names" in self.env:
             expected_authority_names = self.env["expected_authority_names"]
+            if not expected_authority_names:
+                raise ProcessorError(
+                    "'expected_authority_names' is set but empty. Provide the "
+                    "full certificate authority chain or remove the key. Note "
+                    "that all verification can be disabled by setting the "
+                    "variable DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty "
+                    "value."
+                )
             if authority_names != expected_authority_names:
                 self.output("Mismatch in authority names")
                 self.output(f"Expected: {' -> '.join(expected_authority_names)}")

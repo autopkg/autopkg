@@ -599,6 +599,36 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         )
         mock_pkgutil.assert_not_called()
 
+    def test_process_installer_package_rejects_empty_authority_names(self):
+        """An empty expected_authority_names should raise, not silently skip."""
+        self.processor.env["expected_authority_names"] = []
+
+        with patch.object(
+            self.processor,
+            "pkgutil_check_signature",
+            return_value=(True, ["Some Authority"]),
+        ):
+            with patch.object(self.processor, "output"):
+                with self.assertRaises(ProcessorError) as context:
+                    self.processor.process_installer_package("/path/to/test.pkg")
+
+        self.assertIn("set but empty", str(context.exception))
+
+    def test_process_installer_package_rejects_null_authority_names(self):
+        """A null expected_authority_names (YAML empty value) should raise."""
+        self.processor.env["expected_authority_names"] = None
+
+        with patch.object(
+            self.processor,
+            "pkgutil_check_signature",
+            return_value=(True, ["Some Authority"]),
+        ):
+            with patch.object(self.processor, "output"):
+                with self.assertRaises(ProcessorError) as context:
+                    self.processor.process_installer_package("/path/to/test.pkg")
+
+        self.assertIn("set but empty", str(context.exception))
+
     def test_process_installer_package_without_expected_authorities(self):
         """Test installer package processing without expected authorities check."""
         with patch.object(
