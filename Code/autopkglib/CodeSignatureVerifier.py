@@ -248,7 +248,7 @@ class CodeSignatureVerifier(DmgMounter):
         if self.env.get("requirements"):
             raise ProcessorError("Use 'requirement' instead of 'requirements'.")
 
-        if self.env.get("expected_authority_names"):
+        if self.env.get("expected_authority_names") is not None:
             self.output(
                 "ERROR: Using 'expected_authority_names' to verify code "
                 "signature is no longer supported. Recipes should use the "
