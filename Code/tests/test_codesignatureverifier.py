@@ -290,6 +290,20 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         self.assertIn("--strict", call_args)
 
     @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
+    def test_codesign_verify_defaults_to_strict_verification(self):
+        """codesign_verify should pass --strict when not given an argument."""
+        mock_proc = self._create_mock_process(returncode=0)
+
+        with patch("subprocess.Popen", return_value=mock_proc) as mock_popen:
+            with patch("os.uname", return_value=("", "", "20.0", "", "")):  # macOS 11+
+                result = self.processor.codesign_verify("/path/to/app")
+
+        self.assertTrue(result)
+        # Verify --strict was added by default
+        call_args = mock_popen.call_args[0][0]
+        self.assertIn("--strict", call_args)
+
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
     def test_codesign_verify_without_strict_verification(self):
         """Test codesign verification with strict verification disabled."""
         mock_proc = self._create_mock_process(returncode=0)
@@ -391,6 +405,20 @@ class TestCodeSignatureVerifier(unittest.TestCase):
                 self.processor.process_code_signature("/path/to/app")
 
         mock_output.assert_any_call("Signature is valid")
+
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
+    def test_process_code_signature_defaults_strict_verification(self):
+        """Undefined strict_verification should pass --strict on codesign path."""
+        self.processor.env["requirement"] = 'identifier "com.example.app"'
+        mock_proc = self._create_mock_process(returncode=0)
+
+        with patch("subprocess.Popen", return_value=mock_proc) as mock_popen:
+            with patch("os.uname", return_value=("", "", "20.0", "", "")):  # macOS 11+
+                with patch.object(self.processor, "output"):
+                    self.processor.process_code_signature("/path/to/app")
+
+        call_args = mock_popen.call_args[0][0]
+        self.assertIn("--strict", call_args)
 
     def test_process_code_signature_failure(self):
         """Test failed code signature processing."""

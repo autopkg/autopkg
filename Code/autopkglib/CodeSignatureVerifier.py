@@ -94,10 +94,12 @@ class CodeSignatureVerifier(DmgMounter):
         },
         "strict_verification": {
             "required": False,
+            "default": True,
             "description": (
                 "Boolean value to control the strictness of signature validation. "
-                "If not defined, codesign defaults are used. Note that this option "
-                "is ignored if the current system version is less than 10.11."
+                "Defaults to True, which passes '--strict' to codesign; set to "
+                "False to pass '--no-strict'. Note that this option is ignored if "
+                "the current system version is less than 10.11."
             ),
         },
         "codesign_additional_arguments": {
@@ -113,7 +115,7 @@ class CodeSignatureVerifier(DmgMounter):
         self,
         path,
         test_requirement=None,
-        strict_verification=None,
+        strict_verification=True,
         deep_verification=True,
         codesign_additional_arguments=None,
     ):
@@ -249,7 +251,7 @@ class CodeSignatureVerifier(DmgMounter):
 
         # The first step is to run 'codesign --verify <path>'
         requirement = self.env.get("requirement")
-        strict_verification = self.env.get("strict_verification")
+        strict_verification = self.env.get("strict_verification", True)
         deep_verification = self.env.get("deep_verification", True)
         codesign_additional_arguments = self.env.get(
             "codesign_additional_arguments", []
