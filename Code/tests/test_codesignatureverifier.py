@@ -464,19 +464,18 @@ class TestCodeSignatureVerifier(unittest.TestCase):
 
         self.assertIn("codesign rejected its arguments", str(context.exception))
 
-    def test_process_code_signature_deprecated_requirements_key(self):
-        """Test warning for deprecated 'requirements' key."""
+    def test_process_code_signature_rejects_requirements_key(self):
+        """The misspelled 'requirements' key should raise before verifying."""
         self.processor.env["requirements"] = 'identifier "com.example.app"'
 
-        with patch.object(self.processor, "codesign_verify", return_value=True):
-            with patch.object(self.processor, "output") as mock_output:
+        with patch.object(self.processor, "codesign_verify") as mock_verify:
+            with self.assertRaises(ProcessorError) as context:
                 self.processor.process_code_signature("/path/to/app")
 
-        mock_output.assert_any_call(
-            "WARNING: This recipe is using 'requirements' when it "
-            "should be using 'requirement'. This will become an error "
-            "in future versions of AutoPkg."
+        self.assertIn(
+            "Use 'requirement' instead of 'requirements'", str(context.exception)
         )
+        mock_verify.assert_not_called()
 
     def test_process_code_signature_rejects_expected_authority_names(self):
         """Test that using expected_authority_names raises error."""
