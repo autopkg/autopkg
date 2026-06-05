@@ -389,6 +389,28 @@ class CodeSignatureVerifier(DmgMounter):
                 "The 'codesign' and 'pkgutil' utilities are not available "
                 "on this platform."
             )
+
+        # Validate argument types before doing any work.
+        requirement = self.env.get("requirement")
+        if requirement is not None and not isinstance(requirement, str):
+            raise ProcessorError("'requirement' must be a string.")
+        if "codesign_additional_arguments" in self.env:
+            additional_arguments = self.env["codesign_additional_arguments"]
+            if not isinstance(additional_arguments, list) or not all(
+                isinstance(arg, str) for arg in additional_arguments
+            ):
+                raise ProcessorError(
+                    "'codesign_additional_arguments' must be a list of strings."
+                )
+        expected_authority_names = self.env.get("expected_authority_names")
+        if expected_authority_names is not None and (
+            not isinstance(expected_authority_names, list)
+            or not all(isinstance(name, str) for name in expected_authority_names)
+        ):
+            raise ProcessorError(
+                "'expected_authority_names' must be a list of strings."
+            )
+
         # Check if we're trying to read something inside a dmg.
         input_path = self.env["input_path"]
         dmg_path, dmg, dmg_source_path = self.parsePathForDMG(input_path)

@@ -64,6 +64,96 @@ class TestCodeSignatureVerifierCommon(unittest.TestCase):
         mock_uname.assert_not_called()
         mock_process.assert_not_called()
 
+    def test_main_rejects_non_string_requirement(self):
+        """A non-string requirement should raise before any work."""
+        processor = CodeSignatureVerifier()
+        processor.env = {
+            "input_path": "/path/to/test.app",
+            "requirement": ["identifier x"],
+        }
+
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with patch.object(module.sys, "platform", "darwin"):
+            with self.assertRaisesRegex(
+                ProcessorError, "'requirement' must be a string"
+            ):
+                processor.main()
+
+    def test_main_rejects_non_list_additional_arguments(self):
+        """A non-list codesign_additional_arguments should raise."""
+        processor = CodeSignatureVerifier()
+        processor.env = {
+            "input_path": "/path/to/test.app",
+            "codesign_additional_arguments": "--force",
+        }
+
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with patch.object(module.sys, "platform", "darwin"):
+            with self.assertRaisesRegex(
+                ProcessorError, "'codesign_additional_arguments' must be a list"
+            ):
+                processor.main()
+
+    def test_main_rejects_non_list_expected_authority_names(self):
+        """A non-list expected_authority_names should raise."""
+        processor = CodeSignatureVerifier()
+        processor.env = {
+            "input_path": "/path/to/test.pkg",
+            "expected_authority_names": "Some Authority",
+        }
+
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with patch.object(module.sys, "platform", "darwin"):
+            with self.assertRaisesRegex(
+                ProcessorError, "'expected_authority_names' must be a list"
+            ):
+                processor.main()
+
+    def test_main_rejects_null_additional_arguments(self):
+        """A null codesign_additional_arguments should raise, not crash later."""
+        processor = CodeSignatureVerifier()
+        processor.env = {
+            "input_path": "/path/to/test.app",
+            "codesign_additional_arguments": None,
+        }
+
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with patch.object(module.sys, "platform", "darwin"):
+            with self.assertRaisesRegex(
+                ProcessorError, "'codesign_additional_arguments' must be a list"
+            ):
+                processor.main()
+
+    def test_main_rejects_non_string_additional_argument(self):
+        """A non-string entry in codesign_additional_arguments should raise."""
+        processor = CodeSignatureVerifier()
+        processor.env = {
+            "input_path": "/path/to/test.app",
+            "codesign_additional_arguments": ["--force", 1],
+        }
+
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with patch.object(module.sys, "platform", "darwin"):
+            with self.assertRaisesRegex(
+                ProcessorError, "'codesign_additional_arguments' must be a list"
+            ):
+                processor.main()
+
+    def test_main_rejects_non_string_authority_name(self):
+        """A non-string entry in expected_authority_names should raise."""
+        processor = CodeSignatureVerifier()
+        processor.env = {
+            "input_path": "/path/to/test.pkg",
+            "expected_authority_names": ["Authority 1", 2],
+        }
+
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with patch.object(module.sys, "platform", "darwin"):
+            with self.assertRaisesRegex(
+                ProcessorError, "'expected_authority_names' must be a list"
+            ):
+                processor.main()
+
     def test_codesign_verify_wraps_launch_error(self):
         processor = CodeSignatureVerifier()
         processor.env = {}
