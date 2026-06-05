@@ -422,11 +422,47 @@ class TestCodeSignatureVerifier(unittest.TestCase):
 
     def test_process_code_signature_failure(self):
         """Test failed code signature processing."""
+        self.processor.env["requirement"] = 'identifier "com.example.app"'
+
         with patch.object(self.processor, "codesign_verify", return_value=False):
             with self.assertRaises(ProcessorError) as context:
                 self.processor.process_code_signature("/path/to/app")
 
             self.assertIn("Code signature verification failed", str(context.exception))
+
+    def test_process_code_signature_requires_requirement(self):
+        """Missing requirement should raise before verifying."""
+        with patch.object(self.processor, "codesign_verify") as mock_verify:
+            with self.assertRaises(ProcessorError) as context:
+                self.processor.process_code_signature("/path/to/app")
+
+        self.assertIn("No 'requirement' set", str(context.exception))
+        mock_verify.assert_not_called()
+
+    def test_process_code_signature_requirement_via_additional_args(self):
+        """A requirement in codesign_additional_arguments satisfies the gate."""
+        self.processor.env["codesign_additional_arguments"] = [
+            "-R",
+            "=anchor apple generic",
+        ]
+
+        with patch.object(self.processor, "codesign_verify", return_value=True):
+            with patch.object(self.processor, "output") as mock_output:
+                self.processor.process_code_signature("/path/to/app")
+
+        mock_output.assert_any_call("Signature is valid")
+
+    def test_process_code_signature_requirement_via_attached_arg(self):
+        """An attached --test-requirement=<req> arg satisfies the gate."""
+        self.processor.env["codesign_additional_arguments"] = [
+            "--test-requirement=anchor apple generic",
+        ]
+
+        with patch.object(self.processor, "codesign_verify", return_value=True):
+            with patch.object(self.processor, "output") as mock_output:
+                self.processor.process_code_signature("/path/to/app")
+
+        mock_output.assert_any_call("Signature is valid")
 
     def test_process_code_signature_requirement_mismatch_exit_3(self):
         """codesign exit 3 should report a signing-identity mismatch."""

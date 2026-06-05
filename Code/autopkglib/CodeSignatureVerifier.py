@@ -272,6 +272,24 @@ class CodeSignatureVerifier(DmgMounter):
         codesign_additional_arguments = self.env.get(
             "codesign_additional_arguments", []
         )
+
+        requirement_in_additional_args = any(
+            arg.startswith("-R")
+            or arg == "--test-requirement"
+            or arg.startswith("--test-requirement=")
+            for arg in codesign_additional_arguments
+        )
+        if not requirement and not requirement_in_additional_args:
+            raise ProcessorError(
+                "No 'requirement' set. Without one, verification only confirms "
+                "the code is signed by someone with a valid Developer ID, "
+                "including an attacker. Set 'requirement' to the app's "
+                "designated requirement from 'codesign --display -r- <path>'. "
+                "Note that all verifications can be disabled by setting the "
+                "variable DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty "
+                "value."
+            )
+
         if self.codesign_verify(
             path,
             requirement,
