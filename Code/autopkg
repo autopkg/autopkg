@@ -1055,7 +1055,7 @@ def do_gh_repo_contents_fetch(
     """Fetch file contents from GitHub and return as a string."""
     gh_session = GitHubSession()
     if use_token:
-        gh_session.setup_token()
+        gh_session.get_or_setup_token()
     # Do the search, including text match metadata
     results, code = gh_session.call_api(f"/repos/autopkg/{repo}/contents/{quote(path)}")
 
