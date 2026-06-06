@@ -169,7 +169,6 @@ class Versioner(DmgMounter):
                 raise ProcessorError(err)
         finally:
             self.unmount(dmg_path)
-        return None
 
     def _read_auto_detect(
         self,
