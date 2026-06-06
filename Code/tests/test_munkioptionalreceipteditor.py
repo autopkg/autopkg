@@ -105,7 +105,7 @@ class TestMunkiOptionalReceiptEditor(unittest.TestCase):
             self.processor.main()
 
     def test_empty_pkginfo_repo_path_skips(self):
-        """Empty pkginfo_repo_path causes early return."""
+        """Empty pkginfo_repo_path causes early return with empty munki_info."""
         self.processor.env = deepcopy(self.good_env)
         self.processor.env["pkginfo_repo_path"] = ""
 
@@ -113,7 +113,17 @@ class TestMunkiOptionalReceiptEditor(unittest.TestCase):
             self.processor.main()
 
         mock_output.assert_called_once_with("No pkginfo_repo_path specified, skipping")
-        self.assertNotIn("munki_info", self.processor.env)
+        self.assertEqual(self.processor.env["munki_info"], {})
+
+    def test_empty_pkginfo_repo_path_preserves_munki_info(self):
+        """Existing munki_info survives when empty pkginfo_repo_path skips."""
+        self.processor.env = deepcopy(self.good_env)
+        self.processor.env["pkginfo_repo_path"] = ""
+        self.processor.env["munki_info"] = deepcopy(self.pkginfo)
+
+        self.processor.main()
+
+        self.assertEqual(self.processor.env["munki_info"], self.pkginfo)
 
     def test_reads_from_munki_info_when_available(self):
         """Uses in-memory munki_info instead of reading from disk."""
@@ -165,6 +175,19 @@ class TestMunkiOptionalReceiptEditor(unittest.TestCase):
 
         self.assertTrue(written_pkginfo["receipts"][1]["optional"])
         self.assertEqual(written_path, self.pkginfo_path)
+
+    @patch.object(_receipt_editor_mod, "fetch_repo_library")
+    def test_passes_repo_subdirectory_to_repo_library(self, mock_fetch):
+        """repo_subdirectory is forwarded when resolving the repo library."""
+        mock_fetch.return_value = MagicMock()
+
+        self.processor.env = deepcopy(self.good_env)
+        self.processor.env["repo_subdirectory"] = "apps"
+        self.processor.main()
+
+        mock_fetch.assert_called_once_with(
+            self.munki_repo, "FileRepo", "/usr/local/munki", "apps", False
+        )
 
 
 if __name__ == "__main__":

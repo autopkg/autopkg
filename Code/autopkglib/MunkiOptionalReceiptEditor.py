@@ -64,6 +64,12 @@ class MunkiOptionalReceiptEditor(Processor):
             ),
             "default": False,
         },
+        "repo_subdirectory": {
+            "required": False,
+            "description": (
+                "The subdirectory under pkgs and pkgsinfo associated with this pkginfo."
+            ),
+        },
     }
     output_variables = {
         "munki_info": {
@@ -74,6 +80,7 @@ class MunkiOptionalReceiptEditor(Processor):
     def main(self) -> None:
         if len(self.env["pkginfo_repo_path"]) < 1:
             self.output("No pkginfo_repo_path specified, skipping")
+            self.env.setdefault("munki_info", {})
             return
 
         if "munki_info" in self.env and self.env["munki_info"]:
@@ -100,7 +107,7 @@ class MunkiOptionalReceiptEditor(Processor):
                 self.env["MUNKI_REPO"],
                 self.env["MUNKI_REPO_PLUGIN"],
                 self.env["MUNKILIB_DIR"],
-                None,
+                self.env.get("repo_subdirectory"),
                 self.env["force_munki_repo_lib"],
             )
             self.output(f"Writing pkginfo to {self.env['pkginfo_repo_path']}")
