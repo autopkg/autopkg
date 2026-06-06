@@ -248,15 +248,6 @@ class URLDownloaderPython(URLDownloader):
 
         return info_json
 
-    def ssl_context_ignore(self) -> ssl.SSLContext:
-        """ssl context - ignore SSL validation"""
-        # this doesn't need to be a class method
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        self.output("WARNING: disabling SSL validation is insecure!!!")
-        return ctx
-
     def ssl_context_certifi(self) -> ssl.SSLContext:
         """SSL context using certifi CAs or custom CAs if the env SSL_CERT_FILE is set"""
         # this doesn't need to be a class method
