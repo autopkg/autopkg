@@ -1075,7 +1075,7 @@ def do_gh_repo_contents_fetch(
             log_err(results.get("documentation_url", None))
 
         return None
-    if results is None or code is None:
+    if code is None or code != 200 or results is None:
         log_err("A GitHub API error occurred!")
         return None
     if decode:

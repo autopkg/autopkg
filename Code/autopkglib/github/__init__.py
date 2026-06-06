@@ -30,20 +30,37 @@ TOKEN_LOCATION = os.path.expanduser("~/.autopkg_gh_token")
 DEFAULT_SEARCH_USER = "autopkg"
 
 
+def _sanitize_github_token(token: str | None, source: str) -> str | None:
+    """Return a usable GitHub token or None when it is clearly malformed."""
+    if token is None:
+        return None
+
+    token = token.strip()
+    if not token or re.search(r"\s", token):
+        log_err(
+            f"Ignoring malformed GitHub token from {source}; "
+            "continuing unauthenticated."
+        )
+        return None
+
+    return token
+
+
 def get_github_token(token_path: str | None = None) -> str | None:
     """Read token from preferences, then token_path."""
     token = get_pref("GITHUB_TOKEN")
     token_path = os.path.expanduser(token_path or TOKEN_LOCATION)
-    if not token and os.path.exists(token_path):
+    if token:
+        return _sanitize_github_token(token, "GITHUB_TOKEN preference")
+    if os.path.exists(token_path):
         try:
             with open(token_path) as tokenf:
-                token = tokenf.read().strip()
+                token = tokenf.read()
         except OSError as err:
             log_err(f"Couldn't read token file at {token_path}! Error: {err}")
             token = None
-    # TODO: validate token given we found one but haven't checked its
-    # auth status
-    return token
+        return _sanitize_github_token(token, token_path)
+    return None
 
 
 class GitHubSession(URLGetter):
@@ -112,7 +129,6 @@ To save the token, paste it to the following prompt.""")
             "--location",
             "--silent",
             "--show-error",
-            "--fail",
             "--dump-header",
             "-",
         ]
@@ -146,23 +162,7 @@ To save the token, paste it to the following prompt.""")
     def download_with_curl(self, curl_cmd):
         """Download file using curl and return raw headers."""
 
-        p_stdout, p_stderr, retcode = self.execute_curl(curl_cmd)
-
-        if retcode:  # Non-zero exit code from curl => problem with download
-            curl_err = self.parse_curl_error(p_stderr)
-            log_err(
-                f"Curl failure: Could not retrieve URL {self.env['url']}: {curl_err}"
-            )
-
-            if retcode == 22:
-                # 22 means any 400 series return code. Note: header seems not to
-                # be dumped to STDOUT for immediate failures. Hence
-                # http_result_code is likely blank/000. Read it from stderr.
-                if re.search(r"URL returned error: [0-9]+", p_stderr):
-                    m = re.match(r".* (?P<status_code>\d+) .*", p_stderr)
-                    if m.group("status_code"):
-                        self.http_result_code = m.group("status_code")
-
+        p_stdout, _p_stderr, _retcode = self.execute_curl(curl_cmd)
         return p_stdout
 
     def search_for_name(
@@ -240,7 +240,7 @@ To save the token, paste it to the following prompt.""")
         data=None,
         headers=None,
         accept="application/vnd.github.v3+json",
-    ) -> tuple[Any, int]:
+    ) -> tuple[Any, int | None]:
         """Return a tuple of a serialized JSON response and HTTP status code
         from a call to a GitHub API endpoint. Certain APIs return no JSON
         result and so the first item in the tuple (the response) will be None.
@@ -253,33 +253,80 @@ To save the token, paste it to the following prompt.""")
         accept: optional Accept media type for exceptional APIs (like release
                 assets)."""
 
-        # Compose the URL
         self.env["url"] = self.url + endpoint
         if query:
             self.env["url"] += "?" + query
 
-        temp_content = tempfile.NamedTemporaryFile().name
-        # Prepare curl command
-        curl_cmd = self.prepare_curl_cmd(method, accept, headers, data, temp_content)
+        token_sent = bool(self.token)
+        resp_data, status = self._call_api_once(method, accept, headers, data)
+        if token_sent and self._status_code(status) == 401:
+            warning = (
+                "WARNING: Your GitHub token appears invalid or expired. "
+                "Regenerate it at https://github.com/settings/tokens."
+            )
+            if method.upper() == "GET":
+                log_err(f"{warning} Continuing without it.")
+                resp_data, status = self._call_api_once(
+                    method, accept, headers, data, suppress_auth=True
+                )
+            else:
+                log_err(warning)
 
-        # Execute curl command and parse headers
-        raw_headers = self.download_with_curl(curl_cmd)
-        header = self.parse_headers(raw_headers)
-        http_result_code = header.get("http_result_code")
-        if http_result_code and http_result_code != "000":
-            self.http_result_code = int(http_result_code)
+        return (resp_data, status)
 
-        resp_data = None
+    def _call_api_once(
+        self,
+        method: str,
+        accept: str,
+        headers,
+        data,
+        suppress_auth: bool = False,
+    ) -> tuple[Any, int | None]:
+        """Perform one GitHub API request and return response data and status."""
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        temp_content = temp_file.name
+        temp_file.close()
         try:
-            with open(temp_content) as f:
-                resp_data = json.load(f)
-        except UnicodeDecodeError:
-            with open(temp_content, "rb") as f:
-                resp_data = json.load(f)
-        except json.JSONDecodeError as e:
-            self.output(f"JSONDecodeError: {e}")
+            original_token = self.token
+            try:
+                if suppress_auth:
+                    self.token = None
+                curl_cmd = self.prepare_curl_cmd(
+                    method, accept, headers, data, temp_content
+                )
+            finally:
+                self.token = original_token
 
-        return (resp_data, self.http_result_code)
+            self.http_result_code = None
+            raw_headers = self.download_with_curl(curl_cmd)
+            header = self.parse_headers(raw_headers)
+            http_result_code = header.get("http_result_code")
+            if http_result_code and http_result_code != "000":
+                self.http_result_code = int(http_result_code)
+
+            resp_data = None
+            try:
+                with open(temp_content) as f:
+                    resp_data = json.load(f)
+            except UnicodeDecodeError:
+                with open(temp_content, "rb") as f:
+                    resp_data = json.load(f)
+            except json.JSONDecodeError as e:
+                self.output(f"JSONDecodeError: {e}")
+
+            return (resp_data, self.http_result_code)
+        finally:
+            try:
+                os.unlink(temp_content)
+            except OSError:
+                pass
+
+    def _status_code(self, status) -> int:
+        """Return an integer HTTP status, defaulting to 0 when unset."""
+        try:
+            return int(status or 0)
+        except (TypeError, ValueError):
+            return 0
 
 
 def get_table_row(row_items, col_widths, header=False):

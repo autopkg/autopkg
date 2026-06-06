@@ -74,7 +74,7 @@ def check_search_cache(cache_path: str) -> None:
     # Use URLGetter to interact with GitHub API
     api = URLGetter()
 
-    # Use GitHub token if one exists
+    # GitHubSession filters malformed tokens; this path has its own fallback.
     token = GitHubSession().token
     headers = {"Authorization": f"Bearer {token}"} if token else {}
 

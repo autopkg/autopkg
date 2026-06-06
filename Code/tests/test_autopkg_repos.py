@@ -451,6 +451,23 @@ class TestAutoPkgRepos(unittest.TestCase):
                 "Found this recipe in repository: test-recipes"
             )
 
+    @patch("autopkg.GitHubSession")
+    def test_do_gh_repo_contents_fetch_returns_none_on_api_error(
+        self, mock_github_session
+    ):
+        """GitHub API error bodies should not be treated as content responses."""
+        mock_session = Mock()
+        mock_github_session.return_value = mock_session
+        mock_session.call_api.return_value = ({"message": "Not Found"}, 404)
+
+        with patch("sys.stderr", new_callable=StringIO) as stderr:
+            result = autopkg.do_gh_repo_contents_fetch(
+                "recipes", "Missing/Missing.recipe"
+            )
+
+        self.assertIsNone(result)
+        self.assertIn("A GitHub API error occurred", stderr.getvalue())
+
     # Tests for get_recipe_repo function
     @patch("autopkg.run_git")
     @patch("autopkg.git_cmd")
