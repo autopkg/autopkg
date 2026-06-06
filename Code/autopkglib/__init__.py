@@ -432,7 +432,7 @@ def recipe_from_file(filename) -> VarDict | None:
     invokes the recipe. Float-looking scalars (e.g. ``VERSION: 1.0``) are
     loaded as strings to match plist recipe behavior."""
     if not os.path.isfile(filename):
-        return
+        return None
 
     if filename.endswith(".yaml"):
         try:
@@ -441,7 +441,7 @@ def recipe_from_file(filename) -> VarDict | None:
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")
-            return
+            return None
 
     else:
         try:
@@ -451,7 +451,7 @@ def recipe_from_file(filename) -> VarDict | None:
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: plist error for {filename}: {err}")
-            return
+            return None
 
 
 def get_identifier(recipe) -> str | None:
@@ -521,7 +521,7 @@ def valid_override_file(filename) -> bool:
 
 def get_search_dirs() -> list[str]:
     """Return search dirs from preferences or default list"""
-    dirs: list[str] = get_pref("RECIPE_SEARCH_DIRS")
+    dirs: Any = get_pref("RECIPE_SEARCH_DIRS")
     if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
@@ -532,7 +532,7 @@ def get_override_dirs() -> list[str]:
     """Return override dirs from preferences or default list"""
     default = [DEFAULT_USER_OVERRIDES_DIR]
 
-    dirs: list[str] = get_pref("RECIPE_OVERRIDE_DIRS")
+    dirs: Any = get_pref("RECIPE_OVERRIDE_DIRS")
     if isinstance(dirs, str):
         # convert a string to a list
         dirs = [dirs]
@@ -1315,6 +1315,9 @@ class Processor:
     returns a new or updated property list that can be processed further.
     """
 
+    description: str
+    input_variables: VarDict
+    output_variables: VarDict
     lifecycle: dict = {}
 
     def __init__(self, env=None, infile=None, outfile=None):
@@ -1418,7 +1421,7 @@ class Processor:
         self.main()
         return self.env
 
-    def cmdexec(self, command, description) -> str | None:
+    def cmdexec(self, command, description) -> bytes:
         """Execute a command and return output."""
 
         try:
@@ -1432,7 +1435,7 @@ class Processor:
                 f"{err.errno}: {err.strerror}"
             ) from err
         if proc.returncode != 0:
-            raise ProcessorError(f"{description} failed: {stderr}")
+            raise ProcessorError(f"{description} failed: {stderr!r}")
 
         return stdout
 
@@ -1547,7 +1550,7 @@ class AutoPackager:
         if self.verbose >= verbose_level:
             print(msg)
 
-    def get_recipe_identifier(self, recipe) -> str | None:
+    def get_recipe_identifier(self, recipe) -> str:
         """Return the identifier given an input recipe dict."""
         identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
         if not identifier:
@@ -1558,6 +1561,7 @@ class AutoPackager:
             recipe_path = remove_recipe_extension(recipe_path)
             path_parts = recipe_path.split("/")
             identifier = "-".join(path_parts)
+        assert identifier is not None
         return identifier
 
     def process_cli_overrides(self, recipe, cli_values) -> None:
@@ -1850,8 +1854,8 @@ class APLooseVersion:
         return self._compare(other) >= 0
 
 
-_CORE_PROCESSOR_NAMES = []
-_PROCESSOR_NAMES = []
+_CORE_PROCESSOR_NAMES: list[str] = []
+_PROCESSOR_NAMES: list[str] = []
 
 
 def import_processors() -> None:

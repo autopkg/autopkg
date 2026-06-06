@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Any
+
 from autopkglib import Processor
 
 __all__ = ["VariableSetter"]
@@ -97,8 +99,8 @@ class VariableSetter(Processor):
 
     description = __doc__
     lifecycle = {"introduced": "2.9.0"}
-    input_variables = {}
-    output_variables = {}
+    input_variables: dict[str, Any] = {}
+    output_variables: dict[str, Any] = {}
 
     def main(self) -> None:
         return

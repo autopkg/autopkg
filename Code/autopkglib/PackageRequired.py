@@ -16,6 +16,7 @@
 """See docstring for PackageRequired class"""
 
 import os
+from typing import Any
 
 from autopkglib import Processor, ProcessorError
 
@@ -27,8 +28,8 @@ class PackageRequired(Processor):
 
     description = __doc__
     lifecycle = {"introduced": "0.5.1"}
-    input_variables = {}
-    output_variables = {}
+    input_variables: dict[str, Any] = {}
+    output_variables: dict[str, Any] = {}
 
     def main(self) -> None:
         pkg = self.env.get("PKG", None)

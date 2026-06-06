@@ -86,10 +86,10 @@ class MunkiInstallsItemsCreator(Processor):
                 args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
             )
             out, err = proc.communicate()
-        except OSError as err:
+        except OSError as os_err:
             raise ProcessorError(
-                f"makepkginfo execution failed with error code {err.errno}: "
-                f"{err.strerror}"
+                f"makepkginfo execution failed with error code {os_err.errno}: "
+                f"{os_err.strerror}"
             )
         if proc.returncode != 0:
             raise ProcessorError(f"creating pkginfo failed: {err.decode()}")

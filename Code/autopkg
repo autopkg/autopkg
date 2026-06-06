@@ -276,7 +276,7 @@ def get_identifier_from_override(override) -> str:
     return name
 
 
-def get_repository_from_identifier(identifier: str):
+def get_repository_from_identifier(identifier: str) -> str | None:
     """Get a repository name from a recipe identifier."""
     results = GitHubSession().search_for_name(identifier)
     # so now we have a list of items containing file names and URLs
@@ -287,19 +287,24 @@ def get_repository_from_identifier(identifier: str):
     identifier_fragments = identifier.split(".")
     if identifier_fragments[0] != "com":
         # This is not an identifier
-        return
+        return None
     correct_item = None
     for item in results:
+        item_path = item.get("path")
+        if not isinstance(item_path, str):
+            continue
         file_contents_raw = do_gh_repo_contents_fetch(
-            item["repository"]["name"], item.get("path")
+            item["repository"]["name"], item_path
         )
+        if file_contents_raw is None:
+            continue
         file_contents_data = plistlib.loads(file_contents_raw)
         if file_contents_data.get("Identifier") == identifier:
             correct_item = item
             break
     # Did we get correct item?
     if not correct_item:
-        return
+        return None
     print(f"Found this recipe in repository: {correct_item['repository']['name']}")
     return correct_item["repository"]["name"]
 

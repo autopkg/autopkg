@@ -61,7 +61,7 @@ class NuspecGenerator(package):
         license: licenseType | None = None,
         dependencies: Sequence[dependency] | None = None,
         contentFiles: contentFilesType | None = None,
-    ):
+    ) -> None:
         if not isinstance(title, str):
             raise NuspecValidationError("Argument 'title' must be a string")
 

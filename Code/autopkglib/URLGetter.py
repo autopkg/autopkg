@@ -141,9 +141,9 @@ class URLGetter(Processor):
             header["http_result_code"] = "200"
             header["http_result_description"] = line
 
-    def parse_headers(self, raw_headers):
+    def parse_headers(self, raw_headers: str) -> dict[str, str | None]:
         """Parse headers from curl."""
-        header = {}
+        header: dict[str, str | None] = {}
         self.clear_header(header)
         for line in raw_headers.splitlines():
             if line.startswith("HTTP/"):

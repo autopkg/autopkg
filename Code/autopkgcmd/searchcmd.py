@@ -220,10 +220,11 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
             result_ids.extend(identifiers)
 
     # Perform the search against other recipe info
+    searchable_keys: tuple[str, ...]
     if path_only:
-        searchable_keys: tuple[str, ...] = ("path",)
+        searchable_keys = ("path",)
     else:
-        searchable_keys: tuple[str, ...] = (
+        searchable_keys = (
             "name",
             "app_display_name",
         )

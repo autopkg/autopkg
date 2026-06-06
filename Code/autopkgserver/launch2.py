@@ -34,7 +34,7 @@ class LaunchDError(Exception):
     pass
 
 
-def launch_activate_socket(name):
+def launch_activate_socket(name: str) -> list[int]:
     """Retrieve named socket file descriptors from launchd."""
 
     # Wrap in try/finally to free resources allocated during lookup.

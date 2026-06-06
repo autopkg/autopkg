@@ -1,6 +1,7 @@
 import os
 import plistlib
 import shutil
+from typing import Any
 
 from autopkglib import ProcessorError
 
@@ -17,7 +18,7 @@ class AutoPkgLib:
         all_items_path = os.path.join(self.munki_repo, "catalogs", "all")
         if not os.path.exists(all_items_path):
             # might be an error, or might be a brand-new empty repo
-            catalogitems = []
+            catalogitems: list[dict[str, Any]] = []
         else:
             try:
                 with open(all_items_path, "rb") as f:
@@ -27,12 +28,12 @@ class AutoPkgLib:
                     f"Error reading 'all' catalog from Munki repo: {err}"
                 )
 
-        pkgid_table = {}
-        app_table = {}
-        installer_item_table = {}
-        hash_table = {}
-        checksum_table = {}
-        files_table = {}
+        pkgid_table: dict[str, Any] = {}
+        app_table: dict[str, Any] = {}
+        installer_item_table: dict[str, Any] = {}
+        hash_table: dict[str, Any] = {}
+        checksum_table: dict[str, Any] = {}
+        files_table: dict[str, Any] = {}
 
         itemindex = -1
         for item in catalogitems:
@@ -113,7 +114,7 @@ class AutoPkgLib:
                     # skip this item
                     continue
 
-        pkgdb = {}
+        pkgdb: dict[str, Any] = {}
         pkgdb["hashes"] = hash_table
         pkgdb["receipts"] = pkgid_table
         pkgdb["applications"] = app_table

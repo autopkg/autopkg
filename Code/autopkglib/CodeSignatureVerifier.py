@@ -20,6 +20,7 @@ import re
 import subprocess
 import sys
 from glob import glob
+from typing import Any
 
 from autopkglib import ProcessorError, log_err
 from autopkglib.DmgMounter import DmgMounter
@@ -29,7 +30,7 @@ __all__ = ["CodeSignatureVerifier"]
 RE_AUTHORITY_PKGUTIL = re.compile(r"\s+[1-9]+\. (?P<authority>.*)\n")
 
 
-def _version_tuple(version_string: str) -> tuple:
+def _version_tuple(version_string: str) -> tuple[int, int, int]:
     """Return a dotted-numeric version as a 3-element int tuple.
 
     Pads to three components so comparisons match the old
@@ -37,7 +38,8 @@ def _version_tuple(version_string: str) -> tuple:
     not below "15.0.0" as a raw split tuple would).
     """
     parts = [int(component) for component in version_string.split(".")]
-    return tuple((parts + [0, 0, 0])[:3])
+    padded_parts = (parts + [0, 0, 0])[:3]
+    return (padded_parts[0], padded_parts[1], padded_parts[2])
 
 
 class CodeSignatureVerifier(DmgMounter):
@@ -113,7 +115,7 @@ class CodeSignatureVerifier(DmgMounter):
             ),
         },
     }
-    output_variables = {}
+    output_variables: dict[str, Any] = {}
 
     # Most recent codesign exit status, set by codesign_verify.
     codesign_returncode = None

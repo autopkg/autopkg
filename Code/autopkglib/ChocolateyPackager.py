@@ -15,6 +15,7 @@
 
 import os
 import subprocess
+from collections.abc import Sequence
 from shutil import copy2, rmtree
 from tempfile import mkdtemp
 from typing import Any
@@ -235,7 +236,7 @@ class ChocolateyPackager(Processor):
         "chocolatey_packager_summary_result": {"description": "Summary of packaging."},
     }
 
-    def _check_enum_var(self, varname: str, enum_values: list[str]) -> None:
+    def _check_enum_var(self, varname: str, enum_values: Sequence[str]) -> None:
         value = self.env.get(varname)
         if value not in enum_values:
             raise ValueError(

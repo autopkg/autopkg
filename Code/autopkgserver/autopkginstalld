@@ -39,6 +39,9 @@ VERSION = "0.4"
 class RunHandler(socketserver.StreamRequestHandler):
     """Handler for autopkginstalld run requests"""
 
+    server: "AutoPkgInstallDaemon"
+    log: logging.Logger
+
     def verify_request_syntax(self, plist: dict[str, Any]) -> tuple[bool, list[str]]:
         """Verify the basic syntax of an installation request plist."""
 
@@ -160,6 +163,8 @@ class AutoPkgInstallDaemonError(Exception):
 class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
     """Daemon that runs as root,
     receiving requests to install packages."""
+
+    log: logging.Logger
 
     allow_reuse_address = True
     request_queue_size = 10

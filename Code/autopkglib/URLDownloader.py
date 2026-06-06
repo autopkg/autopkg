@@ -166,7 +166,7 @@ class URLDownloader(URLGetter):
         self.add_curl_headers(curl_cmd, self.produce_etag_headers())
         return curl_cmd
 
-    def produce_etag_headers(self) -> dict[str, str]:
+    def produce_etag_headers(self) -> dict[str, str]:  # type: ignore[override]
         """Produce a dict of curl headers containing etag headers from the download."""
         headers = {}
         # If the download file already exists and CHECK_FILESIZE_ONLY is not
@@ -174,7 +174,7 @@ class URLDownloader(URLGetter):
         # unchanged content.
         if os.path.exists(self.env["pathname"]):
             metadata = self.get_metadata()
-            self.existing_file_size = os.path.getsize(self.env["pathname"])
+            self.existing_file_size: int | None = os.path.getsize(self.env["pathname"])
             if not self.env.get("CHECK_FILESIZE_ONLY"):
                 http_headers: dict[str, Any] = metadata.get("http_headers", {})
                 if etag := http_headers.get("ETag"):
@@ -211,20 +211,18 @@ class URLDownloader(URLGetter):
 
         raw_headers = self.download_with_curl(curl_cmd)
         header = self.parse_headers(raw_headers)
+        content_disposition = header.get("content-disposition", "") or ""
+        redirected_url = header.get("http_redirected")
 
-        if "filename=" in header.get("content-disposition", ""):
-            filename = (
-                header["content-disposition"]
-                .rpartition("filename=")[2]
-                .replace('"', "")
-            )
+        if "filename=" in content_disposition:
+            filename = content_disposition.rpartition("filename=")[2].replace('"', "")
             filename = os.path.basename(filename.replace("\\", "/"))
             self.output(
                 f"Filename prefetched from the HTTP Content-Disposition header: {filename}",
                 verbose_level=2,
             )
-        elif header.get("http_redirected", None):
-            filename = header["http_redirected"].rpartition("/")[2]
+        elif redirected_url:
+            filename = redirected_url.rpartition("/")[2]
             self.output(
                 f"Filename prefetched from the HTTP Location header: {filename}",
                 verbose_level=2,

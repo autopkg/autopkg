@@ -57,7 +57,9 @@ def get_schema_source(url: str, xmlns: bytes = SCHEMA_XMLNS) -> bytes:
         return res.read().replace(b"{0}", xmlns)
 
 
-def run_generateds(generateds_binary: str, output_path: str, schema_source: bytes):
+def run_generateds(
+    generateds_binary: str, output_path: str, schema_source: bytes
+) -> int:
     """Generate python wrapper library around the provided XML schema."""
     call_res = subprocess.run(
         [

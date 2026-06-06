@@ -179,7 +179,7 @@ class ItemCopier:
                     destpath,
                 )
                 parent_path = destpath
-                new_paths = []
+                new_paths: list[str] = []
 
                 # work our way back up to an existing path and build a list
                 while not os.path.exists(parent_path):

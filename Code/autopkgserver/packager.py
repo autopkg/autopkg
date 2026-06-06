@@ -417,7 +417,7 @@ class Packager:
                 bundle["BundleIsRelocatable"] = False
         try:
             with open(self.component_plist, "wb") as f:
-                plist = plistlib.dump(plist, f)
+                plistlib.dump(plist, f)
         except Exception:
             raise PackagerError(f"Couldn't write {self.component_plist}")
 

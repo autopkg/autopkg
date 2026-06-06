@@ -50,6 +50,7 @@ class MunkiInfoCreator(Processor):
         temp_path = None
         try:
             # Check munki version.
+            munkiopts: tuple[str, ...]
             if os.path.exists("/usr/local/munki/munkilib/version.plist"):
                 # Assume 0.7.0 or higher.
                 munkiopts = ("displayname", "description", "catalog")

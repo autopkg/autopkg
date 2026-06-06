@@ -73,7 +73,7 @@ class GitHubSession(URLGetter):
         """
         return get_github_token(token_path)
 
-    def get_or_setup_token(self) -> str:
+    def get_or_setup_token(self) -> str | None:
         """Setup a GitHub OAuth token string. Will help to create one if necessary.
         The string will be stored in TOKEN_LOCATION and used again
         if it exists."""
@@ -103,7 +103,7 @@ To save the token, paste it to the following prompt.""")
         self.token = token
         return token
 
-    def prepare_curl_cmd(
+    def prepare_curl_cmd(  # type: ignore[override]
         self, method, accept, headers, data, temp_content
     ) -> list[str]:
         """Assemble curl command and return it."""
@@ -265,8 +265,9 @@ To save the token, paste it to the following prompt.""")
         # Execute curl command and parse headers
         raw_headers = self.download_with_curl(curl_cmd)
         header = self.parse_headers(raw_headers)
-        if header["http_result_code"] != "000":
-            self.http_result_code = int(header["http_result_code"])
+        http_result_code = header.get("http_result_code")
+        if http_result_code and http_result_code != "000":
+            self.http_result_code = int(http_result_code)
 
         resp_data = None
         try:

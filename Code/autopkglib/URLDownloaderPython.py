@@ -19,6 +19,7 @@ import json
 import os
 import ssl
 from hashlib import md5, sha1, sha256
+from typing import Any
 from urllib.request import Request, urlopen
 
 import certifi
@@ -130,7 +131,9 @@ class URLDownloaderPython(URLDownloader):
         },
     }
 
-    def store_hashes_in_env(self, file_sha1, file_sha256, file_md5) -> None:
+    def store_hashes_in_env(  # type: ignore[override]
+        self, file_sha1: str, file_sha256: str, file_md5: str
+    ) -> None:
         """Store computed hashes for downstream processors."""
         self.env["file_sha1"] = file_sha1
         self.env["file_sha256"] = file_sha256
@@ -269,7 +272,7 @@ class URLDownloaderPython(URLDownloader):
         # this allows the file to be read only once and never from disk
         # https://github.com/jgstew/bigfix_prefetch/blob/master/src/bigfix_prefetch/prefetch_from_url.py
         url = self.env.get("url")
-        download_dictionary = {}
+        download_dictionary: dict[str, Any] = {}
 
         hashes = None
         if self.env.get("COMPUTE_HASHES", None):

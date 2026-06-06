@@ -98,7 +98,7 @@ class URLTextSearcher(URLGetter):
                 flag_accumulator += re.__dict__[flag]
         return flag_accumulator
 
-    def re_search(self, content) -> tuple[str, dict[str, str]] | None:
+    def re_search(self, content) -> tuple[str, dict[str, str]]:
         """Search for re_pattern in content"""
 
         re_pattern = re.compile(self.env["re_pattern"], flags=self.prepare_re_flags())

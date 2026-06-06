@@ -66,7 +66,7 @@ class Installer:
         self.log = log
         self.socket = socket
         self.request = request
-        self.package_path = None
+        self.package_path: str | None = None
 
     def allowed_package_roots(self):
         """Return roots from which package paths may be installed."""
@@ -107,9 +107,11 @@ class Installer:
             )
         self.package_path = package_path
 
-    def do_install(self) -> bool | None:
+    def do_install(self) -> bool:
         """Call /usr/sbin/installer"""
         pkg_path = self.package_path
+        if pkg_path is None:
+            raise InstallerError("Package path is required")
         try:
             cmd = ["/usr/sbin/installer", "-verboseR", "-pkg", pkg_path, "-target", "/"]
             proc = subprocess.Popen(
@@ -120,6 +122,8 @@ class Installer:
                 stderr=subprocess.STDOUT,
                 text=True,
             )
+            if proc.stdout is None:
+                raise InstallerError("Installer output stream is unavailable")
             while True:
                 output = proc.stdout.readline()
                 if not output and (proc.poll() is not None):

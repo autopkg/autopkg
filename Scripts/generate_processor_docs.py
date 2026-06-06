@@ -44,6 +44,8 @@ try:
     spec = importlib.util.spec_from_file_location(
         "autopkg", AUTOPKG_PATH, loader=SourceFileLoader("autopkg", AUTOPKG_PATH)
     )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load module spec for {AUTOPKG_PATH}")
     module = importlib.util.module_from_spec(spec)
     sys.modules["autopkg"] = module
     spec.loader.exec_module(module)

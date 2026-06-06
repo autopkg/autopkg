@@ -15,6 +15,8 @@
 # limitations under the License.
 """See docstring for MunkiCatalogBuilder class"""
 
+from typing import Any
+
 from autopkglib import Processor
 
 __all__ = ["MunkiCatalogBuilder"]
@@ -25,8 +27,8 @@ class MunkiCatalogBuilder(Processor):
 
     description = __doc__
     lifecycle = {"introduced": "0.1.0", "deprecated": "2.7.5"}
-    input_variables = {}
-    output_variables = {}
+    input_variables: dict[str, Any] = {}
+    output_variables: dict[str, Any] = {}
 
     def main(self) -> None:
         pass

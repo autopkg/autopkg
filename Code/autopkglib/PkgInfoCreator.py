@@ -18,6 +18,7 @@
 import math
 import os
 import plistlib
+from typing import NoReturn
 from xml.etree import ElementTree  # nosec B405
 
 from autopkglib import Processor, ProcessorError
@@ -110,7 +111,7 @@ class PkgInfoCreator(Processor):
 
         return ElementTree.ElementTree(pkg_info)
 
-    def convert_flat_info_to_bundle(self, info) -> None:
+    def convert_flat_info_to_bundle(self, info) -> NoReturn:
         """Converts pkg info from flat format to bundle format"""
         # since we now only support flat packages, just raise an exception
         raise ProcessorError("Bundle package creation no longer supported!")
@@ -180,7 +181,7 @@ class PkgInfoCreator(Processor):
 
         info.write(self.env["infofile"])
 
-    def create_bundle_info(self, template) -> None:
+    def create_bundle_info(self, template) -> NoReturn:
         """Create Info.plist data for bundle-style pkg"""
         # We don't support the creation of bundle-style pkgs
         # any longer, so raise an exception

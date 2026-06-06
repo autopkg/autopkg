@@ -40,7 +40,7 @@ import certifi
 SEMVER_RE = re.compile(r"\d+\.\d+\.\d+")
 
 
-def version_tuple(version_string):
+def version_tuple(version_string: str) -> tuple[int, ...]:
     """Return a (major, minor, patch) int tuple for a MAJOR.MINOR.PATCH version.
 
     Raises ValueError if version_string is not exactly MAJOR.MINOR.PATCH.
