@@ -59,7 +59,7 @@ Several fixes make CodeSignatureVerifier fail closed when a recipe's signature c
 
 - PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
 - PkgInfoCreator now finds relative Info.plist templates stored beside a recipe or parent recipe.
-- MunkiOptionalReceiptEditor now routes pkginfo updates through the Munki repo plugin API, fixing silent data loss when using `GitFileRepo` or other non-filesystem repo plugins (#1031)
+- MunkiOptionalReceiptEditor now routes pkginfo updates through the Munki repo plugin API, fixing silent data loss when using `GitFileRepo` or other non-filesystem repo plugins (#1031). It now accepts `MUNKI_REPO`, `MUNKI_REPO_PLUGIN`, `MUNKILIB_DIR`, `force_munki_repo_lib`, and `repo_subdirectory` input variables (matching MunkiImporter's interface), and sets a `munki_info` output variable containing the updated pkginfo for use by downstream processors.
 - MunkiImporter now correctly handles multiple pkginfos for apps with the same installed path and app version.
 - MunkiImporter now writes correct pkginfo paths when importing an uncataloged package already under the Munki repo's `pkgs` directory.
 - MunkiImporter now avoids duplicate pkginfo filenames caused by leading or trailing whitespace in version strings.
