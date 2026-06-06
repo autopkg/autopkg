@@ -20,7 +20,7 @@
 import os
 from ipaddress import ip_address
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
-from xml.etree import ElementTree
+from xml.etree import ElementTree  # nosec B405
 
 from autopkglib import APLooseVersion, ProcessorError
 from autopkglib.URLGetter import URLGetter
@@ -253,7 +253,9 @@ class SparkleUpdateInfoProvider(URLGetter):
         by whoever calls this function."""
 
         try:
-            xmldata = ElementTree.fromstring(data)
+            xmldata = ElementTree.fromstring(
+                data
+            )  # nosec B314 - stdlib XXE n/a; appcast DoS accepted
         except Exception:
             raise ProcessorError("Error parsing XML from appcast feed.")
 

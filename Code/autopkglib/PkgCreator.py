@@ -19,7 +19,7 @@ import os.path
 import plistlib
 import socket
 import subprocess
-from xml.etree import ElementTree as ET
+from xml.etree import ElementTree as ET  # nosec B405
 
 from autopkglib import Processor, ProcessorError, log_err
 
@@ -162,7 +162,7 @@ class PkgCreator(Processor):
                     raise ProcessorError(f"Could not remove {pkg_path}: {err}")
                 return False
             # parse the PackageInfo file for version and identifier
-            tree = ET.parse(packageinfo_file)
+            tree = ET.parse(packageinfo_file)  # nosec B314 - parses self-generated pkg
             root = tree.getroot()
             local_version = root.attrib["version"]
             local_id = root.attrib["identifier"]

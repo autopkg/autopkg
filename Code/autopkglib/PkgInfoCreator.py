@@ -18,7 +18,7 @@
 import math
 import os
 import plistlib
-from xml.etree import ElementTree
+from xml.etree import ElementTree  # nosec B405
 
 from autopkglib import Processor, ProcessorError
 
@@ -132,7 +132,9 @@ class PkgInfoCreator(Processor):
         else:
             # Try to load PackageInfo in flat format.
             try:
-                info = ElementTree.parse(template_path)
+                info = ElementTree.parse(
+                    template_path
+                )  # nosec B314 - recipe-supplied template; DoS accepted
             except Exception:
                 raise ProcessorError(
                     f"Malformed PackageInfo template {self.env['template_path']}"
