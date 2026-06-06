@@ -101,6 +101,7 @@ Several fixes make CodeSignatureVerifier fail closed when a recipe's signature c
 - `audit` now recognizes `AppPkgCreator` and `ChocolateyPackager` as artifact creators, so modification processors preceding them are surfaced (previously only `DmgCreator`, `FlatPkgPacker`, and `PkgCreator` were recognized).
 - `audit` now reports path-sensitive recipe values that deserve closer inspection, including identifiers with path traversal markers, suspicious privileged install/copy paths, `PkgRootCreator` parent-directory references, unsafe DMG pseudo-paths, and Chocolatey package identifiers or versions containing path separators.
 - URLGetter now reports curl diagnostics correctly when file downloads fail in binary mode.
+- Removed unused code from PkgRootCreator, URLDownloaderPython, and Versioner.
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
