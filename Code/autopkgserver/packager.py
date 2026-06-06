@@ -57,7 +57,7 @@ class Packager:
         self.gid = gid
         self.tmproot = None
 
-    def package(self):
+    def package(self) -> str:
         """Main method."""
 
         try:
@@ -421,7 +421,7 @@ class Packager:
         except Exception:
             raise PackagerError(f"Couldn't write {self.component_plist}")
 
-    def create_pkg(self) -> None:
+    def create_pkg(self) -> str:
         self.log.info("Creating package")
         if self.request["pkgtype"] != "flat":
             raise PackagerError(f"Unsupported pkgtype {self.request['pkgtype']}")

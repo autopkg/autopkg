@@ -1394,7 +1394,7 @@ class Processor:
         for key, value in list(arguments.items()):
             update_data(self.env, key, value)
 
-    def process(self) -> None:
+    def process(self) -> VarDict:
         """Main processing loop."""
         # Check if this processor is deprecated and emit warning
         deprecated_version = self.lifecycle.get("deprecated")

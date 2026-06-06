@@ -152,9 +152,9 @@ class ItemCopier:
             self.paths_for_item(item)
             self.verify_mode(item.get("mode", "o-w"))
 
-    def copy_items(self) -> None:
+    def copy_items(self) -> bool:
         """copies items from the mountpoint to the startup disk
-        Returns 0 if no issues; some error code otherwise.
+        Returns True if no issues; raises ItemCopierError otherwise.
 
         self.request['items_to_copy'] is a list of dictionaries;
         each item should contain source_path and destination_path;
