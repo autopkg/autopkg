@@ -144,7 +144,7 @@ class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCa
             }
         )
 
-        # Pin the pref-backed dirs so _dirs_match_prefs compares against a
+        # Pin the pref-backed dirs so the map-safety check compares against a
         # known baseline.
         self._prefs_patcher = patch.object(
             autopkglib,
@@ -156,7 +156,7 @@ class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCa
         self._prefs_patcher.start()
         self.addCleanup(self._prefs_patcher.stop)
         self._override_patcher = patch.object(
-            autopkglib, "get_override_dirs", return_value=[]
+            autopkg, "get_override_dirs", return_value=[]
         )
         self._override_patcher.start()
         self.addCleanup(self._override_patcher.stop)
@@ -194,8 +194,6 @@ class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCa
 
     def test_no_cli_dirs_uses_map(self):
         """The common case: no CLI dirs → map-first."""
-        # Add a pref-dir entry that _also_ exists on disk so find_recipe's
-        # _dirs_match_prefs check passes.
         result = autopkg.find_recipe("com.example.primary")
         self.assertEqual(result, os.path.join(self.primary_dir, "Primary.recipe"))
 
@@ -211,23 +209,21 @@ class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCa
             os.path.join(self.primary_dir, "Primary.recipe"),
         )
 
-    def test_superset_cli_dirs_still_uses_map(self):
-        """Caller supplies prefs + an extra dir (the recursive
-        load_recipe pattern, where a parent-recipe lookup appends the
-        child's dir). _dirs_match_prefs should accept the superset and
-        use the map, not fall back to the full-tree on-disk scan.
+    def test_external_superset_cli_dirs_scans_in_caller_order(self):
+        """Caller supplies an extra higher-priority dir plus the pref dir.
+        The extra dir must win when it has a colliding identifier because
+        the persisted map was built under pref order."""
+        same_id_path = os.path.join(self.scoped_dir, "LocalPrimary.recipe")
+        _write_plist_recipe(
+            same_id_path,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.primary"},
+        )
 
-        This is the fix that prevented the parent-chain recursion from
-        silently bypassing the map and paying the full O(N) scan cost
-        on every parent resolution."""
-        extra_dir = os.path.join(self.tmpdir, "extra")
-        superset = [self.primary_dir, extra_dir]
-        # On-disk scanner should NOT be called because the map has the
-        # answer and the caller's dirs include the full pref baseline.
-        with patch("autopkg.find_recipe_by_identifier_on_disk") as mock_on_disk:
-            result = autopkg.find_recipe("com.example.primary", search_dirs=superset)
-        self.assertEqual(result, os.path.join(self.primary_dir, "Primary.recipe"))
-        mock_on_disk.assert_not_called()
+        result = autopkg.find_recipe(
+            "com.example.primary",
+            search_dirs=[self.scoped_dir, self.primary_dir],
+        )
+        self.assertEqual(result, same_id_path)
 
     def test_narrowed_cli_dirs_still_bypasses_map(self):
         """Caller supplies dirs that EXCLUDE at least one pref dir.
@@ -244,6 +240,239 @@ class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCa
         # No recipe with that identifier exists in self.scoped_dir, so
         # the result is None — the map entry was correctly ignored.
         self.assertIsNone(result)
+
+
+class TestCallerDirOrderPrecedence(_RecipeMapIsolation, unittest.TestCase):
+    """Caller-supplied directory order is authoritative whenever it
+    diverges from the pref order used to build the persisted map."""
+
+    def setUp(self):
+        super().setUp()
+        self.pref_a_dir = os.path.join(self.tmpdir, "pref-a")
+        self.pref_b_dir = os.path.join(self.tmpdir, "pref-b")
+        self.dev_dir = os.path.join(self.tmpdir, "dev")
+        self.pref_override_dir = os.path.join(self.tmpdir, "pref-overrides")
+        self.dev_override_dir = os.path.join(self.tmpdir, "dev-overrides")
+        for directory in (
+            self.pref_a_dir,
+            self.pref_b_dir,
+            self.dev_dir,
+            self.pref_override_dir,
+            self.dev_override_dir,
+        ):
+            os.makedirs(directory)
+
+        self.pref_search_dirs = [self.pref_a_dir]
+        self.pref_override_dirs = []
+        self._search_patcher = patch.object(
+            autopkg,
+            "get_search_dirs",
+            side_effect=lambda: list(self.pref_search_dirs),
+        )
+        self._search_patcher.start()
+        self.addCleanup(self._search_patcher.stop)
+        self._override_patcher = patch.object(
+            autopkg,
+            "get_override_dirs",
+            side_effect=lambda: list(self.pref_override_dirs),
+        )
+        self._override_patcher.start()
+        self.addCleanup(self._override_patcher.stop)
+
+    def _write_recipe(self, directory, filename, identifier, **extra):
+        path = os.path.join(directory, filename)
+        recipe = {
+            **SAMPLE_RECIPE,
+            "Identifier": identifier,
+            "Input": {"NAME": os.path.splitext(filename)[0]},
+            **extra,
+        }
+        _write_plist_recipe(path, recipe)
+        return path
+
+    def _seed_stock_map(self, identifier, path, shortname=None):
+        autopkglib.globalRecipeMap["identifiers"][identifier] = path
+        if shortname:
+            autopkglib.globalRecipeMap["shortnames"][shortname] = path
+
+    def test_extra_earlier_search_dir_with_colliding_id_resolves_to_earlier_dir(self):
+        """An extra caller-supplied search dir before prefs wins over the
+        pref-scoped map when both contain the same identifier."""
+        pref_path = self._write_recipe(
+            self.pref_a_dir, "Primary.recipe", "com.example.primary"
+        )
+        dev_path = self._write_recipe(
+            self.dev_dir, "Primary.recipe", "com.example.primary"
+        )
+        self._seed_stock_map("com.example.primary", pref_path, shortname="Primary")
+
+        result = autopkg.find_recipe(
+            "com.example.primary",
+            search_dirs=[self.dev_dir, self.pref_a_dir],
+            override_dirs=[],
+        )
+
+        self.assertEqual(result, dev_path)
+
+    def test_reordered_pref_search_dirs_resolve_to_caller_order_winner(self):
+        """The same pref dirs in a different order must not return the
+        map's pref-order winner."""
+        self.pref_search_dirs = [self.pref_a_dir, self.pref_b_dir]
+        pref_a_path = self._write_recipe(
+            self.pref_a_dir, "Foo.recipe", "com.example.foo"
+        )
+        pref_b_path = self._write_recipe(
+            self.pref_b_dir, "Foo.recipe", "com.example.foo"
+        )
+        self._seed_stock_map("com.example.foo", pref_a_path, shortname="Foo")
+
+        result = autopkg.find_recipe(
+            "com.example.foo",
+            search_dirs=[self.pref_b_dir, self.pref_a_dir],
+            override_dirs=[],
+        )
+
+        self.assertEqual(result, pref_b_path)
+
+    def test_extra_earlier_override_dir_with_colliding_id_resolves_to_earlier_override(
+        self,
+    ):
+        """An extra caller-supplied override dir before prefs wins over the
+        pref-scoped override map when both contain the same identifier."""
+        self.pref_override_dirs = [self.pref_override_dir]
+        search_path = self._write_recipe(
+            self.pref_a_dir, "Primary.recipe", "com.example.primary"
+        )
+        pref_override_path = self._write_recipe(
+            self.pref_override_dir,
+            "PrimaryOverride.recipe",
+            "local.example.primary",
+            ParentRecipe="com.example.primary",
+        )
+        dev_override_path = self._write_recipe(
+            self.dev_override_dir,
+            "PrimaryOverride.recipe",
+            "local.example.primary",
+            ParentRecipe="com.example.primary",
+        )
+        self._seed_stock_map("com.example.primary", search_path, shortname="Primary")
+        autopkglib.globalRecipeMap["overrides-identifiers"][
+            "local.example.primary"
+        ] = pref_override_path
+
+        result = autopkg.find_recipe(
+            "local.example.primary",
+            search_dirs=[self.pref_a_dir],
+            override_dirs=[self.dev_override_dir, self.pref_override_dir],
+        )
+
+        self.assertEqual(result, dev_override_path)
+
+    def test_recursive_parent_lookup_from_pref_ordered_base_uses_map_without_disk_scan(
+        self,
+    ):
+        """A parent lookup reached through load_recipe from a pref-ordered
+        base keeps the map fast path even after the child dir is appended."""
+        parent_path = self._write_recipe(
+            self.pref_a_dir, "Parent.recipe", "com.example.parent"
+        )
+        child_path = self._write_recipe(
+            self.pref_a_dir,
+            "Child.recipe",
+            "com.example.child",
+            ParentRecipe="com.example.parent",
+        )
+        self._seed_stock_map("com.example.parent", parent_path, shortname="Parent")
+        self._seed_stock_map("com.example.child", child_path, shortname="Child")
+
+        with (
+            patch("autopkg.find_recipe_by_identifier_on_disk") as mock_identifier_disk,
+            patch("autopkg.find_recipe_by_name_on_disk") as mock_name_disk,
+        ):
+            recipe = autopkg.load_recipe(
+                "com.example.child",
+                override_dirs=[],
+                recipe_dirs=[self.pref_a_dir],
+                make_suggestions=False,
+                search_github=False,
+            )
+
+        self.assertEqual(recipe["PARENT_RECIPES"][0], parent_path)
+        mock_identifier_disk.assert_not_called()
+        mock_name_disk.assert_not_called()
+
+    def test_recursive_parent_lookup_does_not_mutate_top_level_recipe_dirs(self):
+        """Parent recursion must not make the caller-owned top-level
+        recipe_dirs list look divergent for the next load in the same run."""
+        parent_path = self._write_recipe(
+            self.pref_a_dir, "Parent.recipe", "com.example.parent"
+        )
+        child_path = self._write_recipe(
+            self.pref_a_dir,
+            "Child.recipe",
+            "com.example.child",
+            ParentRecipe="com.example.parent",
+        )
+        second_path = self._write_recipe(
+            self.pref_a_dir, "Second.recipe", "com.example.second"
+        )
+        self._seed_stock_map("com.example.parent", parent_path, shortname="Parent")
+        self._seed_stock_map("com.example.child", child_path, shortname="Child")
+        self._seed_stock_map("com.example.second", second_path, shortname="Second")
+
+        recipe_dirs = [self.pref_a_dir]
+        autopkg.load_recipe(
+            "com.example.child",
+            override_dirs=[],
+            recipe_dirs=recipe_dirs,
+            make_suggestions=False,
+            search_github=False,
+        )
+
+        self.assertEqual(recipe_dirs, [self.pref_a_dir])
+        with (
+            patch("autopkg.find_recipe_by_identifier_on_disk") as mock_identifier_disk,
+            patch("autopkg.find_recipe_by_name_on_disk") as mock_name_disk,
+        ):
+            second_recipe = autopkg.load_recipe(
+                "com.example.second",
+                override_dirs=[],
+                recipe_dirs=recipe_dirs,
+                make_suggestions=False,
+                search_github=False,
+            )
+
+        self.assertEqual(second_recipe["RECIPE_PATH"], second_path)
+        mock_identifier_disk.assert_not_called()
+        mock_name_disk.assert_not_called()
+
+    def test_recursive_parent_lookup_from_divergent_base_resolves_in_caller_order(self):
+        """A divergent external load_recipe scope keeps the parent lookup
+        on disk, so a caller-order parent beats the pref-scoped map winner."""
+        pref_parent_path = self._write_recipe(
+            self.pref_a_dir, "Parent.recipe", "com.example.parent"
+        )
+        dev_parent_path = self._write_recipe(
+            self.dev_dir, "Parent.recipe", "com.example.parent"
+        )
+        child_path = self._write_recipe(
+            self.dev_dir,
+            "Child.recipe",
+            "com.example.child",
+            ParentRecipe="com.example.parent",
+        )
+        self._seed_stock_map("com.example.parent", pref_parent_path, shortname="Parent")
+
+        recipe = autopkg.load_recipe(
+            "com.example.child",
+            override_dirs=[],
+            recipe_dirs=[self.dev_dir, self.pref_a_dir],
+            make_suggestions=False,
+            search_github=False,
+        )
+
+        self.assertEqual(recipe["RECIPE_PATH"], child_path)
+        self.assertEqual(recipe["PARENT_RECIPES"][0], dev_parent_path)
 
 
 class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):

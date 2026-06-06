@@ -170,39 +170,27 @@ def find_recipe_by_name(name, search_dirs) -> str | None:
     return find_recipe_by_name_on_disk(name, search_dirs)
 
 
-def _dirs_match_prefs(caller_search_dirs, caller_override_dirs) -> bool:
-    """Return True when the caller-supplied dirs fully include the
-    pref-configured baseline the persisted recipe map was built from.
-    When this is True it is safe to use the map: any recipe the map
-    knows about lives in a directory the caller would have scanned
-    anyway.
+def _dirs_equal_prefs(caller_search_dirs, caller_override_dirs) -> bool:
+    """Return True when the caller's effective dirs are omitted or match
+    the pref baseline in normalized order.
 
-    When this is False the caller has NARROWED the scope (e.g.,
-    ``autopkg run -d /tmp/test-repo Foo`` without also passing the
-    pref dirs), and the map could point at a recipe the caller
-    explicitly excluded. Fall back to an on-disk scan of the caller's
-    exact scope in that case.
-
-    Superset semantics matter for the recursive ``load_recipe`` call:
-    when resolving a parent recipe, the recursion appends the child's
-    directory to ``recipe_dirs``, making the caller's dirs a strict
-    superset of the prefs. The map is still safe (and vastly faster)
-    in that case.
+    The persisted recipe map bakes one winner per identifier and shortname
+    under pref order. If an external caller adds, removes, or reorders dirs,
+    the map is no longer authoritative for that lookup; use an ordered disk
+    scan instead. Recursive parent resolution passes an explicit map-safety
+    signal because it appends a lower-priority child dir after the base
+    scope has already been classified.
 
     This is the guard for GitHub issues #886, #894, #908 and #918."""
-    pref_search = set(_normalize_dirs(get_search_dirs()))
-    pref_override = set(_normalize_dirs(get_override_dirs()))
-    caller_search = set(_normalize_dirs(caller_search_dirs))
-    caller_override = set(_normalize_dirs(caller_override_dirs))
-    # If the caller didn't supply anything for a category, they implicitly
-    # accept the pref baseline for that category.
-    if not caller_search_dirs:
-        caller_search = pref_search
-    if not caller_override_dirs:
-        caller_override = pref_override
-    return pref_search.issubset(caller_search) and pref_override.issubset(
-        caller_override
+    pref_search = _normalize_dirs(get_search_dirs())
+    pref_override = _normalize_dirs(get_override_dirs())
+    caller_search = (
+        _normalize_dirs(caller_search_dirs) if caller_search_dirs else pref_search
     )
+    caller_override = (
+        _normalize_dirs(caller_override_dirs) if caller_override_dirs else pref_override
+    )
+    return caller_search == pref_search and caller_override == pref_override
 
 
 def find_recipe(
@@ -210,17 +198,16 @@ def find_recipe(
     search_dirs=None,
     override_dirs=None,
     skip_overrides=False,
+    map_safe=None,
 ) -> str | None:
     """Find a recipe based on a string that might be an identifier or a name.
 
     Resolution order:
-    1. If the caller supplied ``search_dirs`` / ``override_dirs`` that
-       differ from the configured preferences, scan ONLY those dirs on
-       disk. This preserves the dev-2.x contract that ``autopkg run -d
-       /path/to/repo Foo`` searches exactly ``/path/to/repo`` and not
-       whatever happens to be in the persisted recipe map (issues #886,
-       #894, #908, #918).
-    2. Otherwise, consult the recipe map (O(1)).
+    1. If ``map_safe`` is True, consult the recipe map (O(1)).
+       External callers derive this from normalized-order equality with
+       prefs. Recursive parent lookups pass it explicitly.
+    2. If ``map_safe`` is False, scan only the effective dirs on disk in
+       caller order. The pref-scoped map might bake a lower-priority winner.
     3. On a map miss, fall back to an on-disk scan of ``search_dirs`` (or
        the pref-configured dirs) so recipes that have not been indexed
        yet are still found.
@@ -230,19 +217,18 @@ def find_recipe(
     to an empty scope should not call this function; call
     ``find_recipe_by_identifier_on_disk`` / ``find_recipe_by_name_on_disk``
     directly instead."""
-    # Caller-supplied dirs that differ from prefs → scope to those dirs
-    # only. The map is pref-scoped and would silently include/exclude the
-    # wrong set of dirs, so we bypass it entirely in that case.
-    if _dirs_match_prefs(search_dirs, override_dirs):
+    if map_safe is None:
+        map_safe = _dirs_equal_prefs(search_dirs, override_dirs)
+
+    if map_safe:
         result = find_recipe_by_identifier_in_map(
             id_or_name, skip_overrides=skip_overrides
         ) or find_recipe_by_name_in_map(id_or_name, skip_overrides=skip_overrides)
         if result:
             return result
 
-    # Map disabled, map miss, or caller scoped the search. Walk the
-    # effective search set on disk. Compute the dirs lazily so a map
-    # hit above doesn't pay the cost.
+    # Map disabled, map miss, or divergent caller scope. Walk the effective
+    # dirs on disk. Compute them lazily so a map hit doesn't pay the cost.
     scan_dirs: list[str] = []
     if not skip_overrides:
         scan_dirs.extend(override_dirs or get_override_dirs())
@@ -316,6 +302,7 @@ def locate_recipe(
     make_suggestions=True,
     search_github=True,
     auto_pull=False,
+    map_safe=None,
 ):
     """Locates a recipe by name. If the name is the pathname to a file on disk,
     we attempt to load that file and use it as recipe. If a parent recipe
@@ -336,15 +323,20 @@ def locate_recipe(
 
     if not recipe_file:
         # name wasn't a filename. find_recipe handles map-vs-on-disk
-        # precedence based on whether the caller-supplied dirs match
-        # the prefs (see issues #886, #894, #908, #918).
+        # precedence based on the caller scope's map-safety classification.
         recipe_file = find_recipe(
-            name, search_dirs=recipe_dirs, override_dirs=override_dirs
+            name,
+            search_dirs=recipe_dirs,
+            override_dirs=override_dirs,
+            map_safe=map_safe,
         )
 
     if not recipe_file and _try_cwd_rebuild_once(f"resolving {name!r}"):
         recipe_file = find_recipe(
-            name, search_dirs=recipe_dirs, override_dirs=override_dirs
+            name,
+            search_dirs=recipe_dirs,
+            override_dirs=override_dirs,
+            map_safe=map_safe,
         )
 
     if not recipe_file and make_suggestions:
@@ -413,6 +405,7 @@ def load_recipe(
     make_suggestions=True,
     search_github=True,
     auto_pull=False,
+    _map_safe_scope=None,
 ):
     """Loads a recipe, first locating it by name.
     If we find one, we load it and return the dictionary object. If an
@@ -425,6 +418,8 @@ def load_recipe(
         override_dirs = []
     if recipe_dirs is None:
         recipe_dirs = []
+    if _map_safe_scope is None:
+        _map_safe_scope = _dirs_equal_prefs(recipe_dirs, override_dirs)
     # Populate globalRecipeMap before resolution, but only if it hasn't
     # already been loaded in this process. Without this guard, every
     # recursive load_recipe for a parent recipe would re-read the
@@ -440,6 +435,7 @@ def load_recipe(
         make_suggestions=make_suggestions,
         search_github=search_github,
         auto_pull=auto_pull,
+        map_safe=_map_safe_scope,
     )
 
     if recipe_file:
@@ -471,17 +467,19 @@ def load_recipe(
             # save current recipe as a child
             child_recipe = recipe
             parent_id = get_identifier_from_override(recipe)
-            # add the recipe's directory to the search path
-            # so that we'll be able to locate the parent
-            recipe_dirs.append(os.path.dirname(recipe_file))
+            # Add the recipe's directory to the parent search path without
+            # mutating the caller-owned top-level list.
+            parent_recipe_dirs = list(recipe_dirs)
+            parent_recipe_dirs.append(os.path.dirname(recipe_file))
             # load its parent, this time not looking in override directories
             recipe = load_recipe(
                 parent_id,
                 [],
-                recipe_dirs,
+                parent_recipe_dirs,
                 make_suggestions=make_suggestions,
                 search_github=search_github,
                 auto_pull=auto_pull,
+                _map_safe_scope=_map_safe_scope,
             )
             if recipe:
                 # merge child_recipe

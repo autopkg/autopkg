@@ -618,8 +618,8 @@ find_recipe_by_identifier = find_recipe_by_identifier_on_disk
 #   search dir      An entry in RECIPE_SEARCH_DIRS.
 #   pref-scoped     The persisted map reflects the prefs at build time.
 #                   CLI ``--search-dir`` / ``--override-dir`` flags that
-#                   differ from the pref baseline bypass the map and
-#                   scan only the requested dirs on disk.
+#                   differ from the pref baseline by membership or order
+#                   bypass the map and scan only the requested dirs on disk.
 #
 # On-disk layout:
 #   Path:  ``~/Library/AutoPkg/recipe_map.json``
@@ -636,13 +636,17 @@ find_recipe_by_identifier = find_recipe_by_identifier_on_disk
 # #893, #898.
 #
 # Resolution flow (used by ``find_recipe`` in Code/autopkg):
-#   1. Did the caller supply CLI dirs that differ from prefs?
-#        yes → on-disk scan of ONLY the supplied dirs
-#        no  → consult globalRecipeMap (O(1))
+#   1. Is the caller scope map-safe?
+#        yes → consult globalRecipeMap (O(1))
+#        no  → on-disk scan of ONLY the effective dirs in order
 #   2. Miss?
 #        yes → on-disk fallback of the effective dirs
 #   3. Still miss? ``locate_recipe`` triggers one cwd-inclusive rebuild
 #      (once per process) and retries.
+#
+# External callers are map-safe only when dirs are omitted or normalized-
+# order-equal to prefs. Parent-recursion safety is threaded explicitly by
+# ``load_recipe`` because recursion appends the child recipe's directory.
 
 
 def find_recipe_by_identifier_in_map(
