@@ -232,36 +232,6 @@ To save the token, paste it to the following prompt.""")
 
         return results_items
 
-    def code_search(self, query: str, use_token: bool = False) -> dict | None:
-        """Search GitHub code repos.
-
-        DEPRECATED as of AutoPkg 2.9.0 in favor of cached search index. This function
-        will be removed in a future release."""
-        if use_token:
-            _ = self.get_or_setup_token()
-        # Do the search, including text match metadata
-        results, code = self.call_api(
-            "/search/code",
-            query=query,
-            accept="application/vnd.github.v3.text-match+json",
-        )
-
-        if code == 403:
-            log_err(
-                "You've probably hit the GitHub's search rate limit, officially 5 "
-                "requests per minute.\n"
-            )
-            if results:
-                log_err("Server response follows:\n")
-                log_err(results.get("message", None))
-                log_err(results.get("documentation_url", None))
-
-            return None
-        if results is None or code is None:
-            log_err("A GitHub API error occurred!")
-            return None
-        return results
-
     def call_api(
         self,
         endpoint: str,
