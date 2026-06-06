@@ -520,8 +520,8 @@ class TestCodeSignatureVerifier(unittest.TestCase):
 
             self.assertIn("Code signature verification failed", str(context.exception))
 
-    def test_process_code_signature_requires_requirement(self):
-        """Missing requirement should raise before verifying."""
+    def test_process_code_signature_requires_pinning(self):
+        """Missing requirement should fail closed before verifying."""
         with patch.object(self.processor, "codesign_verify") as mock_verify:
             with self.assertRaises(ProcessorError) as context:
                 self.processor.process_code_signature("/path/to/app")
@@ -604,46 +604,73 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         mock_verify.assert_not_called()
 
     def test_process_code_signature_rejects_expected_authority_names(self):
-        """Using expected_authority_names should raise before verifying."""
+        """expected_authority_names without a requirement should fail closed."""
         self.processor.env["expected_authority_names"] = ["Some Authority"]
 
         with patch.object(self.processor, "codesign_verify") as mock_verify:
-            with self.assertRaises(ProcessorError) as context:
-                self.processor.process_code_signature("/path/to/app")
+            with patch.object(self.processor, "output"):
+                with self.assertRaises(ProcessorError) as context:
+                    self.processor.process_code_signature("/path/to/app")
 
         self.assertIn(
-            "Using 'expected_authority_names' to verify code signature is no longer supported",
+            "Using 'expected_authority_names' to verify an application "
+            "signature is not supported",
             str(context.exception),
         )
         mock_verify.assert_not_called()
 
-    def test_process_code_signature_rejects_empty_authority_names(self):
-        """An empty expected_authority_names should still raise, not be ignored."""
+    def test_process_code_signature_ignores_authority_names_with_requirement(self):
+        """Leaked expected_authority_names should not block requirement checks."""
+        self.processor.env["requirement"] = 'identifier "com.example.app"'
+        self.processor.env["expected_authority_names"] = ["Some Authority"]
+
+        with patch.object(
+            self.processor, "codesign_verify", return_value=True
+        ) as mock_verify:
+            with patch.object(self.processor, "output") as mock_output:
+                self.processor.process_code_signature("/path/to/app")
+
+        mock_verify.assert_called_once_with(
+            "/path/to/app",
+            'identifier "com.example.app"',
+            True,
+            True,
+            [],
+        )
+        mock_output.assert_any_call(
+            "WARNING: Ignoring 'expected_authority_names' on the "
+            "codesign path; 'requirement' is verifying the signature."
+        )
+        mock_output.assert_any_call("Signature is valid")
+
+    def test_process_code_signature_empty_authority_names_with_requirement_arg(
+        self,
+    ):
+        """An empty leaked expected_authority_names is ignored without warning."""
+        additional_args = ["-R", "=anchor apple generic"]
+        self.processor.env["codesign_additional_arguments"] = additional_args
         self.processor.env["expected_authority_names"] = []
 
-        with patch.object(self.processor, "codesign_verify") as mock_verify:
-            with self.assertRaises(ProcessorError) as context:
+        with patch.object(
+            self.processor, "codesign_verify", return_value=True
+        ) as mock_verify:
+            with patch.object(self.processor, "output") as mock_output:
                 self.processor.process_code_signature("/path/to/app")
 
-        self.assertIn(
-            "Using 'expected_authority_names' to verify code signature is no longer supported",
-            str(context.exception),
+        mock_verify.assert_called_once_with(
+            "/path/to/app",
+            None,
+            True,
+            True,
+            additional_args,
         )
-        mock_verify.assert_not_called()
-
-    def test_process_code_signature_rejects_null_authority_names(self):
-        """A null expected_authority_names should raise, not be silently ignored."""
-        self.processor.env["expected_authority_names"] = None
-
-        with patch.object(self.processor, "codesign_verify") as mock_verify:
-            with self.assertRaises(ProcessorError) as context:
-                self.processor.process_code_signature("/path/to/app")
-
-        self.assertIn(
-            "Using 'expected_authority_names' to verify code signature is no longer supported",
-            str(context.exception),
-        )
-        mock_verify.assert_not_called()
+        warnings = [
+            call.args[0]
+            for call in mock_output.call_args_list
+            if call.args and "Ignoring 'expected_authority_names'" in call.args[0]
+        ]
+        self.assertEqual(warnings, [])
+        mock_output.assert_any_call("Signature is valid")
 
     def test_process_code_signature_rejects_empty_requirements_key(self):
         """An empty 'requirements' key should still raise, not be ignored."""
@@ -677,6 +704,8 @@ class TestCodeSignatureVerifier(unittest.TestCase):
 
     def test_process_installer_package_signature_failure(self):
         """Test installer package processing with signature failure."""
+        self.processor.env["expected_authority_names"] = ["Authority 1"]
+
         with patch.object(
             self.processor, "pkgutil_check_signature", return_value=(False, [])
         ):
@@ -760,38 +789,45 @@ class TestCodeSignatureVerifier(unittest.TestCase):
 
         self.assertIn("set but empty", str(context.exception))
 
-    def test_process_installer_package_without_expected_authorities(self):
-        """Without expected_authority_names: signature passes but warns, no raise."""
-        with patch.object(
-            self.processor,
-            "pkgutil_check_signature",
-            return_value=(True, ["Some Authority"]),
-        ):
-            with patch.object(self.processor, "output") as mock_output:
+    def test_process_installer_package_requires_pinning(self):
+        """Without expected_authority_names the pkg path should fail closed."""
+        with patch.object(self.processor, "pkgutil_check_signature") as mock_pkgutil:
+            with self.assertRaises(ProcessorError) as context:
                 self.processor.process_installer_package("/path/to/test.pkg")
 
-        mock_output.assert_any_call("Signature is valid")
-        mock_output.assert_any_call(
-            "WARNING: Package signature is valid but no signer pinning is "
-            "configured; any Apple-trusted signer is accepted. Set "
-            "'expected_authority_names' to pin the certificate chain."
-        )
+        self.assertIn("No 'expected_authority_names' set", str(context.exception))
+        mock_pkgutil.assert_not_called()
 
-    def test_process_installer_package_warns_requirement_ignored(self):
-        """A 'requirement' on the pkg path is a no-op and should warn."""
+    def test_process_installer_package_rejects_requirement_only(self):
+        """A 'requirement' with no expected_authority_names should fail closed."""
         self.processor.env["requirement"] = 'identifier "com.example.app"'
 
-        with patch.object(
-            self.processor,
-            "pkgutil_check_signature",
-            return_value=(True, ["Some Authority"]),
-        ):
-            with patch.object(self.processor, "output") as mock_output:
+        with patch.object(self.processor, "pkgutil_check_signature") as mock_pkgutil:
+            with self.assertRaises(ProcessorError) as context:
                 self.processor.process_installer_package("/path/to/test.pkg")
 
-        mock_output.assert_any_call(
-            "WARNING: 'requirement' is ignored when verifying installer packages."
+        self.assertIn(
+            "'requirement' cannot verify an installer package signature",
+            str(context.exception),
         )
+        mock_pkgutil.assert_not_called()
+
+    def test_process_installer_package_rejects_codesign_args_only(self):
+        """A '-R' in codesign_additional_arguments cannot pin a pkg; fail closed."""
+        self.processor.env["codesign_additional_arguments"] = [
+            "-R",
+            "=anchor apple generic",
+        ]
+
+        with patch.object(self.processor, "pkgutil_check_signature") as mock_pkgutil:
+            with self.assertRaises(ProcessorError) as context:
+                self.processor.process_installer_package("/path/to/test.pkg")
+
+        self.assertIn(
+            "'requirement' cannot verify an installer package signature",
+            str(context.exception),
+        )
+        mock_pkgutil.assert_not_called()
 
     def test_process_installer_package_requirement_and_authority_names(self):
         """requirement + expected_authority_names: warn on requirement, still pin."""
@@ -808,7 +844,8 @@ class TestCodeSignatureVerifier(unittest.TestCase):
                 self.processor.process_installer_package("/path/to/test.pkg")
 
         mock_output.assert_any_call(
-            "WARNING: 'requirement' is ignored when verifying installer packages."
+            "WARNING: Ignoring 'requirement'/'-R' on installer "
+            "packages; 'expected_authority_names' is pinning the signer."
         )
         mock_output.assert_any_call("Authority name chain is valid")
 

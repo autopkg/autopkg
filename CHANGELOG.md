@@ -46,8 +46,8 @@ Several fixes make CodeSignatureVerifier fail closed when a recipe's signature c
 
 - **`strict_verification` now defaults to `True`** (passes `--strict` to codesign). Stricter checking may cause a few recipes to fail verification where they previously passed; setting `strict_verification` to `False` in the affected recipe should resolve this.
 - Verification failures now distinguish a wrong signing identity from an unsigned or invalid signature.
-- For app buncles, a `requirement` is now mandatory. Without one, verification only confirmed that the code was signed by *someone* with a valid Developer ID (including a potential attacker), so recipes that omit it now error instead of passing.
-- For installer packages, CodeSignatureVerifier now warns when no `expected_authority_names` is configured (any Apple-trusted signer is otherwise accepted) and when a `requirement` is set (it is ignored on this path).
+- For app bundles, a `requirement` is now mandatory. Without one, verification only confirmed that the code was signed by *someone* with a valid Developer ID (including a potential attacker), so recipes that omit it now error instead of passing.
+- For installer packages, `expected_authority_names` is now mandatory. Without it, verification only confirmed that the package was signed by *any* Apple-trusted installer certificate, so recipes that omit it now error instead of passing. A `requirement` does not apply to installer packages: supplying it as the only pinning now errors (use `expected_authority_names` instead), and supplying it alongside `expected_authority_names` warns that it is ignored.
 - Typoed versions of the `requirement` and `expected_authority_names` keys now result in an error instead of a warning.
 
 ### Other

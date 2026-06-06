@@ -71,6 +71,8 @@ class CodeSignatureVerifier(DmgMounter):
                 "is required and it needs to be in the correct order. These "
                 "can be determined by running: "
                 "\n\tpkgutil --check-signature <path_to_pkg>"
+                "\nRequired to verify an installer package unless "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION is set."
             ),
         },
         "requirement": {
@@ -81,6 +83,8 @@ class CodeSignatureVerifier(DmgMounter):
                 "requirement of the application and can be determined "
                 "by running:"
                 "\n\t$ codesign --display -r- <path_to_app>"
+                "\nRequired to verify an application unless "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION is set."
             ),
         },
         "deep_verification": {
@@ -248,23 +252,6 @@ class CodeSignatureVerifier(DmgMounter):
         if "requirements" in self.env:
             raise ProcessorError("Use 'requirement' instead of 'requirements'.")
 
-        if "expected_authority_names" in self.env:
-            self.output(
-                "ERROR: Using 'expected_authority_names' to verify code "
-                "signature is no longer supported. Recipes should use the "
-                "'requirement' argument instead."
-            )
-            self.output(
-                "See https://github.com/autopkg/autopkg/wiki/Using-"
-                "CodeSignatureVerification for more information."
-            )
-            raise ProcessorError(
-                "Using 'expected_authority_names' to verify code signature "
-                "is no longer supported. Note that all verifications can be disabled "
-                "by setting the variable DISABLE_CODE_SIGNATURE_VERIFICATION "
-                "to a non-empty value."
-            )
-
         # The first step is to run 'codesign --verify <path>'
         requirement = self.env.get("requirement")
         strict_verification = self.env.get("strict_verification", True)
@@ -279,15 +266,43 @@ class CodeSignatureVerifier(DmgMounter):
             or arg.startswith("--test-requirement=")
             for arg in codesign_additional_arguments
         )
-        if not requirement and not requirement_in_additional_args:
+        has_requirement = requirement or requirement_in_additional_args
+        expected_authority_names = self.env.get("expected_authority_names")
+
+        if has_requirement:
+            # 'expected_authority_names' is inert here; 'requirement' pins.
+            if expected_authority_names:
+                self.output(
+                    "WARNING: Ignoring 'expected_authority_names' on the "
+                    "codesign path; 'requirement' is verifying the signature."
+                )
+        elif expected_authority_names:
+            # Wrong key: 'expected_authority_names' is pkg-only and inert here,
+            # so honoring it would accept any valid signer. Fail closed.
+            self.output(
+                "ERROR: 'expected_authority_names' cannot verify an application "
+                "signature; use 'requirement' instead."
+            )
+            self.output(
+                "See https://github.com/autopkg/autopkg/wiki/Using-"
+                "CodeSignatureVerification for more information."
+            )
             raise ProcessorError(
-                "No 'requirement' set. Without one, verification only confirms "
-                "the code is signed by someone with a valid Developer ID, "
-                "including an attacker. Set 'requirement' to the app's "
-                "designated requirement from 'codesign --display -r- <path>'. "
-                "Note that all verifications can be disabled by setting the "
-                "variable DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty "
-                "value."
+                "Using 'expected_authority_names' to verify an application "
+                "signature is not supported; use 'requirement' instead. Note "
+                "that all verifications can be disabled by setting the variable "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
+            )
+        else:
+            # No pinning: a bare 'codesign --verify' confirms a valid Developer
+            # ID signature but not the expected signer. Fail closed.
+            raise ProcessorError(
+                "No 'requirement' set. Confirming only that the code is signed "
+                "by some valid Developer ID does not verify the expected signer. "
+                "Set 'requirement' to the app's designated requirement from "
+                "'codesign --display -r- <path>'. Note that verification can be "
+                "disabled by setting the variable "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
 
         if self.codesign_verify(
@@ -332,50 +347,73 @@ class CodeSignatureVerifier(DmgMounter):
                 "Use 'expected_authority_names' instead of 'expected_authorities'."
             )
 
-        if self.env.get("requirement"):
-            self.output(
-                "WARNING: 'requirement' is ignored when verifying installer packages."
+        expected_authority_names = self.env.get("expected_authority_names")
+        if "expected_authority_names" in self.env and not expected_authority_names:
+            raise ProcessorError(
+                "'expected_authority_names' is set but empty. Provide the "
+                "full certificate authority chain or remove the key. Note "
+                "that all verification can be disabled by setting the "
+                "variable DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty "
+                "value."
             )
 
-        # The first step is to run 'pkgutil --check-signature <path>'
+        # 'requirement' and '-R' are codesign options; pkgutil never sees them.
+        codesign_additional_arguments = self.env.get(
+            "codesign_additional_arguments", []
+        )
+        codesign_pinning = self.env.get("requirement") or any(
+            arg.startswith("-R")
+            or arg == "--test-requirement"
+            or arg.startswith("--test-requirement=")
+            for arg in codesign_additional_arguments
+        )
+        if codesign_pinning and expected_authority_names:
+            self.output(
+                "WARNING: Ignoring 'requirement'/'-R' on installer packages; "
+                "'expected_authority_names' is pinning the signer."
+            )
+        elif codesign_pinning:
+            # Wrong key: 'requirement' is app-only and inert here, so ignoring
+            # it would accept any Apple-trusted signer. Fail closed.
+            raise ProcessorError(
+                "'requirement' cannot verify an installer package signature; "
+                "use 'expected_authority_names' to pin the signer. Note that "
+                "verification can be disabled by setting the variable "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
+            )
+        elif not expected_authority_names:
+            # No pinning: a valid package signature confirms some Apple-trusted
+            # signer but not the expected one. Fail closed.
+            raise ProcessorError(
+                "No 'expected_authority_names' set. A valid package signature "
+                "alone does not verify the expected signer. Set "
+                "'expected_authority_names' to the certificate authority chain "
+                "from 'pkgutil --check-signature <path>'. Note that "
+                "verification can be disabled by setting the variable "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
+            )
+
+        # Run 'pkgutil --check-signature <path>'
         pkgutil_succeeded, authority_names = self.pkgutil_check_signature(path)
 
-        if pkgutil_succeeded:
-            self.output("Signature is valid")
-        else:
+        if not pkgutil_succeeded:
             raise ProcessorError(
                 "Code signature verification failed. Note that all "
                 "verification can be disabled by setting the variable "
                 "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
+        self.output("Signature is valid")
 
-        if "expected_authority_names" in self.env:
-            expected_authority_names = self.env["expected_authority_names"]
-            if not expected_authority_names:
-                raise ProcessorError(
-                    "'expected_authority_names' is set but empty. Provide the "
-                    "full certificate authority chain or remove the key. Note "
-                    "that all verification can be disabled by setting the "
-                    "variable DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty "
-                    "value."
-                )
-            if authority_names != expected_authority_names:
-                self.output("Mismatch in authority names")
-                self.output(f"Expected: {' -> '.join(expected_authority_names)}")
-                self.output(f"Found:    {' -> '.join(authority_names)}")
-                raise ProcessorError(
-                    "Mismatch in authority names. Note that all "
-                    "verification can be disabled by setting the variable "
-                    "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
-                )
-            else:
-                self.output("Authority name chain is valid")
-        else:
-            self.output(
-                "WARNING: Package signature is valid but no signer pinning is "
-                "configured; any Apple-trusted signer is accepted. Set "
-                "'expected_authority_names' to pin the certificate chain."
+        if authority_names != expected_authority_names:
+            self.output("Mismatch in authority names")
+            self.output(f"Expected: {' -> '.join(expected_authority_names)}")
+            self.output(f"Found:    {' -> '.join(authority_names)}")
+            raise ProcessorError(
+                "Mismatch in authority names. Note that all "
+                "verification can be disabled by setting the variable "
+                "DISABLE_CODE_SIGNATURE_VERIFICATION to a non-empty value."
             )
+        self.output("Authority name chain is valid")
 
     def main(self) -> None:
         if self.env.get("DISABLE_CODE_SIGNATURE_VERIFICATION"):
