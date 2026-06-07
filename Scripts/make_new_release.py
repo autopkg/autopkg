@@ -84,8 +84,7 @@ def api_call(
 
     req = urllib.request.Request(baseurl + endpoint, headers=headers)
     try:
-        context = ssl.SSLContext()
-        context.load_verify_locations(certifi.where())
+        context = ssl.create_default_context(cafile=certifi.where())
         results = urllib.request.urlopen(req, data=data, context=context)
     except urllib.error.HTTPError as err:
         print("HTTP error making API call!", file=sys.stderr)

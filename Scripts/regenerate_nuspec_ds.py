@@ -48,10 +48,7 @@ SCHEMA_XMLNS: bytes = b"http://schemas.microsoft.com/packaging/2015/06/nuspec.xs
 
 def get_schema_source(url: str, xmlns: bytes = SCHEMA_XMLNS) -> bytes:
     """Fetch the latest XML schema and replace `{0}` with the given XML namespace."""
-    context = ssl.SSLContext()
-    context.verify_mode = ssl.CERT_REQUIRED
-    context.check_hostname = True
-    context.load_default_certs()
+    context = ssl.create_default_context()
 
     with urlopen(SCHEMA_SOURCE_URL, context=context) as res:
         return res.read().replace(b"{0}", xmlns)
