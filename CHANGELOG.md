@@ -110,6 +110,7 @@ The Python requirements are now split into a hand-maintained `requirements.in` (
 - `audit` now reports path-sensitive recipe values that deserve closer inspection, including identifiers with path traversal markers, suspicious privileged install/copy paths, `PkgRootCreator` parent-directory references, unsafe DMG pseudo-paths, and Chocolatey package identifiers or versions containing path separators.
 - URLGetter now reports curl diagnostics correctly when file downloads fail in binary mode.
 - Removed unused code from PkgRootCreator, URLDownloaderPython, and Versioner.
+- Implemented 7-day cooldown for Python library and GitHub Actions update suggestions from Dependabot.
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
