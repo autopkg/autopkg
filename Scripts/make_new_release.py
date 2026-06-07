@@ -311,7 +311,7 @@ def main():
             "AutoPkgGitMaster.pkg",
             "-vvvv",
             "-k",
-            "PYTHON_VERSION=3.10.11",
+            "PYTHON_VERSION=3.11.9",
             "-k",
             "REQUIREMENTS_FILENAME=requirements.txt",
             "-k",

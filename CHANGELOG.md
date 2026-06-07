@@ -50,6 +50,14 @@ Several fixes make CodeSignatureVerifier fail closed when a recipe's signature c
 - For installer packages, `expected_authority_names` is now mandatory. Without it, verification only confirmed that the package was signed by *any* Apple-trusted installer certificate, so recipes that omit it now error instead of passing. A `requirement` does not apply to installer packages: supplying it as the only pinning now errors (use `expected_authority_names` instead), and supplying it alongside `expected_authority_names` warns that it is ignored.
 - Typoed versions of the `requirement` and `expected_authority_names` keys now result in an error instead of a warning.
 
+### Python 3.11 (and plans for 3.12)
+
+AutoPkg 3.0.0 includes Python 3.11.9, chosen because it introduces no breaking changes for AutoPkg or its bundled packages, and for its October 2027 security-support EOL.
+
+The Python requirements are now split into a hand-maintained `requirements.in` (direct dependencies only) and a compiled `requirements.txt` lockfile. The bundled PyObjC framework set has been trimmed to the frameworks with actual consumers, dropping `CFNetwork`, `LaunchServices`, `OpenDirectory`, and `Quartz`, which had no consumers in the AutoPkg core or in the autopkg org recipe repos. `tomli` has been dropped; Python 3.11 includes `tomllib` in the standard library.
+
+**Note to custom processor authors**: AutoPkg 3.1.0 plans to include Python 3.12, which removes `distutils`. If your processors still import from `distutils`, they will break on AutoPkg 3.1.0. AutoPkg's `APLooseVersion` is a drop-in replacement for `LooseVersion`; see the [migration guide](https://github.com/autopkg/autopkg/wiki/Migrating-Custom-Processors-to-Python-3#comparing-versions-use-aplooseversion) on the wiki. PRs have been opened against affected processors in the autopkg org.
+
 ### Other
 
 - Files in PkgCreator `scripts` directories are now included in recipe override trust information. Changes to preinstall/postinstall scripts or any other files bundled into packages will now trigger trust verification failures. Only git-tracked files are hashed when the scripts directory is inside a git repo, so untracked files like `.DS_Store` won't cause false trust failures. (#980)
