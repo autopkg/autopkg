@@ -59,6 +59,7 @@ itemcopier = load_worker_module(
 )
 
 
+@unittest.skipUnless(sys.platform == "darwin", "autopkgserver is macOS-only")
 class TestInstallerValidation(unittest.TestCase):
     """Test class for Installer request validation."""
 
@@ -180,6 +181,7 @@ class TestInstallerValidation(unittest.TestCase):
             worker.install()
 
 
+@unittest.skipUnless(sys.platform == "darwin", "autopkgserver is macOS-only")
 class TestItemCopierValidation(unittest.TestCase):
     """Test class for ItemCopier request validation."""
 
