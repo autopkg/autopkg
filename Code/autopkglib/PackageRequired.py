@@ -44,3 +44,8 @@ class PackageRequired(Processor):
 
         if not os.path.exists(pkg):
             raise ProcessorError(f"Path to package or disk image does not exist: {pkg}")
+
+
+if __name__ == "__main__":
+    PROCESSOR = PackageRequired()
+    PROCESSOR.execute_shell()
