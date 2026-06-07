@@ -451,8 +451,10 @@ class TestProcessorBase(unittest.TestCase):
         with patch.object(processor, "read_input_plist") as mock_read:
             with patch.object(processor, "process") as mock_process:
                 with patch.object(processor, "write_output_plist") as mock_write:
-                    with patch("sys.exit") as mock_exit:
-                        processor.execute_shell()
+                    with patch("sys.stdin") as mock_stdin:
+                        mock_stdin.isatty.return_value = False
+                        with patch("sys.exit") as mock_exit:
+                            processor.execute_shell()
 
         mock_read.assert_called_once()
         mock_process.assert_called_once()
@@ -478,9 +480,11 @@ class TestProcessorBase(unittest.TestCase):
             with patch.object(processor, "process") as mock_process:
                 mock_process.side_effect = ProcessorError("Test error")
                 with patch("autopkglib.log_err") as mock_log_err:
-                    with patch("sys.exit") as mock_exit:
-                        with patch("sys.argv", ["processor"]):  # Mock sys.argv
-                            processor.execute_shell()
+                    with patch("sys.stdin") as mock_stdin:
+                        mock_stdin.isatty.return_value = False
+                        with patch("sys.exit") as mock_exit:
+                            with patch("sys.argv", ["processor"]):
+                                processor.execute_shell()
 
         # Check that log_err was called with the ProcessorError message
         mock_log_err.assert_called_once()
