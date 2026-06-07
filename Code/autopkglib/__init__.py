@@ -26,6 +26,7 @@ import pprint
 import re
 import subprocess
 import sys
+import textwrap
 import traceback
 from copy import deepcopy
 from typing import IO, Any, Union
@@ -1443,9 +1444,47 @@ class Processor:
 
         return stdout
 
+    def _print_help(self) -> None:
+        """Print processor description and variable documentation."""
+        description = " ".join(
+            textwrap.dedent(getattr(self, "description", "")).split()
+        )
+        input_variables = getattr(self, "input_variables", {})
+        output_variables = getattr(self, "output_variables", {})
+        lifecycle = getattr(self, "lifecycle", {})
+        print(f"{self.__class__.__name__}: {description}")
+        if lifecycle.get("introduced"):
+            print(f"\nIntroduced in AutoPkg {lifecycle['introduced']}.")
+        if lifecycle.get("deprecated"):
+            print(f"\nDeprecated in AutoPkg {lifecycle['deprecated']}.")
+        self._print_vars("Input variables", input_variables, show_required=True)
+        self._print_vars("Output variables", output_variables)
+        print(
+            "\nNOTE: Direct processor invocation with `key=value` is for "
+            "development only. Normal usage is in the Process array of recipes."
+        )
+
+    def _print_vars(
+        self, label: str, variables: VarDict, show_required: bool = False
+    ) -> None:
+        """Print a labeled block of processor variables."""
+        if not variables:
+            return
+        width = max(len(k) for k in variables)
+        print(f"\n{label}:")
+        for key, flags in variables.items():
+            required = " (required)" if show_required and flags.get("required") else ""
+            desc = flags.get("description", "")
+            print(f"  {key:<{width}}  {desc}{required}")
+
     def execute_shell(self) -> None:
         """Execute as a standalone binary on the commandline."""
 
+        if {"-h", "--help"} & set(sys.argv[1:]) or (
+            not sys.argv[1:] and sys.stdin.isatty()
+        ):
+            self._print_help()
+            sys.exit(0)
         try:
             if not sys.argv[1:]:
                 self.read_input_plist()
