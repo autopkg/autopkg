@@ -522,6 +522,65 @@ class TestSearchCmd(unittest.TestCase):
         self.assertEqual(call_args[0], cache_path)
         self.assertIn("404", call_args[1])
 
+    @patch("autopkgcmd.searchcmd.handle_cache_error")
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_handles_github_error_without_status(
+        self, mock_gh_session, mock_url_getter, mock_handle_error
+    ):
+        """GitHub error JSON may include message but no status or sha."""
+        cache_dir = tempfile.gettempdir()
+        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
+
+        mock_gh_session.return_value.token = "bad_token"
+
+        mock_api = MagicMock()
+        mock_url_getter.return_value = mock_api
+        mock_api.execute_curl.return_value = (
+            '{"message": "Bad credentials", "documentation_url": "https://docs.github.com/rest"}',
+            "",
+            0,
+        )
+
+        check_search_cache(cache_path)
+
+        mock_handle_error.assert_called_once()
+        call_args = mock_handle_error.call_args[0]
+        self.assertEqual(call_args[0], cache_path)
+        self.assertIn("Bad credentials", call_args[1])
+        self.assertEqual(mock_api.execute_curl.call_count, 1)
+
+    @patch("autopkgcmd.searchcmd.URLGetter")
+    @patch("autopkgcmd.searchcmd.GitHubSession")
+    def test_check_search_cache_uses_cache_for_github_error_without_status(
+        self, mock_gh_session, mock_url_getter
+    ):
+        """Existing cache should be used when GitHub error JSON has no sha."""
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            cache_path = tmp.name
+            tmp.write(b'{"test": "data"}')
+
+        try:
+            mock_gh_session.return_value.token = "bad_token"
+
+            mock_api = MagicMock()
+            mock_url_getter.return_value = mock_api
+            mock_api.execute_curl.return_value = (
+                '{"message": "Bad credentials", "documentation_url": "https://docs.github.com/rest"}',
+                "",
+                0,
+            )
+
+            with patch("sys.stderr", new=StringIO()) as mock_stderr:
+                check_search_cache(cache_path)
+                stderr_output = mock_stderr.getvalue()
+
+            self.assertIn("WARNING", stderr_output)
+            self.assertIn("Bad credentials", stderr_output)
+            self.assertEqual(mock_api.execute_curl.call_count, 1)
+        finally:
+            os.unlink(cache_path)
+
     @patch("builtins.open", new_callable=mock_open)
     @patch("os.path.isfile")
     @patch("autopkgcmd.searchcmd.URLGetter")

@@ -78,6 +78,7 @@ The Python requirements are now split into a hand-maintained `requirements.in` (
 - Updated filelock to 3.20.3 (#1010)
 - Updated lxml to 6.1.0
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
+- Prevented KeyError during search when a GitHub error response omits the `status` field
 - GitHub token handling is now more resilient: malformed or whitespace-only tokens are rejected before use and logged as a warning, and GET requests that receive a 401 automatically retry without authentication while alerting the user to regenerate their token (#1052)
 - `GITHUB_TOKEN` is now available for recipe variable substitution when the token comes from `~/.autopkg_gh_token`, matching tokens stored in preferences (#923).
 - Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039)

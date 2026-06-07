@@ -110,6 +110,13 @@ def check_search_cache(cache_path: str) -> None:
         handle_cache_error(cache_path, cache_meta.get("message", f"Error {status}"))
         return
 
+    cache_sha = cache_meta.get("sha")
+    if not cache_sha:
+        handle_cache_error(
+            cache_path, cache_meta.get("message", "Invalid response from GitHub API")
+        )
+        return
+
     # Warn if search index file is approaching 100 MB
     # https://docs.github.com/en/rest/repos/contents#size-limits
     search_index_size_msg = (
@@ -127,14 +134,14 @@ def check_search_cache(cache_path: str) -> None:
     if os.path.isfile(cache_path) and os.path.isfile(cache_path + ".etag"):
         with open(cache_path + ".etag", "r", encoding="utf-8") as openfile:
             local_etag = openfile.read().strip('"')
-        if local_etag == cache_meta["sha"]:
+        if local_etag == cache_sha:
             # Local cache is already current
             return
 
     # Write etag file
     try:
         with open(cache_path + ".etag", "w", encoding="utf-8") as openfile:
-            openfile.write(cache_meta["sha"])
+            openfile.write(cache_sha)
     except PermissionError:
         log_err(
             "ERROR: Unable to save search index cache. "
@@ -308,7 +315,8 @@ def search_recipes(argv: list[str]) -> int:
         # https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/managing-iam-for-your-enterprise/username-considerations-for-external-authentication#about-username-normalization
         if not re.match(r"^[A-Za-z0-9\-]+$", options.user):
             log_err(
-                "WARNING: GitHub user/org names contain only alphanumeric characters and dashes."
+                "WARNING: GitHub user/org names contain only alphanumeric "
+                "characters and dashes."
             )
         options.user = re.sub(r"[^A-Za-z0-9\-]", "", options.user)
         keyword = quote_plus(arguments[0]).lower()
