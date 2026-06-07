@@ -1374,6 +1374,118 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
         self.assertEqual(warnings, [])
 
+    def test_find_path_safety_warnings_generic_processor_traversal(self):
+        """Test audit path-safety warnings for generic path traversal."""
+        recipe = {
+            "Input": {},
+            "Process": [
+                {
+                    "Processor": "Copier",
+                    "Arguments": {
+                        "source_path": "../Evil.app",
+                        "destination_path": "%RECIPE_CACHE_DIR%/Test.app",
+                    },
+                }
+            ],
+        }
+
+        warnings = autopkg.find_path_safety_warnings_in_recipe(recipe)
+
+        self.assertEqual(
+            warnings,
+            [
+                {
+                    "location": "Copier.source_path",
+                    "reason": "path contains parent-directory references",
+                    "value": "../Evil.app",
+                }
+            ],
+        )
+
+    def test_find_path_safety_warnings_allows_confined_relative_paths(self):
+        """Test audit path-safety warnings ignore confined relative paths."""
+        recipe = {
+            "Input": {},
+            "Process": [
+                {
+                    "Processor": "Copier",
+                    "Arguments": {
+                        "source_path": "Payload/Test.app",
+                        "destination_path": "build/Test.app",
+                    },
+                }
+            ],
+        }
+
+        warnings = autopkg.find_path_safety_warnings_in_recipe(recipe)
+
+        self.assertEqual(warnings, [])
+
+    def test_find_path_safety_warnings_pathdeleter_list_traversal(self):
+        """Test audit path-safety warnings inspect PathDeleter path lists."""
+        recipe = {
+            "Input": {},
+            "Process": [
+                {
+                    "Processor": "PathDeleter",
+                    "Arguments": {"path_list": ["safe/path", "../evil"]},
+                }
+            ],
+        }
+
+        warnings = autopkg.find_path_safety_warnings_in_recipe(recipe)
+
+        self.assertEqual(len(warnings), 1)
+        self.assertEqual(warnings[0]["location"], "PathDeleter.path_list[1]")
+
+    def test_find_weak_hashes_in_recipe(self):
+        """Test audit weak-hash warnings for ChocolateyPackager."""
+        for algorithm in ("md5", "sha1"):
+            with self.subTest(algorithm=algorithm):
+                recipe = {
+                    "Input": {"CHECKSUM_TYPE": algorithm},
+                    "Process": [
+                        {
+                            "Processor": "ChocolateyPackager",
+                            "Arguments": {"installer_checksum_type": "%CHECKSUM_TYPE%"},
+                        }
+                    ],
+                }
+
+                weak_hashes = autopkg.find_weak_hashes_in_recipe(recipe)
+
+                self.assertEqual(
+                    weak_hashes,
+                    [
+                        {
+                            "location": ("ChocolateyPackager.installer_checksum_type"),
+                            "algorithm": algorithm,
+                            "reason": (
+                                f"uses weak algorithm '{algorithm}'; "
+                                "prefer sha256 or stronger"
+                            ),
+                        }
+                    ],
+                )
+
+    def test_find_weak_hashes_in_recipe_ignores_strong_or_default(self):
+        """Test audit weak-hash warnings ignore strong or absent algorithms."""
+        for recipe in (
+            {
+                "Process": [
+                    {
+                        "Processor": "ChocolateyPackager",
+                        "Arguments": {"installer_checksum_type": "sha256"},
+                    }
+                ]
+            },
+            {"Process": [{"Processor": "ChocolateyPackager"}]},
+        ):
+            with self.subTest(recipe=recipe):
+                weak_hashes = autopkg.find_weak_hashes_in_recipe(recipe)
+
+                self.assertEqual(weak_hashes, [])
+
     @patch("sys.argv", ["autopkg", "audit", "test.recipe"])
     def test_audit_basic_recipe_no_issues(self):
         """Test audit command with a basic recipe that has no issues."""
@@ -1564,7 +1676,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
             self.assertIsNone(result)
             mock_log.assert_any_call(
-                "    The following http URLs were found in the recipe:"
+                "    The following insecure URLs were found in the recipe:"
             )
             mock_printplist.assert_called_once()
 
@@ -3150,6 +3262,15 @@ class TestAutoPkgRecipes(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
+    def test_find_http_urls_in_recipe_ftp_input(self):
+        """Test find_http_urls_in_recipe catches FTP URLs in Input."""
+        recipe = {"Input": {"DOWNLOAD_URL": "ftp://example.com/file.zip"}}
+
+        result = autopkg.find_http_urls_in_recipe(recipe)
+
+        expected = {"Input": {"DOWNLOAD_URL": "ftp://example.com/file.zip"}}
+        self.assertEqual(result, expected)
+
     def test_find_http_urls_in_recipe_process_section_only(self):
         """Test find_http_urls_in_recipe with HTTP URLs only in Process section."""
         recipe = {
@@ -3284,8 +3405,8 @@ class TestAutoPkgRecipes(unittest.TestCase):
         result = autopkg.find_http_urls_in_recipe(recipe)
         self.assertEqual(result, {})
 
-    def test_find_http_urls_in_recipe_http_prefix_check(self):
-        """Test find_http_urls_in_recipe only catches URLs starting with 'http:'."""
+    def test_find_http_urls_in_recipe_insecure_prefix_check(self):
+        """Test find_http_urls_in_recipe catches insecure URL prefixes."""
         recipe = {
             "Input": {
                 "HTTP_URL": "http://example.com/download",
@@ -3297,7 +3418,12 @@ class TestAutoPkgRecipes(unittest.TestCase):
             }
         }
         result = autopkg.find_http_urls_in_recipe(recipe)
-        expected = {"Input": {"HTTP_URL": "http://example.com/download"}}
+        expected = {
+            "Input": {
+                "HTTP_URL": "http://example.com/download",
+                "FTP_URL": "ftp://example.com/file",
+            }
+        }
         self.assertEqual(result, expected)
 
     def test_new_recipe_basic_plist(self):

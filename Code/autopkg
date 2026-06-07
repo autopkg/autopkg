@@ -2968,12 +2968,14 @@ def printplist(plistdict):
         printplistitem(key, plistdict[key], indent=2)
 
 
+INSECURE_URL_PREFIXES = ("http:", "ftp:")
+
+
 def find_http_urls_in_recipe(recipe):
-    """Looks in the Input and Process sections of a recipe for any http URLs.
-    Returns a dict."""
+    """Looks in the Input and Process sections of a recipe for insecure URLs."""
     recipe_urls = {}
     for key, value in list(recipe.get("Input", {}).items()):
-        if isinstance(value, str) and value.startswith("http:"):
+        if isinstance(value, str) and value.startswith(INSECURE_URL_PREFIXES):
             if "Input" not in recipe_urls:
                 recipe_urls["Input"] = {}
             recipe_urls["Input"][key] = value
@@ -2981,7 +2983,7 @@ def find_http_urls_in_recipe(recipe):
         processor = step["Processor"]
         arguments = step.get("Arguments", {})
         for key, value in list(arguments.items()):
-            if isinstance(value, str) and value.startswith("http:"):
+            if isinstance(value, str) and value.startswith(INSECURE_URL_PREFIXES):
                 if "Process" not in recipe_urls:
                     recipe_urls["Process"] = {}
                 if processor not in recipe_urls["Process"]:
@@ -2993,6 +2995,13 @@ def find_http_urls_in_recipe(recipe):
 AUDIT_DMG_EXTENSIONS = (".dmg/", ".iso/")
 AUDIT_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 AUDIT_RUNTIME_PATH_PREFIXES = ("%RECIPE_CACHE_DIR%", "%CACHE_DIR%")
+WEAK_HASH_ALGORITHMS = ("md5", "sha1")
+AUDIT_GENERIC_TRAVERSAL_KEYS = {
+    "Copier": ("source_path", "destination_path"),
+    "FileMover": ("source", "target"),
+    "PathDeleter": ("path_list",),
+    "Unarchiver": ("archive_path", "destination_path"),
+}
 
 
 def _audit_path_has_parent_reference(value) -> bool:
@@ -3105,9 +3114,26 @@ def _audit_static_install_path_is_outside_expected_locations(value) -> bool:
 def find_path_safety_warnings_in_recipe(recipe):
     """Find static path values that deserve extra audit attention."""
     warnings = []
+    seen_warnings = set()
 
     def add_warning(location, reason, value):
+        warning_key = (location, str(value))
+        if warning_key in seen_warnings:
+            return
+        seen_warnings.add(warning_key)
         warnings.append({"location": location, "reason": reason, "value": str(value)})
+
+    def add_parent_reference_warnings(location, value):
+        if isinstance(value, str):
+            if _audit_path_has_parent_reference(value):
+                add_warning(
+                    location,
+                    "path contains parent-directory references",
+                    value,
+                )
+        elif isinstance(value, list):
+            for index, item in enumerate(value):
+                add_parent_reference_warnings(f"{location}[{index}]", item)
 
     identifier = recipe.get("Identifier") or recipe.get("Input", {}).get("IDENTIFIER")
     if isinstance(identifier, str) and _audit_string_contains_path_marker(identifier):
@@ -3196,8 +3222,36 @@ def find_path_safety_warnings_in_recipe(recipe):
                         "contains path separators or parent-directory references",
                         value,
                     )
+        elif processor in AUDIT_GENERIC_TRAVERSAL_KEYS:
+            for key in AUDIT_GENERIC_TRAVERSAL_KEYS[processor]:
+                value = _audit_step_value(recipe, step, key)
+                add_parent_reference_warnings(f"{processor}.{key}", value)
 
     return warnings
+
+
+def find_weak_hashes_in_recipe(recipe):
+    """Find explicitly configured weak hash algorithms in recipe processors."""
+    weak_hashes = []
+    for step in recipe.get("Process", []):
+        if step.get("Processor") != "ChocolateyPackager":
+            continue
+        value = _audit_step_value(recipe, step, "installer_checksum_type")
+        if not isinstance(value, str):
+            continue
+        algorithm = value.lower()
+        if algorithm in WEAK_HASH_ALGORITHMS:
+            weak_hashes.append(
+                {
+                    "location": "ChocolateyPackager.installer_checksum_type",
+                    "algorithm": algorithm,
+                    "reason": (
+                        f"uses weak algorithm '{algorithm}'; "
+                        "prefer sha256 or stronger"
+                    ),
+                }
+            )
+    return weak_hashes
 
 
 def audit(argv):
@@ -3290,6 +3344,9 @@ def audit(argv):
         path_safety_warnings = find_path_safety_warnings_in_recipe(recipe)
         if path_safety_warnings:
             audit_results[recipe_path]["path_safety_warnings"] = path_safety_warnings
+        weak_hashes = find_weak_hashes_in_recipe(recipe)
+        if weak_hashes:
+            audit_results[recipe_path]["weak_hashes"] = weak_hashes
         recipe_processors = [step["Processor"] for step in recipe["Process"]]
         if (
             set(recipe_processors).intersection(DOWNLOAD_PROCESSORS)
@@ -3335,7 +3392,7 @@ def audit(argv):
             if audit_results[recipe_path].get("MissingCodeSignatureVerifier"):
                 log("    Missing CodeSignatureVerifier")
             if audit_results[recipe_path].get("http_urls"):
-                log("    The following http URLs were found in the recipe:")
+                log("    The following insecure URLs were found in the recipe:")
                 printplist(audit_results[recipe_path]["http_urls"])
             path_safety_warnings = audit_results[recipe_path].get(
                 "path_safety_warnings"
@@ -3345,6 +3402,14 @@ def audit(argv):
                 for warning in path_safety_warnings:
                     log(f"        {warning['location']}: {warning['reason']}")
                     log(f"            {warning['value']}")
+            weak_hashes = audit_results[recipe_path].get("weak_hashes")
+            if weak_hashes:
+                log(
+                    "    The following weak hash algorithms were found in "
+                    "the recipe:"
+                )
+                for weak_hash in weak_hashes:
+                    log(f"        {weak_hash['location']}: {weak_hash['reason']}")
             if audit_results[recipe_path].get("non_core_processors"):
                 log(
                     "    The following processors are non-core and can execute "
