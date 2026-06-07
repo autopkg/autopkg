@@ -322,16 +322,16 @@ def main():
 
     # Temporarily move user pip and pip cache to prevent interference with
     # relocatable-python build process
-    site_packages = os.path.expanduser("~/Library/Python/3.10/lib/python/site-packages")
     pip_cache_dir = os.path.expanduser("~/Library/Caches/pip")
     temp_suffix = f".backup.{os.getpid()}"
 
     moved_paths = []
-    # Move pip directories (handles any version)
     paths_to_move = [pip_cache_dir]
-    if os.path.exists(site_packages):
-        paths_to_move.extend(glob.glob(os.path.join(site_packages, "pip")))
-        paths_to_move.extend(glob.glob(os.path.join(site_packages, "pip-*.dist-info")))
+    for sp in glob.glob(
+        os.path.expanduser("~/Library/Python/*/lib/python/site-packages")
+    ):
+        paths_to_move.extend(glob.glob(os.path.join(sp, "pip")))
+        paths_to_move.extend(glob.glob(os.path.join(sp, "pip-*.dist-info")))
 
     for path in paths_to_move:
         if os.path.exists(path):
