@@ -1,0 +1,40 @@
+#
+# Common Requirements
+# See below for *nix and macOS requirements.
+#
+appdirs
+certifi
+lxml
+pyyaml
+
+#
+# Dev Requirements
+#
+black
+flake8
+flake8-bugbear
+isort
+pre-commit
+# setuptools.pkg_resources only used by MLBZ521-recipes, n8felton-recipes
+setuptools
+
+#
+# *nix Requirements
+#
+xattr; sys_platform == 'darwin' or sys_platform == 'linux'
+
+#
+# macOS Requirements
+#
+pyobjc-core; sys_platform == 'darwin'
+pyobjc-framework-Cocoa; sys_platform == 'darwin'
+# Security: grahampugh-recipes/JamfUploaderProcessors/JamfUploaderLib/keychain_access.py
+pyobjc-framework-Security; sys_platform == 'darwin'
+# SystemConfiguration: dataJAR-recipes/Adobe Admin Console Packages/AdobeAdminConsolePackagesImporter.py
+pyobjc-framework-SystemConfiguration; sys_platform == 'darwin'
+
+#
+# Windows Requirements
+#
+# code-gen tool; regenerates nuget/generated/_nuspec.py via Scripts/regenerate_nuspec_ds.py
+generateDS; sys_platform == 'win32'
