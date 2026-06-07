@@ -6,16 +6,9 @@ All notable changes to this project will be documented in this file. This projec
 
 ### Recipe map
 
-Reimplements a "recipe map," an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the local AutoPkg setup, indexed by identifier and shortname. This makes recipe resolution much faster on systems with many configured recipe repos.
+AutoPkg now uses a "recipe map," an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the local AutoPkg setup, indexed by identifier and shortname. This makes recipe resolution much faster on systems with many configured recipe repos. (This idea was introduced in 3.0.0 release candidates 1-3 but has been freshly reimplemented in 3.0.0 release candidate 4.)
 
-**What you'll notice:**
-
-- Recipe runs, `info`, `search` and trust-info verification are faster on systems with many recipe repos. The first run after installing or `repo-add`/`repo-update` may be slightly slower while the map is (re)built.
-- New `autopkg generate-recipe-map` subcommand explicitly builds and persists the map. Intended for CI/CD pipelines that want to pay the scan cost up front.
-- The map auto-rebuilds on first use when it is missing or invalid, so fresh installs and ephemeral CI runners "just work" without a manual bootstrap step.
-- `repo-add`, `repo-delete`, `repo-update`, `make-override` and `new-recipe` keep the map in sync automatically.
-- CLI `--search-dir` / `--override-dir` flags still scope resolution to exactly the supplied directories when they differ from the configured preferences (preserves the dev-2.x "recipes in `~/Library/AutoPkg/Recipes` override installed repos" contract).
-- Trust-info verification (`verify-trust-info`, `update-trust-info`) correctly classifies override files passed by path.
+You should notice a meaningful performance improvement during recipe run, info, search, and trust-info operations, especially if you have added a large number of recipe repos. The first use after install or `repo-add`/`repo-update` may be briefly slower while the map is built. The cache rebuilds automatically when missing or invalid, stays in sync through `repo-add`, `repo-delete`, `repo-update`, `make-override`, and `new-recipe`, and can be manually rebuilt with `autopkg generate-recipe-map` (useful in CI). When `--search-dir` or `--override-dir` differ from your preferences, resolution favors the values provided via CLI.
 
 **Troubleshooting recipe map issues:**
 
@@ -23,97 +16,121 @@ Reimplements a "recipe map," an on-disk JSON cache (`~/Library/AutoPkg/recipe_ma
 - Set `RECIPE_MAP_PATH` preference or `AUTOPKG_RECIPE_MAP_PATH` env var to redirect the cache to a writable location (e.g. CI workspaces that don't use `~/Library/AutoPkg`).
 - Set `DISABLE_RECIPE_MAP` preference or `AUTOPKG_DISABLE_RECIPE_MAP=1` env var to bypass the cache entirely and fall back to the legacy on-disk scanners.
 
-**Implementation notes:**
+> [!NOTE]
+> When running AutoPkg with `sudo` (which is still not recommended outside of special use cases like CI), `AUTOPKG_RECIPE_MAP_PATH` is ignored and a warning is logged. Redirecting the map path via the `RECIPE_MAP_PATH` preference still works when running as root, but also emits a security warning. Consider stripping `AUTOPKG_*` from your sudoers `env_keep` to prevent unprivileged callers from influencing where AutoPkg writes.
 
-- When running as root (e.g. via `sudo autopkg`), redirecting the map path via env var or pref now emits a prominent warning. Ops teams should strip `AUTOPKG_*` from their sudoers `env_keep` if they don't want unprivileged callers to influence where autopkg writes.
-- YAML recipes are now parsed with a more restrictive loader, improving safety given that the recipe map causes every recipe file in `RECIPE_SEARCH_DIRS` to be parsed during map builds.
-
-Closes #869, #874, #884, #886, #893, #894, #898, #901, #903, #908, #918 (#1027, thanks to @jgstew).
-
-### URLDownloader metadata and hashing
-
-URLDownloader now persists download metadata — including ETag, Last-Modified, and file size — to a `.info.json` sidecar file alongside each downloaded file (#978, thanks to @MScottBlake). This improves reliability on filesystems and network volumes that don't support extended attributes (xattrs).
-
-A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand computation of MD5, SHA1, and SHA256 hashes of the downloaded file. When enabled, hash values are available as output variables in subsequent processors.
-
-### New `clear-cache` verb
-
-AutoPkg 3.0.0 adds `autopkg clear-cache` for removing cached files when troubleshooting a recipe or reclaiming disk space. Pass a recipe name or identifier to clear that recipe's cache using the same recipe resolution behavior as `run` and `info`, or use `autopkg clear-cache all` to empty the configured cache directory. Recipes must have an explicit identifier to clear their cache. (#1035)
-
-### CodeSignatureVerifier hardening
-
-Several fixes make CodeSignatureVerifier fail closed when a recipe's signature checks are weaker than they look:
-
-- **`strict_verification` now defaults to `True`** (passes `--strict` to codesign). Stricter checking may cause a few recipes to fail verification where they previously passed; setting `strict_verification` to `False` in the affected recipe should resolve this.
-- Verification failures now distinguish a wrong signing identity from an unsigned or invalid signature.
-- For app bundles, a `requirement` is now mandatory. Without one, verification only confirmed that the code was signed by *someone* with a valid Developer ID (including a potential attacker), so recipes that omit it now error instead of passing.
-- For installer packages, `expected_authority_names` is now mandatory. Without it, verification only confirmed that the package was signed by *any* Apple-trusted installer certificate, so recipes that omit it now error instead of passing. A `requirement` does not apply to installer packages: supplying it as the only pinning now errors (use `expected_authority_names` instead), and supplying it alongside `expected_authority_names` warns that it is ignored.
-- Typoed versions of the `requirement` and `expected_authority_names` keys now result in an error instead of a warning.
+Closes #869, #874, #884, #886, #893, #894, #898, #901, #903, #908, and #918 (#1027, thanks to @jgstew).
 
 ### Python 3.11 (and plans for 3.12)
 
 AutoPkg 3.0.0 includes Python 3.11.9, chosen because it introduces no breaking changes for AutoPkg or its bundled packages, and for its October 2027 security-support EOL.
 
-The Python requirements are now split into a hand-maintained `requirements.in` (direct dependencies only) and a compiled `requirements.txt` lockfile. The bundled PyObjC framework set has been trimmed to the frameworks with actual consumers, dropping `CFNetwork`, `LaunchServices`, `OpenDirectory`, and `Quartz`, which had no consumers in the AutoPkg core or in the autopkg org recipe repos. `tomli` has been dropped; Python 3.11 includes `tomllib` in the standard library.
+The Python requirements are now split into a hand-maintained `requirements.in` (direct dependencies only) and a compiled `requirements.txt` lockfile. The bundled PyObjC 11.1 frameworks have been trimmed to the ones actually used, dropping `CFNetwork`, `LaunchServices`, `OpenDirectory`, and `Quartz`, which had no consumers in the AutoPkg core or in the autopkg org recipe repos. `tomli` has been dropped; Python 3.11 includes `tomllib` in the standard library. AutoPkg use of `distutils` has been removed. `APLooseVersion` now vendors the `LooseVersion` algorithm instead of subclassing it; version-comparison behavior is unchanged.
 
-**Note to custom processor authors**: AutoPkg 3.1.0 plans to include Python 3.12, which removes `distutils`. If your processors still import from `distutils`, they will break on AutoPkg 3.1.0. AutoPkg's `APLooseVersion` is a drop-in replacement for `LooseVersion`; see the [migration guide](https://github.com/autopkg/autopkg/wiki/Migrating-Custom-Processors-to-Python-3#comparing-versions-use-aplooseversion) on the wiki. PRs have been opened against affected processors in the autopkg org.
+> [!WARNING]
+> **Custom processor authors**: AutoPkg 3.1.0 plans to include Python 3.12, which removes `distutils`. If your processors still import from `distutils`, they will break on AutoPkg 3.1.0. AutoPkg's `APLooseVersion` is a drop-in replacement for `LooseVersion`; see the [migration guide](https://github.com/autopkg/autopkg/wiki/Migrating-Custom-Processors-to-Python-3#comparing-versions-use-aplooseversion) on the wiki. Pull requests have already been opened against affected processors in the autopkg org.
 
-### Other
+### New `clear-cache` verb
 
-- Files in PkgCreator `scripts` directories are now included in recipe override trust information. Changes to preinstall/postinstall scripts or any other files bundled into packages will now trigger trust verification failures. Only git-tracked files are hashed when the scripts directory is inside a git repo, so untracked files like `.DS_Store` won't cause false trust failures. (#980)
+AutoPkg 3.0.0 adds `autopkg clear-cache` for removing cached files when troubleshooting a recipe or reclaiming disk space. Pass a recipe name or identifier to clear that recipe's cache using the same recipe resolution behavior as `run` and `info`, or use `autopkg clear-cache all` to empty the configured cache directory. Pass `--dry-run` to preview what would be deleted without removing anything; use `-v` (with `all`) to list top-level items removed, or `-vv` to list individual files. (#1035)
 
-    > [!NOTE]
-    > Overrides of recipes that use PkgCreator scripts should be updated with `autopkg update-trust-info` to add script trust info. In AutoPkg 3.0.0, missing script trust info produces a warning; starting in AutoPkg 3.0.1, this will be a trust verification error.
+### URLDownloader metadata and hashing
 
-- PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
-- PkgInfoCreator now finds relative Info.plist templates stored beside a recipe or parent recipe.
-- MunkiOptionalReceiptEditor now routes pkginfo updates through the Munki repo plugin API, fixing silent data loss when using `GitFileRepo` or other non-filesystem repo plugins (#1031). It now accepts `MUNKI_REPO`, `MUNKI_REPO_PLUGIN`, `MUNKILIB_DIR`, `force_munki_repo_lib`, and `repo_subdirectory` input variables (matching MunkiImporter's interface), and sets a `munki_info` output variable containing the updated pkginfo for use by downstream processors.
-- MunkiImporter now correctly handles multiple pkginfos for apps with the same installed path and app version.
-- MunkiImporter now writes correct pkginfo paths when importing an uncataloged package already under the Munki repo's `pkgs` directory.
-- MunkiImporter now avoids duplicate pkginfo filenames caused by leading or trailing whitespace in version strings.
-- `make-override --format` can now be set globally via the `RECIPE_OVERRIDE_FORMAT` preference, so you don't need to pass `--format yaml` on every invocation (#1024)
-- `repo-update` now migrates a recipe repo's local clone from `master` to `main` when the default branch was renamed upstream, so the repo keeps updating instead of silently stalling on a deleted remote branch.
-- URLDownloader now applies `curl_common_opts`, such as authorization headers, when prefetching filenames from authenticated URLs (#925, thanks to @n8felton)
-- Updated virtualenv to 20.36.1 (#1009)
-- Updated filelock to 3.20.3 (#1010)
-- Updated lxml to 6.1.0
-- Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
-- Prevented KeyError during search when a GitHub error response omits the `status` field
-- GitHub token handling is now more resilient: malformed or whitespace-only tokens are rejected before use and logged as a warning, and GET requests that receive a 401 automatically retry without authentication while alerting the user to regenerate their token (#1052)
-- `GITHUB_TOKEN` is now available for recipe variable substitution when the token comes from `~/.autopkg_gh_token`, matching tokens stored in preferences (#923).
-- Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039)
-- Replaced deprecated imp module with importlib
-- Removed the deprecated `distutils` module from the core library and `CodeSignatureVerifier` charting a path to AutoPkg using Python 3.12+. `APLooseVersion` now vendors the `LooseVersion` algorithm instead of subclassing it; version-comparison behavior is unchanged.
-- CodeSignatureVerifier now fails clearly on non-macOS instead of silently skipping verification that requires macOS tools.
-- Improved testing automation by skipping macOS-only tests on Ubuntu and Windows
-- DmgCreator: default `dmg_filesystem` changed from `HFS+` to `APFS` and default `dmg_format` changed from `UDZO` to `ULFO` (lzfse compression) (#905, thanks to @erikng). Note that APFS requires macOS 10.13 or later to mount. If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly. `ULFO` and `ULMO` are now accepted as valid `dmg_format` values.
-- Reduced the likelihood that float-looking version strings in YAML recipes (e.g. `VERSION: 1.0`) will be silently coerced to a Python float instead of remaining a string, causing subtle inconsistencies compared to plist recipes (#1023).
-- Fixed `%key%` variable substitution raising a `TypeError` when the recipe environment contains non-string values (#1038, thanks to @jgstew).
-- PkgPayloadUnpacker: when both `ditto` and the `aa` fallback fail to extract a payload, the resulting `ProcessorError` now reports the diagnostic output from both tools (previously only the `aa` failure was shown) and includes `aa`'s stderr. Also fixed a latent `UnboundLocalError` that occurred when `ditto` could not be executed (#1048, thanks to @n8felton).
-- Fixed a trust verification error message that printed the expected parent recipe list twice; it now shows both the expected and the actual parent recipe lists so it's clear what changed.
-- `RECIPE_CACHE_DIR` is now confined to `CACHE_DIR`. A recipe `Identifier` containing `..` or an absolute path could previously place the cache directory outside `CACHE_DIR`, letting a recipe read or write another recipe's cache; such identifiers are now rejected.
-- URLDownloader: a filename supplied via a server's `Content-Disposition` header is now reduced to its base name, preventing a malicious server from using `..` or path separators to write the downloaded file outside `download_dir`.
-- URLDownloaderPython now validates cached files against their actual size, exposes computed hashes, and preserves downloads when ETag or Last-Modified headers are missing.
-- SparkleUpdateInfoProvider now rejects non-HTTP(S) and loopback description links found in Sparkle feeds before copying their content into pkginfo descriptions.
-- PkgExtractor: the `IFPkgFlagDefaultLocation` value from a package's `Info.plist` is now confined to the extraction root. A malicious package using `..` in this field could previously redirect extraction outside the intended directory; such paths are now rejected before any files are removed or extracted.
-- PkgRootCreator: the containment check for recipe-supplied `pkgdirs` is now path-aware. The previous string-prefix check let a relative path such as `../pkgroot-evil` create directories outside the pkgroot (which would then be packaged); these are now correctly rejected.
-- Paths that refer to files inside a DMG are now confined to the mounted image. DMG-relative paths containing `..` or starting with `/`, and glob matches or symlinks that resolve outside the mount point, are now rejected.
-- Installer and InstallFromDMG now reject package/source paths outside the recipe cache or mounted disk image; InstallFromDMG also rejects setuid/setgid copy modes.
-- InstallFromDMG now copies every requested item from disk images instead of stopping after the first.
-- ChocolateyPackager now rejects package IDs and versions that could escape the build or output directories.
-- ChocolateyPackager now builds `installer_url` packages with checksum fields and errors clearly when `installer_checksum` is missing.
-- ChocolateyPackager now preserves Chocolatey command output and processor diagnostics when packaging fails.
-- ChocolateyInstallGenerator now escapes single quotes in generated PowerShell string literals.
-- AutoPkg now expands `CACHE_DIR` to an absolute path, so `~` or relative `CACHE_DIR` preferences no longer create literal or working-directory-relative cache folders.
-- Recipe scanning, recipe-map building, and shared-processor loading now ignore symlinks that point outside configured search directories. Symlinked search directories themselves still work.
+URLDownloader now persists download metadata — including ETag, Last-Modified, and file size — to an `.info.json` sidecar file alongside each downloaded file. This improves reliability on filesystems and network volumes that don't support extended attributes (xattrs) (#978, thanks to @MScottBlake).
+
+A new `COMPUTE_HASHES` input variable (default: `False`) enables on-demand computation of MD5, SHA1, and SHA256 hashes of the downloaded file. When enabled, hash values are available as output variables in subsequent processors.
+
+### Security improvements
+
+#### Override trust information for scripts
+
+Files in PkgCreator `scripts` directories are now included in recipe override trust information.
+
+- Changes to preinstall/postinstall scripts or any other files bundled into packages will now trigger trust verification failures. Only git-tracked files are hashed when the scripts directory is inside a git repo, so untracked files like `.DS_Store` won't cause false trust failures. (#980)
+
+    > [!WARNING]
+    > Overrides of recipes that use PkgCreator scripts should be updated with `autopkg update-trust-info` to add script trust info. In AutoPkg 3.0.0, missing script trust info produces a warning; starting in AutoPkg 3.1.0, this will be a trust verification error.
+
+#### CodeSignatureVerifier hardening
+
+CodeSignatureVerifier now more effectively handles situations that previously allowed unintentionally skipping or weakening verification:
+
+- `strict_verification` now defaults to `True` (passes `--strict` to codesign).
+    > [!WARNING]
+    > **This is a breaking change for recipes handling apps which fail strict verification** (≈2.5% of total active recipes in the autopkg org). The suggested workaround is to set CodeSignatureVerifier's `strict_verification` argument to `False` specifically for those recipes. Pull requests have already been opened for affected recipe repositories.
+- Verification failures now distinguish a wrong signing identity from an unsigned or invalid signature.
+- For app bundles, a `requirement` is now mandatory. For installer packages, `expected_authority_names` is now mandatory. Without these, verification only confirmed that the item was signed by *someone* with a valid Developer ID (including a potential attacker), so recipes that omit these arguments now fail.
+- Typoed versions of the `requirement` and `expected_authority_names` keys now result in an error instead of a warning.
 - CodeSignatureVerifier and SignToolVerifier now always warn when verification is disabled via `DISABLE_CODE_SIGNATURE_VERIFICATION` (previously silent at the default verbosity). `autopkg run` also warns up front when it is set globally via environment variable, recipe list, or `-k`/`--key`.
+- CodeSignatureVerifier now fails clearly on non-macOS instead of silently skipping verification that requires macOS tools.
+
+#### Improvements to `audit`
+
+The `audit` verb has been strengthened to provide better signal for recipe practices that deserve close scrutiny:
+
 - `audit` now recognizes `URLDownloaderPython` as a downloader, so it flags a missing `CodeSignatureVerifier` for recipes that download with it (previously only `URLDownloader` and `CURLDownloader` were checked).
 - `audit` now recognizes `AppPkgCreator` and `ChocolateyPackager` as artifact creators, so modification processors preceding them are surfaced (previously only `DmgCreator`, `FlatPkgPacker`, and `PkgCreator` were recognized).
 - `audit` now reports path-sensitive recipe values that deserve closer inspection, including identifiers with path traversal markers, suspicious privileged install/copy paths, `PkgRootCreator` parent-directory references, generic parent-directory traversal in `Copier`, `FileMover`, `PathDeleter`, and `Unarchiver` path arguments, unsafe DMG pseudo-paths, and Chocolatey package identifiers or versions containing path separators.
 - `audit` now flags insecure `ftp:` URLs alongside `http:` URLs, and flags `ChocolateyPackager` recipes that explicitly use weak installer checksum algorithms (`md5` or `sha1`).
+
+#### Path traversal protection
+
+Multiple processors now confine paths to their intended directories, preventing a malicious or misconfigured recipe from reading or writing outside its expected territory:
+
+- `RECIPE_CACHE_DIR` is now confined to `CACHE_DIR`. A recipe `Identifier` containing `..` or an absolute path could previously place the cache directory outside `CACHE_DIR`, letting a recipe read or write another recipe's cache; such identifiers are now rejected.
+- AutoPkg now expands `CACHE_DIR` to an absolute path, so `~` or relative `CACHE_DIR` preferences no longer create literal or working-directory-relative cache folders.
+- URLDownloader: a filename supplied via a server's `Content-Disposition` header is now reduced to its base name, preventing a malicious server from using `..` or path separators to write the downloaded file outside `download_dir`.
+- Paths that refer to files inside a DMG are now confined to the mounted image. DMG-relative paths containing `..` or starting with `/`, and glob matches or symlinks that resolve outside the mount point, are now rejected.
+- PkgExtractor: the `IFPkgFlagDefaultLocation` value from a package's `Info.plist` is now confined to the extraction root. A malicious package using `..` in this field could previously redirect extraction outside the intended directory; such paths are now rejected before any files are removed or extracted.
+- PkgRootCreator: the containment check for recipe-supplied `pkgdirs` is now path-aware. The previous string-prefix check let a relative path such as `../pkgroot-evil` create directories outside the pkgroot (which would then be packaged); these are now correctly rejected.
+- Installer and InstallFromDMG now reject package/source paths outside the recipe cache or mounted disk image; InstallFromDMG also rejects setuid/setgid copy modes.
+- The autopkginstalld privileged helper daemon now independently validates that package paths are confined to the recipe cache or disk images mounted under `/private/tmp` before invoking the system installer. This check applies regardless of which processor initiates the install.
+- ChocolateyPackager now rejects package IDs and versions that could escape the build or output directories.
+- SparkleUpdateInfoProvider now rejects non-HTTP(S) and loopback description links found in Sparkle feeds before copying their content into pkginfo descriptions.
+- Recipe scanning, recipe-map building, and shared-processor loading now ignore symlinks that point outside configured search directories. Symlinked search directories themselves still work.
+
+### GitHub and search
+
+- GitHub token handling is now more resilient: malformed or whitespace-only tokens are rejected before use and logged as a warning, and GET requests that receive a 401 automatically retry without authentication while alerting the user to regenerate their token (#1052)
+- `GITHUB_TOKEN` is now available for recipe variable substitution when the token comes from `~/.autopkg_gh_token`, matching tokens stored in preferences (#923).
+- Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp)
+- Prevented KeyError during search when a GitHub error response omits the `status` field (e.g. some credential errors return only a `message` field)
+- Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039)
+
+### Munki integration fixes
+
+- MunkiOptionalReceiptEditor now routes pkginfo updates through the Munki repo plugin API, fixing silent data loss when using `GitFileRepo` or other non-filesystem repo plugins (#1031). It now accepts `MUNKI_REPO`, `MUNKI_REPO_PLUGIN`, `MUNKILIB_DIR`, `force_munki_repo_lib`, and `repo_subdirectory` input variables (matching MunkiImporter's interface), and sets a `munki_info` output variable containing the updated pkginfo for use by downstream processors.
+- MunkiImporter now correctly handles multiple pkginfos for apps with the same installed path and app version.
+- MunkiImporter now writes correct pkginfo paths when importing an uncataloged package already under the Munki repo's `pkgs` directory.
+- MunkiImporter now avoids duplicate pkginfo filenames caused by leading or trailing whitespace in version strings.
+
+### Processor features and fixes
+
+- DmgCreator: default `dmg_filesystem` changed from `HFS+` to `APFS` and default `dmg_format` changed from `UDZO` to `ULFO` (lzfse compression).  `ULFO` and `ULMO` are now accepted as valid `dmg_format` values (#905, thanks to @erikng)
+    > [!NOTE]
+    > **APFS requires macOS 10.13 or later to mount.** If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly.
+- PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
+- URLDownloaderPython now validates cached files against their actual size, exposes computed hashes, and preserves downloads when ETag or Last-Modified headers are missing.
+- URLDownloader now applies `curl_common_opts`, such as authorization headers, when prefetching filenames from authenticated URLs (#925, thanks to @n8felton)
+- PkgInfoCreator now finds relative Info.plist templates stored beside a recipe or parent recipe.
+- PkgPayloadUnpacker: when both `ditto` and the `aa` fallback fail to extract a payload, the resulting `ProcessorError` now reports the diagnostic output from both tools (previously only the `aa` failure was shown) and includes `aa`'s stderr. Also fixed a latent `UnboundLocalError` that occurred when `ditto` could not be executed (#1048, thanks to @n8felton).
+- InstallFromDMG now copies every requested item from disk images instead of stopping after the first.
+- ChocolateyPackager now builds `installer_url` packages with checksum fields and errors clearly when `installer_checksum` is missing.
+- ChocolateyPackager now preserves Chocolatey command output and processor diagnostics when packaging fails.
+- ChocolateyInstallGenerator now escapes single quotes in generated PowerShell string literals.
 - URLGetter now reports curl diagnostics correctly when file downloads fail in binary mode.
-- Removed unused code from PkgRootCreator, URLDownloaderPython, and Versioner.
-- Implemented 7-day cooldown for Python library and GitHub Actions update suggestions from Dependabot.
+- Removed some unused code from PkgRootCreator, URLDownloaderPython, and Versioner.
+
+ ### Other AutoPkg improvements and fixes
+
+- `repo-update` now migrates a recipe repo's local clone from `master` to `main` when the default branch was renamed upstream, so the repo keeps updating instead of silently stalling on a deleted remote branch.
+- `make-override --format` can now be set globally via the `RECIPE_OVERRIDE_FORMAT` preference, so you don't need to pass `--format yaml` on every invocation (#1024, thanks to @grahampugh).
+- Processors invoked directly from the command line (a niche feature for debugging processors) now print their description and variable documentation when passed `-h` or `--help`, or when run interactively with no arguments. Previously, an interactive no-argument invocation would wait for a plist on stdin.
+- YAML recipes are now parsed with a safer, more restrictive loader.
+- Reduced the likelihood that float-looking version strings in YAML recipes (e.g. `VERSION: 1.0`) will be silently coerced to a Python float instead of remaining a string, causing subtle inconsistencies compared to plist recipes (#1023).
+- Fixed a trust verification error message that printed the expected parent recipe list twice; it now shows both the expected and the actual parent recipe lists so it's clear what changed.
+- Fixed `%key%` variable substitution raising a `TypeError` when the recipe environment contains non-string values (#1038, thanks to @jgstew).
+
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
 
