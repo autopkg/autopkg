@@ -163,9 +163,7 @@ RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 # Supported recipe extensions
 RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
 
-# Default filesystem locations used by autopkg. These mirror the post-3.x
-# layout so that the recipe map backport can find the same paths that the
-# dev-3.x code expects.
+# Default filesystem locations used by autopkg
 DEFAULT_USER_LIBRARY_DIR = "~/Library/AutoPkg"
 DEFAULT_LIBRARY_DIR = "/Library/AutoPkg"
 DEFAULT_USER_OVERRIDES_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeOverrides")
