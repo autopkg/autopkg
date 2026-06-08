@@ -50,6 +50,14 @@ def version_tuple(version_string: str) -> tuple[int, ...]:
     return tuple(int(part) for part in version_string.split("."))
 
 
+def prerelease_display_name(prerelease: str) -> str:
+    """Return a human-friendly label for a prerelease suffix."""
+    rc_match = re.fullmatch(r"RC(\d+)", prerelease, re.IGNORECASE)
+    if rc_match:
+        return f"Release Candidate {rc_match.group(1)}"
+    return prerelease
+
+
 class GitHubAPIError(BaseException):
     """Base error for GitHub API interactions"""
 
@@ -126,7 +134,10 @@ def main():
     parser.add_option(
         "-v",
         "--next-version",
-        help=("Next version to which AutoPkg will be incremented. Required."),
+        help=(
+            "Next version to which AutoPkg will be incremented. "
+            "Required for final releases."
+        ),
     )
     parser.add_option(
         "-p",
@@ -172,22 +183,29 @@ def main():
     )
 
     opts = parser.parse_args()[0]
-    if not opts.next_version:
+    if not opts.next_version and not opts.prerelease:
         sys.exit("Option --next-version is required!")
     if not opts.token and not opts.dry_run:
         sys.exit("Option --token is required!")
-    next_version = opts.next_version
-    try:
-        next_version_tuple = version_tuple(next_version)
-    except ValueError:
-        sys.exit(
-            f"Option --next-version must be a MAJOR.MINOR.PATCH version "
-            f"(e.g. 3.0.1); got '{next_version}'. A beta/RC designation belongs "
-            f"on the tag via --prerelease, not on the version itself."
-        )
+    if opts.next_version:
+        next_version = opts.next_version
+        try:
+            next_version_tuple = version_tuple(next_version)
+        except ValueError:
+            sys.exit(
+                f"Option --next-version must be a MAJOR.MINOR.PATCH version "
+                f"(e.g. 3.0.1); got '{next_version}'. A beta/RC designation belongs "
+                f"on the tag via --prerelease, not on the version itself."
+            )
     if opts.dry_run:
         print("** Running in 'dry-run' mode...")
-    publish_user, publish_repo = opts.user_repo.split("/")
+    user_repo_parts = opts.user_repo.split("/")
+    if len(user_repo_parts) != 2 or not all(user_repo_parts):
+        sys.exit(
+            "Option --user-repo must be of the form 'owner/repo'; "
+            f"got '{opts.user_repo}'."
+        )
+    publish_user, publish_repo = user_repo_parts
     token = None
     if not opts.dry_run:
         token = opts.token
@@ -225,7 +243,7 @@ def main():
             f"Current version '{current_version}' in version.plist is not a "
             f"MAJOR.MINOR.PATCH version; cannot compare."
         )
-    if next_version_tuple <= current_version_tuple:
+    if opts.next_version and next_version_tuple <= current_version_tuple:
         sys.exit(
             f"Next version (gave {next_version}) must be greater than current version "
             f"{current_version}!"
@@ -249,22 +267,29 @@ def main():
             pprint(rel, stream=sys.stderr)
             sys.exit()
 
-    print("** Writing date into CHANGELOG.md")
-    # write today's date in the changelog
+    # write today's date in the changelog (in memory; written to disk only for final releases)
     with open(changelog_path) as fdesc:
         changelog = fdesc.read()
     release_date = strftime("(%B %-d, %Y)")
-    new_changelog = re.sub(r"\(Unreleased\)", release_date, changelog)
-    new_changelog = re.sub("...HEAD", f"...v{current_version}", new_changelog)
-    with open(changelog_path, "w") as fdesc:
-        fdesc.write(new_changelog)
-
-    print("** Creating git commit")
-    # commit and push the new release
-    subprocess.check_call(["git", "add", changelog_path])
-    subprocess.check_call(
-        ["git", "commit", "-m", f"Release version {current_version}."]
+    new_changelog, replacements = re.subn(
+        r"\(Unreleased\)", release_date, changelog, count=1
     )
+    if replacements != 1:
+        sys.exit("Couldn't find an '(Unreleased)' marker in CHANGELOG.md!")
+    new_changelog, replacements = re.subn(
+        r"\.\.\.HEAD", f"...{tag_name}", new_changelog, count=1
+    )
+    if replacements != 1:
+        sys.exit("Couldn't find a '...HEAD' comparison link in CHANGELOG.md!")
+    if not opts.prerelease:
+        print("** Writing date into CHANGELOG.md")
+        with open(changelog_path, "w") as fdesc:
+            fdesc.write(new_changelog)
+        print("** Creating git commit")
+        subprocess.check_call(["git", "add", changelog_path])
+        subprocess.check_call(
+            ["git", "commit", "-m", f"Release version {current_version}."]
+        )
     subprocess.check_call(["git", "tag", tag_name])
     if not opts.dry_run:
         print("** Pushing git release")
@@ -273,8 +298,10 @@ def main():
 
     print("** Gathering release notes")
     # extract release notes for this new version
-    notes_rex = r"(?P<current_ver_notes>\#\# \[%s\].+?)\#\#" % current_version
-    match = re.search(notes_rex, new_changelog, re.DOTALL)
+    notes_rex = r"(?P<current_ver_notes>^## \[%s\].+?)(?=^## |\Z)" % re.escape(
+        current_version
+    )
+    match = re.search(notes_rex, new_changelog, re.DOTALL | re.MULTILINE)
     if not match:
         sys.exit("Couldn't extract release notes for this version!")
     release_notes = match.group("current_ver_notes")
@@ -383,7 +410,7 @@ def main():
     release_data["draft"] = False
     if opts.prerelease:
         release_data["prerelease"] = True
-        release_data["name"] += " Beta"
+        release_data["name"] += f" {prerelease_display_name(opts.prerelease)}"
 
     # create the release
     if not opts.dry_run:
@@ -415,45 +442,49 @@ def main():
                 pprint(upload_asset)
                 print()
 
-    # increment version
-    print(f"** Incrementing version to {next_version}...")
-    plist["Version"] = next_version
-    with open(version_plist_path, "wb") as f:
-        plistlib.dump(plist, f)
+    if not opts.prerelease:
+        # increment version
+        print(f"** Incrementing version to {next_version}...")
+        plist["Version"] = next_version
+        with open(version_plist_path, "wb") as f:
+            plistlib.dump(plist, f)
 
-    # increment changelog
-    new_version_header = (
-        "## [{}](https://github.com/{}/{}/compare/v{}...HEAD) "
-        "(Unreleased)\n\nNothing yet.\n\n"
-    ).format(next_version, publish_user, publish_repo, current_version)
+        # increment changelog
+        new_version_header = (
+            "## [{}](https://github.com/{}/{}/compare/v{}...HEAD) "
+            "(Unreleased)\n\nNothing yet.\n\n"
+        ).format(next_version, publish_user, publish_repo, current_version)
 
-    # Insert the new version header before the first H2 heading
-    # Find the position of the first "##" heading
-    first_h2_match = re.search(r"^## ", new_changelog, re.MULTILINE)
-    if first_h2_match:
-        insert_pos = first_h2_match.start()
-        new_changelog = (
-            new_changelog[:insert_pos] + new_version_header + new_changelog[insert_pos:]
+        # Insert the new version header before the first H2 heading
+        # Find the position of the first "##" heading
+        first_h2_match = re.search(r"^## ", new_changelog, re.MULTILINE)
+        if first_h2_match:
+            insert_pos = first_h2_match.start()
+            new_changelog = (
+                new_changelog[:insert_pos]
+                + new_version_header
+                + new_changelog[insert_pos:]
+            )
+        else:
+            print(
+                "WARNING: No H2 headings found in CHANGELOG.md. "
+                "Prepending new version header."
+            )
+            new_changelog = new_version_header + new_changelog
+        with open(changelog_path, "w", encoding="utf-8") as fdesc:
+            fdesc.write(new_changelog)
+
+        print("** Creating commit for change increment")
+        # commit and push increment
+        subprocess.check_call(["git", "add", version_plist_path, changelog_path])
+        subprocess.check_call(
+            ["git", "commit", "-m", f"Bumping to v{next_version} for development."]
         )
-    else:
-        print(
-            "WARNING: No H2 headings found in CHANGELOG.md. "
-            "Prepending new version header."
-        )
-        new_changelog = new_version_header + new_changelog
-    with open(changelog_path, "w", encoding="utf-8") as fdesc:
-        fdesc.write(new_changelog)
+        if not opts.dry_run:
+            print(f"** Pushing commit to {opts.autopkg_branch}")
+            subprocess.check_call(["git", "push", "origin", opts.autopkg_branch])
 
-    print("** Creating commit for change increment")
-    # commit and push increment
-    subprocess.check_call(["git", "add", version_plist_path, changelog_path])
-    subprocess.check_call(
-        ["git", "commit", "-m", f"Bumping to v{next_version} for development."]
-    )
-    if not opts.dry_run:
-        print(f"** Pushing commit to {opts.autopkg_branch}")
-        subprocess.check_call(["git", "push", "origin", opts.autopkg_branch])
-    else:
+    if opts.dry_run:
         print(
             "Ended dry-run mode. Final state of the AutoPkg repo can be "
             f"found at: {autopkg_root}"
