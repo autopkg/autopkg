@@ -14,10 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Regression tests pinned to specific upstream issues closed by the
-recipe-map implementation. Each test class has a docstring citing the GitHub
-issue number so future changes that break the behaviour show up in CI
-with a direct pointer to the original bug report."""
+"""Issue-focused recipe-map tests. Each test class has a docstring
+citing the GitHub issue number so future changes that break the behaviour
+show up in CI with a direct pointer to the original report."""
 
 import importlib
 import importlib.machinery
@@ -70,7 +69,7 @@ class _RecipeMapIsolation:
     and reset globalRecipeMap between tests."""
 
     def setUp(self):
-        self.tmpdir = tempfile.mkdtemp(prefix="autopkg_regression_")
+        self.tmpdir = tempfile.mkdtemp(prefix="autopkg_recipe_map_")
         self.addCleanup(lambda: shutil.rmtree(self.tmpdir, ignore_errors=True))
 
         self._saved_map = dict(autopkglib.globalRecipeMap)
@@ -102,7 +101,7 @@ class _RecipeMapIsolation:
 
 
 class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCase):
-    """Regression tests for upstream issues #886, #908, #918 (related to
+    """Issue coverage for upstream issues #886, #908, #918 (related to
     #894): the recipe map is pref-scoped, so when the user passes
     ``--search-dir`` / ``--override-dir`` with values that differ from the
     configured preferences, autopkg must scan those dirs directly rather
@@ -476,9 +475,71 @@ class TestCallerDirOrderPrecedence(_RecipeMapIsolation, unittest.TestCase):
         self.assertEqual(recipe["RECIPE_PATH"], child_path)
         self.assertEqual(recipe["PARENT_RECIPES"][0], dev_parent_path)
 
+    def test_recursive_parent_lookup_skips_override_map_collision(self):
+        """Parent lookup through an override must ignore override map
+        entries that collide with the requested parent identifier."""
+        self.pref_override_dirs = [self.pref_override_dir]
+        parent_path = self._write_recipe(
+            self.pref_a_dir, "Parent.recipe", "com.example.parent"
+        )
+        child_path = self._write_recipe(
+            self.pref_override_dir,
+            "Child.recipe",
+            "local.example.child",
+            ParentRecipe="com.example.parent",
+        )
+        colliding_override_path = self._write_recipe(
+            self.pref_override_dir,
+            "ParentOverride.recipe",
+            "com.example.parent",
+        )
+        self._seed_stock_map("com.example.parent", parent_path, shortname="Parent")
+        autopkglib.globalRecipeMap["overrides"]["Child"] = child_path
+        autopkglib.globalRecipeMap["overrides-identifiers"][
+            "local.example.child"
+        ] = child_path
+        autopkglib.globalRecipeMap["overrides-identifiers"][
+            "com.example.parent"
+        ] = colliding_override_path
+
+        recipe = autopkg.load_recipe(
+            "Child",
+            override_dirs=[self.pref_override_dir],
+            recipe_dirs=[self.pref_a_dir],
+            make_suggestions=False,
+            search_github=False,
+        )
+
+        self.assertEqual(recipe["RECIPE_PATH"], child_path)
+        self.assertEqual(recipe["PARENT_RECIPES"][0], parent_path)
+        self.assertNotEqual(recipe["PARENT_RECIPES"][0], colliding_override_path)
+
+    def test_explicit_empty_override_dirs_do_not_fall_back_to_prefs_on_disk(self):
+        """An explicit empty override dir list means no override dirs,
+        even when disk fallback is used."""
+        self.pref_override_dirs = [self.pref_override_dir]
+        parent_path = self._write_recipe(
+            self.pref_a_dir, "Parent.recipe", "com.example.parent"
+        )
+        colliding_override_path = self._write_recipe(
+            self.pref_override_dir,
+            "ParentOverride.recipe",
+            "com.example.parent",
+        )
+
+        result = autopkg.find_recipe(
+            "com.example.parent",
+            search_dirs=[self.pref_a_dir],
+            override_dirs=[],
+            map_safe=False,
+        )
+
+        self.assertEqual(result, parent_path)
+        self.assertNotEqual(result, colliding_override_path)
+
 
 class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
-    """Regression tests for issue #894: shared-processor recipes in the
+    """Issue coverage for issue #894: shared-processor recipes in the
     current working directory weren't being found because
     find_processor_path only walked RECIPE_SEARCH_DIRS on disk, ignoring
     the map, and never triggered the cwd-inclusive rebuild."""
@@ -924,7 +985,7 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
 
 
 class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
-    """Regression test for issue #903: `autopkg verify-trust-info
+    """Issue coverage for issue #903: `autopkg verify-trust-info
     <path/to/override.recipe>` failed to recognise the file as an override
     because the configured override_dirs didn't contain the parent of the
     user-supplied path. The fix uses the recipe map's overrides tables
@@ -993,7 +1054,7 @@ class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
         )
 
     def test_recipe_in_override_dir_sibling_prefix_not_matched(self):
-        """Regression: prior to the fix, `/Users/a/Library/AutoPkg2`
+        """Guard: prior to the fix, `/Users/a/Library/AutoPkg2`
         could accidentally match `/Users/a/Library/AutoPkg`. Make sure
         the normalised match requires a path separator."""
         self.assertFalse(
@@ -1035,7 +1096,7 @@ class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
 
 
 class TestIssue874MissingOverridesIdentifiers(_RecipeMapIsolation, unittest.TestCase):
-    """Regression for issue #874: a map file written by an older version
+    """Issue coverage for issue #874: a map file written by an older version
     of autopkg doesn't have the ``overrides-identifiers`` key. The old
     code did ``globalRecipeMap["overrides-identifiers"]`` directly,
     producing a KeyError. The map code must either tolerate the missing
@@ -1075,7 +1136,7 @@ class TestIssue874MissingOverridesIdentifiers(_RecipeMapIsolation, unittest.Test
 
 
 class TestIssue869InvalidRecipeRobustness(_RecipeMapIsolation, unittest.TestCase):
-    """Regression for issue #869: a syntactically-invalid recipe in a
+    """Issue coverage for issue #869: a syntactically-invalid recipe in a
     search dir used to crash ``calculate_recipe_map`` with a TypeError
     during the JSON sort because ``get_identifier_from_recipe_file``
     returned None. The map code must skip such files with a warning."""
@@ -1140,7 +1201,7 @@ class TestIssue869InvalidRecipeRobustness(_RecipeMapIsolation, unittest.TestCase
 
 
 class TestIssue901RecipeMapPathOverride(unittest.TestCase):
-    """Regression for issue #901: the recipe map location should be
+    """Issue coverage for issue #901: the recipe map location should be
     configurable so CI pipelines that don't use ``~/Library/AutoPkg``
     (e.g. ephemeral runners that clone everything into ``/workspace``)
     can keep the map alongside their recipes."""
@@ -1477,7 +1538,7 @@ class TestEscapeHatch(_RecipeMapIsolation, unittest.TestCase):
 
 
 class TestRepoAddSingleRebuild(_RecipeMapIsolation, unittest.TestCase):
-    """Regression: repo-add was calling calculate_recipe_map() twice.
+    """Guard: repo-add was calling calculate_recipe_map() twice.
     Assert it now calls it exactly once."""
 
     def test_repo_add_rebuilds_map_exactly_once(self):
@@ -1611,7 +1672,7 @@ class TestIncrementalMapUpdateForSingleFile(_RecipeMapIsolation, unittest.TestCa
 
 
 class TestRepoUpdateHeadDiffing(_RecipeMapIsolation, unittest.TestCase):
-    """Regression: `autopkg repo-update` should only rebuild the map
+    """Guard: `autopkg repo-update` should only rebuild the map
     when git pull actually changed HEAD."""
 
     def test_no_change_no_rebuild(self):
@@ -1666,7 +1727,7 @@ class TestRepoUpdateHeadDiffing(_RecipeMapIsolation, unittest.TestCase):
 
 
 class TestRepoDeletePrefMapConsistency(_RecipeMapIsolation, unittest.TestCase):
-    """Regression: repo-delete must keep prefs and the persisted map
+    """Guard: repo-delete must keep prefs and the persisted map
     consistent even when rmtree fails."""
 
     def test_rmtree_failure_still_rebuilds_map(self):
@@ -1882,6 +1943,7 @@ class TestLoadRecipeToleratesStaleMapEntry(_RecipeMapIsolation, unittest.TestCas
                 }.get(k),
             ),
             patch.object(autopkglib, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
             patch.object(autopkg, "log_err") as mock_log_err,
         ):
             result = autopkg.load_recipe(
@@ -1906,7 +1968,7 @@ class TestLoadRecipeToleratesStaleMapEntry(_RecipeMapIsolation, unittest.TestCas
 
 
 class TestStaleOverrideIdentifier(_RecipeMapIsolation, unittest.TestCase):
-    """Regression test: if a user edits an override file to change its
+    """Issue coverage: if a user edits an override file to change its
     Identifier (e.g. when copying an override for a multi-arch setup), the
     on-disk map still indexes the file under the old identifier. A lookup by
     old identifier would return the file path (it still exists), then the

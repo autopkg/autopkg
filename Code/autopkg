@@ -188,7 +188,9 @@ def _dirs_equal_prefs(caller_search_dirs, caller_override_dirs) -> bool:
         _normalize_dirs(caller_search_dirs) if caller_search_dirs else pref_search
     )
     caller_override = (
-        _normalize_dirs(caller_override_dirs) if caller_override_dirs else pref_override
+        _normalize_dirs(caller_override_dirs)
+        if caller_override_dirs is not None
+        else pref_override
     )
     return caller_search == pref_search and caller_override == pref_override
 
@@ -212,11 +214,10 @@ def find_recipe(
        the pref-configured dirs) so recipes that have not been indexed
        yet are still found.
 
-    Empty-list and ``None`` semantics: both are treated as "not supplied"
-    — the pref baseline is used. Callers that want to restrict resolution
-    to an empty scope should not call this function; call
-    ``find_recipe_by_identifier_on_disk`` / ``find_recipe_by_name_on_disk``
-    directly instead."""
+    Empty-list and ``None`` semantics: for ``search_dirs``, both are treated
+    as "not supplied" and the pref baseline is used. For ``override_dirs``,
+    ``None`` means "not supplied", but an explicit empty list means no
+    override directories."""
     if map_safe is None:
         map_safe = _dirs_equal_prefs(search_dirs, override_dirs)
 
@@ -231,7 +232,9 @@ def find_recipe(
     # dirs on disk. Compute them lazily so a map hit doesn't pay the cost.
     scan_dirs: list[str] = []
     if not skip_overrides:
-        scan_dirs.extend(override_dirs or get_override_dirs())
+        scan_dirs.extend(
+            get_override_dirs() if override_dirs is None else override_dirs
+        )
     scan_dirs.extend(search_dirs or get_search_dirs())
     if not scan_dirs:
         return None
@@ -303,6 +306,7 @@ def locate_recipe(
     search_github=True,
     auto_pull=False,
     map_safe=None,
+    skip_overrides=False,
 ):
     """Locates a recipe by name. If the name is the pathname to a file on disk,
     we attempt to load that file and use it as recipe. If a parent recipe
@@ -329,6 +333,7 @@ def locate_recipe(
             search_dirs=recipe_dirs,
             override_dirs=override_dirs,
             map_safe=map_safe,
+            skip_overrides=skip_overrides,
         )
 
     if not recipe_file and _try_cwd_rebuild_once(f"resolving {name!r}"):
@@ -337,6 +342,7 @@ def locate_recipe(
             search_dirs=recipe_dirs,
             override_dirs=override_dirs,
             map_safe=map_safe,
+            skip_overrides=skip_overrides,
         )
 
     if not recipe_file and make_suggestions:
@@ -389,6 +395,7 @@ def locate_recipe(
                         make_suggestions=True,
                         search_github=False,
                         auto_pull=auto_pull,
+                        skip_overrides=skip_overrides,
                     )
             elif len(repo_names) > 1:
                 return None
@@ -406,6 +413,7 @@ def load_recipe(
     search_github=True,
     auto_pull=False,
     _map_safe_scope=None,
+    skip_overrides=False,
 ):
     """Loads a recipe, first locating it by name.
     If we find one, we load it and return the dictionary object. If an
@@ -436,6 +444,7 @@ def load_recipe(
         search_github=search_github,
         auto_pull=auto_pull,
         map_safe=_map_safe_scope,
+        skip_overrides=skip_overrides,
     )
 
     if recipe_file:
@@ -480,6 +489,7 @@ def load_recipe(
                 search_github=search_github,
                 auto_pull=auto_pull,
                 _map_safe_scope=_map_safe_scope,
+                skip_overrides=True,
             )
             if recipe:
                 # merge child_recipe
