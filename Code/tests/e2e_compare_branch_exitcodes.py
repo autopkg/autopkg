@@ -190,45 +190,13 @@ def test_recipe(
         print("  %s run finished with exit code %d" % (attempt, proc.returncode))
         if ".munki." in recipe_path:
             if makecatalogs_path:
-                _ = subprocess.run(
+                subprocess.run(
                     [str(makecatalogs_path)], check=False, capture_output=True
                 )
             else:
                 print("  makecatalogs not found; skipping catalog rebuild")
 
     return tuple(exit_codes)
-
-
-def current_git_ref(autopkg_repo):
-    """Return the current branch name, or commit hash if HEAD is detached."""
-    proc = subprocess.run(
-        [
-            "git",
-            "-C",
-            str(autopkg_repo),
-            "symbolic-ref",
-            "--quiet",
-            "--short",
-            "HEAD",
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode == 0:
-        return proc.stdout.strip()
-
-    proc = subprocess.run(
-        ["git", "-C", str(autopkg_repo), "rev-parse", "--verify", "HEAD"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode:
-        if proc.stderr:
-            sys.stderr.write(proc.stderr)
-        sys.exit(proc.returncode)
-    return proc.stdout.strip()
 
 
 def write_cache_prefs(cache_dir):
@@ -240,10 +208,11 @@ def write_cache_prefs(cache_dir):
         return Path(prefs_file.name)
 
 
-def checkout_branch(autopkg_repo, branch):
-    """Check out the branch to be tested."""
+def create_worktree(autopkg_repo, branch, parent_dir):
+    """Create a git worktree for branch under parent_dir and return its path."""
+    worktree_path = parent_dir / branch
     proc = subprocess.run(
-        ["git", "-C", str(autopkg_repo), "checkout", branch],
+        ["git", "-C", str(autopkg_repo), "worktree", "add", str(worktree_path), branch],
         check=False,
         capture_output=True,
         text=True,
@@ -252,36 +221,41 @@ def checkout_branch(autopkg_repo, branch):
         if proc.stderr:
             sys.stderr.write(proc.stderr)
         sys.exit(proc.returncode)
+    return worktree_path
 
 
-def restore_original_ref(autopkg_repo, original_ref):
-    """Restore the branch or commit that was checked out before testing."""
-    proc = subprocess.run(
-        ["git", "-C", str(autopkg_repo), "checkout", original_ref],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode:
-        sys.stderr.write(f"Failed to restore original git ref {original_ref}.\n")
-        if proc.stderr:
-            sys.stderr.write(proc.stderr)
+def remove_worktrees(autopkg_repo, *worktree_paths):
+    """Remove git worktrees, ignoring errors."""
+    for path in worktree_paths:
+        if path is None:
+            continue
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                str(autopkg_repo),
+                "worktree",
+                "remove",
+                "--force",
+                str(path),
+            ],
+            check=False,
+            capture_output=True,
+        )
 
 
 def test_recipes_for_branch(
     branch,
     recipes,
     recipe_repos,
-    autopkg_repo,
     autopkg_bin,
     additional_opts,
     cache_dir,
     cache_prefs_path,
     makecatalogs_path,
 ):
-    """Check out a branch once and test all selected recipes on it."""
+    """Test all selected recipes on a branch via its worktree."""
     print(f"Testing on autopkg {branch} branch")
-    checkout_branch(autopkg_repo, branch)
 
     branch_results = {}
     for idx, recipe in enumerate(recipes):
@@ -304,8 +278,7 @@ def main() -> None:
     args = parse_args()
     recipe_repos = args.recipe_repos.expanduser().resolve()
     autopkg_repo = args.autopkg_repo.expanduser().resolve()
-    autopkg_bin_path = args.autopkg_bin or autopkg_repo / "Code" / "autopkg"
-    autopkg_bin = autopkg_bin_path.expanduser().resolve()
+    explicit_bin = args.autopkg_bin.expanduser().resolve() if args.autopkg_bin else None
     cache_dir = args.cache_dir.expanduser().resolve()
     makecatalogs_path = (
         args.makecatalogs_path.expanduser().resolve()
@@ -318,8 +291,8 @@ def main() -> None:
         sys.exit(f"Recipe repo path is not a directory: {recipe_repos}")
     if not autopkg_repo.is_dir():
         sys.exit(f"AutoPkg repo path is not a directory: {autopkg_repo}")
-    if not autopkg_bin.is_file():
-        sys.exit(f"AutoPkg executable not found: {autopkg_bin}")
+    if explicit_bin and not explicit_bin.is_file():
+        sys.exit(f"AutoPkg executable not found: {explicit_bin}")
     if args.recipe_count < 1:
         sys.exit("Recipe count must be at least 1")
 
@@ -331,33 +304,38 @@ def main() -> None:
     shuffle(found_recipes)
     found_recipes = found_recipes[: args.recipe_count]
 
-    original_ref = current_git_ref(autopkg_repo)
+    worktree_base = Path(tempfile.mkdtemp(prefix="autopkg-e2e-"))
     cache_prefs_path = write_cache_prefs(cache_dir)
+    ctrl_worktree = None
+    expr_worktree = None
     try:
+        ctrl_worktree = create_worktree(autopkg_repo, args.ctrl_branch, worktree_base)
+        ctrl_bin = explicit_bin or (ctrl_worktree / "Code" / "autopkg").resolve()
         ctrl_results = test_recipes_for_branch(
             args.ctrl_branch,
             found_recipes,
             recipe_repos,
-            autopkg_repo,
-            autopkg_bin,
+            ctrl_bin,
             args.additional_opts,
             cache_dir,
             cache_prefs_path,
             makecatalogs_path,
         )
+        expr_worktree = create_worktree(autopkg_repo, args.expr_branch, worktree_base)
+        expr_bin = explicit_bin or (expr_worktree / "Code" / "autopkg").resolve()
         expr_results = test_recipes_for_branch(
             args.expr_branch,
             found_recipes,
             recipe_repos,
-            autopkg_repo,
-            autopkg_bin,
+            expr_bin,
             args.additional_opts,
             cache_dir,
             cache_prefs_path,
             makecatalogs_path,
         )
     finally:
-        restore_original_ref(autopkg_repo, original_ref)
+        remove_worktrees(autopkg_repo, ctrl_worktree, expr_worktree)
+        shutil.rmtree(worktree_base, ignore_errors=True)
         cache_prefs_path.unlink(missing_ok=True)
 
     error_list = []
