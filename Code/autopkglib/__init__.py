@@ -425,11 +425,11 @@ def recipe_from_file(filename) -> VarDict | None:
 
     YAML recipes are parsed with ``AutoPkgYAMLLoader`` (based on
     ``SafeLoader``). This prevents arbitrary-code-execution via crafted YAML
-    tags (CVE-2020-14343-class issues) — doubly important now that the recipe
-    map backport causes every ``.recipe.yaml`` in ``RECIPE_SEARCH_DIRS`` to be
-    parsed during every map build and lookup, not just when the user explicitly
-    invokes the recipe. Float-looking scalars (e.g. ``VERSION: 1.0``) are
-    loaded as strings to match plist recipe behavior."""
+    tags (CVE-2020-14343-class issues) — doubly important because recipe-map
+    builds parse YAML recipes discovered in configured recipe and override
+    dirs, not just recipes explicitly invoked by the user. Float-looking
+    scalars (e.g. ``VERSION: 1.0``) are loaded as strings to match plist
+    recipe behavior."""
     if not os.path.isfile(filename):
         return None
 
@@ -591,21 +591,21 @@ def find_recipe_by_name_on_disk(name, search_dirs) -> str | None:
     return None
 
 
-# Backwards-compatible alias. The recipe-map port below keeps this name
-# pointing at the on-disk scanner so existing tests that mock
-# ``find_recipe_by_identifier`` keep working. Callers that want the new
-# map-based behaviour should use ``find_recipe_by_identifier_in_map`` explicitly.
+# Compatibility alias. Keep this name pointing at the on-disk scanner so
+# existing callers and tests that mock ``find_recipe_by_identifier`` keep
+# working. Callers that want map-based behaviour should use
+# ``find_recipe_by_identifier_in_map`` explicitly.
 find_recipe_by_identifier = find_recipe_by_identifier_on_disk
 
 
 # ---------------------------------------------------------------------------
-# Recipe map: backport from dev-3.x
+# Recipe map
 # ---------------------------------------------------------------------------
 #
-# The recipe map is an on-disk JSON cache of every recipe and override
-# discovered on the system. It lets autopkg resolve a recipe by identifier
-# or shortname without walking every recipe directory on each invocation,
-# which is the dominant cost for users with many recipe repos.
+# The recipe map is an on-disk JSON cache of recipes and overrides discovered
+# in configured search and override directories. It lets autopkg resolve a
+# recipe by identifier or shortname without walking every recipe directory on
+# each invocation, which is the dominant cost for users with many recipe repos.
 #
 # Glossary:
 #   identifier      A recipe's globally-unique reverse-DNS ID, read from
@@ -625,12 +625,11 @@ find_recipe_by_identifier = find_recipe_by_identifier_on_disk
 #          (overridable via AUTOPKG_RECIPE_MAP_PATH env var or
 #          RECIPE_MAP_PATH pref — issue #901)
 #   Keys:  ``identifiers``, ``shortnames``, ``overrides``,
-#          ``overrides-identifiers``, plus ``schema_version`` for
-#          forward-compat.
+#          ``overrides-identifiers``, plus ``schema_version`` for schema
+#          validation.
 #
-# UX divergence from dev-3.x: the original behaviour exited with an error
-# when the map was missing. We auto-create it on demand instead, and
-# expose an explicit ``autopkg generate-recipe-map`` verb for environments
+# Missing or invalid maps are regenerated on demand. The explicit
+# ``autopkg generate-recipe-map`` verb remains available for environments
 # (e.g. CI/CD) that want to build the cache up-front. See issues #884,
 # #893, #898.
 #
@@ -641,7 +640,8 @@ find_recipe_by_identifier = find_recipe_by_identifier_on_disk
 #   2. Miss?
 #        yes → on-disk fallback of the effective dirs
 #   3. Still miss? ``locate_recipe`` triggers one cwd-inclusive rebuild
-#      (once per process) and retries.
+#      (once per process) and retries; divergent caller scopes still scan
+#      only their effective dirs.
 #
 # External callers are map-safe only when dirs are omitted or normalized-
 # order-equal to prefs. Parent-recursion safety is threaded explicitly by
@@ -896,9 +896,9 @@ def _try_cwd_rebuild_once(reason: str) -> bool:
     return True
 
 
-# Schema version baked into the persisted map. Increment when the on-disk
-# format changes in a non-backwards-compatible way so we can force a
-# rebuild rather than reading stale or incompatible content.
+# Schema version baked into the persisted map. Increment when existing cache
+# files cannot be read safely so we can force a rebuild rather than reading
+# stale or incompatible content.
 RECIPE_MAP_SCHEMA_VERSION = 1
 
 
@@ -1125,9 +1125,8 @@ def validate_recipe_map(recipe_map: dict) -> bool:
     keys AND, if a ``schema_version`` is present, it matches what this
     version of autopkg knows how to read.
 
-    Missing ``schema_version`` is treated as valid for forward-compat with
-    older persisted files that pre-date the version field; missing required
-    dict keys always invalidate the map."""
+    Missing ``schema_version`` is treated as a legacy v1 map from an older
+    persisted file; missing required dict keys always invalidate the map."""
     if not _EXPECTED_MAP_KEYS.issubset(recipe_map.keys()):
         return False
     version = recipe_map.get("schema_version")
@@ -1144,13 +1143,11 @@ def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> No
     * ``rebuild=True`` forces a full rebuild regardless of on-disk state.
     * Otherwise: valid file → load; missing/invalid → auto-rebuild once.
 
-    Dev-3.x printed an error and called ``sys.exit(1)`` when the map was
-    missing. We auto-rebuild silently instead — fresh installs and CI
-    pipelines hit that case constantly. See issues #884, #893, #898.
+    Missing or invalid maps auto-rebuild instead of exiting; fresh installs
+    and CI pipelines hit that case constantly. See issues #884, #893, #898.
 
-    ``allow_continuing`` is retained for API compatibility with dev-3.x
-    callers that used it to signal "the map may not exist yet". The new
-    auto-create behaviour makes it a no-op."""
+    ``allow_continuing`` is accepted to preserve the public API. Automatic
+    map creation makes it a no-op."""
     _ = allow_continuing  # retained for API compatibility
 
     if _recipe_map_disabled():
