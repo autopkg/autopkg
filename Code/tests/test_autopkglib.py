@@ -490,6 +490,30 @@ class TestUpdateData(unittest.TestCase):
         autopkglib.update_data(env, "ARG", env["ARG"])
         self.assertEqual(env["ARG"], "")
 
+    def test_false_value_substituted_as_empty_string(self):
+        """False values referenced via %KEY% must expand to empty string."""
+        env = {"INCLUDE_PRERELEASES": False, "ARG": "%INCLUDE_PRERELEASES%"}
+        autopkglib.update_data(env, "ARG", env["ARG"])
+        self.assertEqual(env["ARG"], "")
+
+    def test_true_value_substituted_as_string(self):
+        """True values referenced via %KEY% continue to expand to a string."""
+        env = {"INCLUDE_PRERELEASES": True, "ARG": "%INCLUDE_PRERELEASES%"}
+        autopkglib.update_data(env, "ARG", env["ARG"])
+        self.assertEqual(env["ARG"], "True")
+
+    def test_zero_value_substituted_as_string(self):
+        """Zero values referenced via %KEY% continue to expand to a string."""
+        env = {"BUILD": 0, "NAME": "MyApp-%BUILD%"}
+        autopkglib.update_data(env, "NAME", env["NAME"])
+        self.assertEqual(env["NAME"], "MyApp-0")
+
+    def test_false_string_substitution_unchanged(self):
+        """The string 'False' is substituted as-is."""
+        env = {"INCLUDE_PRERELEASES": "False", "ARG": "%INCLUDE_PRERELEASES%"}
+        autopkglib.update_data(env, "ARG", env["ARG"])
+        self.assertEqual(env["ARG"], "False")
+
     def test_plain_string_substitution_unchanged(self):
         """String values are substituted as-is."""
         env = {"NAME": "Firefox", "PATH": "%NAME%.pkg"}
