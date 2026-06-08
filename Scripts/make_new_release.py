@@ -550,11 +550,24 @@ def main():
     subprocess.check_call(git_cmd)
     os.chdir(autopkg_root)
 
+    print("** Clearing AutoPkgGitMaster recipe cache")
+    parent_path = pathlib.Path(__file__).parent.parent
+    # check=False: exit code 1 is expected when no cache exists yet
+    subprocess.run(
+        [
+            os.path.join(parent_path, "Code/autopkg"),
+            "clear-cache",
+            "--search-dir",
+            recipes_dir,
+            "AutoPkgGitMaster.pkg",
+        ],
+        check=False,
+    )
+
     print("** Running AutoPkgGitMaster.pkg recipe")
     # running using the system AutoPkg directory so that we ensure we're at the
     # minimum required version to run the AutoPkg recipe
     report_plist_path = tempfile.mkstemp()[1]
-    parent_path = pathlib.Path(__file__).parent.parent
     cmd = [
         os.path.join(parent_path, "Code/autopkg"),
         "run",
