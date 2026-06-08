@@ -1517,7 +1517,6 @@ class TestAutoPkgRecipes(unittest.TestCase):
     def test_audit_missing_code_signature_verifier(self):
         """Test audit command flagging missing CodeSignatureVerifier."""
         for downloader_processor in (
-            "CURLDownloader",
             "URLDownloader",
             "URLDownloaderPython",
         ):
@@ -3215,7 +3214,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
                     },
                 },
                 {
-                    "Processor": "CURLTextSearcher",
+                    "Processor": "MunkiCatalogBuilder",
                     "Arguments": {
                         "url": "http://api.example.com/version",
                         "re_pattern": r"version:\s*(\d+\.\d+)",
@@ -3227,7 +3226,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
         expected = {
             "Process": {
                 "URLDownloader": {"url": "http://example.com/file.dmg"},
-                "CURLTextSearcher": {"url": "http://api.example.com/version"},
+                "MunkiCatalogBuilder": {"url": "http://api.example.com/version"},
             }
         }
         self.assertEqual(result, expected)

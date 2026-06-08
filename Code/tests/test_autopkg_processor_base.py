@@ -929,10 +929,10 @@ class TestProcessorBase(unittest.TestCase):
     def test_non_deprecated_processor_workflow(self):
         """Test complete workflow of a non-deprecated processor."""
 
-        class CURLDownloader(Processor):
+        class ActiveProcessor(Processor):
             """Simulated active processor."""
 
-            description = "Simulated CURLDownloader"
+            description = "Simulated active processor"
             input_variables = {
                 "url": {
                     "required": True,
@@ -954,7 +954,7 @@ class TestProcessorBase(unittest.TestCase):
             "RECIPE_PATH": "/recipes/test.recipe",
             "url": "https://example.com/file.dmg",
         }
-        processor = CURLDownloader(env=env)
+        processor = ActiveProcessor(env=env)
 
         with patch.object(processor, "output") as mock_output:
             result_env = processor.process()
