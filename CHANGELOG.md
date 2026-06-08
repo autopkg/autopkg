@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. This projec
 
 ## [3.0.0](https://github.com/autopkg/autopkg/compare/v2.9.0...HEAD) (Unreleased)
 
+> [!NOTE]
+> **Release candidate lineage:** AutoPkg 3.0.0 RC 4 is based on the 2.x improvements in prior versions while re-implementing some of the features previously included in 3.0.0 RCs 1-3. If a previous RC had a needed feature or fix that RC 4 lacks, please [raise an issue](https://github.com/autopkg/autopkg/issues) to alert us.
+
 ### Recipe map
 
 AutoPkg now uses a "recipe map," an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the local AutoPkg setup, indexed by identifier and shortname. This makes recipe resolution much faster on systems with many configured recipe repos. (This idea was introduced in 3.0.0 release candidates 1-3 but has been freshly reimplemented in 3.0.0 release candidate 4.)
