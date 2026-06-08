@@ -181,14 +181,6 @@ class TestPlistReader(unittest.TestCase):
 
         self.assertEqual(result, ("/path/to/test.dmg", ".dmg/", "TestApp.app"))
 
-    def test_parse_path_for_dmg_detects_windows_separator(self):
-        """Test parsePathForDMG detects DMG paths with Windows separators."""
-        dmg_path = r"C:\path\to\test.dmg\TestApp.app"
-
-        result = self.processor.parsePathForDMG(dmg_path)
-
-        self.assertEqual(result, (r"C:\path\to\test.dmg", ".dmg\\", "TestApp.app"))
-
     def test_main_reads_plist_inside_dmg(self):
         """Test that main() mounts a DMG path and reads the plist inside."""
         dmg_path = os.path.join(self.tmp_dir.name, "test.dmg")
@@ -209,7 +201,7 @@ class TestPlistReader(unittest.TestCase):
             patch.object(
                 self.processor, "mount", return_value=mount_point
             ) as mock_mount,
-            patch.object(self.processor, "unmount") as mock_unmount,
+            patch.object(self.processor, "unmount_if_mounted") as mock_unmount,
             patch.object(self.processor, "output"),
         ):
             self.processor.main()
@@ -229,7 +221,7 @@ class TestPlistReader(unittest.TestCase):
 
         with (
             patch.object(self.processor, "mount", return_value=self.tmp_dir.name),
-            patch.object(self.processor, "unmount") as mock_unmount,
+            patch.object(self.processor, "unmount_if_mounted") as mock_unmount,
             patch.object(self.processor, "output"),
         ):
             self.processor.main()
@@ -251,7 +243,7 @@ class TestPlistReader(unittest.TestCase):
 
         with patch.object(self.processor, "parsePathForDMG") as mock_parse:
             with patch.object(self.processor, "mount") as mock_mount:
-                with patch.object(self.processor, "unmount") as mock_unmount:
+                with patch.object(self.processor, "unmount_if_mounted") as mock_unmount:
                     with patch("os.path.exists") as mock_exists:
                         # Setup mocks to trigger an exception
                         mock_parse.return_value = (dmg_path, True, internal_path)
@@ -263,7 +255,7 @@ class TestPlistReader(unittest.TestCase):
                         with self.assertRaises(ProcessorError):
                             self.processor.main()
 
-        # Verify unmount was still called despite the exception
+        # Verify unmount_if_mounted was still called despite the exception
         mock_unmount.assert_called_once_with(dmg_path)
 
     # Test error handling

@@ -144,8 +144,7 @@ class Installer(DmgMounter):
                 }
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
     def connect(self) -> None:
         """Connect to autopkginstalld"""

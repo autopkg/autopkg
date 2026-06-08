@@ -109,7 +109,7 @@ class InstallFromDMG(DmgMounter):
                     "data": {"dmg_path": self.env["dmg_path"]},
                 }
         finally:
-            self.unmount(self.env["dmg_path"])
+            self.unmount_if_mounted(self.env["dmg_path"])
 
     def connect(self) -> None:
         """Connect to autopkginstalld"""

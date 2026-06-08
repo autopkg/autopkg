@@ -121,8 +121,7 @@ class Copier(DmgMounter):
                 overwrite=self.env.get("overwrite"),
             )
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

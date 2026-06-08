@@ -85,7 +85,7 @@ class TestCopier(unittest.TestCase):
         self.processor.main()
         mock_copy.assert_called_once()
 
-    @patch.object(Copier, "unmount")
+    @patch.object(Copier, "unmount_if_mounted")
     @patch.object(Copier, "mount")
     @patch("autopkglib.glob.glob")
     @patch.object(Copier, "copy")
@@ -99,7 +99,7 @@ class TestCopier(unittest.TestCase):
         mock_copy.assert_called_once()
         mock_unmount.assert_called_once()
 
-    @patch.object(Copier, "unmount")
+    @patch.object(Copier, "unmount_if_mounted")
     @patch.object(Copier, "mount")
     @patch("autopkglib.glob.glob")
     @patch.object(Copier, "copy")

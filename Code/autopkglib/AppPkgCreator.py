@@ -282,8 +282,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             self.package_app(matched_app_path)
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

@@ -259,7 +259,7 @@ class TestCodeSignatureVerifier(unittest.TestCase):
                 return_value=(app_path, [app_path]),
             ) as mock_glob,
             patch.object(self.processor, "process_code_signature") as mock_process,
-            patch.object(self.processor, "unmount") as mock_unmount,
+            patch.object(self.processor, "unmount_if_mounted") as mock_unmount,
         ):
             self.processor.main()
 

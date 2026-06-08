@@ -69,7 +69,7 @@ class TestDMGPlistIntegration(unittest.TestCase):
         # Mock the DMG-specific operations but use real file operations
         with patch.object(self.processor, "parsePathForDMG") as mock_parse:
             with patch.object(self.processor, "mount") as mock_mount:
-                with patch.object(self.processor, "unmount") as mock_unmount:
+                with patch.object(self.processor, "unmount_if_mounted") as mock_unmount:
                     with patch.object(
                         self.processor, "get_bundle_info_path"
                     ) as mock_bundle:
@@ -89,41 +89,6 @@ class TestDMGPlistIntegration(unittest.TestCase):
 
         # Verify the plist was actually read and processed
         self.assertEqual(self.processor.env["version"], "4.0.0")
-
-    def test_dmg_mount_failure_cleanup(self):
-        """Integration test: Verify cleanup occurs when DMG mounting fails."""
-        dmg_path = "/path/to/nonexistent.dmg"
-
-        self.processor.env = {
-            "info_path": f"{dmg_path}/TestApp.app",
-            "plist_keys": {"CFBundleShortVersionString": "version"},
-        }
-
-        mount_cleanup_called = False
-
-        def mock_mount_side_effect(path):
-            raise OSError("Failed to mount DMG")
-
-        def mock_unmount_side_effect(path):
-            nonlocal mount_cleanup_called
-            mount_cleanup_called = True
-
-        with patch.object(self.processor, "parsePathForDMG") as mock_parse:
-            with patch.object(
-                self.processor, "mount", side_effect=mock_mount_side_effect
-            ):
-                with patch.object(
-                    self.processor, "unmount", side_effect=mock_unmount_side_effect
-                ) as mock_unmount:
-                    with patch.object(self.processor, "output"):
-                        mock_parse.return_value = (dmg_path, True, "TestApp.app")
-
-                        # This should raise an exception but still call unmount for cleanup
-                        with self.assertRaises(OSError):
-                            self.processor.main()
-
-        # Verify cleanup was attempted even after failure
-        mock_unmount.assert_called_once_with(dmg_path)
 
 
 if __name__ == "__main__":

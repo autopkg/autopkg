@@ -43,6 +43,13 @@ class TestDmgMounterPathConfinement(unittest.TestCase):
         except (AttributeError, NotImplementedError, OSError) as err:
             self.skipTest(f"symlink creation is unavailable: {err}")
 
+    def test_parse_path_for_dmg_detects_windows_separator(self):
+        dmg_path = r"C:\path\to\test.dmg\TestApp.app"
+
+        result = self.processor.parsePathForDMG(dmg_path)
+
+        self.assertEqual(result, (r"C:\path\to\test.dmg", ".dmg\\", "TestApp.app"))
+
     def test_path_in_mount_accepts_child_path(self):
         self.assertEqual(
             self.processor.path_in_mount(self.mount_point, "App/Test.app"),
@@ -93,6 +100,23 @@ class TestDmgMounterPathConfinement(unittest.TestCase):
         with patch("subprocess.Popen", side_effect=OSError(2, "missing")):
             with self.assertRaisesRegex(ProcessorError, "hdiutil execution failed"):
                 self.processor.dmg_has_sla("/path/to/test.dmg")
+
+    def test_unmount_if_mounted_skips_when_not_mounted(self):
+        self.processor.unmount_if_mounted("/not/mounted.dmg")
+
+    def test_unmount_if_mounted_calls_unmount_when_mounted(self):
+        self.processor.mounts["/path/to/image.dmg"] = self.mount_point
+        with patch.object(self.processor, "unmount") as mock_unmount:
+            self.processor.unmount_if_mounted("/path/to/image.dmg")
+        mock_unmount.assert_called_once_with("/path/to/image.dmg")
+
+    def test_unmount_if_mounted_preserves_unmount_error(self):
+        self.processor.mounts["/path/to/image.dmg"] = self.mount_point
+        unmount_error = ProcessorError("detach failed")
+        with patch.object(self.processor, "unmount", side_effect=unmount_error):
+            with self.assertRaises(ProcessorError) as ctx:
+                self.processor.unmount_if_mounted("/path/to/image.dmg")
+        self.assertIs(ctx.exception, unmount_error)
 
 
 if __name__ == "__main__":

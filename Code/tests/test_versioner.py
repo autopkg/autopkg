@@ -275,6 +275,18 @@ class TestVersioner(unittest.TestCase):
         mock_dmg.assert_not_called()
         self.assertNotIn("version", result)
 
+    def test_mount_failure_preserves_original_error(self):
+        """mount() failure must not be masked by a subsequent unmount error."""
+        dmg_path = self._mkpath("image.dmg", "dir", "version.plist")
+        self.processor.env["input_plist_path"] = dmg_path
+        mount_error = ProcessorError("hdiutil failed: corrupt image")
+        with patch.object(self.processor, "mount", side_effect=mount_error):
+            with patch.object(self.processor, "unmount") as mock_unmount:
+                with self.assertRaises(ProcessorError) as ctx:
+                    self.processor.process()
+        mock_unmount.assert_not_called()
+        self.assertIs(ctx.exception, mount_error)
+
     def test_path_missing_raises(self):
         """Raises ProcessorError when the provided path does not exist."""
         zip_path = self._mkpath("archive.zip")

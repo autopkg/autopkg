@@ -169,8 +169,7 @@ class Versioner(DmgMounter):
             except Exception as err:
                 raise ProcessorError(err)
         finally:
-            if dmg_path in self.mounts:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
     def _read_auto_detect(
         self,

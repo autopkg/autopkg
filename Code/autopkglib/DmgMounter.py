@@ -242,6 +242,11 @@ class DmgMounter(Processor):
         # Delete mount from mount list.
         del self.mounts[pathname]
 
+    def unmount_if_mounted(self, pathname) -> None:
+        """Unmount image only if it was successfully mounted."""
+        if pathname in self.mounts:
+            self.unmount(pathname)
+
 
 if __name__ == "__main__":
     try:

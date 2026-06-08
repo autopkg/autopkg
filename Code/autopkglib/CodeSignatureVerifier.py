@@ -512,8 +512,7 @@ class CodeSignatureVerifier(DmgMounter):
                 self.process_code_signature(matched_input_path)
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

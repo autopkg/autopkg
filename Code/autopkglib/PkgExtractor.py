@@ -108,8 +108,7 @@ class PkgExtractor(DmgMounter):
             self.extract_payload(pkg_path, self.env["extract_root"])
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

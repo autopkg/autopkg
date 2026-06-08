@@ -113,6 +113,7 @@ Multiple processors now confine paths to their intended directories, preventing 
 > [!NOTE]
 > **APFS requires macOS 10.13 or later to mount.** If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly.
 
+- Processors that handle disk images now preserve original mount failures instead of masking them with subsequent "not mounted" cleanup errors.
 - PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
 - macOS-only processors that rely on `hdiutil`, `pkgutil`, `xar`, or `pkgbuild` now fail with explicit platform errors on non-macOS instead of attempting to launch unavailable tools.
 - URLDownloaderPython now validates cached files against their actual size, exposes computed hashes, and preserves downloads when ETag or Last-Modified headers are missing.
@@ -124,7 +125,6 @@ Multiple processors now confine paths to their intended directories, preventing 
 - ChocolateyPackager now preserves Chocolatey command output and processor diagnostics when packaging fails.
 - ChocolateyInstallGenerator now escapes single quotes in generated PowerShell string literals.
 - URLGetter now reports curl diagnostics correctly when file downloads fail in binary mode.
-- Versioner: handle failed disk image mounts more gracefully.
 - Removed some unused code from PkgRootCreator, URLDownloaderPython, and Versioner.
 - CURLDownloader and CURLTextSearcher: these long-deprecated processors have been removed. They were no longer in use in any autopkg org recipes.
 

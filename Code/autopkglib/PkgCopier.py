@@ -108,8 +108,7 @@ class PkgCopier(Copier):
             }
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":
