@@ -42,6 +42,14 @@ class TestSymlinker(unittest.TestCase):
             f.write("source")
         return source_path
 
+    def _readlink_target(self, path):
+        target = os.readlink(path)
+        if target.startswith("\\\\?\\UNC\\"):
+            return "\\" + target[7:]
+        if target.startswith("\\\\?\\"):
+            return target[4:]
+        return target
+
     def test_symlink_created_successfully(self):
         source_path = self._write_source_file()
         destination_path = self._path("destination.txt")
@@ -53,7 +61,7 @@ class TestSymlinker(unittest.TestCase):
         self.processor.main()
 
         self.assertTrue(os.path.islink(destination_path))
-        self.assertEqual(os.readlink(destination_path), source_path)
+        self.assertEqual(self._readlink_target(destination_path), source_path)
 
     def test_overwrite_removes_existing_destination_first(self):
         source_path = self._write_source_file()
@@ -69,7 +77,7 @@ class TestSymlinker(unittest.TestCase):
         self.processor.main()
 
         self.assertTrue(os.path.islink(destination_path))
-        self.assertEqual(os.readlink(destination_path), source_path)
+        self.assertEqual(self._readlink_target(destination_path), source_path)
 
     def test_oserror_on_unlink_raises_processor_error(self):
         source_path = self._write_source_file()

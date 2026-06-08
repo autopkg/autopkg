@@ -16,10 +16,13 @@
 
 import subprocess
 import unittest
+from importlib import import_module
 from unittest.mock import patch
 
 from autopkglib import ProcessorError
 from autopkglib.URLGetter import URLGetter
+
+urlgetter_module = import_module("autopkglib.URLGetter")
 
 
 class TestURLGetter(unittest.TestCase):
@@ -84,7 +87,7 @@ class TestURLGetter(unittest.TestCase):
     def test_prepare_curl_cmd_includes_compressed_by_default(self):
         """prepare_curl_cmd includes --compressed outside Windows system curl."""
         with (
-            patch("autopkglib.URLGetter.is_windows", return_value=False),
+            patch.object(urlgetter_module, "is_windows", return_value=False),
             patch.object(self.processor, "curl_binary", return_value="/usr/bin/curl"),
         ):
             self.assertEqual(
@@ -95,7 +98,7 @@ class TestURLGetter(unittest.TestCase):
     def test_prepare_curl_cmd_omits_compressed_for_windows_system_curl(self):
         """prepare_curl_cmd omits --compressed for Windows system curl."""
         with (
-            patch("autopkglib.URLGetter.is_windows", return_value=True),
+            patch.object(urlgetter_module, "is_windows", return_value=True),
             patch.object(
                 self.processor,
                 "curl_binary",
