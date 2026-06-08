@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+
 # Utility script to handle duplicating existing repos to an organization,
 # and creating a team with access to the new repo.
 """Utility to duplicate an AutoPkg recipe repo on GitHub to an organization and

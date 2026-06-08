@@ -1,6 +1,6 @@
 #!/usr/local/autopkg/python
 #
-# Copyright 2014-2015 Timothy Sutton
+# Copyright 2014 Timothy Sutton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for GitHubReleasesInfoProvider class"""
 
 import re

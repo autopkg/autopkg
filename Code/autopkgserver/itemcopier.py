@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Copies stuff from a diskimage to the current boot disk. Really useful for
 drag-n-drop vendor disk images so we don't have to package it first to install
 it"""
