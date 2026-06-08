@@ -212,7 +212,16 @@ def create_worktree(autopkg_repo, branch, parent_dir):
     """Create a git worktree for branch under parent_dir and return its path."""
     worktree_path = parent_dir / branch
     proc = subprocess.run(
-        ["git", "-C", str(autopkg_repo), "worktree", "add", str(worktree_path), branch],
+        [
+            "git",
+            "-C",
+            str(autopkg_repo),
+            "worktree",
+            "add",
+            "--force",
+            str(worktree_path),
+            branch,
+        ],
         check=False,
         capture_output=True,
         text=True,
