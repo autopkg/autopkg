@@ -557,7 +557,7 @@ class TestAutoPkgOverrides(unittest.TestCase):
             mock_log_err.assert_called_once()
             warning_msg = mock_log_err.call_args[0][0]
             self.assertIn("Scripts/preinstall", warning_msg)
-            self.assertIn("3.0.1", warning_msg)
+            self.assertIn("3.1.0", warning_msg)
 
     @patch("sys.argv", ["autopkg", "update-trust-info", "test.recipe"])
     def test_update_trust_info_success(self):
