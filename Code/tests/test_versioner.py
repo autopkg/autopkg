@@ -163,7 +163,16 @@ class TestVersioner(unittest.TestCase):
             mount_path: str = self._mkpath("dmg_mount")
             plist_path: str = self._mkpath(f"fake{ext}/dir/version.plist")
             dmg_path: str = self._mkpath(f"fake{ext}")
-            mock_mount.return_value = mount_path
+
+            def mount_image(path):
+                self.processor.mounts[path] = mount_path
+                return mount_path
+
+            def unmount_image(path):
+                del self.processor.mounts[path]
+
+            mock_mount.side_effect = mount_image
+            mock_unmount.side_effect = unmount_image
             self.processor.env["input_plist_path"] = plist_path
             result: dict[str, Any] = self.processor.process()
             mock_zip.assert_not_called()
@@ -280,11 +289,14 @@ class TestVersioner(unittest.TestCase):
         for path in missing_paths:
             with self.subTest(path=path):
                 self.processor.env["input_plist_path"] = path
-                if ".dmg/" in path:
+                if self.processor.parsePathForDMG(path)[1]:
+
+                    def mount_image(dmg_path):
+                        self.processor.mounts[dmg_path] = self.tmp_dir.name
+                        return self.tmp_dir.name
+
                     with (
-                        patch.object(
-                            self.processor, "mount", return_value=self.tmp_dir.name
-                        ),
+                        patch.object(self.processor, "mount", side_effect=mount_image),
                         patch.object(self.processor, "unmount"),
                     ):
                         with self.assertRaises(ProcessorError) as context:
