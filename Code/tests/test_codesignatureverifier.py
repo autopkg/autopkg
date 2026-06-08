@@ -171,6 +171,7 @@ class TestCodeSignatureVerifierCommon(unittest.TestCase):
             with self.assertRaisesRegex(ProcessorError, "codesign execution failed"):
                 processor.codesign_verify("/path/to/test.app")
 
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
     def test_pkgutil_check_signature_wraps_launch_error(self):
         processor = CodeSignatureVerifier()
 

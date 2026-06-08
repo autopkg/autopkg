@@ -16,6 +16,7 @@
 
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -87,6 +88,7 @@ class TestDmgMounterPathConfinement(unittest.TestCase):
         with self.assertRaises(ProcessorError):
             self.processor.glob_paths_in_mount(self.mount_point, "*.pkg")
 
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
     def test_dmg_has_sla_wraps_launch_error(self):
         with patch("subprocess.Popen", side_effect=OSError(2, "missing")):
             with self.assertRaisesRegex(ProcessorError, "hdiutil execution failed"):

@@ -174,6 +174,7 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "Can't find nonexistent_file.txt"):
             self.processor.find_path_for_relpath("nonexistent_file.txt")
 
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
     @patch("subprocess.Popen")
     def test_xar_expand_success(self, mock_popen):
         """Test successful xar expansion."""
@@ -190,6 +191,7 @@ class TestPkgCreator(unittest.TestCase):
         self.assertIn("/usr/bin/xar", args)
         self.assertIn(test_pkg, args)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
     @patch("subprocess.Popen")
     def test_xar_expand_failure(self, mock_popen):
         """Test xar expansion failure."""
@@ -202,6 +204,7 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "extraction.*failed"):
             self.processor.xar_expand(test_pkg)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
     @patch("subprocess.Popen", side_effect=OSError(2, "No such file"))
     def test_xar_expand_oserror(self, mock_popen):
         """Test xar expansion OSError."""

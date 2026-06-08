@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -21,6 +22,7 @@ from autopkglib import ProcessorError
 from autopkglib.FlatPkgPacker import FlatPkgPacker
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
 class TestFlatPkgPacker(unittest.TestCase):
     def test_flatten_wraps_launch_error(self):
         processor = FlatPkgPacker()

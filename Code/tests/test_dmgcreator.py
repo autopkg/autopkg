@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import unittest
 
 from autopkglib import ProcessorError
@@ -30,6 +31,7 @@ class TestDmgCreatorDefaults(unittest.TestCase):
         self.assertEqual(DEFAULT_DMG_FILESYSTEM, "APFS")
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
 class TestDmgCreatorFormatValidation(unittest.TestCase):
     """Format and filesystem validation raises ProcessorError before any
     subprocess call, so these tests need no mocking."""
