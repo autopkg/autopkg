@@ -316,7 +316,9 @@ def main():
     """
     usage = __doc__
     parser = optparse.OptionParser(usage=usage)
-    parser.add_option("-t", "--token", help="GitHub API OAuth token. Required.")
+    parser.add_option(
+        "-t", "--token", help="GitHub API OAuth token. Required except for --dry-run."
+    )
     parser.add_option(
         "-v",
         "--next-version",
