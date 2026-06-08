@@ -29,7 +29,6 @@
 # handling.
 """See docstring for main() function"""
 
-import glob
 import json
 import optparse
 import os
@@ -54,6 +53,17 @@ import certifi
 # Releases use a strict MAJOR.MINOR.PATCH version; beta/RC goes on the tag via
 # --prerelease, not here.
 SEMVER_RE = re.compile(r"\d+\.\d+\.\d+")
+PYOBJC_SMOKE_IMPORTS = (
+    "Foundation",
+    "Quartz",
+    "Security",
+    "SystemConfiguration",
+    "LaunchServices",
+)
+PYTHON_APP_EXECUTABLE = pathlib.Path(
+    "Resources", "Python.app", "Contents", "MacOS", "Python"
+)
+REQUIRED_PYTHON_ARCHITECTURES = {"arm64", "x86_64"}
 
 
 def version_tuple(version_string: str) -> tuple[int, ...]:
@@ -72,6 +82,166 @@ def prerelease_display_name(prerelease: str) -> str:
     if rc_match:
         return f"Release Candidate {rc_match.group(1)}"
     return prerelease
+
+
+def find_bundled_python(expanded_pkg_dir: str) -> tuple[str, str] | None:
+    """Return the packaged Python.framework and executable from an expanded pkg."""
+    for framework_path in sorted(
+        pathlib.Path(expanded_pkg_dir).glob(
+            "**/Library/AutoPkg/Python3/Python.framework"
+        )
+    ):
+        versions_path = framework_path / "Versions"
+        version_paths = []
+        current_path = versions_path / "Current"
+        if current_path.exists():
+            version_paths.append(current_path)
+        if versions_path.exists():
+            version_paths.extend(
+                path
+                for path in sorted(versions_path.iterdir())
+                if path.name != "Current" and path.is_dir()
+            )
+        for version_path in version_paths:
+            python_path = version_path / PYTHON_APP_EXECUTABLE
+            if python_path.exists():
+                return str(framework_path), str(python_path)
+    return None
+
+
+def bundled_python_binary_paths(framework_path: str) -> list[str]:
+    """Return Python framework binary paths that must be universal."""
+    framework_path = pathlib.Path(framework_path)
+    binary_paths = set()
+    for path in framework_path.rglob("*"):
+        if not path.is_file():
+            continue
+        if path.suffix in (".so", ".dylib"):
+            binary_paths.add(path)
+        elif (
+            path.parts[-len(PYTHON_APP_EXECUTABLE.parts) :]
+            == PYTHON_APP_EXECUTABLE.parts
+        ):
+            binary_paths.add(path)
+        elif path.parent.name == "bin" and re.fullmatch(
+            r"python\d*(?:\.\d+)?", path.name
+        ):
+            binary_paths.add(path)
+
+    version_current_python = framework_path / "Versions" / "Current" / "Python"
+    if version_current_python.exists():
+        binary_paths.add(version_current_python)
+
+    current_bin = framework_path / "Versions" / "Current" / "bin"
+    if current_bin.exists():
+        binary_paths.update(
+            path
+            for path in current_bin.glob("python*")
+            if path.is_file() and re.fullmatch(r"python\d*(?:\.\d+)?", path.name)
+        )
+
+    return [str(path) for path in sorted(binary_paths)]
+
+
+def smoke_test_bundled_python_architectures(framework_path: str) -> None:
+    """Verify bundled Python binary files contain required universal slices."""
+    lipo = "/usr/bin/lipo"
+    if not os.path.exists(lipo):
+        lipo = which("lipo")
+    if not lipo:
+        sys.exit("Cannot smoke-test bundled Python architectures: lipo was not found.")
+
+    print("** Smoke-testing bundled Python universal binary slices")
+    failures = []
+    binary_paths = bundled_python_binary_paths(framework_path)
+    if not binary_paths:
+        sys.exit("Could not find bundled Python binary files to smoke-test.")
+
+    for binary_path in binary_paths:
+        result = subprocess.run(
+            [lipo, "-archs", binary_path],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            failures.append(f"{binary_path}: {result.stderr.strip()}")
+            continue
+        architectures = set(result.stdout.split())
+        missing_architectures = REQUIRED_PYTHON_ARCHITECTURES - architectures
+        if missing_architectures:
+            failures.append(
+                "{}: missing {} (found {})".format(
+                    binary_path,
+                    ", ".join(sorted(missing_architectures)),
+                    " ".join(sorted(architectures)) or "none",
+                )
+            )
+
+    if failures:
+        sys.exit(
+            "Bundled Python universal binary smoke test failed:\n" + "\n".join(failures)
+        )
+
+
+def smoke_test_bundled_python(pkg_path: str) -> None:
+    """Verify the built package's bundled Python can import required frameworks."""
+    pkgutil = "/usr/sbin/pkgutil"
+    if not os.path.exists(pkgutil):
+        pkgutil = which("pkgutil")
+    if not pkgutil:
+        sys.exit("Cannot smoke-test bundled Python: pkgutil was not found.")
+
+    print("** Smoke-testing bundled Python PyObjC framework imports")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        expanded_pkg_dir = pathlib.Path(temp_dir) / "expanded_pkg"
+        try:
+            subprocess.run(
+                [pkgutil, "--expand-full", pkg_path, str(expanded_pkg_dir)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        except subprocess.CalledProcessError as err:
+            sys.exit(
+                "Could not expand built package for bundled Python smoke test: "
+                f"{err.stderr.strip()}"
+            )
+
+        bundled_python = find_bundled_python(str(expanded_pkg_dir))
+        if not bundled_python:
+            sys.exit("Could not find bundled AutoPkg Python in built package.")
+        framework_path, python_path = bundled_python
+
+        import_statement = """
+import importlib
+import sys
+
+failures = []
+for module_name in {modules!r}:
+    try:
+        importlib.import_module(module_name)
+    except Exception as err:
+        failures.append(f"{{module_name}}: {{err}}")
+if failures:
+    sys.stderr.write("\\n".join(failures))
+    sys.exit(1)
+""".format(modules=PYOBJC_SMOKE_IMPORTS)
+        result = subprocess.run(
+            [python_path, "-c", import_statement],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            sys.exit(
+                "Bundled Python PyObjC smoke test failed: "
+                f"{result.stderr.strip() or result.stdout.strip()}"
+            )
+        smoke_test_bundled_python_architectures(framework_path)
 
 
 class GitHubAPIError(BaseException):
@@ -412,59 +582,40 @@ def main():
         ]
     )
 
-    # Temporarily move user pip and pip cache to prevent interference with
-    # relocatable-python build process
-    pip_cache_dir = os.path.expanduser("~/Library/Caches/pip")
-    temp_suffix = f".backup.{os.getpid()}"
-
-    moved_paths = []
-    paths_to_move = [pip_cache_dir]
-    for sp in glob.glob(
-        os.path.expanduser("~/Library/Python/*/lib/python/site-packages")
-    ):
-        paths_to_move.extend(glob.glob(os.path.join(sp, "pip")))
-        paths_to_move.extend(glob.glob(os.path.join(sp, "pip-*.dist-info")))
-
-    for path in paths_to_move:
-        if os.path.exists(path):
-            backup_path = path + temp_suffix
-            try:
-                os.rename(path, backup_path)
-                moved_paths.append((path, backup_path))
-                print(f"** Temporarily moved {path}")
-            except OSError:
-                pass  # If move fails, continue anyway
-
-    try:
-        subprocess.run(args=cmd, text=True, check=True)
-    finally:
-        # Restore moved paths
-        for original, backup in moved_paths:
-            try:
-                os.rename(backup, original)
-                print(f"** Restored {original}")
-            except OSError:
-                pass  # If restore fails, leave backup in place
-    try:
-        with open(report_plist_path, "rb") as f:
-            report = plistlib.load(f)
-    except BaseException as err:
-        print(
-            "Couldn't parse a valid report plist from the autopkg run!", file=sys.stderr
+    # Build with an empty temporary home so relocatable-python cannot see
+    # contributor-specific ~/Library/Python or pip cache contents.
+    with tempfile.TemporaryDirectory() as build_home:
+        build_env = os.environ.copy()
+        build_env.update(
+            {
+                "HOME": build_home,
+                "PYTHONUSERBASE": os.path.join(build_home, "Library", "Python"),
+                "PIP_CACHE_DIR": os.path.join(build_home, "Library", "Caches", "pip"),
+            }
         )
-        sys.exit(err)
-    os.remove(report_plist_path)
+        subprocess.run(args=cmd, text=True, check=True, env=build_env)
+        try:
+            with open(report_plist_path, "rb") as f:
+                report = plistlib.load(f)
+        except BaseException as err:
+            print(
+                "Couldn't parse a valid report plist from the autopkg run!",
+                file=sys.stderr,
+            )
+            sys.exit(err)
+        os.remove(report_plist_path)
 
-    if report["failures"]:
-        sys.exit(f"Recipe run error: {report['failures'][0]['message']}")
+        if report["failures"]:
+            sys.exit(f"Recipe run error: {report['failures'][0]['message']}")
 
-    print("** Collecting package data")
-    # collect pkg file data
-    pkg_result = report["summary_results"]["pkg_creator_summary_result"]
-    built_pkg_path = pkg_result["data_rows"][0]["pkg_path"]
-    pkg_filename = os.path.basename(built_pkg_path)
-    with open(built_pkg_path, "rb") as fdesc:
-        pkg_data = fdesc.read()
+        print("** Collecting package data")
+        # collect pkg file data
+        pkg_result = report["summary_results"]["pkg_creator_summary_result"]
+        built_pkg_path = pkg_result["data_rows"][0]["pkg_path"]
+        pkg_filename = os.path.basename(built_pkg_path)
+        smoke_test_bundled_python(built_pkg_path)
+        with open(built_pkg_path, "rb") as fdesc:
+            pkg_data = fdesc.read()
 
     # prepare release metadata
     release_data = dict()
