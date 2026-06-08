@@ -390,7 +390,7 @@ class URLDownloader(URLGetter):
             self.output(f"Storing new ETag header: {header.get('etag')}")
 
     def store_metadata(self, header: dict[str, Any]) -> None:
-        """Write download metadata to .info.json and store xattrs for backward compatibility."""
+        """Write download metadata to .info.json and preserve legacy xattr metadata."""
         pathname_info_json = self.env["pathname"] + ".info.json"
 
         self.env["etag"] = header.get("etag", "")
@@ -434,7 +434,7 @@ class URLDownloader(URLGetter):
             os.remove(tmp_path)
             raise
 
-        # For backwards compatibility, set xattrs
+        # Preserve legacy xattr metadata for callers that still read it.
         self.store_headers(header)
 
     def main(self) -> None:
@@ -468,7 +468,7 @@ class URLDownloader(URLGetter):
         # New resource was downloaded. Move the temporary download file to the pathname
         self.move_temp_file(pathname_temporary)
 
-        # Save last-modified and etag headers to files xattr
+        # Save .info.json metadata and legacy last-modified/etag xattrs.
         self.store_metadata(header)
 
         # Generate output messages and variables
