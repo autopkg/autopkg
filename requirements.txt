@@ -68,13 +68,17 @@ pyobjc-core==11.1 ; sys_platform == 'darwin'
     # via
     #   -r requirements.in
     #   pyobjc-framework-cocoa
+    #   pyobjc-framework-quartz
     #   pyobjc-framework-security
     #   pyobjc-framework-systemconfiguration
 pyobjc-framework-cocoa==11.1 ; sys_platform == 'darwin'
     # via
     #   -r requirements.in
+    #   pyobjc-framework-quartz
     #   pyobjc-framework-security
     #   pyobjc-framework-systemconfiguration
+pyobjc-framework-quartz==11.1 ; sys_platform == 'darwin'
+    # via -r requirements.in
 pyobjc-framework-security==11.1 ; sys_platform == 'darwin'
     # via -r requirements.in
 pyobjc-framework-systemconfiguration==11.1 ; sys_platform == 'darwin'
