@@ -34,6 +34,8 @@ pyobjc-framework-Quartz; sys_platform == 'darwin'
 pyobjc-framework-Security; sys_platform == 'darwin'
 # SystemConfiguration: dataJAR-recipes/Adobe Admin Console Packages/AdobeAdminConsolePackagesImporter.py
 pyobjc-framework-SystemConfiguration; sys_platform == 'darwin'
+# LaunchServices: munkilib/info.py (imported unconditionally when munkilib is loaded via GitFileRepo/MunkiLib)
+pyobjc-framework-LaunchServices; sys_platform == 'darwin'
 
 #
 # Windows Requirements
