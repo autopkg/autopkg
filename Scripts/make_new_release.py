@@ -36,15 +36,17 @@ import os
 import pathlib
 import plistlib
 import re
+import site
 import ssl
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
 from pprint import pprint
-from shutil import rmtree
+from shutil import rmtree, which
 from time import strftime
 
 import certifi
@@ -280,6 +282,55 @@ def main():
             )
             pprint(rel, stream=sys.stderr)
             sys.exit()
+
+    # compile requirements.txt from requirements.in
+    requirements_in_path = os.path.join(autopkg_root, "requirements.in")
+    requirements_txt_path = os.path.join(autopkg_root, "requirements.txt")
+    uv_bin = which("uv") or os.path.join(sysconfig.get_path("scripts"), "uv")
+    if not os.path.isfile(uv_bin):
+        print("** Installing uv for requirements compilation")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "uv", "--quiet"])
+        # pip may install to user base if the framework dir is root-owned
+        for candidate in (
+            which("uv"),
+            os.path.join(sysconfig.get_path("scripts"), "uv"),
+            os.path.join(site.getuserbase(), "bin", "uv"),
+        ):
+            if candidate and os.path.isfile(candidate):
+                uv_bin = candidate
+                break
+        else:
+            sys.exit("'uv' not found after install attempt. Try: pip install uv")
+    print("** Compiling requirements.txt from requirements.in")
+    subprocess.check_call(
+        [
+            uv_bin,
+            "pip",
+            "compile",
+            requirements_in_path,
+            "--universal",
+            "--python-version",
+            "3.11",
+            "--output-file",
+            requirements_txt_path,
+            "--quiet",
+        ]
+    )
+    with open(requirements_txt_path, "a") as f:
+        f.write("--no-binary :all:\n")
+    requirements_changed = (
+        subprocess.run(
+            ["git", "diff", "--quiet", "requirements.txt"],
+            cwd=autopkg_root,
+        ).returncode
+        != 0
+    )
+    if requirements_changed:
+        print(
+            "NOTE: requirements.txt differs from the committed version. "
+            "Commit and push that change before tagging a release so the "
+            "package is built with the updated dependencies."
+        )
 
     # write today's date in the changelog (in memory; written to disk only for final releases)
     with open(changelog_path) as fdesc:
