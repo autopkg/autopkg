@@ -124,6 +124,7 @@ Multiple processors now confine paths to their intended directories, preventing 
 - ChocolateyPackager now preserves Chocolatey command output and processor diagnostics when packaging fails.
 - ChocolateyInstallGenerator now escapes single quotes in generated PowerShell string literals.
 - URLGetter now reports curl diagnostics correctly when file downloads fail in binary mode.
+- Versioner: handle failed disk image mounts more gracefully.
 - Removed some unused code from PkgRootCreator, URLDownloaderPython, and Versioner.
 - CURLDownloader and CURLTextSearcher: these long-deprecated processors have been removed. They were no longer in use in any autopkg org recipes.
 
