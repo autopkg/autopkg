@@ -3246,8 +3246,7 @@ def find_weak_hashes_in_recipe(recipe):
                     "location": "ChocolateyPackager.installer_checksum_type",
                     "algorithm": algorithm,
                     "reason": (
-                        f"uses weak algorithm '{algorithm}'; "
-                        "prefer sha256 or stronger"
+                        f"uses weak algorithm '{algorithm}'; prefer sha256 or stronger"
                     ),
                 }
             )
@@ -3404,10 +3403,7 @@ def audit(argv):
                     log(f"            {warning['value']}")
             weak_hashes = audit_results[recipe_path].get("weak_hashes")
             if weak_hashes:
-                log(
-                    "    The following weak hash algorithms were found in "
-                    "the recipe:"
-                )
+                log("    The following weak hash algorithms were found in the recipe:")
                 for weak_hash in weak_hashes:
                     log(f"        {weak_hash['location']}: {weak_hash['reason']}")
             if audit_results[recipe_path].get("non_core_processors"):

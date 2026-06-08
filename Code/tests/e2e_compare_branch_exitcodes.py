@@ -56,8 +56,7 @@ def parse_args(argv=None):
     makecatalogs_path = shutil.which("makecatalogs")
     parser = argparse.ArgumentParser(
         description=(
-            "Compare AutoPkg recipe exit codes between two branches of this "
-            "checkout."
+            "Compare AutoPkg recipe exit codes between two branches of this checkout."
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )

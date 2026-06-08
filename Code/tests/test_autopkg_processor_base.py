@@ -1055,7 +1055,7 @@ class TestProcessorBase(unittest.TestCase):
             )
             for v in violations:
                 error_msg += (
-                    f'  {v["file"]}:{v["line"]}: '
+                    f"  {v['file']}:{v['line']}: "
                     f'{v["processor"]} default = "{v["default"]}"\n'
                 )
             self.fail(error_msg)

@@ -133,7 +133,7 @@ class TestChocolateyPackagerPathSafety(unittest.TestCase):
         env = deepcopy(self.good_file_vars)
         env["installer_url"] = "https://example.com/downloads/installer.exe"
         env["installer_checksum"] = (
-            "4A8F3C1B5E6D7A9B0C2D4E6F8A1B3C5D" "7E9F0A2B4C6D8E1F3A5B7C9D0E2F4A6B"
+            "4A8F3C1B5E6D7A9B0C2D4E6F8A1B3C5D7E9F0A2B4C6D8E1F3A5B7C9D0E2F4A6B"
         )
         env["installer_checksum_type"] = "sha256"
         del env["installer_path"]

@@ -104,8 +104,9 @@ class TestInstallerValidation(unittest.TestCase):
             patch.object(
                 installer.os.path,
                 "ismount",
-                side_effect=lambda path: os.path.realpath(path)
-                == os.path.realpath(mountpoint),
+                side_effect=lambda path: (
+                    os.path.realpath(path) == os.path.realpath(mountpoint)
+                ),
             ),
         ):
             worker = self._installer(package_path)
@@ -218,8 +219,10 @@ class TestItemCopierValidation(unittest.TestCase):
             patch.object(
                 itemcopier.os.path,
                 "ismount",
-                side_effect=lambda path: mounted
-                and os.path.realpath(path) == os.path.realpath(self.mountpoint),
+                side_effect=lambda path: (
+                    mounted
+                    and os.path.realpath(path) == os.path.realpath(self.mountpoint)
+                ),
             ),
         ):
             yield
