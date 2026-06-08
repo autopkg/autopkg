@@ -21,7 +21,7 @@ import os.path
 import shutil
 import subprocess
 
-from autopkglib import ProcessorError
+from autopkglib import ProcessorError, is_mac
 from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["FlatPkgUnpacker"]
@@ -75,6 +75,12 @@ class FlatPkgUnpacker(DmgMounter):
 
     def unpack_flat_pkg(self) -> None:
         """Unpacks a flat package using either xar or pkgutil"""
+        if not is_mac():
+            raise ProcessorError(
+                "Flat package unpacking is only supported on macOS. "
+                "The 'pkgutil' and 'xar' utilities are not available on this platform."
+            )
+
         # Create the directory if needed.
         if not os.path.exists(self.env["destination_path"]):
             try:

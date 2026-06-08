@@ -18,7 +18,7 @@
 
 import subprocess
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, is_mac
 
 __all__ = ["FlatPkgPacker"]
 
@@ -42,6 +42,12 @@ class FlatPkgPacker(Processor):
 
     def flatten(self, source_dir, dest_pkg):
         """Flattens a previously expanded flat package"""
+        if not is_mac():
+            raise ProcessorError(
+                "Flat package packing is only supported on macOS. "
+                "The 'pkgutil' utility is not available on this platform."
+            )
+
         try:
             subprocess.check_call(
                 ["/usr/sbin/pkgutil", "--flatten", source_dir, dest_pkg]

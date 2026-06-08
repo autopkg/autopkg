@@ -19,7 +19,7 @@
 import os
 import subprocess
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, is_mac
 
 __all__ = ["DmgCreator"]
 
@@ -77,6 +77,12 @@ class DmgCreator(Processor):
     output_variables = {}
 
     def main(self) -> None:
+        if not is_mac():
+            raise ProcessorError(
+                "DMG creation is only supported on macOS. "
+                "The 'hdiutil' utility is not available on this platform."
+            )
+
         # Remove existing dmg if it exists.
         if os.path.exists(self.env["dmg_path"]):
             os.unlink(self.env["dmg_path"])

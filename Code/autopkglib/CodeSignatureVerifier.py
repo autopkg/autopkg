@@ -219,6 +219,13 @@ class CodeSignatureVerifier(DmgMounter):
         Runs 'pkgutil --check-signature <path>'. Returns a tuple with boolean
         pkgutil exit status and a list of found certificate authority names
         """
+        if sys.platform != "darwin":
+            raise ProcessorError(
+                "Installer package signature verification is only supported "
+                "on macOS. The 'pkgutil' utility is not available on this "
+                "platform."
+            )
+
         process = ["/usr/sbin/pkgutil", "--check-signature", path]
 
         try:

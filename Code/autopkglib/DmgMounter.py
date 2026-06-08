@@ -22,7 +22,7 @@ import plistlib
 import subprocess
 import sys
 
-from autopkglib import Processor, ProcessorError, is_path_under, log, log_err
+from autopkglib import Processor, ProcessorError, is_mac, is_path_under, log, log_err
 
 __all__ = ["DmgMounter"]
 
@@ -42,10 +42,13 @@ class DmgMounter(Processor):
         """Helper method for working with paths that reference something
         inside a disk image"""
         for extension in self.DMG_EXTENSIONS:
-            dmg_path, dmg, dmg_source_path = pathname.partition(extension + "/")
-            if dmg:
-                dmg_path += extension
-                return dmg_path, dmg, dmg_source_path
+            for separator in ("/", "\\"):
+                dmg_path, dmg, dmg_source_path = pathname.partition(
+                    extension + separator
+                )
+                if dmg:
+                    dmg_path += extension
+                    return dmg_path, dmg, dmg_source_path
         # no disk image in path
         return pathname, "", ""
 
@@ -111,6 +114,12 @@ class DmgMounter(Processor):
     def dmg_has_sla(self, dmgpath):
         """Returns true if dmg has a Software License Agreement.
         These dmgs normally cannot be attached without user intervention"""
+        if not is_mac():
+            raise ProcessorError(
+                "Disk image mounting is only supported on macOS. "
+                "The 'hdiutil' utility is not available on this platform."
+            )
+
         has_sla = False
         try:
             proc = subprocess.Popen(
@@ -143,6 +152,12 @@ class DmgMounter(Processor):
 
     def mount(self, pathname):
         """Mount image with hdiutil."""
+        if not is_mac():
+            raise ProcessorError(
+                "Disk image mounting is only supported on macOS. "
+                "The 'hdiutil' utility is not available on this platform."
+            )
+
         # Make sure we don't try to mount something twice.
         if pathname in self.mounts:
             raise ProcessorError(f"{pathname} is already mounted")
@@ -198,6 +213,11 @@ class DmgMounter(Processor):
 
     def unmount(self, pathname) -> None:
         """Unmount previously mounted image."""
+        if not is_mac():
+            raise ProcessorError(
+                "Disk image unmounting is only supported on macOS. "
+                "The 'hdiutil' utility is not available on this platform."
+            )
 
         # Don't try to unmount something we didn't mount.
         if pathname not in self.mounts:

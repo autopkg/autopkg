@@ -114,6 +114,7 @@ Multiple processors now confine paths to their intended directories, preventing 
 > **APFS requires macOS 10.13 or later to mount.** If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly.
 
 - PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
+- macOS-only processors that rely on `hdiutil`, `pkgutil`, `xar`, or `pkgbuild` now fail with explicit platform errors on non-macOS instead of attempting to launch unavailable tools.
 - URLDownloaderPython now validates cached files against their actual size, exposes computed hashes, and preserves downloads when ETag or Last-Modified headers are missing.
 - URLDownloader now applies `curl_common_opts`, such as authorization headers, when prefetching filenames from authenticated URLs (#925, thanks to @n8felton)
 - PkgInfoCreator now finds relative Info.plist templates stored beside a recipe or parent recipe.

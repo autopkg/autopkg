@@ -22,7 +22,7 @@ import socket
 import subprocess
 from xml.etree import ElementTree as ET  # nosec B405
 
-from autopkglib import Processor, ProcessorError, log_err
+from autopkglib import Processor, ProcessorError, is_mac, log_err
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
 
@@ -109,6 +109,12 @@ class PkgCreator(Processor):
 
     def xar_expand(self, source_path) -> None:
         """Uses xar to expand an archive"""
+        if not is_mac():
+            raise ProcessorError(
+                "Package inspection is only supported on macOS. "
+                "The 'xar' utility is not available on this platform."
+            )
+
         try:
             xarcmd = [
                 "/usr/bin/xar",
@@ -271,6 +277,12 @@ class PkgCreator(Processor):
 
     def connect(self) -> None:
         """Connect to autopkgserver"""
+        if not is_mac():
+            raise ProcessorError(
+                "Package creation is only supported on macOS. "
+                "The 'pkgbuild' utility is not available on this platform."
+            )
+
         try:
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.socket.connect(AUTO_PKG_SOCKET)
