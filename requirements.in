@@ -28,6 +28,8 @@ xattr; sys_platform == 'darwin' or sys_platform == 'linux'
 #
 pyobjc-core; sys_platform == 'darwin'
 pyobjc-framework-Cocoa; sys_platform == 'darwin'
+# Quartz: munkilib/iconutils.py (imported unconditionally by munkilib.admin.munkiimportlib)
+pyobjc-framework-Quartz; sys_platform == 'darwin'
 # Security: grahampugh-recipes/JamfUploaderProcessors/JamfUploaderLib/keychain_access.py
 pyobjc-framework-Security; sys_platform == 'darwin'
 # SystemConfiguration: dataJAR-recipes/Adobe Admin Console Packages/AdobeAdminConsolePackagesImporter.py
