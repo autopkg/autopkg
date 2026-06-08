@@ -595,15 +595,18 @@ def main():
         ]
     )
 
-    # Build with an empty temporary home so relocatable-python cannot see
-    # contributor-specific ~/Library/Python or pip cache contents.
-    with tempfile.TemporaryDirectory() as build_home:
+    # Use a temporary dir for pip/Python user isolation so relocatable-python
+    # cannot see contributor-specific ~/Library/Python or pip cache contents.
+    # HOME is intentionally left as the real home so the built pkg lands in the
+    # real AutoPkg cache dir (readable after the build) rather than a temp dir.
+    with tempfile.TemporaryDirectory() as isolation_dir:
         build_env = os.environ.copy()
         build_env.update(
             {
-                "HOME": build_home,
-                "PYTHONUSERBASE": os.path.join(build_home, "Library", "Python"),
-                "PIP_CACHE_DIR": os.path.join(build_home, "Library", "Caches", "pip"),
+                "PYTHONUSERBASE": os.path.join(isolation_dir, "Library", "Python"),
+                "PIP_CACHE_DIR": os.path.join(
+                    isolation_dir, "Library", "Caches", "pip"
+                ),
             }
         )
         subprocess.run(args=cmd, text=True, check=True, env=build_env)
