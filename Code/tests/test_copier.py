@@ -14,7 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import plistlib
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -52,6 +54,10 @@ class TestCopier(unittest.TestCase):
 
     def tearDown(self):
         pass
+
+    def _copy(self, source_path, destination_path, overwrite=False):
+        with patch.object(self.processor, "output"):
+            self.processor.copy(source_path, destination_path, overwrite=overwrite)
 
     def test_raise_if_no_dest(self):
         """Raise an exception if missing a critical input variable."""
@@ -120,6 +126,108 @@ class TestCopier(unittest.TestCase):
         mock_copy.assert_called_once_with(
             "source1", self.glob_env["destination_path"], overwrite=True
         )
+
+    def test_copy_file_over_existing_directory(self):
+        """copy replaces an existing directory with a source file."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_path = os.path.join(tmp_dir, "source.txt")
+            destination_path = os.path.join(tmp_dir, "dest")
+            os.makedirs(destination_path)
+            with open(source_path, "w") as f:
+                f.write("source")
+            with open(os.path.join(destination_path, "old.txt"), "w") as f:
+                f.write("old")
+
+            self._copy(source_path, destination_path, overwrite=True)
+
+            self.assertTrue(os.path.isfile(destination_path))
+            with open(destination_path) as f:
+                self.assertEqual(f.read(), "source")
+
+    def test_copy_directory_over_existing_file(self):
+        """copy replaces an existing file with a source directory."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_path = os.path.join(tmp_dir, "source")
+            destination_path = os.path.join(tmp_dir, "dest")
+            os.makedirs(source_path)
+            with open(os.path.join(source_path, "source.txt"), "w") as f:
+                f.write("source")
+            with open(destination_path, "w") as f:
+                f.write("old")
+
+            self._copy(source_path, destination_path, overwrite=True)
+
+            self.assertTrue(os.path.isdir(destination_path))
+            with open(os.path.join(destination_path, "source.txt")) as f:
+                self.assertEqual(f.read(), "source")
+
+    def test_copy_removal_oserror_raises_processor_error(self):
+        """copy wraps OSError raised while removing an existing destination."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_path = os.path.join(tmp_dir, "source.txt")
+            destination_path = os.path.join(tmp_dir, "dest.txt")
+            with open(source_path, "w") as f:
+                f.write("source")
+            with open(destination_path, "w") as f:
+                f.write("old")
+
+            with (
+                patch("os.unlink", side_effect=OSError("permission denied")),
+                self.assertRaisesRegex(ProcessorError, "Can't remove"),
+            ):
+                self._copy(source_path, destination_path, overwrite=True)
+
+    def test_copy_directory_to_new_path(self):
+        """copy copies a source directory tree to the destination."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_path = os.path.join(tmp_dir, "source")
+            destination_path = os.path.join(tmp_dir, "dest")
+            os.makedirs(os.path.join(source_path, "nested"))
+            with open(os.path.join(source_path, "nested", "file.txt"), "w") as f:
+                f.write("source")
+
+            self._copy(source_path, destination_path)
+
+            with open(os.path.join(destination_path, "nested", "file.txt")) as f:
+                self.assertEqual(f.read(), "source")
+
+    def test_copy_file_to_new_path(self):
+        """copy copies a source file to a file destination."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_path = os.path.join(tmp_dir, "source.txt")
+            destination_path = os.path.join(tmp_dir, "dest.txt")
+            with open(source_path, "w") as f:
+                f.write("source")
+
+            self._copy(source_path, destination_path)
+
+            with open(destination_path) as f:
+                self.assertEqual(f.read(), "source")
+
+    def test_copy_file_into_existing_directory(self):
+        """copy copies a source file into an existing destination directory."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_path = os.path.join(tmp_dir, "source.txt")
+            destination_path = os.path.join(tmp_dir, "dest")
+            os.makedirs(destination_path)
+            with open(source_path, "w") as f:
+                f.write("source")
+
+            self._copy(source_path, destination_path)
+
+            with open(os.path.join(destination_path, "source.txt")) as f:
+                self.assertEqual(f.read(), "source")
+
+    def test_copy_baseexception_raises_processor_error(self):
+        """copy wraps copy failures in ProcessorError."""
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_path = os.path.join(tmp_dir, "source.txt")
+            destination_path = os.path.join(tmp_dir, "missing", "dest.txt")
+            with open(source_path, "w") as f:
+                f.write("source")
+
+            with self.assertRaisesRegex(ProcessorError, "Can't copy"):
+                self._copy(source_path, destination_path)
 
 
 if __name__ == "__main__":
