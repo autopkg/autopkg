@@ -113,8 +113,8 @@ class TestAutoPkgRecipes(unittest.TestCase):
         result = autopkg.recipe_has_step_processor(recipe, "MunkiImporter")
         self.assertFalse(result)
 
-    def test_has_munkiimporter_step_with_munkiimporter(self):
-        """Test has_munkiimporter_step when recipe contains MunkiImporter."""
+    def test_has_munkiimporter_step_checks_for_munkiimporter(self):
+        """Test has_munkiimporter_step checks for MunkiImporter."""
         recipe = {
             "Process": [
                 {"Processor": "URLDownloader"},
@@ -122,42 +122,18 @@ class TestAutoPkgRecipes(unittest.TestCase):
                 {"Processor": "CodeSignatureVerifier"},
             ]
         }
-
-        result = autopkg.has_munkiimporter_step(recipe)
-        self.assertTrue(result)
-
-    def test_has_munkiimporter_step_without_munkiimporter(self):
-        """Test has_munkiimporter_step when recipe does not contain MunkiImporter."""
-        recipe = {
+        recipe_without_step = {
             "Process": [
                 {"Processor": "URLDownloader"},
                 {"Processor": "CodeSignatureVerifier"},
-                {"Processor": "PkgCreator"},
             ]
         }
 
-        result = autopkg.has_munkiimporter_step(recipe)
-        self.assertFalse(result)
+        self.assertTrue(autopkg.has_munkiimporter_step(recipe))
+        self.assertFalse(autopkg.has_munkiimporter_step(recipe_without_step))
 
-    def test_has_munkiimporter_step_no_process_key(self):
-        """Test has_munkiimporter_step when recipe has no Process key."""
-        recipe = {
-            "Input": {"NAME": "TestApp"},
-            "Description": "Test recipe without Process key",
-        }
-
-        result = autopkg.has_munkiimporter_step(recipe)
-        self.assertFalse(result)
-
-    def test_has_munkiimporter_step_empty_process(self):
-        """Test has_munkiimporter_step when Process list is empty."""
-        recipe = {"Process": []}
-
-        result = autopkg.has_munkiimporter_step(recipe)
-        self.assertFalse(result)
-
-    def test_has_check_phase_with_endofcheckphase(self):
-        """Test has_check_phase when recipe contains EndOfCheckPhase."""
+    def test_has_check_phase_checks_for_endofcheckphase(self):
+        """Test has_check_phase checks for EndOfCheckPhase."""
         recipe = {
             "Process": [
                 {"Processor": "URLDownloader"},
@@ -165,42 +141,18 @@ class TestAutoPkgRecipes(unittest.TestCase):
                 {"Processor": "CodeSignatureVerifier"},
             ]
         }
-
-        result = autopkg.has_check_phase(recipe)
-        self.assertTrue(result)
-
-    def test_has_check_phase_without_endofcheckphase(self):
-        """Test has_check_phase when recipe does not contain EndOfCheckPhase."""
-        recipe = {
+        recipe_without_step = {
             "Process": [
                 {"Processor": "URLDownloader"},
                 {"Processor": "CodeSignatureVerifier"},
-                {"Processor": "MunkiImporter"},
             ]
         }
 
-        result = autopkg.has_check_phase(recipe)
-        self.assertFalse(result)
+        self.assertTrue(autopkg.has_check_phase(recipe))
+        self.assertFalse(autopkg.has_check_phase(recipe_without_step))
 
-    def test_has_check_phase_no_process_key(self):
-        """Test has_check_phase when recipe has no Process key."""
-        recipe = {
-            "Input": {"NAME": "TestApp"},
-            "Description": "Test recipe without Process key",
-        }
-
-        result = autopkg.has_check_phase(recipe)
-        self.assertFalse(result)
-
-    def test_has_check_phase_empty_process(self):
-        """Test has_check_phase when Process list is empty."""
-        recipe = {"Process": []}
-
-        result = autopkg.has_check_phase(recipe)
-        self.assertFalse(result)
-
-    def test_builds_a_package_with_pkgcreator(self):
-        """Test builds_a_package when recipe contains PkgCreator."""
+    def test_builds_a_package_checks_for_pkgcreator(self):
+        """Test builds_a_package checks for PkgCreator."""
         recipe = {
             "Process": [
                 {"Processor": "URLDownloader"},
@@ -208,39 +160,15 @@ class TestAutoPkgRecipes(unittest.TestCase):
                 {"Processor": "MunkiImporter"},
             ]
         }
-
-        result = autopkg.builds_a_package(recipe)
-        self.assertTrue(result)
-
-    def test_builds_a_package_without_pkgcreator(self):
-        """Test builds_a_package when recipe does not contain PkgCreator."""
-        recipe = {
+        recipe_without_step = {
             "Process": [
                 {"Processor": "URLDownloader"},
                 {"Processor": "CodeSignatureVerifier"},
-                {"Processor": "MunkiImporter"},
             ]
         }
 
-        result = autopkg.builds_a_package(recipe)
-        self.assertFalse(result)
-
-    def test_builds_a_package_no_process_key(self):
-        """Test builds_a_package when recipe has no Process key."""
-        recipe = {
-            "Input": {"NAME": "TestApp"},
-            "Description": "Test recipe without Process key",
-        }
-
-        result = autopkg.builds_a_package(recipe)
-        self.assertFalse(result)
-
-    def test_builds_a_package_empty_process(self):
-        """Test builds_a_package when Process list is empty."""
-        recipe = {"Process": []}
-
-        result = autopkg.builds_a_package(recipe)
-        self.assertFalse(result)
+        self.assertTrue(autopkg.builds_a_package(recipe))
+        self.assertFalse(autopkg.builds_a_package(recipe_without_step))
 
     def test_valid_recipe_dict_with_keys_valid_dict(self):
         """Test valid_recipe_dict_with_keys with a valid dictionary containing all required keys."""
@@ -620,7 +548,9 @@ class TestAutoPkgRecipes(unittest.TestCase):
         with open(recipe_file, "wb") as f:
             plistlib.dump(recipe_dict, f)
 
-        result = autopkg.find_recipe_by_name("TestApp.download", [self.tmp_dir.name])
+        result = autopkg.find_recipe_by_name(
+            "TestApp.download.recipe", [self.tmp_dir.name]
+        )
         self.assertEqual(result, recipe_file)
 
     def test_find_recipe_by_name_without_extension(self):

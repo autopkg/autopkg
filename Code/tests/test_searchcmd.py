@@ -1002,7 +1002,7 @@ class TestSearchCmd(unittest.TestCase):
 
     @patch("autopkgcmd.searchcmd.check_search_cache")
     @patch("builtins.open", new_callable=mock_open)
-    def test_search_with_no_results_returns_error_code(
+    def test_search_with_no_results_returns_success_code(
         self, mock_file, mock_check_cache
     ):
         """Test search_recipes with no results returns exit code 0."""

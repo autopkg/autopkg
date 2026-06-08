@@ -221,9 +221,8 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         os.makedirs(app_path)
         self.processor.env["input_path"] = app_path
 
-        # Test the process_code_signature method directly rather than full main()
         with patch.object(self.processor, "process_code_signature") as mock_process:
-            self.processor.process_code_signature(app_path)
+            self.processor.main()
 
         mock_process.assert_called_once_with(app_path)
 
@@ -233,47 +232,73 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         open(pkg_path, "a", encoding="utf-8").close()  # Create empty file
         self.processor.env["input_path"] = pkg_path
 
-        # Test the process_installer_package method directly
-        with patch.object(self.processor, "process_installer_package") as mock_process:
-            self.processor.process_installer_package(pkg_path)
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with (
+            patch.object(module.os, "uname", return_value=("", "", "20.0.0", "", "")),
+            patch.object(self.processor, "process_installer_package") as mock_process,
+        ):
+            self.processor.main()
 
         mock_process.assert_called_once_with(pkg_path)
 
     def test_main_processes_dmg_content(self):
         """Test that main() mounts DMG and processes content inside."""
-        dmg_path = "/path/to/test.dmg"
+        dmg_path = os.path.join(self.tmp_dir.name, "test.dmg")
+        mount_point = os.path.join(self.tmp_dir.name, "mount")
+        app_path = os.path.join(mount_point, "TestApp.app")
         self.processor.env["input_path"] = f"{dmg_path}/TestApp.app"
 
-        # Mock the full main method to avoid the glob complexity
-        with patch.object(self.processor, "main") as mock_main:
+        with (
+            patch.object(
+                self.processor, "mount", return_value=mount_point
+            ) as mock_mount,
+            patch.object(
+                self.processor,
+                "glob_paths_in_mount",
+                return_value=(app_path, [app_path]),
+            ) as mock_glob,
+            patch.object(self.processor, "process_code_signature") as mock_process,
+            patch.object(self.processor, "unmount") as mock_unmount,
+        ):
             self.processor.main()
-            mock_main.assert_called_once()
+
+        mock_mount.assert_called_once_with(dmg_path)
+        mock_glob.assert_called_once_with(mount_point, "TestApp.app")
+        mock_process.assert_called_once_with(app_path)
+        mock_unmount.assert_called_once_with(dmg_path)
 
     def test_main_raises_error_on_no_glob_matches(self):
         """Test that main() raises error when glob finds no matches."""
-        self.processor.env["input_path"] = "/nonexistent/path"
+        missing_path = os.path.join(self.tmp_dir.name, "not-here.app")
+        self.processor.env["input_path"] = missing_path
 
-        # Test the error scenario directly rather than through main()
         with self.assertRaises(ProcessorError) as context:
-            raise ProcessorError("Error processing path '/nonexistent/path' with glob.")
+            self.processor.main()
 
-        self.assertIn("Error processing path", str(context.exception))
+        self.assertIn(f"Error processing path '{missing_path}'", str(context.exception))
 
     def test_main_warns_on_multiple_glob_matches(self):
         """Test that main() warns when glob finds multiple matches."""
-        self.processor.env["input_path"] = "/path/to/*.app"
+        app_one = os.path.join(self.tmp_dir.name, "One.app")
+        app_two = os.path.join(self.tmp_dir.name, "Two.app")
+        os.makedirs(app_one)
+        os.makedirs(app_two)
+        input_glob = os.path.join(self.tmp_dir.name, "*.app")
+        self.processor.env["input_path"] = input_glob
 
-        # Mock the method to avoid complex glob mocking
-        with patch.object(self.processor, "output") as mock_output:
-            # Simulate the warning that would be triggered
-            mock_output(
-                "WARNING: Multiple paths match 'input_path' glob '/path/to/*.app':"
-            )
+        with (
+            patch.object(self.processor, "output") as mock_output,
+            patch.object(self.processor, "process_code_signature") as mock_process,
+        ):
+            self.processor.main()
 
-        # Verify the warning method was called
-        mock_output.assert_called_with(
-            "WARNING: Multiple paths match 'input_path' glob '/path/to/*.app':"
+        mock_output.assert_any_call(
+            f"WARNING: Multiple paths match 'input_path' glob '{input_glob}':"
         )
+        mock_output.assert_any_call(f"  - {app_one}")
+        mock_output.assert_any_call(f"  - {app_two}")
+        mock_process.assert_called_once()
+        self.assertIn(mock_process.call_args.args[0], [app_one, app_two])
 
     def test_main_skips_pkg_verification_on_old_macos(self):
         """Test that main() skips pkg verification on macOS 10.6."""
@@ -281,18 +306,18 @@ class TestCodeSignatureVerifier(unittest.TestCase):
         open(pkg_path, "a", encoding="utf-8").close()
         self.processor.env["input_path"] = pkg_path
 
-        # Test the version check behavior directly
-        with patch("os.uname", return_value=("", "", "10.0", "", "")):  # macOS 10.6
-            with patch.object(self.processor, "output") as mock_output:
-                # Simulate the warning that would be logged
-                mock_output(
-                    "WARNING: Installer package signature verification not supported on Mac OS X 10.6"
-                )
+        module = sys.modules[CodeSignatureVerifier.__module__]
+        with (
+            patch.object(module.os, "uname", return_value=("", "", "10.8.0", "", "")),
+            patch.object(self.processor, "output") as mock_output,
+            patch.object(self.processor, "process_installer_package") as mock_process,
+        ):
+            self.processor.main()
 
-        # Verify the warning would be logged
         mock_output.assert_called_with(
             "WARNING: Installer package signature verification not supported on Mac OS X 10.6"
         )
+        mock_process.assert_not_called()
 
     # Test codesign verification
     @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")

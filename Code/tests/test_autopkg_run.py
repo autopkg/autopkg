@@ -233,20 +233,9 @@ class TestAutoPkgRun(unittest.TestCase):
             patch.object(autopkg.plistlib, "dump"),
             patch.object(autopkg, "log_err"),
         ):
-            result = None
-            try:
-                result = autopkg.run_recipes(argv)
-            except OSError as e:
-                # Only accept specific file operation errors, not all OSErrors
-                # Common file-related errno values: ENOENT=2, EACCES=13, ENOTDIR=20, EISDIR=21
-                if e.errno not in [2, 13, 20, 21]:
-                    raise  # Re-raise unexpected OSErrors
-                # For expected file errors, we'll check that recipe loading was attempted
-                # which indicates the recipe-not-found logic was reached
+            result = autopkg.run_recipes(argv)
 
-            # Verify the expected outcome: either proper return code or evidence of recipe loading attempt
-            if result is not None:
-                self.assertEqual(result, 70)  # RECIPE_FAILED_CODE
+        self.assertEqual(result, 70)  # RECIPE_FAILED_CODE
 
     def test_parse_recipe_list_plist_format(self):
         """Test parse_recipe_list with plist format."""

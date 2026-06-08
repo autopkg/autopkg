@@ -395,13 +395,8 @@ class TestSparkleUpdateInfoProvider(unittest.TestCase):
 
         latest = {"description_data": "Plain text notes"}
 
-        # Mock the portion that would decode - this is a design issue in the original code
         with patch.object(self.processor, "output"):
-            with patch.object(self.processor, "handle_pkginfo") as mock_handle:
-                mock_handle.return_value = {
-                    "description": "<html><body>Plain text notes</body></html>"
-                }
-                pkginfo = self.processor.handle_pkginfo(latest)
+            pkginfo = self.processor.handle_pkginfo(latest)
 
         self.assertEqual(
             pkginfo["description"], "<html><body>Plain text notes</body></html>"

@@ -72,12 +72,18 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
         return plistlib.dumps(pkginfo)
 
     # Test main functionality
-    def test_main_calls_create_installs_items(self):
-        """Test that main() calls create_installs_items."""
-        with patch.object(self.processor, "create_installs_items") as mock_create:
-            self.processor.main()
+    def test_main_creates_installs_items(self):
+        """Test that main() creates installs items."""
+        mock_output = self._create_sample_makepkginfo_output()
+        mock_proc = self._create_mock_process(returncode=0, stdout=mock_output)
 
-        mock_create.assert_called_once()
+        with patch("subprocess.Popen", return_value=mock_proc):
+            with patch.object(self.processor, "output"):
+                self.processor.main()
+
+        installs = self.processor.env["additional_pkginfo"]["installs"]
+        self.assertEqual(len(installs), 1)
+        self.assertEqual(installs[0]["path"], "/Applications/TestApp.app")
 
     # Test create_installs_items basic functionality
     def test_create_installs_items_basic(self):
@@ -468,7 +474,7 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
         mock_proc = self._create_mock_process(returncode=0, stdout=invalid_plist)
 
         with patch("subprocess.Popen", return_value=mock_proc):
-            with self.assertRaises(Exception):  # plistlib will raise an exception
+            with self.assertRaises(plistlib.InvalidFileException):
                 self.processor.create_installs_items()
 
     # Test edge cases

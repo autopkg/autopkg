@@ -274,6 +274,6 @@ class TestChocolateyPackager(unittest.TestCase):
         env = deepcopy(self.good_file_vars)
         env["additional_install_actions"] = "Write-Output 'Test'\n"
         ChocolateyPackager(
-            env, infile=BytesIO(), outfile=BytesIO
+            env, infile=BytesIO(), outfile=BytesIO()
         )._write_chocolatey_install(self.test_dir.name)
         self.assertIn("Write-Output 'Test'\n", get_mocked_writes(openfile_mock))

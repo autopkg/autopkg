@@ -268,15 +268,32 @@ class TestVersioner(unittest.TestCase):
 
     def test_path_missing_raises(self):
         """Raises ProcessorError when the provided path does not exist."""
-        for path in self._mkpath(
-            "not_real_version.plist", "archive.zip/nope.txt", "image.dmg/darn.json"
-        ):
+        zip_path = self._mkpath("archive.zip")
+        with zipfile.ZipFile(zip_path, "w"):
+            pass
+
+        missing_paths = [
+            self._mkpath("not_real_version.plist"),
+            os.path.join(zip_path, "nope.txt"),
+            self._mkpath("image.dmg", "darn.json"),
+        ]
+        for path in missing_paths:
             with self.subTest(path=path):
-                with self.assertRaisesRegex(
-                    ProcessorError,
-                    f"File.*{self.processor.env['input_plist_path']}.*not found",
-                ):
-                    self.processor.process()
+                self.processor.env["input_plist_path"] = path
+                if ".dmg/" in path:
+                    with (
+                        patch.object(
+                            self.processor, "mount", return_value=self.tmp_dir.name
+                        ),
+                        patch.object(self.processor, "unmount"),
+                    ):
+                        with self.assertRaises(ProcessorError) as context:
+                            self.processor.process()
+                else:
+                    with self.assertRaises(ProcessorError) as context:
+                        self.processor.process()
+
+                self.assertIn(path, str(context.exception))
 
 
 if __name__ == "__main__":

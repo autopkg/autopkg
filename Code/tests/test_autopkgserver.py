@@ -210,7 +210,7 @@ class TestPkgHandler(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_verify_request_syntax_chown_missing_key(self):
-        """Should return False when chown entry is missing required key."""
+        """Should report errors when chown entry is missing required keys."""
         plist = {
             "pkgroot": "/tmp/pkgroot",
             "pkgdir": "/tmp/output",

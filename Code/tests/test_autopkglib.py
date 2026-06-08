@@ -254,17 +254,18 @@ class TestAutoPkg(unittest.TestCase):
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertEqual(id, "com.github.autopkg.download.googlechrome")
 
-    @patch(
-        "builtins.open",
-        new_callable=mock_open,
-        read_data=download_recipe.encode("utf-8"),
-    )
-    @patch("autopkg.plistlib.load")
-    def test_get_identifier_from_recipe_file_returns_none(self, mock_load, mock_read):
+    def test_get_identifier_from_recipe_file_returns_none(self):
         """get_identifier_from_recipe_file should return None if no identifier."""
-        mock_read.return_value = self.download_struct
-        del mock_read.return_value["Identifier"]
-        id = autopkglib.get_identifier_from_recipe_file("fake")
+        recipe = dict(self.download_struct)
+        del recipe["Identifier"]
+        recipe["Input"] = dict(recipe["Input"])
+        recipe["Input"].pop("IDENTIFIER", None)
+        with tempfile.NamedTemporaryFile(suffix=".recipe") as recipe_file:
+            plistlib.dump(recipe, recipe_file)
+            recipe_file.flush()
+
+            id = autopkglib.get_identifier_from_recipe_file(recipe_file.name)
+
         self.assertIsNone(id)
 
 

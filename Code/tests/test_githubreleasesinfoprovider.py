@@ -71,7 +71,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
     def test_returns_version_from_tag(self, _mock):
         """The processor should return a version derived from a tag."""
         env = self._run()
-        self.assertRegex(env["version"], r"\d[\d.]+")
+        self.assertEqual(env["version"], "3.0.2")
 
     @patch.object(
         GitHubReleasesInfoProvider,
@@ -81,7 +81,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
     def test_returns_version_from_tag_with_leading_dot(self, _mock):
         """The processor should handle tags with an extra leading dot."""
         env = self._run("macadmins/nudge")
-        self.assertRegex(env["version"], r"\d[\d.]+")
+        self.assertEqual(env["version"], "1.1.16.1")
 
     @patch.object(
         GitHubReleasesInfoProvider, "get_releases", return_value=_fake_release()
@@ -89,7 +89,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
     def test_returns_url(self, _mock):
         """The processor should return a URL."""
         env = self._run()
-        self.assertIsNotNone(env["url"])
+        self.assertEqual(env["url"], "https://example.com/test.pkg")
 
     @patch.object(
         GitHubReleasesInfoProvider, "get_releases", return_value=_fake_release()
@@ -97,7 +97,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
     def test_returns_asset_url(self, _mock):
         """The processor should return an asset URL."""
         env = self._run()
-        self.assertIsNotNone(env["asset_url"])
+        self.assertEqual(env["asset_url"], "https://api.example.com/assets/1")
 
 
 if __name__ == "__main__":

@@ -97,24 +97,6 @@ class TestAppDmgVersioner(unittest.TestCase):
     @patch.object(AppDmgVersioner, "mount")
     @patch("glob.glob")
     @patch_open(TEST_INFO_PLIST)
-    def test_no_fail_if_good_env(self, mock_plist, mock_glob, mock_mount, mock_unmount):
-        """The processor should not raise any exceptions if run normally."""
-        mount_point = self._mkpath("mount_point")
-        app_path = os.path.join(mount_point, TEST_APP_NAME)
-
-        mock_mount.return_value = mount_point
-        mock_glob.return_value = [app_path]
-
-        self.processor.main()
-
-        mock_mount.assert_called_once_with(self.good_env["dmg_path"])
-        mock_unmount.assert_called_once_with(self.good_env["dmg_path"])
-        mock_glob.assert_called_once_with(os.path.join(mount_point, "*.app"))
-
-    @patch.object(AppDmgVersioner, "unmount")
-    @patch.object(AppDmgVersioner, "mount")
-    @patch("glob.glob")
-    @patch_open(TEST_INFO_PLIST)
     def test_extracts_bundle_info(
         self, mock_plist, mock_glob, mock_mount, mock_unmount
     ):

@@ -176,36 +176,59 @@ class TestPlistReader(unittest.TestCase):
     def test_parse_path_for_dmg_detects_dmg_path(self):
         """Test parsePathForDMG correctly identifies DMG paths."""
         dmg_path = "/path/to/test.dmg/TestApp.app"
-        self.processor.env = {"info_path": dmg_path}
 
-        with patch.object(self.processor, "parsePathForDMG") as mock_parse:
-            mock_parse.return_value = ("/path/to/test.dmg", True, "TestApp.app")
+        result = self.processor.parsePathForDMG(dmg_path)
 
-            result = self.processor.parsePathForDMG(dmg_path)
+        self.assertEqual(result, ("/path/to/test.dmg", ".dmg/", "TestApp.app"))
 
-            mock_parse.assert_called_once_with(dmg_path)
-            self.assertEqual(result, ("/path/to/test.dmg", True, "TestApp.app"))
+    def test_main_reads_plist_inside_dmg(self):
+        """Test that main() mounts a DMG path and reads the plist inside."""
+        dmg_path = os.path.join(self.tmp_dir.name, "test.dmg")
+        mount_point = os.path.join(self.tmp_dir.name, "mount")
+        bundle_path = os.path.join(mount_point, "TestApp.app")
+        contents_path = os.path.join(bundle_path, "Contents")
+        os.makedirs(contents_path)
+        info_plist_path = os.path.join(contents_path, "Info.plist")
+        with open(info_plist_path, "wb") as f:
+            plistlib.dump({"CFBundleShortVersionString": "4.5.6"}, f)
 
-    def test_dmg_mount_calls_mount_method(self):
-        """Test that DMG mounting calls the mount method correctly."""
-        dmg_path = "/path/to/test.dmg"
-        expected_mount_point = "/tmp/dmg_mount"
+        self.processor.env = {
+            "info_path": f"{dmg_path}/TestApp.app",
+            "plist_keys": {"CFBundleShortVersionString": "version"},
+        }
 
-        with patch.object(self.processor, "mount") as mock_mount:
-            mock_mount.return_value = expected_mount_point
+        with (
+            patch.object(
+                self.processor, "mount", return_value=mount_point
+            ) as mock_mount,
+            patch.object(self.processor, "unmount") as mock_unmount,
+            patch.object(self.processor, "output"),
+        ):
+            self.processor.main()
 
-            result = self.processor.mount(dmg_path)
+        self.assertEqual(self.processor.env["version"], "4.5.6")
+        mock_mount.assert_called_once_with(dmg_path)
+        mock_unmount.assert_called_once_with(dmg_path)
 
-            mock_mount.assert_called_once_with(dmg_path)
-            self.assertEqual(result, expected_mount_point)
+    def test_main_unmounts_dmg_after_success(self):
+        """Test that main() unmounts a DMG after successfully reading a plist."""
+        dmg_path = os.path.join(self.tmp_dir.name, "test.dmg")
+        plist_path = self._create_plist_file()
+        self.processor.env = {
+            "info_path": f"{dmg_path}/test.plist",
+            "plist_keys": {"CFBundleShortVersionString": "version"},
+        }
 
-    def test_dmg_unmount_calls_unmount_method(self):
-        """Test that DMG unmounting calls the unmount method correctly."""
-        dmg_path = "/path/to/test.dmg"
+        with (
+            patch.object(self.processor, "mount", return_value=self.tmp_dir.name),
+            patch.object(self.processor, "unmount") as mock_unmount,
+            patch.object(self.processor, "output"),
+        ):
+            self.processor.main()
 
-        with patch.object(self.processor, "unmount") as mock_unmount:
-            self.processor.unmount(dmg_path)
-            mock_unmount.assert_called_once_with(dmg_path)
+        self.assertEqual(self.processor.env["version"], "1.2.3")
+        self.assertEqual(plist_path, os.path.join(self.tmp_dir.name, "test.plist"))
+        mock_unmount.assert_called_once_with(dmg_path)
 
     def test_main_unmounts_dmg_on_exception(self):
         """Test that DMG is unmounted even when an exception occurs."""
