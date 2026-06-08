@@ -1202,7 +1202,8 @@ def update_data(a_dict, key, value) -> None:
 
     def getdata(match) -> str:
         """Returns data from a match object, coerced to str for substitution."""
-        return str(a_dict[match.group("key")])
+        val = a_dict[match.group("key")]
+        return "" if val is None else str(val)
 
     def do_variable_substitution(item) -> Any:
         """Do variable substitution for item"""

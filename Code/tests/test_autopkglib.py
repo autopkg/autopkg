@@ -484,6 +484,12 @@ class TestUpdateData(unittest.TestCase):
         autopkglib.update_data(env, "NAME", env["NAME"])
         self.assertEqual(env["NAME"], "App-1.5")
 
+    def test_none_value_substituted_as_empty_string(self):
+        """None/null values referenced via %KEY% must expand to empty string."""
+        env = {"INCLUDE_PRERELEASES": None, "ARG": "%INCLUDE_PRERELEASES%"}
+        autopkglib.update_data(env, "ARG", env["ARG"])
+        self.assertEqual(env["ARG"], "")
+
     def test_plain_string_substitution_unchanged(self):
         """String values are substituted as-is."""
         env = {"NAME": "Firefox", "PATH": "%NAME%.pkg"}
