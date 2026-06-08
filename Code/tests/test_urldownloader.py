@@ -64,18 +64,12 @@ class TestURLDownloader(unittest.TestCase):
         """Test basic file download without complications."""
         temp_file = os.path.join(self.temp_dir, "tempfile")
 
-        # Determine which method to patch based on implementation
-        if hasattr(self.processor, "store_metadata"):
-            storage_method = "store_metadata"
-        else:
-            storage_method = "store_headers"
-
         with (
             patch.object(URLDownloader, "download_with_curl") as mock_download,
             patch.object(URLDownloader, "parse_headers") as mock_parse_headers,
             patch.object(URLDownloader, "create_temp_file") as mock_create_temp,
             patch.object(URLDownloader, "move_temp_file"),
-            patch.object(URLDownloader, storage_method) as mock_store,
+            patch.object(URLDownloader, "store_metadata") as mock_store,
         ):
             mock_create_temp.return_value = temp_file
             mock_download.return_value = ""
@@ -94,10 +88,10 @@ class TestURLDownloader(unittest.TestCase):
             mock_download.assert_called_once()
             mock_store.assert_called_once()
 
-    # Metadata storage tests (works with both xattr [dev-2.x] and .info.json [PR #978])
+    # Metadata storage tests for .info.json sidecars and legacy xattr writes.
 
-    def test_store_headers_stores_etag_and_last_modified(self):
-        """Test that store_headers correctly stores ETag and Last-Modified metadata."""
+    def test_store_metadata_writes_info_json(self):
+        """Test that store_metadata writes ETag and Last-Modified metadata."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
         test_content = b"test file content"
 
@@ -116,57 +110,25 @@ class TestURLDownloader(unittest.TestCase):
             "last-modified": "Mon, 01 Jan 2024 00:00:00 GMT",
         }
 
-        # Store headers (xattr or .info.json depending on implementation)
-        if hasattr(self.processor, "store_metadata"):
-            # PR #978 implementation with .info.json
-            with patch.object(self.processor, "store_headers"):
-                self.processor.store_metadata(header)
+        with patch.object(self.processor, "store_headers"):
+            self.processor.store_metadata(header)
 
-            # Check that .info.json was created
-            info_json_path = test_file + ".info.json"
-            self.assertTrue(os.path.exists(info_json_path))
+        info_json_path = test_file + ".info.json"
+        self.assertTrue(os.path.exists(info_json_path))
 
-            # Verify contents
-            with open(info_json_path, "r", encoding="utf-8") as f:
-                metadata = json.load(f)
+        with open(info_json_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
 
-            self.assertEqual(metadata["download_url"], "http://example.com/file.dmg")
-            self.assertEqual(metadata["file_size"], len(test_content))
-            self.assertEqual(metadata["http_headers"]["ETag"], '"abc123"')
-            self.assertEqual(
-                metadata["http_headers"]["Last-Modified"],
-                "Mon, 01 Jan 2024 00:00:00 GMT",
-            )
-        else:
-            # dev-2.x implementation with xattr
-            self.processor.store_headers(header)
-
-            # Verify environment variables are set
-            self.assertEqual(self.processor.env["etag"], '"abc123"')
-            self.assertEqual(
-                self.processor.env["last_modified"],
-                "Mon, 01 Jan 2024 00:00:00 GMT",
-            )
-
-            # Verify xattr values (if xattr is available)
-            try:
-                from autopkglib import xattr as autopkg_xattr
-
-                stored_etag = autopkg_xattr.getxattr(
-                    test_file, self.processor.xattr_etag
-                ).decode()
-                stored_last_modified = autopkg_xattr.getxattr(
-                    test_file, self.processor.xattr_last_modified
-                ).decode()
-
-                self.assertEqual(stored_etag, '"abc123"')
-                self.assertEqual(stored_last_modified, "Mon, 01 Jan 2024 00:00:00 GMT")
-            except Exception:
-                # xattr might not be available on all platforms during tests
-                pass
+        self.assertEqual(metadata["download_url"], "http://example.com/file.dmg")
+        self.assertEqual(metadata["file_size"], len(test_content))
+        self.assertEqual(metadata["http_headers"]["ETag"], '"abc123"')
+        self.assertEqual(
+            metadata["http_headers"]["Last-Modified"],
+            "Mon, 01 Jan 2024 00:00:00 GMT",
+        )
 
     def test_metadata_retrieval_from_storage(self):
-        """Test that metadata can be retrieved correctly from storage (xattr or .info.json)."""
+        """Test that metadata can be retrieved correctly from .info.json."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
         test_content = b"test file content with known size"
 
@@ -177,84 +139,43 @@ class TestURLDownloader(unittest.TestCase):
         self.processor.env["pathname"] = test_file
         self.processor.clear_vars()
 
-        if hasattr(self.processor, "get_metadata"):
-            # PR #978 implementation - test .info.json reading
-            info_json_path = test_file + ".info.json"
+        info_json_path = test_file + ".info.json"
 
-            metadata = {
-                "download_url": "http://example.com/file.dmg",
-                "file_name": "testfile.dmg",
-                "file_size": 1024,
-                "http_headers": {
-                    "Content-Length": 1024,
-                    "ETag": '"xyz789"',
-                    "Last-Modified": "Tue, 02 Jan 2024 00:00:00 GMT",
-                },
-            }
-            with open(info_json_path, "w", encoding="utf-8") as f:
-                json.dump(metadata, f)
+        metadata = {
+            "download_url": "http://example.com/file.dmg",
+            "file_name": "testfile.dmg",
+            "file_size": 1024,
+            "http_headers": {
+                "Content-Length": 1024,
+                "ETag": '"xyz789"',
+                "Last-Modified": "Tue, 02 Jan 2024 00:00:00 GMT",
+            },
+        }
+        with open(info_json_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f)
 
-            result = self.processor.get_metadata()
+        result = self.processor.get_metadata()
 
-            self.assertEqual(result["download_url"], "http://example.com/file.dmg")
-            self.assertEqual(result["file_size"], 1024)
-            self.assertEqual(result["http_headers"]["ETag"], '"xyz789"')
-        else:
-            # dev-2.x implementation - test xattr reading via getxattr
-            # First store some xattr values
-            try:
-                from autopkglib import xattr as autopkg_xattr
-
-                autopkg_xattr.setxattr(
-                    test_file, self.processor.xattr_etag, b'"xyz789"'
-                )
-                autopkg_xattr.setxattr(
-                    test_file,
-                    self.processor.xattr_last_modified,
-                    b"Tue, 02 Jan 2024 00:00:00 GMT",
-                )
-
-                # Retrieve via getxattr
-                etag = self.processor.getxattr(self.processor.xattr_etag)
-                last_modified = self.processor.getxattr(
-                    self.processor.xattr_last_modified
-                )
-
-                self.assertEqual(etag, '"xyz789"')
-                self.assertEqual(last_modified, "Tue, 02 Jan 2024 00:00:00 GMT")
-            except Exception:
-                # xattr might not be available, skip this part of the test
-                self.skipTest("xattr not available on this platform")
+        self.assertEqual(result["download_url"], "http://example.com/file.dmg")
+        self.assertEqual(result["file_size"], 1024)
+        self.assertEqual(result["http_headers"]["ETag"], '"xyz789"')
 
     def test_metadata_returns_empty_when_no_storage(self):
-        """Test that metadata retrieval returns empty/None when no storage exists."""
+        """Test that metadata retrieval returns empty dict when no storage exists."""
         test_file = os.path.join(self.temp_dir, "nonexistent.dmg")
         self.processor.env["pathname"] = test_file
         self.processor.clear_vars()
 
-        if hasattr(self.processor, "get_metadata"):
-            # PR #978 - should return empty dict
-            result = self.processor.get_metadata()
-            self.assertEqual(result, {})
-        else:
-            # dev-2.x - getxattr should return None
-            result = self.processor.getxattr(self.processor.xattr_etag)
-            self.assertIsNone(result)
+        result = self.processor.get_metadata()
+        self.assertEqual(result, {})
 
     def test_getxattr_raises_processor_error(self):
-        """getxattr() was removed in PR #978. Calling it must raise ProcessorError
-        rather than silently returning None or causing an AttributeError."""
-        if not hasattr(self.processor, "get_metadata"):
-            self.skipTest("getxattr removal only applies to the PR #978 branch")
-
+        """getxattr() must raise ProcessorError in .info.json metadata mode."""
         with self.assertRaises(ProcessorError):
             self.processor.getxattr("any.xattr.name")
 
     def test_get_metadata_returns_empty_on_corrupt_json(self):
         """get_metadata() must return {} and not raise when .info.json is corrupt."""
-        if not hasattr(self.processor, "get_metadata"):
-            self.skipTest("get_metadata not available in this branch")
-
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
         with open(test_file, "wb") as f:
             f.write(b"dummy")
@@ -265,13 +186,13 @@ class TestURLDownloader(unittest.TestCase):
         result = self.processor.get_metadata()
         self.assertEqual(result, {})
 
-    # ETag functionality tests (works with both xattr and .info.json)
+    # ETag functionality tests for .info.json metadata.
 
     @unittest.skipUnless(
         sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
     )
     def test_produce_etag_headers_from_stored_metadata(self):
-        """Test that produce_etag_headers reads from metadata storage (xattr or .info.json)."""
+        """Test that produce_etag_headers reads from .info.json metadata."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
 
         # Create test file
@@ -281,35 +202,17 @@ class TestURLDownloader(unittest.TestCase):
         self.processor.env["pathname"] = test_file
         self.processor.clear_vars()
 
-        if hasattr(self.processor, "get_metadata"):
-            # PR #978 - create .info.json
-            info_json_path = test_file + ".info.json"
-            metadata = {
-                "file_size": 100,
-                "http_headers": {
-                    "ETag": '"etag-value-123"',
-                    "Last-Modified": "Wed, 03 Jan 2024 00:00:00 GMT",
-                },
-            }
-            with open(info_json_path, "w", encoding="utf-8") as f:
-                json.dump(metadata, f)
-        else:
-            # dev-2.x - store in xattr
-            try:
-                from autopkglib import xattr as autopkg_xattr
+        info_json_path = test_file + ".info.json"
+        metadata = {
+            "file_size": 100,
+            "http_headers": {
+                "ETag": '"etag-value-123"',
+                "Last-Modified": "Wed, 03 Jan 2024 00:00:00 GMT",
+            },
+        }
+        with open(info_json_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f)
 
-                autopkg_xattr.setxattr(
-                    test_file, self.processor.xattr_etag, '"etag-value-123"'
-                )
-                autopkg_xattr.setxattr(
-                    test_file,
-                    self.processor.xattr_last_modified,
-                    "Wed, 03 Jan 2024 00:00:00 GMT",
-                )
-            except Exception:
-                self.skipTest("xattr not available on this platform")
-
-        # Get etag headers - should work regardless of storage method
         headers = self.processor.produce_etag_headers()
 
         self.assertEqual(headers["If-None-Match"], '"etag-value-123"')
@@ -328,9 +231,6 @@ class TestURLDownloader(unittest.TestCase):
 
     def test_size_only_check_uses_real_file_size_not_stale_metadata(self):
         """A stale .info.json file_size must not make a changed cache look unchanged."""
-        if not hasattr(self.processor, "get_metadata"):
-            self.skipTest("metadata sidecar not available in this branch")
-
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
         with open(test_file, "wb") as f:
             f.write(b"short")
@@ -374,41 +274,25 @@ class TestURLDownloader(unittest.TestCase):
         self.processor.env["pathname"] = test_file
         self.processor.clear_vars()
 
-        if hasattr(self.processor, "get_metadata"):
-            # PR #978 - create .info.json with only ETag
-            info_json_path = test_file + ".info.json"
-            metadata = {
-                "file_size": 50,
-                "http_headers": {
-                    "ETag": '"only-etag"',
-                },
-            }
-            with open(info_json_path, "w", encoding="utf-8") as f:
-                json.dump(metadata, f)
-        else:
-            # dev-2.x - store only ETag in xattr
-            try:
-                from autopkglib import xattr as autopkg_xattr
-
-                autopkg_xattr.setxattr(
-                    test_file, self.processor.xattr_etag, '"only-etag"'
-                )
-                # Deliberately NOT setting last_modified
-            except Exception:
-                self.skipTest("xattr not available on this platform")
+        info_json_path = test_file + ".info.json"
+        metadata = {
+            "file_size": 50,
+            "http_headers": {
+                "ETag": '"only-etag"',
+            },
+        }
+        with open(info_json_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f)
 
         headers = self.processor.produce_etag_headers()
 
         self.assertEqual(headers["If-None-Match"], '"only-etag"')
         self.assertNotIn("If-Modified-Since", headers)
 
-    # Hash computation tests (PR #978 only - not in dev-2.x)
+    # Hash computation tests
 
     def test_compute_hashes_correctness(self):
-        """Test that compute_hashes produces correct hash values (PR #978 only)."""
-        if not hasattr(self.processor, "compute_hashes"):
-            self.skipTest("compute_hashes not available in dev-2.x")
-
+        """Test that compute_hashes produces correct hash values."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
         test_content = b"Hello, AutoPkg! This is test content."
 
@@ -431,10 +315,7 @@ class TestURLDownloader(unittest.TestCase):
         self.assertEqual(hashes["md5"], expected_md5)
 
     def test_compute_hashes_with_large_file(self):
-        """Test that compute_hashes handles large files efficiently (PR #978 only)."""
-        if not hasattr(self.processor, "compute_hashes"):
-            self.skipTest("compute_hashes not available in dev-2.x")
-
+        """Test that compute_hashes handles large files efficiently."""
         test_file = os.path.join(self.temp_dir, "largefile.dmg")
         # Create a file larger than the chunk size (4096 bytes)
         test_content = b"X" * 10000
@@ -452,10 +333,7 @@ class TestURLDownloader(unittest.TestCase):
         self.assertEqual(hashes["sha256"], expected_sha256)
 
     def test_store_metadata_includes_hashes_when_enabled(self):
-        """Test that store_metadata includes hashes when COMPUTE_HASHES is True (PR #978 only)."""
-        if not hasattr(self.processor, "store_metadata"):
-            self.skipTest("store_metadata not available in dev-2.x")
-
+        """Test that store_metadata includes hashes when COMPUTE_HASHES is True."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
         test_content = b"test content for hashing"
 
@@ -497,10 +375,7 @@ class TestURLDownloader(unittest.TestCase):
         self.assertIn("file_md5", self.processor.output_variables)
 
     def test_store_metadata_excludes_hashes_when_disabled(self):
-        """Test that store_metadata excludes hashes when COMPUTE_HASHES is False (PR #978 only)."""
-        if not hasattr(self.processor, "store_metadata"):
-            self.skipTest("store_metadata not available in dev-2.x")
-
+        """Test that store_metadata excludes hashes when COMPUTE_HASHES is False."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
         test_content = b"test content"
 
@@ -527,11 +402,11 @@ class TestURLDownloader(unittest.TestCase):
         self.assertNotIn("file_sha256", metadata)
         self.assertNotIn("file_md5", metadata)
 
-    # Backward compatibility tests
+    # Legacy xattr behavior tests
 
     @patch("autopkglib.xattr.setxattr")
-    def test_store_headers_backward_compatibility(self, mock_setxattr):
-        """Test that metadata storage maintains backward compatibility with xattr."""
+    def test_store_headers_legacy_xattr_behavior(self, mock_setxattr):
+        """Test that metadata storage maintains legacy xattr behavior."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
 
         with open(test_file, "wb") as f:
@@ -548,21 +423,13 @@ class TestURLDownloader(unittest.TestCase):
             "last-modified": "Sat, 06 Jan 2024 00:00:00 GMT",
         }
 
-        if hasattr(self.processor, "store_metadata"):
-            # PR #978 - verify store_metadata calls store_headers for backward compat
-            self.processor.store_metadata(header)
-            # Verify store_headers was effectively called (xattr operations attempted)
-            self.assertTrue(mock_setxattr.called)
-        else:
-            # dev-2.x - just test store_headers directly
-            self.processor.store_headers(header)
-            # Verify xattr operations were attempted
-            self.assertTrue(mock_setxattr.called)
-            # Verify env variables are set
-            self.assertEqual(self.processor.env["etag"], '"compat123"')
-            self.assertEqual(
-                self.processor.env["last_modified"], "Sat, 06 Jan 2024 00:00:00 GMT"
-            )
+        self.processor.store_metadata(header)
+
+        self.assertTrue(mock_setxattr.called)
+        self.assertEqual(self.processor.env["etag"], '"compat123"')
+        self.assertEqual(
+            self.processor.env["last_modified"], "Sat, 06 Jan 2024 00:00:00 GMT"
+        )
 
     # Input variable tests
 
@@ -598,18 +465,12 @@ class TestURLDownloader(unittest.TestCase):
         # Set required env vars
         self.processor.env["CHECK_FILESIZE_ONLY"] = False
 
-        # Determine which method to patch
-        if hasattr(self.processor, "store_metadata"):
-            storage_method = "store_metadata"
-        else:
-            storage_method = "store_headers"
-
         with (
             patch.object(URLDownloader, "download_with_curl") as mock_download,
             patch.object(URLDownloader, "parse_headers") as mock_parse_headers,
             patch.object(URLDownloader, "create_temp_file") as mock_create_temp,
             patch.object(URLDownloader, "move_temp_file") as mock_move,
-            patch.object(URLDownloader, storage_method),
+            patch.object(URLDownloader, "store_metadata"),
         ):
             mock_create_temp.return_value = temp_file
             mock_download.return_value = ""
@@ -661,42 +522,22 @@ class TestURLDownloader(unittest.TestCase):
         self.processor.env["pathname"] = test_file
         self.processor.clear_vars()
 
-        if hasattr(self.processor, "get_metadata"):
-            # PR #978 - test .info.json reading
-            info_json_path = test_file + ".info.json"
-            metadata = {
-                "file_size": 16,
-                "http_headers": {
-                    "ETag": '"same-etag"',
-                    "Last-Modified": "Sun, 07 Jan 2024 00:00:00 GMT",
-                },
-            }
-            with open(info_json_path, "w", encoding="utf-8") as f:
-                json.dump(metadata, f)
+        info_json_path = test_file + ".info.json"
+        metadata = {
+            "file_size": 16,
+            "http_headers": {
+                "ETag": '"same-etag"',
+                "Last-Modified": "Sun, 07 Jan 2024 00:00:00 GMT",
+            },
+        }
+        with open(info_json_path, "w", encoding="utf-8") as f:
+            json.dump(metadata, f)
 
-            # Test that metadata can be read
-            result = self.processor.get_metadata()
-            self.assertEqual(result["http_headers"]["ETag"], '"same-etag"')
-        else:
-            # dev-2.x - test xattr reading
-            try:
-                from autopkglib import xattr as autopkg_xattr
-
-                autopkg_xattr.setxattr(
-                    test_file, self.processor.xattr_etag, '"same-etag"'
-                )
-
-                # Test that xattr can be read
-                result = self.processor.getxattr(self.processor.xattr_etag)
-                self.assertEqual(result, '"same-etag"')
-            except Exception:
-                self.skipTest("xattr not available on this platform")
+        result = self.processor.get_metadata()
+        self.assertEqual(result["http_headers"]["ETag"], '"same-etag"')
 
     def test_cache_hit_populates_hash_outputs_when_enabled(self):
         """Test that cache hits expose hashes when COMPUTE_HASHES is True."""
-        if not hasattr(self.processor, "compute_hashes"):
-            self.skipTest("compute_hashes not available in dev-2.x")
-
         cached_content = b"cached content for hashing"
         download_dir = os.path.join(self.temp_dir, "downloads")
         os.makedirs(download_dir, exist_ok=True)
@@ -751,16 +592,12 @@ class TestURLDownloader(unittest.TestCase):
         self.assertIsNotNone(self.processor.xattr_etag)
         self.assertIsNotNone(self.processor.xattr_last_modified)
 
-        # file_size is only in PR #978
-        if hasattr(self.processor, "store_metadata"):
-            self.assertEqual(self.processor.env["file_size"], 0)
+        self.assertEqual(self.processor.env["file_size"], 0)
 
         self.assertEqual(self.processor.env["last_modified"], "")
         self.assertEqual(self.processor.env["etag"], "")
 
-        # existing_file_size is only set in PR #978
-        if hasattr(self.processor, "store_metadata"):
-            self.assertIsNone(self.processor.existing_file_size)
+        self.assertIsNone(self.processor.existing_file_size)
 
     # Platform-specific xattr names
 
@@ -787,7 +624,7 @@ class TestURLDownloader(unittest.TestCase):
 
     def _require_prefetch_filename(self):
         if not hasattr(self.processor, "prefetch_filename"):
-            self.skipTest("prefetch_filename not available in this branch")
+            self.skipTest("prefetch_filename not available on this processor")
 
     def _prefetch_patches(self, headers):
         return (

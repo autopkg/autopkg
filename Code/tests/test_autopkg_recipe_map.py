@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Tests for the recipe map backported from dev-3.x.
+"""Tests for the recipe map cache.
 
 Covers:
 * Lookup helpers (find_recipe_by_identifier_in_map, find_recipe_by_name_in_map,
@@ -20,7 +20,7 @@ Covers:
 * Persistence (write_recipe_map_to_disk, handle_reading_recipe_map_file,
   validate_recipe_map).
 * Rebuild behaviour (map_key_to_paths, calculate_recipe_map).
-* read_recipe_map auto-create UX divergence from dev-3.x.
+* read_recipe_map auto-creates missing/invalid maps.
 * The `autopkg generate-recipe-map` verb.
 
 All filesystem I/O is done against per-test temporary directories so
@@ -488,8 +488,7 @@ class TestCalculateRecipeMap(_RecipeMapIsolationMixin, unittest.TestCase):
 
 
 class TestReadRecipeMapAutoCreate(_RecipeMapIsolationMixin, unittest.TestCase):
-    """The dev-2.x port diverges from dev-3.x here: a missing/invalid map
-    MUST auto-rebuild rather than exit the process."""
+    """A missing or invalid map MUST auto-rebuild rather than exit the process."""
 
     def test_auto_creates_when_file_missing(self):
         """Normal call with no map on disk should trigger a rebuild, not
@@ -533,7 +532,7 @@ class TestReadRecipeMapAutoCreate(_RecipeMapIsolationMixin, unittest.TestCase):
         )
 
     def test_rebuild_true_is_still_accepted(self):
-        """The dev-3.x flag must remain supported for API compatibility."""
+        """rebuild=True remains part of the public API."""
         with patch.object(autopkglib, "calculate_recipe_map") as mock_calc:
             autopkglib.read_recipe_map(rebuild=True)
             mock_calc.assert_called_once()

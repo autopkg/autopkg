@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Regression tests pinned to specific upstream issues closed by the
-recipe-map backport. Each test class has a docstring citing the GitHub
+recipe-map implementation. Each test class has a docstring citing the GitHub
 issue number so future changes that break the behaviour show up in CI
 with a direct pointer to the original bug report."""
 
@@ -107,8 +107,8 @@ class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCa
     than silently returning whatever the map happens to know about.
 
     See https://github.com/autopkg/autopkg/issues/918 for the original
-    report. The old dev-2.x on-disk scanner respected the CLI flags; the
-    initial backport of the map silently broke that contract."""
+    report. The pre-map on-disk scanner respected the CLI flags; an earlier
+    map implementation silently broke that contract."""
 
     def setUp(self):
         super().setUp()
@@ -172,9 +172,9 @@ class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCa
 
     def test_cli_search_dir_wins_over_map_for_same_identifier(self):
         """When the CLI dir contains a recipe with the same identifier as
-        one in the map, the CLI dir version wins. This is the dev-2.x
-        contract (recipes in the Recipes/ folder override those in
-        installed repos) that #886 documents."""
+        one in the map, the CLI dir version wins. This preserves the recipe
+        resolution contract (recipes in the Recipes/ folder override those
+        in installed repos) that #886 documents."""
         # Create a /scoped copy with the SAME identifier as the one in
         # the map but a different location.
         same_id_path = os.path.join(self.scoped_dir, "LocalOverrideOfPrimary.recipe")
@@ -1036,7 +1036,7 @@ class TestIssue874MissingOverridesIdentifiers(_RecipeMapIsolation, unittest.Test
     """Regression for issue #874: a map file written by an older version
     of autopkg doesn't have the ``overrides-identifiers`` key. The old
     code did ``globalRecipeMap["overrides-identifiers"]`` directly,
-    producing a KeyError. The backport must either tolerate the missing
+    producing a KeyError. The map code must either tolerate the missing
     key OR reject the file and trigger a rebuild."""
 
     def test_legacy_map_without_overrides_identifiers_is_rejected(self):
@@ -1076,7 +1076,7 @@ class TestIssue869InvalidRecipeRobustness(_RecipeMapIsolation, unittest.TestCase
     """Regression for issue #869: a syntactically-invalid recipe in a
     search dir used to crash ``calculate_recipe_map`` with a TypeError
     during the JSON sort because ``get_identifier_from_recipe_file``
-    returned None. The backport must skip such files with a warning."""
+    returned None. The map code must skip such files with a warning."""
 
     def test_invalid_recipe_does_not_crash_map_build(self):
         repo_dir = os.path.join(self.tmpdir, "bad_repo")
@@ -1329,8 +1329,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
 
 
 class TestSchemaVersion(_RecipeMapIsolation, unittest.TestCase):
-    """Tests for the RECIPE_MAP_SCHEMA_VERSION field added for forward-
-    compatibility."""
+    """Tests for the RECIPE_MAP_SCHEMA_VERSION field used for schema evolution."""
 
     def test_persisted_file_includes_schema_version(self):
         autopkglib.globalRecipeMap["identifiers"]["x"] = "/x.recipe"
