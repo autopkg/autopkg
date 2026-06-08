@@ -41,6 +41,40 @@ def _fake_release(tag_name="v3.0.2"):
     ]
 
 
+def _fake_releases_with_prerelease():
+    """Build a minimal release list with a prerelease before a stable release."""
+    return [
+        {
+            "tag_name": "v2.0.0-beta",
+            "name": "v2.0.0-beta",
+            "prerelease": True,
+            "body": "",
+            "assets": [
+                {
+                    "name": "beta.pkg",
+                    "browser_download_url": "https://example.com/beta.pkg",
+                    "url": "https://api.example.com/assets/beta",
+                    "created_at": "2024-01-01T00:00:00Z",
+                }
+            ],
+        },
+        {
+            "tag_name": "v1.0.0",
+            "name": "v1.0.0",
+            "prerelease": False,
+            "body": "",
+            "assets": [
+                {
+                    "name": "stable.pkg",
+                    "browser_download_url": "https://example.com/stable.pkg",
+                    "url": "https://api.example.com/assets/stable",
+                    "created_at": "2024-01-02T00:00:00Z",
+                }
+            ],
+        },
+    ]
+
+
 class TestGitHubReleasesInfoProvider(unittest.TestCase):
     """Test class for GitHubReleasesInfoProvider Processor."""
 
@@ -98,6 +132,23 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         """The processor should return an asset URL."""
         env = self._run()
         self.assertEqual(env["asset_url"], "https://api.example.com/assets/1")
+
+    @patch.object(
+        GitHubReleasesInfoProvider,
+        "get_releases",
+        return_value=_fake_releases_with_prerelease(),
+    )
+    def test_null_include_prereleases_substitution_excludes_prereleases(self, _mock):
+        """A null input variable substituted into include_prereleases is false."""
+        self.processor.env = {
+            "github_repo": "autopkg/autopkg",
+            "INCLUDE_PRERELEASES": None,
+            **self.base_env,
+        }
+        self.processor.inject({"include_prereleases": "%INCLUDE_PRERELEASES%"})
+        self.processor.main()
+
+        self.assertEqual(self.processor.env["url"], "https://example.com/stable.pkg")
 
 
 if __name__ == "__main__":
