@@ -48,16 +48,18 @@ Files in PkgCreator `scripts` directories are now included in recipe override tr
 
 - Changes to preinstall/postinstall scripts or any other files bundled into packages will now trigger trust verification failures. Only git-tracked files are hashed when the scripts directory is inside a git repo, so untracked files like `.DS_Store` won't cause false trust failures. (#980)
 
-    > [!WARNING]
-    > Overrides of recipes that use PkgCreator scripts should be updated with `autopkg update-trust-info` to add script trust info. In AutoPkg 3.0.0, missing script trust info produces a warning; starting in AutoPkg 3.1.0, this will be a trust verification error.
+> [!WARNING]
+> Overrides of recipes that use PkgCreator scripts should be updated with `autopkg update-trust-info` to add script trust info. In AutoPkg 3.0.0, missing script trust info produces a warning; starting in AutoPkg 3.1.0, this will be a trust verification error.
 
 #### CodeSignatureVerifier hardening
 
 CodeSignatureVerifier now more effectively handles situations that previously allowed unintentionally skipping or weakening verification:
 
 - `strict_verification` now defaults to `True` (passes `--strict` to codesign).
-    > [!WARNING]
-    > **This is a breaking change for recipes handling apps which fail strict verification** (≈2.5% of total active recipes in the autopkg org). The suggested workaround is to set CodeSignatureVerifier's `strict_verification` argument to `False` specifically for those recipes. Pull requests have already been opened for affected recipe repositories.
+
+> [!WARNING]
+> **This is a breaking change for recipes handling apps which fail strict verification** (≈2.5% of total active recipes in the autopkg org). The suggested workaround is to set CodeSignatureVerifier's `strict_verification` argument to `False` specifically for those recipes. Pull requests have already been opened for affected recipe repositories.
+
 - Verification failures now distinguish a wrong signing identity from an unsigned or invalid signature.
 - For app bundles, a `requirement` is now mandatory. For installer packages, `expected_authority_names` is now mandatory. Without these, verification only confirmed that the item was signed by *someone* with a valid Developer ID (including a potential attacker), so recipes that omit these arguments now fail.
 - Typoed versions of the `requirement` and `expected_authority_names` keys now result in an error instead of a warning.
@@ -107,8 +109,10 @@ Multiple processors now confine paths to their intended directories, preventing 
 ### Processor features and fixes
 
 - DmgCreator: default `dmg_filesystem` changed from `HFS+` to `APFS` and default `dmg_format` changed from `UDZO` to `ULFO` (lzfse compression).  `ULFO` and `ULMO` are now accepted as valid `dmg_format` values (#905, thanks to @erikng)
-    > [!NOTE]
-    > **APFS requires macOS 10.13 or later to mount.** If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly.
+
+> [!NOTE]
+> **APFS requires macOS 10.13 or later to mount.** If you need to produce disk images compatible with older systems, set `dmg_filesystem` to `HFS+` and `dmg_format` to `UDZO` explicitly.
+
 - PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
 - URLDownloaderPython now validates cached files against their actual size, exposes computed hashes, and preserves downloads when ETag or Last-Modified headers are missing.
 - URLDownloader now applies `curl_common_opts`, such as authorization headers, when prefetching filenames from authenticated URLs (#925, thanks to @n8felton)
