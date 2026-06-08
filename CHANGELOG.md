@@ -135,6 +135,7 @@ Multiple processors now confine paths to their intended directories, preventing 
 - Reduced the likelihood that float-looking version strings in YAML recipes (e.g. `VERSION: 1.0`) will be silently coerced to a Python float instead of remaining a string, causing subtle inconsistencies compared to plist recipes (#1023).
 - Fixed a trust verification error message that printed the expected parent recipe list twice; it now shows both the expected and the actual parent recipe lists so it's clear what changed.
 - Fixed `%key%` variable substitution raising a `TypeError` when the recipe environment contains non-string values (#1038, thanks to @jgstew).
+- SparkleUpdateInfoProvider: fixed crash when handling `description_data`, and corrected HTML closing tags for `description`
 
 
 ## [2.9.0](https://github.com/autopkg/autopkg/compare/v2.7.6...v2.9.0) (February 3, 2026)
