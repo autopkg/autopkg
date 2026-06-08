@@ -124,8 +124,9 @@ Multiple processors now confine paths to their intended directories, preventing 
 - ChocolateyInstallGenerator now escapes single quotes in generated PowerShell string literals.
 - URLGetter now reports curl diagnostics correctly when file downloads fail in binary mode.
 - Removed some unused code from PkgRootCreator, URLDownloaderPython, and Versioner.
+- CURLDownloader and CURLTextSearcher: these long-deprecated processors have been removed. They were no longer in use in any autopkg org recipes.
 
- ### Other AutoPkg improvements and fixes
+### Other AutoPkg improvements and fixes
 
 - `repo-update` now migrates a recipe repo's local clone from `master` to `main` when the default branch was renamed upstream, so the repo keeps updating instead of silently stalling on a deleted remote branch.
 - `make-override --format` can now be set globally via the `RECIPE_OVERRIDE_FORMAT` preference, so you don't need to pass `--format yaml` on every invocation (#1024, thanks to @grahampugh).
