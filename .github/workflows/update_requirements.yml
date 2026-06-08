@@ -1,0 +1,53 @@
+---
+name: Update requirements.txt
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "requirements.in"
+      - ".github/workflows/update_requirements.yml"
+  pull_request:
+    paths:
+      - "requirements.in"
+      - ".github/workflows/update_requirements.yml"
+
+jobs:
+  update-requirements:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: python -m pip install uv
+
+      - name: Rebuild requirements.txt
+        run: |
+          uv pip compile requirements.in --universal --python-version 3.11 --output-file requirements.txt --quiet
+          echo "--no-binary :all:" >> requirements.txt
+
+      - name: Commit updated requirements.txt
+        if: github.event_name == 'push'
+        run: |
+          if git diff --quiet -- requirements.txt; then
+            exit 0
+          fi
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add requirements.txt
+          git commit -m "Update requirements.txt"
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Check requirements.txt is current
+        if: github.event_name == 'pull_request'
+        run: git diff --exit-code -- requirements.txt
