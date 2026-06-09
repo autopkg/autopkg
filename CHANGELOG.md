@@ -118,6 +118,7 @@ Multiple processors now confine paths to their intended directories, preventing 
 
 - Processors that handle disk images now preserve original mount failures instead of masking them with subsequent "not mounted" cleanup errors.
 - PkgCreator and AppPkgCreator: new `pkgbuild_args` input variable allows forwarding additional flags (e.g. `--filter`, `--large-payload`) to the `pkgbuild` tool (#981)
+- PathDeleter: new `continue_on_error` input variable (default `False`) makes deletion best-effort: a missing path is skipped instead of raising, and a directory that still can't be removed after a few retries is force-removed with errors ignored, so optional cleanup steps don't fail the recipe run. Directory removal now also retries transient failures (e.g. a path briefly held open after a build) with exponential backoff before giving up. The default behavior is unchanged: any failure still raises a `ProcessorError`.
 - macOS-only processors that rely on `hdiutil`, `pkgutil`, `xar`, or `pkgbuild` now fail with explicit platform errors on non-macOS instead of attempting to launch unavailable tools.
 - URLDownloaderPython now validates cached files against their actual size, exposes computed hashes, and preserves downloads when ETag or Last-Modified headers are missing.
 - URLDownloader now applies `curl_common_opts`, such as authorization headers, when prefetching filenames from authenticated URLs (#925, thanks to @n8felton)
