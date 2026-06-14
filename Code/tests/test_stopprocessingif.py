@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import unittest
 from copy import deepcopy
 from unittest.mock import MagicMock, patch
@@ -30,13 +31,14 @@ class TestStopProcessingIf(unittest.TestCase):
     def setUp(self):
         self.env = {"predicate": TEST_PREDICATE}
         self.processor = StopProcessingIf(env=deepcopy(self.env))
+        self.module = sys.modules[StopProcessingIf.__module__]
 
     def test_predicate_evaluates_as_true_when_true(self):
         """Returns True and calls output() when the predicate evaluates to True."""
         mock_predicate = MagicMock()
         mock_predicate.evaluateWithObject_.return_value = True
 
-        with patch("autopkglib.StopProcessingIf.NSPredicate", create=True) as mock_ns:
+        with patch.object(self.module, "NSPredicate", create=True) as mock_ns:
             mock_ns.predicateWithFormat_.return_value = mock_predicate
             with patch.object(self.processor, "output") as mock_output:
                 result = self.processor.predicate_evaluates_as_true(TEST_PREDICATE)
@@ -51,7 +53,7 @@ class TestStopProcessingIf(unittest.TestCase):
         mock_predicate = MagicMock()
         mock_predicate.evaluateWithObject_.return_value = False
 
-        with patch("autopkglib.StopProcessingIf.NSPredicate", create=True) as mock_ns:
+        with patch.object(self.module, "NSPredicate", create=True) as mock_ns:
             mock_ns.predicateWithFormat_.return_value = mock_predicate
             result = self.processor.predicate_evaluates_as_true(TEST_PREDICATE)
 
@@ -59,7 +61,7 @@ class TestStopProcessingIf(unittest.TestCase):
 
     def test_predicate_evaluates_as_true_raises_processor_error(self):
         """Raises ProcessorError when NSPredicate raises an exception."""
-        with patch("autopkglib.StopProcessingIf.NSPredicate", create=True) as mock_ns:
+        with patch.object(self.module, "NSPredicate", create=True) as mock_ns:
             mock_ns.predicateWithFormat_.side_effect = ValueError("bad predicate")
             with self.assertRaises(ProcessorError) as ctx:
                 self.processor.predicate_evaluates_as_true(TEST_PREDICATE)
@@ -72,7 +74,7 @@ class TestStopProcessingIf(unittest.TestCase):
         mock_predicate = MagicMock()
         mock_predicate.evaluateWithObject_.return_value = True
 
-        with patch("autopkglib.StopProcessingIf.NSPredicate", create=True) as mock_ns:
+        with patch.object(self.module, "NSPredicate", create=True) as mock_ns:
             mock_ns.predicateWithFormat_.return_value = mock_predicate
             self.processor.main()
 
@@ -83,7 +85,7 @@ class TestStopProcessingIf(unittest.TestCase):
         mock_predicate = MagicMock()
         mock_predicate.evaluateWithObject_.return_value = False
 
-        with patch("autopkglib.StopProcessingIf.NSPredicate", create=True) as mock_ns:
+        with patch.object(self.module, "NSPredicate", create=True) as mock_ns:
             mock_ns.predicateWithFormat_.return_value = mock_predicate
             self.processor.main()
 

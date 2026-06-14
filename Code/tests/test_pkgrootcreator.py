@@ -16,6 +16,7 @@
 
 import os
 import stat
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -31,6 +32,7 @@ class TestPkgRootCreator(unittest.TestCase):
         self.tmp_dir = tempfile.TemporaryDirectory()
         self.pkgroot = os.path.join(self.tmp_dir.name, "pkgroot")
         self.processor = PkgRootCreator()
+        self.module = sys.modules[PkgRootCreator.__module__]
 
     def tearDown(self):
         self.tmp_dir.cleanup()
@@ -125,10 +127,11 @@ class TestPkgRootCreator(unittest.TestCase):
         self.assertEqual(os.listdir(self.pkgroot), [])
 
     def test_oserror_removing_pkgroot_raises_processor_error(self):
-        with patch("autopkglib.PkgRootCreator.os.path.isfile", return_value=False):
-            with patch("autopkglib.PkgRootCreator.os.path.isdir", return_value=True):
-                with patch(
-                    "autopkglib.PkgRootCreator.shutil.rmtree",
+        with patch.object(self.module.os.path, "isfile", return_value=False):
+            with patch.object(self.module.os.path, "isdir", return_value=True):
+                with patch.object(
+                    self.module.shutil,
+                    "rmtree",
                     side_effect=OSError("permission denied"),
                 ):
                     with self.assertRaisesRegex(ProcessorError, "Can't remove"):
@@ -139,16 +142,18 @@ class TestPkgRootCreator(unittest.TestCase):
             self.tmp_dir.name, "nonexistent", "parent", "pkgroot"
         )
 
-        with patch(
-            "autopkglib.PkgRootCreator.os.makedirs",
+        with patch.object(
+            self.module.os,
+            "makedirs",
             side_effect=OSError("permission denied"),
         ):
             with self.assertRaisesRegex(ProcessorError, "Can't create"):
                 self._run_with_pkgdirs({})
 
     def test_oserror_during_chmod_raises_processor_error(self):
-        with patch(
-            "autopkglib.PkgRootCreator.os.chmod",
+        with patch.object(
+            self.module.os,
+            "chmod",
             side_effect=OSError("operation not permitted"),
         ):
             with self.assertRaisesRegex(

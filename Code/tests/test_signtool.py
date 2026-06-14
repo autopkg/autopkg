@@ -68,16 +68,14 @@ class TestSignToolVerifier(unittest.TestCase):
 
     def test_signtool_default_path_finds_x64_windows_kit(self):
         prog_files = r"C:\Program Files (x86)"
+        module = sys.modules[SignToolVerifier.__module__]
 
         # Return True only when the candidate path contains the x64 arch token.
         def exists_side_effect(path):
             return r"\x64\signtool.exe" in path or "/x64/signtool.exe" in path
 
         with patch.dict("os.environ", {"ProgramFiles(x86)": prog_files}, clear=False):
-            with patch(
-                "autopkglib.SignToolVerifier.os.path.exists",
-                side_effect=exists_side_effect,
-            ):
+            with patch.object(module.os.path, "exists", side_effect=exists_side_effect):
                 result = signtool_default_path()
 
         self.assertIsNotNone(result)
@@ -86,6 +84,7 @@ class TestSignToolVerifier(unittest.TestCase):
 
     def test_signtool_default_path_finds_x86_windows_kit(self):
         prog_files = r"C:\Program Files (x86)"
+        module = sys.modules[SignToolVerifier.__module__]
 
         # Return True only when the candidate path contains the x86 arch token
         # (but not x64, which is checked first).
@@ -95,10 +94,7 @@ class TestSignToolVerifier(unittest.TestCase):
             return r"\x86\signtool.exe" in path or "/x86/signtool.exe" in path
 
         with patch.dict("os.environ", {"ProgramFiles(x86)": prog_files}, clear=False):
-            with patch(
-                "autopkglib.SignToolVerifier.os.path.exists",
-                side_effect=exists_side_effect,
-            ):
+            with patch.object(module.os.path, "exists", side_effect=exists_side_effect):
                 result = signtool_default_path()
 
         self.assertIsNotNone(result)
@@ -106,6 +102,7 @@ class TestSignToolVerifier(unittest.TestCase):
         self.assertTrue(result.endswith("signtool.exe"))
 
     def test_signtool_default_path_finds_github_actions_fallback(self):
+        module = sys.modules[SignToolVerifier.__module__]
         github_path = (
             r"C:\Program Files (x86)\Windows Kits\10\App Certification Kit\signtool.exe"
         )
@@ -114,19 +111,15 @@ class TestSignToolVerifier(unittest.TestCase):
             return path == github_path
 
         with patch.dict("os.environ", {}, clear=True):
-            with patch(
-                "autopkglib.SignToolVerifier.os.path.exists",
-                side_effect=exists_side_effect,
-            ):
+            with patch.object(module.os.path, "exists", side_effect=exists_side_effect):
                 result = signtool_default_path()
 
         self.assertEqual(result, github_path)
 
     def test_signtool_default_path_returns_none_when_not_found(self):
+        module = sys.modules[SignToolVerifier.__module__]
         with patch.dict("os.environ", {}, clear=True):
-            with patch(
-                "autopkglib.SignToolVerifier.os.path.exists", return_value=False
-            ):
+            with patch.object(module.os.path, "exists", return_value=False):
                 result = signtool_default_path()
 
         self.assertIsNone(result)
