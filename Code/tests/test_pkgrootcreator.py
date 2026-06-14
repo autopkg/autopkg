@@ -18,6 +18,7 @@ import os
 import stat
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from autopkglib import ProcessorError
 from autopkglib.PkgRootCreator import PkgRootCreator
@@ -93,6 +94,68 @@ class TestPkgRootCreator(unittest.TestCase):
             self._run_with_pkgdirs({"Applications/../../escape": "0755"})
 
         self.assertFalse(os.path.exists(outside_path))
+
+    def test_removes_existing_symlink_pkgroot(self):
+        target_path = os.path.join(self.tmp_dir.name, "target")
+        os.mkdir(target_path)
+        os.symlink(target_path, self.pkgroot)
+
+        self._run_with_pkgdirs({})
+
+        self.assertFalse(os.path.islink(self.pkgroot))
+        self.assertTrue(os.path.isdir(self.pkgroot))
+
+    def test_removes_existing_file_pkgroot(self):
+        with open(self.pkgroot, "w", encoding="utf-8") as file_handle:
+            file_handle.write("existing file")
+
+        self._run_with_pkgdirs({})
+
+        self.assertTrue(os.path.isdir(self.pkgroot))
+
+    def test_removes_existing_directory_pkgroot(self):
+        os.makedirs(self.pkgroot)
+        existing_file = os.path.join(self.pkgroot, "existing")
+        with open(existing_file, "w", encoding="utf-8") as file_handle:
+            file_handle.write("existing file")
+
+        self._run_with_pkgdirs({})
+
+        self.assertTrue(os.path.isdir(self.pkgroot))
+        self.assertEqual(os.listdir(self.pkgroot), [])
+
+    def test_oserror_removing_pkgroot_raises_processor_error(self):
+        with patch("autopkglib.PkgRootCreator.os.path.isfile", return_value=False):
+            with patch("autopkglib.PkgRootCreator.os.path.isdir", return_value=True):
+                with patch(
+                    "autopkglib.PkgRootCreator.shutil.rmtree",
+                    side_effect=OSError("permission denied"),
+                ):
+                    with self.assertRaisesRegex(ProcessorError, "Can't remove"):
+                        self._run_with_pkgdirs({})
+
+    def test_oserror_creating_pkgroot_raises_processor_error(self):
+        self.pkgroot = os.path.join(
+            self.tmp_dir.name, "nonexistent", "parent", "pkgroot"
+        )
+
+        with patch(
+            "autopkglib.PkgRootCreator.os.makedirs",
+            side_effect=OSError("permission denied"),
+        ):
+            with self.assertRaisesRegex(ProcessorError, "Can't create"):
+                self._run_with_pkgdirs({})
+
+    def test_oserror_during_chmod_raises_processor_error(self):
+        with patch(
+            "autopkglib.PkgRootCreator.os.chmod",
+            side_effect=OSError("operation not permitted"),
+        ):
+            with self.assertRaisesRegex(
+                ProcessorError,
+                r"Can't create.*testdir.*mode",
+            ):
+                self._run_with_pkgdirs({"testdir": "0755"})
 
 
 if __name__ == "__main__":

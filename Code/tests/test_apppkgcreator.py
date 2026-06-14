@@ -271,6 +271,217 @@ class TestAppPkgCreator(unittest.TestCase):
 
         mock_disconnect.assert_called_once()
 
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=True)
+    def test_package_app_clears_existing_summary_result(self, mock_exists):
+        """Test that package_app() clears pre-existing summary result before processing."""
+        app_path = self._create_test_app(self.app_path)
+        self.processor.env["app_pkg_creator_summary_result"] = {"dummy": "value"}
+
+        self.processor.package_app(app_path)
+
+        self.assertNotIn("app_pkg_creator_summary_result", self.processor.env)
+
+    def test_package_app_nonkeyerror_exception_in_version_extraction(self):
+        """Test that non-KeyError exceptions in version extraction become ProcessorError."""
+        app_path = self._create_test_app(self.app_path)
+        del self.processor.env["version"]
+
+        # Return a dict-like object that raises ValueError (not KeyError) on access.
+        class BadVersionMapping:
+            def __getitem__(self, key):
+                raise ValueError("plist corrupted")
+
+            def get(self, key, default=None):
+                return None
+
+        with patch.object(
+            AppPkgCreator, "read_info_plist", return_value=BadVersionMapping()
+        ):
+            with self.assertRaises(ProcessorError):
+                self.processor.package_app(app_path)
+
+    def test_package_app_nonkeyerror_exception_in_bundleid_extraction(self):
+        """Test that non-KeyError exceptions in bundle ID extraction become ProcessorError."""
+        app_path = self._create_test_app(self.app_path)
+        # Remove bundleid so the processor tries to read it from the plist.
+        del self.processor.env["bundleid"]
+
+        # Return a plist-like object whose __getitem__ raises TypeError.
+        class BadMapping:
+            def __getitem__(self, key):
+                raise TypeError("bad type")
+
+            def get(self, key, default=None):
+                return None
+
+        with patch.object(AppPkgCreator, "read_info_plist", return_value=BadMapping()):
+            with self.assertRaises(ProcessorError):
+                self.processor.package_app(app_path)
+
+    @patch("shutil.copytree")
+    @patch.object(AppPkgCreator, "send_request")
+    @patch.object(AppPkgCreator, "disconnect")
+    @patch.object(AppPkgCreator, "connect")
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=False)
+    def test_package_app_copy_directory_to_payload(
+        self, mock_exists, mock_connect, mock_disconnect, mock_send, mock_copytree
+    ):
+        """Test that package_app() calls shutil.copytree for a directory source."""
+        app_path = self._create_test_app(self.app_path)
+        mock_send.return_value = os.path.join(self.tmp_dir.name, "TestApp-1.0.0.pkg")
+
+        self.processor.package_app(app_path)
+
+        mock_copytree.assert_called_once()
+        _, kwargs = mock_copytree.call_args
+        self.assertTrue(kwargs.get("symlinks", False))
+        positional = mock_copytree.call_args[0]
+        self.assertEqual(positional[0], app_path)
+
+    @patch("shutil.copyfile")
+    @patch.object(AppPkgCreator, "read_info_plist", return_value={})
+    @patch.object(AppPkgCreator, "send_request")
+    @patch.object(AppPkgCreator, "disconnect")
+    @patch.object(AppPkgCreator, "connect")
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=False)
+    def test_package_app_copy_file_when_dest_not_exists(
+        self,
+        mock_exists,
+        mock_connect,
+        mock_disconnect,
+        mock_send,
+        mock_read_plist,
+        mock_copyfile,
+    ):
+        """package_app() calls shutil.copyfile when source is a regular file and dest absent."""
+        open(self.app_path, "wb").close()
+        mock_send.return_value = os.path.join(self.tmp_dir.name, "TestApp-1.0.0.pkg")
+
+        self.processor.package_app(self.app_path)
+
+        mock_copyfile.assert_called_once()
+
+    @patch("shutil.copy")
+    @patch("os.path.isdir")
+    @patch.object(AppPkgCreator, "read_info_plist", return_value={})
+    @patch.object(AppPkgCreator, "send_request")
+    @patch.object(AppPkgCreator, "disconnect")
+    @patch.object(AppPkgCreator, "connect")
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=False)
+    def test_package_app_copy_fallback_when_dest_exists(
+        self,
+        mock_exists,
+        mock_connect,
+        mock_disconnect,
+        mock_send,
+        mock_read_plist,
+        mock_isdir,
+        mock_copy,
+    ):
+        """package_app() calls shutil.copy when source is a file and dest already exists as a dir."""
+        open(self.app_path, "wb").close()
+        mock_send.return_value = os.path.join(self.tmp_dir.name, "TestApp-1.0.0.pkg")
+        # Return True only for dest_item (simulates an existing dir); False everywhere else.
+        dest_item = os.path.join(
+            self.tmp_dir.name,
+            "payload",
+            "Applications",
+            os.path.basename(self.app_path),
+        )
+        mock_isdir.side_effect = lambda path: path == dest_item
+
+        self.processor.package_app(self.app_path)
+
+        mock_copy.assert_called_once()
+
+    @patch("shutil.copytree", side_effect=OSError("Permission denied"))
+    @patch.object(AppPkgCreator, "pkg_already_exists", return_value=False)
+    def test_package_app_copy_oserror_raises(self, mock_exists, mock_copytree):
+        """Test that OSError during copy raises ProcessorError with 'Can't copy'."""
+        app_path = self._create_test_app(self.app_path)
+
+        with self.assertRaisesRegex(ProcessorError, "Can't copy"):
+            self.processor.package_app(app_path)
+
+    @patch.object(AppPkgCreator, "package_app")
+    @patch("autopkglib.AppPkgCreator.glob", return_value=["/some/dir/TestApp.app"])
+    @patch.object(AppPkgCreator, "unmount_if_mounted")
+    @patch.object(AppPkgCreator, "parsePathForDMG", return_value=(None, False, ""))
+    def test_main_uses_app_path_from_env(
+        self, mock_parse, mock_unmount, mock_glob, mock_pkg
+    ):
+        """Test that main() uses env['app_path'] directly when set."""
+        self.processor.env["app_path"] = "/some/dir/TestApp.app"
+
+        self.processor.main()
+
+        mock_pkg.assert_called_once_with("/some/dir/TestApp.app")
+
+    @patch.object(AppPkgCreator, "package_app")
+    @patch("autopkglib.AppPkgCreator.glob", return_value=["/some/dir/MyApp.app"])
+    @patch.object(AppPkgCreator, "unmount_if_mounted")
+    @patch.object(AppPkgCreator, "parsePathForDMG", return_value=(None, False, ""))
+    def test_main_constructs_glob_pattern_from_pathname(
+        self, mock_parse, mock_unmount, mock_glob, mock_pkg
+    ):
+        """Test that main() builds a '*.app' glob from pathname when app_path absent."""
+        self.processor.env = {
+            "RECIPE_CACHE_DIR": self.tmp_dir.name,
+            "pathname": "/some/dir",
+        }
+
+        self.processor.main()
+
+        mock_glob.assert_called_once_with("/some/dir/*.app")
+        mock_pkg.assert_called_once_with("/some/dir/MyApp.app")
+
+    @patch("autopkglib.AppPkgCreator.glob", return_value=[])
+    @patch.object(AppPkgCreator, "unmount_if_mounted")
+    @patch.object(AppPkgCreator, "parsePathForDMG", return_value=(None, False, ""))
+    def test_main_no_glob_matches_raises(self, mock_parse, mock_unmount, mock_glob):
+        """Test that main() raises ProcessorError when glob returns no matches."""
+        self.processor.env["app_path"] = "/some/dir/TestApp.app"
+
+        with self.assertRaisesRegex(ProcessorError, "Error processing path"):
+            self.processor.main()
+
+    @patch.object(AppPkgCreator, "package_app")
+    @patch.object(AppPkgCreator, "output")
+    @patch(
+        "autopkglib.AppPkgCreator.glob",
+        return_value=["/path/App1.app", "/path/App2.app"],
+    )
+    @patch.object(AppPkgCreator, "unmount_if_mounted")
+    @patch.object(AppPkgCreator, "parsePathForDMG", return_value=(None, False, ""))
+    def test_main_warns_on_multiple_matches(
+        self, mock_parse, mock_unmount, mock_glob, mock_output, mock_pkg
+    ):
+        """Test that main() outputs a warning when multiple paths match the glob."""
+        self.processor.env["app_path"] = "/path/*.app"
+
+        self.processor.main()
+
+        mock_output.assert_any_call(
+            "WARNING: Multiple paths match 'app_path' glob '/path/*.app':"
+        )
+
+    @patch.object(AppPkgCreator, "package_app")
+    @patch.object(AppPkgCreator, "output")
+    @patch("autopkglib.AppPkgCreator.glob", return_value=["/dir/MyApp.app"])
+    @patch.object(AppPkgCreator, "unmount_if_mounted")
+    @patch.object(AppPkgCreator, "parsePathForDMG", return_value=(None, False, ""))
+    def test_main_outputs_glob_warning_when_pattern_contains_special_chars(
+        self, mock_parse, mock_unmount, mock_glob, mock_output, mock_pkg
+    ):
+        """Test that main() outputs a 'Using path matched from globbed' message."""
+        self.processor.env["app_path"] = "**/MyApp.app"
+
+        self.processor.main()
+
+        mock_output.assert_any_call(
+            "Using path '/dir/MyApp.app' matched from globbed '**/MyApp.app'."
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

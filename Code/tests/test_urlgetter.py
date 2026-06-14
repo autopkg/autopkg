@@ -258,6 +258,137 @@ class TestURLGetter(unittest.TestCase):
 
         self.assertEqual(header, {"http_result_code": "000"})
 
+    def test_curl_binary_returns_path_when_found(self):
+        """curl_binary() returns the path when find_binary() locates curl."""
+        with patch.object(urlgetter_module, "find_binary", return_value="curl"):
+            result = self.processor.curl_binary()
+        self.assertEqual(result, "curl")
+
+    def test_curl_binary_raises_when_not_found(self):
+        """curl_binary() raises ProcessorError when find_binary() returns None."""
+        with patch.object(urlgetter_module, "find_binary", return_value=None):
+            with self.assertRaisesRegex(
+                ProcessorError, "Unable to locate or execute any curl binary"
+            ):
+                self.processor.curl_binary()
+
+    def test_curl_stderr_text_decodes_bytes(self):
+        """_curl_stderr_text() decodes bytes to a string."""
+        result = self.processor._curl_stderr_text(b"test error")
+        self.assertEqual(result, "test error")
+
+    def test_curl_stderr_text_handles_none(self):
+        """_curl_stderr_text() returns a fallback message when passed None."""
+        result = self.processor._curl_stderr_text(None)
+        self.assertEqual(result, "curl failed without diagnostic output")
+
+    def test_curl_stderr_text_handles_string(self):
+        """_curl_stderr_text() returns the string unchanged when passed a str."""
+        result = self.processor._curl_stderr_text("text error")
+        self.assertEqual(result, "text error")
+
+    def test_produce_etag_headers_raises(self):
+        """produce_etag_headers() raises ProcessorError with relocation message."""
+        with self.assertRaisesRegex(ProcessorError, "produce_etag_headers"):
+            self.processor.produce_etag_headers()
+
+    def test_parse_headers_basic_http(self):
+        """parse_headers() parses a simple HTTP 200 response."""
+        raw = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
+        result = self.processor.parse_headers(raw)
+        self.assertEqual(result["http_result_code"], "200")
+        self.assertEqual(result["content-type"], "text/html")
+
+    def test_parse_headers_with_redirect(self):
+        """parse_headers() tracks the redirect URL and resets code after 301."""
+        self.processor.env["url"] = "http://example.com"
+        raw = "HTTP/1.1 301 Moved\r\nLocation: http://redirected.example.com\r\n\r\n"
+        result = self.processor.parse_headers(raw)
+        self.assertEqual(result["http_redirected"], "http://redirected.example.com")
+        self.assertEqual(result["http_result_code"], "000")
+
+    def test_parse_headers_ftp_fallthrough_with_ftp_url(self):
+        """parse_headers() delegates non-HTTP, non-header lines to parse_ftp_header for ftp:// URLs."""
+        self.processor.env["url"] = "ftp://example.com/file"
+        with patch.object(self.processor, "parse_ftp_header") as mock_ftp:
+            self.processor.parse_headers("220 Service ready\r\n")
+        mock_ftp.assert_called_once_with("220 Service ready", unittest.mock.ANY)
+
+    def test_download_with_curl_returns_stdout_on_success(self):
+        """download_with_curl() returns stdout when curl exits with code 0."""
+        with (
+            patch.object(
+                self.processor, "execute_curl", return_value=("file content", "", 0)
+            ),
+            patch.object(self.processor, "output"),
+        ):
+            result = self.processor.download_with_curl(["curl", "http://example.com"])
+        self.assertEqual(result, "file content")
+
+    def test_download_with_curl_raises_on_nonzero_exit(self):
+        """download_with_curl() raises ProcessorError on non-zero curl exit code."""
+        with (
+            patch.object(
+                self.processor, "execute_curl", return_value=("", "error message", 1)
+            ),
+            patch.object(
+                self.processor, "parse_curl_error", return_value="parsed error"
+            ),
+            patch.object(self.processor, "output"),
+        ):
+            with self.assertRaisesRegex(
+                ProcessorError, r"curl failure: parsed error \(exit code 1\)"
+            ):
+                self.processor.download_with_curl(["curl", "http://example.com"])
+
+    def test_download_assembles_curl_command(self):
+        """download() passes a URL-bearing command to download_with_curl()."""
+        with (
+            patch.object(self.processor, "prepare_curl_cmd", return_value=["curl"]),
+            patch.object(
+                self.processor, "download_with_curl", return_value="data"
+            ) as mock_dwc,
+        ):
+            self.processor.download("http://example.com")
+        mock_dwc.assert_called_once_with(["curl", "http://example.com"], False)
+
+    def test_download_with_headers(self):
+        """download() appends custom headers before calling download_with_curl()."""
+        with (
+            patch.object(self.processor, "prepare_curl_cmd", return_value=["curl"]),
+            patch.object(
+                self.processor, "download_with_curl", return_value="data"
+            ) as mock_dwc,
+        ):
+            self.processor.download(
+                "http://example.com", headers={"Accept": "application/json"}
+            )
+        call_args = mock_dwc.call_args[0][0]
+        self.assertIn("--header", call_args)
+        self.assertIn("Accept: application/json", call_args)
+
+    def test_download_to_file_returns_filename_when_exists(self):
+        """download_to_file() returns the filename when the file is written."""
+        with (
+            patch.object(self.processor, "prepare_curl_cmd", return_value=["curl"]),
+            patch.object(self.processor, "download_with_curl", return_value=""),
+            patch.object(self.processor, "output"),
+            patch("os.path.exists", return_value=True),
+        ):
+            result = self.processor.download_to_file("http://example.com", "test.bin")
+        self.assertEqual(result, "test.bin")
+
+    def test_download_to_file_raises_when_file_missing(self):
+        """download_to_file() raises ProcessorError when the output file is absent."""
+        with (
+            patch.object(self.processor, "prepare_curl_cmd", return_value=["curl"]),
+            patch.object(self.processor, "download_with_curl", return_value=""),
+            patch.object(self.processor, "output"),
+            patch("os.path.exists", return_value=False),
+        ):
+            with self.assertRaisesRegex(ProcessorError, "test.bin was not written!"):
+                self.processor.download_to_file("http://example.com", "test.bin")
+
 
 if __name__ == "__main__":
     unittest.main()

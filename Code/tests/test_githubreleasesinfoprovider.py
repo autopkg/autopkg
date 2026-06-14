@@ -18,7 +18,10 @@ import unittest
 from unittest.mock import patch
 
 from autopkglib import ProcessorError
-from autopkglib.GitHubReleasesInfoProvider import GitHubReleasesInfoProvider
+from autopkglib.GitHubReleasesInfoProvider import (
+    GitHubReleasesInfoProvider,
+    NoMatchingReleaseError,
+)
 
 
 def _fake_release(tag_name="v3.0.2"):
@@ -149,6 +152,225 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         self.processor.main()
 
         self.assertEqual(self.processor.env["url"], "https://example.com/stable.pkg")
+
+    # --- get_releases ---
+
+    @patch("autopkglib.github.GitHubSession.call_api", return_value=(None, 403))
+    def test_get_releases_with_http_error(self, _mock):
+        """get_releases() raises ProcessorError when GitHub API returns non-200."""
+        self.processor.env = {"github_repo": "autopkg/autopkg", **self.base_env}
+        with self.assertRaises(ProcessorError) as ctx:
+            self.processor.get_releases("autopkg/autopkg")
+        self.assertIn("Unexpected GitHub API status code 403", str(ctx.exception))
+
+    @patch("autopkglib.github.GitHubSession.call_api", return_value=([], 200))
+    def test_get_releases_empty_list(self, _mock):
+        """get_releases() raises ProcessorError when API returns empty list."""
+        self.processor.env = {"github_repo": "autopkg/autopkg", **self.base_env}
+        with self.assertRaises(ProcessorError) as ctx:
+            self.processor.get_releases("autopkg/autopkg")
+        self.assertIn("No releases found for repo", str(ctx.exception))
+
+    def test_get_releases_with_latest_only_wraps_in_list(self):
+        """get_releases() with latest_only=True wraps single dict in a list."""
+        single = _fake_release()[0]
+        self.processor.env = {"github_repo": "autopkg/autopkg", **self.base_env}
+        with patch(
+            "autopkglib.github.GitHubSession.call_api", return_value=(single, 200)
+        ):
+            result = self.processor.get_releases("autopkg/autopkg", latest_only=True)
+        self.assertIsInstance(result, list)
+        self.assertEqual(result, [single])
+
+    # --- select_asset ---
+
+    def test_select_asset_skips_prerelease_when_not_included(self):
+        """select_asset() skips prerelease when include_prereleases is not set."""
+        releases = _fake_releases_with_prerelease()
+        self.processor.env = {"github_repo": "autopkg/autopkg", **self.base_env}
+        self.processor.select_asset(releases, None)
+        self.assertEqual(self.processor.selected_asset["name"], "stable.pkg")
+
+    def test_select_asset_skips_release_with_no_assets(self):
+        """select_asset() skips releases with empty assets list."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "name": "v1.0.0",
+                "prerelease": False,
+                "body": "",
+                "assets": [],
+            },
+            _fake_release()[0],
+        ]
+        self.processor.env = {"github_repo": "autopkg/autopkg", **self.base_env}
+        self.processor.select_asset(releases, None)
+        self.assertEqual(self.processor.selected_asset["name"], "test.pkg")
+
+    def test_select_asset_with_regex_match(self):
+        """select_asset() matches asset name against regex."""
+        releases = [
+            {
+                "tag_name": "v1.0.0",
+                "name": "v1.0.0",
+                "prerelease": False,
+                "body": "",
+                "assets": [
+                    {
+                        "name": "app-1.0.dmg",
+                        "browser_download_url": "https://example.com/app-1.0.dmg",
+                        "url": "https://api.example.com/assets/dmg",
+                        "created_at": "2024-01-01T00:00:00Z",
+                    },
+                    {
+                        "name": "app-1.0.zip",
+                        "browser_download_url": "https://example.com/app-1.0.zip",
+                        "url": "https://api.example.com/assets/zip",
+                        "created_at": "2024-01-01T00:00:00Z",
+                    },
+                ],
+            }
+        ]
+        self.processor.env = {"github_repo": "autopkg/autopkg", **self.base_env}
+        self.processor.select_asset(releases, r".*\.dmg$")
+        self.assertEqual(self.processor.selected_asset["name"], "app-1.0.dmg")
+
+    def test_select_asset_with_invalid_regex_raises_error(self):
+        """select_asset() raises ProcessorError on invalid regex."""
+        releases = [_fake_release()[0]]
+        self.processor.env = {"github_repo": "autopkg/autopkg", **self.base_env}
+        with self.assertRaises(ProcessorError) as ctx:
+            self.processor.select_asset(releases, "[invalid(regex")
+        self.assertIn("Invalid regex", str(ctx.exception))
+
+    def test_select_asset_raises_no_matching_when_nothing_selected(self):
+        """select_asset() raises NoMatchingReleaseError when nothing matches."""
+        releases = [
+            {
+                "tag_name": "v2.0.0-beta",
+                "name": "v2.0.0-beta",
+                "prerelease": True,
+                "body": "",
+                "assets": [
+                    {
+                        "name": "beta.pkg",
+                        "browser_download_url": "https://example.com/beta.pkg",
+                        "url": "https://api.example.com/assets/beta",
+                        "created_at": "2024-01-01T00:00:00Z",
+                    }
+                ],
+            },
+            {
+                "tag_name": "v1.0.0",
+                "name": "v1.0.0",
+                "prerelease": False,
+                "body": "",
+                "assets": [],
+            },
+        ]
+        self.processor.env = {"github_repo": "autopkg/autopkg", **self.base_env}
+        with self.assertRaises(NoMatchingReleaseError):
+            self.processor.select_asset(releases, None)
+
+    # --- main ---
+
+    @patch.object(
+        GitHubReleasesInfoProvider,
+        "get_releases",
+        return_value=[
+            {
+                "tag_name": "v1.0",
+                "name": "v1.0",
+                "prerelease": False,
+                "body": "",
+                "assets": [
+                    {
+                        "name": "app-1.0.pkg",
+                        "browser_download_url": "https://example.com/app-1.0.pkg",
+                        "url": "https://api.example.com/assets/1",
+                        "created_at": "2024-01-01T00:00:00Z",
+                    }
+                ],
+            },
+            {
+                "tag_name": "v3.0",
+                "name": "v3.0",
+                "prerelease": False,
+                "body": "",
+                "assets": [
+                    {
+                        "name": "app-3.0.pkg",
+                        "browser_download_url": "https://example.com/app-3.0.pkg",
+                        "url": "https://api.example.com/assets/3",
+                        "created_at": "2024-01-03T00:00:00Z",
+                    }
+                ],
+            },
+            {
+                "tag_name": "v2.0",
+                "name": "v2.0",
+                "prerelease": False,
+                "body": "",
+                "assets": [
+                    {
+                        "name": "app-2.0.pkg",
+                        "browser_download_url": "https://example.com/app-2.0.pkg",
+                        "url": "https://api.example.com/assets/2",
+                        "created_at": "2024-01-02T00:00:00Z",
+                    }
+                ],
+            },
+        ],
+    )
+    def test_main_with_sort_by_highest_tag_names(self, _mock):
+        """main() selects highest version when sort_by_highest_tag_names is set."""
+        self.processor.env = {
+            "github_repo": "autopkg/autopkg",
+            "sort_by_highest_tag_names": True,
+            **self.base_env,
+        }
+        self.processor.main()
+        self.assertEqual(self.processor.env["version"], "3.0")
+
+    def test_main_pagination_with_no_matching_first_page(self):
+        """main() continues to next page on NoMatchingReleaseError."""
+        page1_releases = [
+            {
+                "tag_name": "v2.0.0-beta",
+                "name": "v2.0.0-beta",
+                "prerelease": True,
+                "body": "",
+                "assets": [
+                    {
+                        "name": "beta.pkg",
+                        "browser_download_url": "https://example.com/beta.pkg",
+                        "url": "https://api.example.com/assets/beta",
+                        "created_at": "2024-01-01T00:00:00Z",
+                    }
+                ],
+            }
+        ]
+        page2_releases = _fake_release()
+
+        call_count = {"n": 0}
+
+        def side_effect(repo, page=1, per_page=30, latest_only=False):
+            call_count["n"] += 1
+            if page == 1:
+                return page1_releases
+            return page2_releases
+
+        with patch.object(
+            GitHubReleasesInfoProvider, "get_releases", side_effect=side_effect
+        ):
+            self.processor.env = {
+                "github_repo": "autopkg/autopkg",
+                **self.base_env,
+            }
+            self.processor.main()
+
+        self.assertEqual(call_count["n"], 2)
+        self.assertEqual(self.processor.env["version"], "3.0.2")
 
 
 if __name__ == "__main__":
