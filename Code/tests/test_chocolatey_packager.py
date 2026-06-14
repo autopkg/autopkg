@@ -27,6 +27,8 @@ from typing import Any
 from autopkglib import ProcessorError, find_binary
 from autopkglib.ChocolateyPackager import ChocolateyPackager
 
+_ChocolateyPackager_mod = sys.modules[ChocolateyPackager.__module__]
+
 VarDict = dict[str, Any]
 
 
@@ -439,8 +441,8 @@ class TestChocolateyPackagerValidation(unittest.TestCase):
             proc, "write_build_configs"
         ), unittest.mock.patch.object(
             proc, "choco_pack", return_value=fake_nupkg
-        ), unittest.mock.patch(
-            "autopkglib.ChocolateyPackager.rmtree"
+        ), unittest.mock.patch.object(
+            _ChocolateyPackager_mod, "rmtree"
         ) as mock_rmtree:
             result_env = proc.process()
 

@@ -16,6 +16,7 @@
 
 import os
 import plistlib
+import sys
 import unittest
 from copy import deepcopy
 from tempfile import TemporaryDirectory
@@ -23,6 +24,8 @@ from unittest.mock import patch
 
 from autopkglib import ProcessorError
 from autopkglib.AppPkgCreator import AppPkgCreator
+
+_AppPkgCreator_mod = sys.modules[AppPkgCreator.__module__]
 
 
 class TestAppPkgCreator(unittest.TestCase):
@@ -404,7 +407,7 @@ class TestAppPkgCreator(unittest.TestCase):
             self.processor.package_app(app_path)
 
     @patch.object(AppPkgCreator, "package_app")
-    @patch("autopkglib.AppPkgCreator.glob", return_value=["/some/dir/TestApp.app"])
+    @patch.object(_AppPkgCreator_mod, "glob", return_value=["/some/dir/TestApp.app"])
     @patch.object(AppPkgCreator, "unmount_if_mounted")
     @patch.object(AppPkgCreator, "parsePathForDMG", return_value=(None, False, ""))
     def test_main_uses_app_path_from_env(
@@ -418,7 +421,7 @@ class TestAppPkgCreator(unittest.TestCase):
         mock_pkg.assert_called_once_with("/some/dir/TestApp.app")
 
     @patch.object(AppPkgCreator, "package_app")
-    @patch("autopkglib.AppPkgCreator.glob", return_value=["/some/dir/MyApp.app"])
+    @patch.object(_AppPkgCreator_mod, "glob", return_value=["/some/dir/MyApp.app"])
     @patch.object(AppPkgCreator, "unmount_if_mounted")
     @patch.object(AppPkgCreator, "parsePathForDMG", return_value=(None, False, ""))
     def test_main_constructs_glob_pattern_from_pathname(
@@ -435,7 +438,7 @@ class TestAppPkgCreator(unittest.TestCase):
         mock_glob.assert_called_once_with("/some/dir/*.app")
         mock_pkg.assert_called_once_with("/some/dir/MyApp.app")
 
-    @patch("autopkglib.AppPkgCreator.glob", return_value=[])
+    @patch.object(_AppPkgCreator_mod, "glob", return_value=[])
     @patch.object(AppPkgCreator, "unmount_if_mounted")
     @patch.object(AppPkgCreator, "parsePathForDMG", return_value=(None, False, ""))
     def test_main_no_glob_matches_raises(self, mock_parse, mock_unmount, mock_glob):
@@ -447,8 +450,9 @@ class TestAppPkgCreator(unittest.TestCase):
 
     @patch.object(AppPkgCreator, "package_app")
     @patch.object(AppPkgCreator, "output")
-    @patch(
-        "autopkglib.AppPkgCreator.glob",
+    @patch.object(
+        _AppPkgCreator_mod,
+        "glob",
         return_value=["/path/App1.app", "/path/App2.app"],
     )
     @patch.object(AppPkgCreator, "unmount_if_mounted")
@@ -467,7 +471,7 @@ class TestAppPkgCreator(unittest.TestCase):
 
     @patch.object(AppPkgCreator, "package_app")
     @patch.object(AppPkgCreator, "output")
-    @patch("autopkglib.AppPkgCreator.glob", return_value=["/dir/MyApp.app"])
+    @patch.object(_AppPkgCreator_mod, "glob", return_value=["/dir/MyApp.app"])
     @patch.object(AppPkgCreator, "unmount_if_mounted")
     @patch.object(AppPkgCreator, "parsePathForDMG", return_value=(None, False, ""))
     def test_main_outputs_glob_warning_when_pattern_contains_special_chars(

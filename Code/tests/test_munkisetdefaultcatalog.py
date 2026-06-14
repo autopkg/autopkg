@@ -20,6 +20,8 @@ from unittest.mock import patch
 
 from autopkglib.MunkiSetDefaultCatalog import MunkiSetDefaultCatalog
 
+_MunkiSetDefaultCatalog_mod = sys.modules[MunkiSetDefaultCatalog.__module__]
+
 
 @unittest.skipUnless(sys.platform == "darwin", "Munki is macOS-only")
 class TestMunkiSetDefaultCatalog(unittest.TestCase):
@@ -29,8 +31,10 @@ class TestMunkiSetDefaultCatalog(unittest.TestCase):
         self.processor = MunkiSetDefaultCatalog()
         self.processor.env = {}
 
-    @patch(
-        "autopkglib.MunkiSetDefaultCatalog.CFPreferencesCopyAppValue", return_value=None
+    @patch.object(
+        _MunkiSetDefaultCatalog_mod,
+        "CFPreferencesCopyAppValue",
+        return_value=None,
     )
     def test_initializes_missing_pkginfo(self, mock_pref):
         """Missing pkginfo key is initialized to an empty dict."""
@@ -40,8 +44,9 @@ class TestMunkiSetDefaultCatalog(unittest.TestCase):
         self.assertIn("pkginfo", self.processor.env)
         self.assertEqual(self.processor.env["pkginfo"], {})
 
-    @patch(
-        "autopkglib.MunkiSetDefaultCatalog.CFPreferencesCopyAppValue",
+    @patch.object(
+        _MunkiSetDefaultCatalog_mod,
+        "CFPreferencesCopyAppValue",
         return_value="production",
     )
     def test_sets_catalogs_when_default_found(self, mock_pref):
@@ -53,8 +58,10 @@ class TestMunkiSetDefaultCatalog(unittest.TestCase):
         args, _ = mock_output.call_args
         self.assertIn("production", args[0])
 
-    @patch(
-        "autopkglib.MunkiSetDefaultCatalog.CFPreferencesCopyAppValue", return_value=None
+    @patch.object(
+        _MunkiSetDefaultCatalog_mod,
+        "CFPreferencesCopyAppValue",
+        return_value=None,
     )
     def test_preserves_pkginfo_when_no_default(self, mock_pref):
         """Existing pkginfo is unchanged when no default catalog is set."""
@@ -65,8 +72,9 @@ class TestMunkiSetDefaultCatalog(unittest.TestCase):
         args, _ = mock_output.call_args
         self.assertIn("No default catalogs found", args[0])
 
-    @patch(
-        "autopkglib.MunkiSetDefaultCatalog.CFPreferencesCopyAppValue",
+    @patch.object(
+        _MunkiSetDefaultCatalog_mod,
+        "CFPreferencesCopyAppValue",
         return_value="staging",
     )
     def test_overwrites_existing_catalogs(self, mock_pref):
@@ -75,8 +83,9 @@ class TestMunkiSetDefaultCatalog(unittest.TestCase):
         self.processor.main()
         self.assertEqual(self.processor.env["pkginfo"]["catalogs"], ["staging"])
 
-    @patch(
-        "autopkglib.MunkiSetDefaultCatalog.CFPreferencesCopyAppValue",
+    @patch.object(
+        _MunkiSetDefaultCatalog_mod,
+        "CFPreferencesCopyAppValue",
         return_value="testing",
     )
     def test_output_called_with_correct_message(self, mock_pref):
@@ -89,8 +98,10 @@ class TestMunkiSetDefaultCatalog(unittest.TestCase):
         self.assertIn("Updated target catalogs", args[0])
         self.assertIn("testing", args[0])
 
-    @patch(
-        "autopkglib.MunkiSetDefaultCatalog.CFPreferencesCopyAppValue", return_value=None
+    @patch.object(
+        _MunkiSetDefaultCatalog_mod,
+        "CFPreferencesCopyAppValue",
+        return_value=None,
     )
     def test_no_output_call_when_no_catalog(self, mock_pref):
         """output() is called once with the 'nothing changed' message when no default."""

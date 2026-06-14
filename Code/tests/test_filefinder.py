@@ -15,11 +15,14 @@
 # limitations under the License.
 
 import plistlib
+import sys
 import unittest
 from unittest.mock import patch
 
 from autopkglib import ProcessorError
 from autopkglib.FileFinder import FileFinder
+
+_FileFinder_mod = sys.modules[FileFinder.__module__]
 
 
 class TestFileFinder(unittest.TestCase):
@@ -66,7 +69,7 @@ class TestFileFinder(unittest.TestCase):
         )
         self.assertEqual(self.processor.env["dmg_found_filename"], "whatever")
 
-    @patch("autopkglib.FileFinder.glob")
+    @patch.object(_FileFinder_mod, "glob")
     def test_globfind_returns_last_alphanumeric_match(self, mock_glob):
         """globfind() returns the last alphanumerically sorted match."""
         mock_glob.return_value = ["file1.txt", "file3.txt", "file2.txt"]
@@ -75,7 +78,7 @@ class TestFileFinder(unittest.TestCase):
 
         self.assertEqual(result, "file3.txt")
 
-    @patch("autopkglib.FileFinder.glob")
+    @patch.object(_FileFinder_mod, "glob")
     def test_globfind_raises_when_no_matches(self, mock_glob):
         """globfind() raises ProcessorError when glob returns no matches."""
         mock_glob.return_value = []

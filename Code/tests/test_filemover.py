@@ -15,10 +15,13 @@
 # limitations under the License.
 
 import plistlib
+import sys
 import unittest
 from unittest.mock import patch
 
 from autopkglib.FileMover import FileMover
+
+_FileMover_mod = sys.modules[FileMover.__module__]
 
 
 class TestFileMover(unittest.TestCase):
@@ -35,7 +38,7 @@ class TestFileMover(unittest.TestCase):
 
     def test_main_moves_file_and_outputs_message(self):
         """Test that main() renames source to target and outputs the correct message."""
-        with patch("autopkglib.FileMover.rename") as mock_rename, patch.object(
+        with patch.object(_FileMover_mod, "rename") as mock_rename, patch.object(
             self.processor, "output"
         ) as mock_output:
             self.processor.main()
@@ -48,8 +51,8 @@ class TestFileMover(unittest.TestCase):
 
     def test_main_handles_rename_error(self):
         """Test that main() propagates OSError from os.rename()."""
-        with patch(
-            "autopkglib.FileMover.rename", side_effect=OSError("Permission denied")
+        with patch.object(
+            _FileMover_mod, "rename", side_effect=OSError("Permission denied")
         ):
             with self.assertRaises(OSError) as ctx:
                 self.processor.main()
