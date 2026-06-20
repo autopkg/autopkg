@@ -495,6 +495,169 @@ class TestSparkleUpdateInfoProvider(unittest.TestCase):
 
         self.assertEqual(self.processor.xmlns, "http://custom.namespace/sparkle")
 
+    # EdDSA signature metadata tests
+
+    def _make_eddsa_appcast(
+        self,
+        ed_sig=None,
+        dsa_sig=None,
+        length="12345678",
+        channel=None,
+        xmlns="http://www.andymatuschak.org/xml-namespaces/sparkle",
+    ):
+        """Build an appcast XML with optional Sparkle signature attributes."""
+        enc_attrs = 'url="https://example.com/app-2.0.0.dmg" sparkle:version="2000"'
+        if length is not None:
+            enc_attrs += f' length="{length}"'
+        if ed_sig is not None:
+            enc_attrs += f' sparkle:edSignature="{ed_sig}"'
+        if dsa_sig is not None:
+            enc_attrs += f' sparkle:dsaSignature="{dsa_sig}"'
+        ch_elem = (
+            f"\n            <sparkle:channel>{channel}</sparkle:channel>"
+            if channel
+            else ""
+        )
+        xml = f"""<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="{xmlns}">
+  <channel>
+    <item>
+      <sparkle:version>2000</sparkle:version>
+      <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>{ch_elem}
+      <enclosure {enc_attrs} type="application/octet-stream" />
+    </item>
+  </channel>
+</rss>"""
+        return xml.encode("utf-8")
+
+    def test_parse_feed_exposes_eddsa_signature(self):
+        """EdDSA signature is captured from the enclosure."""
+        xml = self._make_eddsa_appcast(ed_sig="AAAA")
+        self.processor.xmlns = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        items = self.processor.parse_feed_data(xml)
+        self.assertEqual(items[0]["eddsa_signature"], "AAAA")
+
+    def test_parse_feed_exposes_eddsa_signature_with_https_namespace(self):
+        """The default Sparkle namespace lookup also accepts the https spelling."""
+        xml = self._make_eddsa_appcast(
+            ed_sig="AAAA",
+            xmlns="https://www.andymatuschak.org/xml-namespaces/sparkle",
+        )
+        self.processor.xmlns = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        items = self.processor.parse_feed_data(xml)
+        self.assertEqual(items[0]["version"], "2000")
+        self.assertEqual(items[0]["eddsa_signature"], "AAAA")
+
+    def test_parse_feed_exposes_length_as_string(self):
+        """Length is captured as a raw string, not cast to int."""
+        xml = self._make_eddsa_appcast(ed_sig="AAAA", length="99999")
+        self.processor.xmlns = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        items = self.processor.parse_feed_data(xml)
+        self.assertEqual(items[0]["eddsa_signature_length"], "99999")
+        self.assertIsInstance(items[0]["eddsa_signature_length"], str)
+
+    def test_parse_feed_no_eddsa_signature_unset(self):
+        """eddsa_signature is absent when the enclosure has no edSignature."""
+        xml = self._make_eddsa_appcast()
+        self.processor.xmlns = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        items = self.processor.parse_feed_data(xml)
+        self.assertNotIn("eddsa_signature", items[0])
+
+    def test_parse_feed_dsa_only_sets_marker(self):
+        """DSA-only enclosure sets sparkle_dsa_signature_present boolean."""
+        xml = self._make_eddsa_appcast(dsa_sig="DSASIG")
+        self.processor.xmlns = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        items = self.processor.parse_feed_data(xml)
+        self.assertTrue(items[0].get("sparkle_dsa_signature_present"))
+        self.assertNotIn("eddsa_signature", items[0])
+
+    def test_parse_feed_dsa_only_sets_marker_with_https_namespace(self):
+        """DSA-only detection also accepts the https Sparkle namespace spelling."""
+        xml = self._make_eddsa_appcast(
+            dsa_sig="DSASIG",
+            xmlns="https://www.andymatuschak.org/xml-namespaces/sparkle",
+        )
+        self.processor.xmlns = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        items = self.processor.parse_feed_data(xml)
+        self.assertTrue(items[0].get("sparkle_dsa_signature_present"))
+        self.assertNotIn("eddsa_signature", items[0])
+
+    def test_parse_feed_both_sigs_no_dsa_marker(self):
+        """DSA marker is not set when both EdDSA and DSA signatures are present."""
+        xml = self._make_eddsa_appcast(ed_sig="EDSIG", dsa_sig="DSASIG")
+        self.processor.xmlns = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        items = self.processor.parse_feed_data(xml)
+        self.assertNotIn("sparkle_dsa_signature_present", items[0])
+        self.assertEqual(items[0]["eddsa_signature"], "EDSIG")
+
+    def test_parse_feed_non_numeric_length_does_not_fail(self):
+        """A non-numeric length value is captured as-is without error."""
+        xml = self._make_eddsa_appcast(ed_sig="AAAA", length="notanumber")
+        self.processor.xmlns = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        items = self.processor.parse_feed_data(xml)
+        self.assertEqual(items[0]["eddsa_signature_length"], "notanumber")
+
+    def test_main_exposes_empty_eddsa_signature_when_present(self):
+        """A present but empty EdDSA signature is exposed for verifier failure."""
+        xml = self._make_eddsa_appcast(ed_sig="")
+        with patch.object(self.processor, "get_feed_data", return_value=xml):
+            self.processor.main()
+        self.assertIn("eddsa_signature", self.processor.env)
+        self.assertEqual(self.processor.env["eddsa_signature"], "")
+
+    def test_main_exposes_empty_length_when_present(self):
+        """A present but empty length is exposed for verifier failure."""
+        xml = self._make_eddsa_appcast(ed_sig="SIGVALUE", length="")
+        with patch.object(self.processor, "get_feed_data", return_value=xml):
+            self.processor.main()
+        self.assertIn("eddsa_signature_length", self.processor.env)
+        self.assertEqual(self.processor.env["eddsa_signature_length"], "")
+
+    def test_main_exposes_eddsa_signature_from_selected_item(self):
+        """main() sets eddsa_signature in env from the selected (latest) item."""
+        xml = self._make_eddsa_appcast(ed_sig="SIGVALUE")
+        with patch.object(self.processor, "get_feed_data", return_value=xml):
+            self.processor.main()
+        self.assertEqual(self.processor.env.get("eddsa_signature"), "SIGVALUE")
+
+    def test_main_dsa_only_sets_env_marker_and_warns(self):
+        """main() sets sparkle_dsa_signature_present and emits a warning."""
+        xml = self._make_eddsa_appcast(dsa_sig="DSASIG")
+        with patch.object(self.processor, "get_feed_data", return_value=xml):
+            with patch.object(self.processor, "output") as mock_output:
+                self.processor.main()
+        self.assertTrue(self.processor.env.get("sparkle_dsa_signature_present"))
+        warning_calls = [
+            str(c) for c in mock_output.call_args_list if "WARNING" in str(c)
+        ]
+        self.assertTrue(warning_calls, "Expected a WARNING output for DSA-only item")
+
+    def test_main_eddsa_sig_uses_selected_channel_item(self):
+        """EdDSA metadata comes from the item chosen after channel filtering."""
+        xmlns = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        xml = f"""<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="{xmlns}">
+  <channel>
+    <item>
+      <sparkle:version>2000</sparkle:version>
+      <sparkle:channel>beta</sparkle:channel>
+      <enclosure url="https://example.com/beta.dmg" sparkle:version="2000"
+                 sparkle:edSignature="BETASIG" length="100"
+                 type="application/octet-stream" />
+    </item>
+    <item>
+      <sparkle:version>1000</sparkle:version>
+      <enclosure url="https://example.com/stable.dmg" sparkle:version="1000"
+                 sparkle:edSignature="STABLESIG" length="100"
+                 type="application/octet-stream" />
+    </item>
+  </channel>
+</rss>""".encode("utf-8")
+        self.processor.env["update_channel"] = "beta"
+        with patch.object(self.processor, "get_feed_data", return_value=xml):
+            self.processor.main()
+        self.assertEqual(self.processor.env.get("eddsa_signature"), "BETASIG")
+
 
 if __name__ == "__main__":
     unittest.main()

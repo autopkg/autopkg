@@ -28,6 +28,7 @@ from autopkglib.URLGetter import URLGetter
 __all__ = ["SparkleUpdateInfoProvider"]
 
 DEFAULT_XMLNS = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+DEFAULT_XMLNS_HTTPS = "https://www.andymatuschak.org/xml-namespaces/sparkle"
 SUPPORTED_ADDITIONAL_PKGINFO_KEYS = ["description", "minimum_os_version"]
 
 
@@ -130,7 +131,48 @@ class SparkleUpdateInfoProvider(URLGetter):
                 "defined in the feed."
             )
         },
+        "eddsa_signature": {
+            "description": (
+                "Raw base64 sparkle:edSignature from the selected enclosure, "
+                "or unset if absent."
+            )
+        },
+        "eddsa_signature_length": {
+            "description": (
+                "Raw enclosure length attribute as a string, or unset if absent. "
+                "Not cast to int so malformed values cannot break non-verifying recipes."
+            )
+        },
+        "sparkle_dsa_signature_present": {
+            "description": (
+                "True when the selected enclosure has a legacy sparkle:dsaSignature "
+                "and no sparkle:edSignature. Unset otherwise."
+            )
+        },
     }
+
+    def sparkle_namespaces(self):
+        """Return namespace candidates for Sparkle metadata lookups."""
+        namespaces = [self.xmlns]
+        if self.xmlns == DEFAULT_XMLNS:
+            namespaces.append(DEFAULT_XMLNS_HTTPS)
+        return tuple(dict.fromkeys(namespaces))
+
+    def get_sparkle_attribute(self, element, attribute):
+        """Return a namespaced Sparkle attribute value if present."""
+        for xmlns in self.sparkle_namespaces():
+            value = element.get(f"{{{xmlns}}}{attribute}")
+            if value is not None:
+                return value
+        return None
+
+    def find_sparkle_child(self, element, tag):
+        """Return a namespaced Sparkle child element if present."""
+        for xmlns in self.sparkle_namespaces():
+            child = element.find(f"{{{xmlns}}}{tag}")
+            if child is not None:
+                return child
+        return None
 
     def prepare_curl_cmd(self, url, headers=None):
         """Assemble curl command and return it."""
@@ -213,7 +255,7 @@ class SparkleUpdateInfoProvider(URLGetter):
     def determine_version(self, enclosure, url):
         """Gets version from enclosure"""
 
-        version = enclosure.get(f"{{{self.xmlns}}}version")
+        version = self.get_sparkle_attribute(enclosure, "version")
 
         if version is None:
             # Sparkle tries to guess a version from the download URL for
@@ -279,28 +321,30 @@ class SparkleUpdateInfoProvider(URLGetter):
 
             # version and shortVersionString can be either in item or in enclosure
             # https://sparkle-project.org/documentation/publishing/#update-your-appcast
-            version = item_elem.find(f"{{{self.xmlns}}}version")
+            version = self.find_sparkle_child(item_elem, "version")
             if version is not None:
                 item["version"] = version.text
             else:
                 item["version"] = self.determine_version(enclosure, item["url"])
-            human_version = item_elem.find(f"{{{self.xmlns}}}shortVersionString")
+            human_version = self.find_sparkle_child(item_elem, "shortVersionString")
             if human_version is not None:
                 item["human_version"] = human_version.text
             else:
-                human_version = enclosure.get(f"{{{self.xmlns}}}shortVersionString")
+                human_version = self.get_sparkle_attribute(
+                    enclosure, "shortVersionString"
+                )
                 if human_version is not None:
                     item["human_version"] = human_version
 
-            min_version = item_elem.find(f"{{{self.xmlns}}}minimumSystemVersion")
+            min_version = self.find_sparkle_child(item_elem, "minimumSystemVersion")
             if min_version is not None:
                 item["minimum_os_version"] = min_version.text
 
-            channel = item_elem.find(f"{{{self.xmlns}}}channel")
+            channel = self.find_sparkle_child(item_elem, "channel")
             if channel is not None:
                 item["channel"] = channel.text
 
-            description_elem = item_elem.find(f"{{{self.xmlns}}}releaseNotesLink")
+            description_elem = self.find_sparkle_child(item_elem, "releaseNotesLink")
             # Strip possible surrounding whitespace around description_url
             # element text as we'll be passing this as an argument to a
             # curl process
@@ -310,9 +354,22 @@ class SparkleUpdateInfoProvider(URLGetter):
             if item_elem.find("description") is not None:
                 item["description_data"] = item_elem.find("description").text
 
-            # Strip values
+            ed_sig = self.get_sparkle_attribute(enclosure, "edSignature")
+            if ed_sig is not None:
+                item["eddsa_signature"] = ed_sig
+
+            dsa_sig = self.get_sparkle_attribute(enclosure, "dsaSignature")
+            if dsa_sig is not None and ed_sig is None:
+                # Boolean marker; not stripped below
+                item["sparkle_dsa_signature_present"] = True
+
+            length = enclosure.get("length")
+            if length is not None:
+                item["eddsa_signature_length"] = length
+
+            # Strip string values only; booleans and None are left as-is
             for k, v in item.items():
-                if v is not None:
+                if isinstance(v, str):
                     item[k] = v.strip()
 
             versions.append(item)
@@ -401,6 +458,19 @@ class SparkleUpdateInfoProvider(URLGetter):
         self.env["version"] = latest.get("human_version", latest["version"])
         self.output(f"Found URL {self.env['url']}")
         self.env["additional_pkginfo"] = pkginfo
+
+        if "eddsa_signature" in latest:
+            self.env["eddsa_signature"] = latest["eddsa_signature"]
+        elif latest.get("sparkle_dsa_signature_present"):
+            self.env["sparkle_dsa_signature_present"] = True
+            self.output(
+                "WARNING: selected enclosure has a legacy sparkle:dsaSignature "
+                "but no sparkle:edSignature. DSA verification is not supported; "
+                "consider updating to a Sparkle version that emits EdDSA signatures."
+            )
+
+        if "eddsa_signature_length" in latest:
+            self.env["eddsa_signature_length"] = latest["eddsa_signature_length"]
 
 
 if __name__ == "__main__":
