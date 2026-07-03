@@ -137,13 +137,13 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                     f"Please check the recipe and try again."
                 )
             # Trap all other errors.
-            except BaseException as err:
+            except Exception as err:
                 raise ProcessorError(err)
         if not self.env.get("bundleid"):
             try:
                 self.env["bundleid"] = infoplist["CFBundleIdentifier"]
                 self.output(f"BundleID: {self.env['bundleid']}")
-            except BaseException as err:
+            except Exception as err:
                 raise ProcessorError(err)
 
         # get pkgdir and pkgname

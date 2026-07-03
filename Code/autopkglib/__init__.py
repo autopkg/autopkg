@@ -1358,7 +1358,7 @@ class Processor:
                 self.env = plistlib.loads(indata)
             else:
                 self.env = {}
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(err) from err
 
     def write_output_plist(self) -> None:
@@ -1378,7 +1378,7 @@ class Processor:
                 plistlib.dump(plist_safe, f)
         except TypeError:
             plistlib.dump(plist_safe, self.outfile.buffer)
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(err) from err
 
     def parse_arguments(self) -> None:

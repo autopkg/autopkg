@@ -74,7 +74,7 @@ class Copier(DmgMounter):
             else:
                 shutil.copy(source_item, dest_item)
             self.output(f"Copied {source_item} to {dest_item}")
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(f"Can't copy {source_item} to {dest_item}: {err}")
 
     def main(self) -> None:

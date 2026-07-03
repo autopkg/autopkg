@@ -79,7 +79,7 @@ class AppDmgVersioner(DmgMounter):
                 self.env["version"] = info["CFBundleShortVersionString"]
                 self.output(f"BundleID: {self.env['bundleid']}")
                 self.output(f"Version: {self.env['version']}")
-            except BaseException as err:
+            except Exception as err:
                 raise ProcessorError(err)
         finally:
             self.unmount(self.env["dmg_path"])

@@ -59,7 +59,7 @@ class Symlinker(Processor):
         try:
             os.symlink(source_path, destination_path)
             self.output(f"Symlinked {source_path} to {destination_path}")
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(
                 f"Can't symlink {source_path} to {destination_path}: {err}"
             )
