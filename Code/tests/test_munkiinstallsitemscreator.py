@@ -270,6 +270,31 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
             "Minimum os version: 10.13, is lower than prior value of: 10.15... skipping..."
         )
 
+    def test_derive_minimum_os_version_multiple_items_equal(self):
+        """Test equal minosversion does not emit a contradictory 'lower' message."""
+        self.processor.env["derive_minimum_os_version"] = True
+        self.processor.env["minimum_os_version"] = "10.15"
+        self.processor.env["faux_root"] = "/tmp/root"
+
+        # Create installs output with an equal minosversion
+        installs_item = {
+            "path": "/tmp/root/Applications/TestApp.app",
+            "type": "application",
+            "minosversion": "10.15",
+        }
+        pkginfo = {"installs": [installs_item]}
+        mock_output = plistlib.dumps(pkginfo)
+        mock_proc = self._create_mock_process(returncode=0, stdout=mock_output)
+
+        with patch("subprocess.Popen", return_value=mock_proc):
+            with patch.object(self.processor, "output") as mock_log:
+                self.processor.create_installs_items()
+
+        # Value unchanged, and no contradictory "lower ... skipping" log on equality
+        self.assertEqual(self.processor.env["minimum_os_version"], "10.15")
+        skip_calls = [c for c in mock_log.call_args_list if "skipping" in str(c)]
+        self.assertEqual(skip_calls, [])
+
     def test_derive_minimum_os_version_disabled(self):
         """Test that minimum OS version is not derived when disabled."""
         # Don't set derive_minimum_os_version
@@ -294,7 +319,7 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
         self.assertNotIn("minimum_os_version", self.processor.env["additional_pkginfo"])
 
     def test_derive_minimum_os_version_no_faux_root(self):
-        """Test that minimum OS version is not derived without faux_root."""
+        """Test that minimum OS version is derived even without faux_root."""
         self.processor.env["derive_minimum_os_version"] = True
         # Don't set faux_root
 
@@ -305,9 +330,11 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
             with patch.object(self.processor, "output"):
                 self.processor.create_installs_items()
 
-        # Should not set minimum_os_version without faux_root
-        self.assertNotIn("minimum_os_version", self.processor.env)
-        self.assertNotIn("minimum_os_version", self.processor.env["additional_pkginfo"])
+        # Derivation must not depend on faux_root
+        self.assertEqual(self.processor.env["minimum_os_version"], "10.15")
+        self.assertEqual(
+            self.processor.env["additional_pkginfo"]["minimum_os_version"], "10.15"
+        )
 
     # Test version comparison key
     def test_version_comparison_key_string(self):

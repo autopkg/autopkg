@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file. This projec
 - Fixed recipe listing and `autopkg install` argument filtering so adjacent recipes are no longer skipped when AutoPkg filters out hidden parent recipes or non-install arguments.
 - GitHubReleasesInfoProvider now honors GITHUB_RELEASES_PER_PAGE.
 - GitHub release recipes now preserve intentional extra leading `v` or `.` characters when deriving `%version%` from unusual release tags, while normal tags like `v1.2.3` and `v.1.2.3` continue to produce `1.2.3`.
+- MunkiInstallsItemsCreator now derives `minimum_os_version` (and reports each created installs item) regardless of whether `faux_root` is set; previously this only worked when `faux_root` had a value. Also fixed a contradictory "lower... skipping" log emitted when a subsequent item's `minosversion` equaled the current minimum.
 
 ### Recipe map
 
