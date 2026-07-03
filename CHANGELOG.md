@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. This projec
 ### Changes since 3.0.0 RC 4
 
 - Multiple processors now gracefully handle plists that don't start with `<?xml` (such as those produced by the Wails template [here](https://github.com/wailsapp/wails/blob/230a6275ed5fd4aeb294ceae338c409f17de64df/v2/pkg/buildassets/build/darwin/Info.plist))
+- Fixed recipe listing and `autopkg install` argument filtering so adjacent recipes are no longer skipped when AutoPkg filters out hidden parent recipes or non-install arguments.
 
 ### Recipe map
 

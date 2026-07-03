@@ -1354,7 +1354,7 @@ def get_recipe_list(
                         # AND the override's ParentRecipe matches said
                         # recipe's Identifier, remove the ParentRecipe from the
                         # listing.
-                        for recipe in recipes:
+                        for recipe in list(recipes):
                             if recipe["Name"] == override["Name"] and recipe.get(
                                 "Identifier"
                             ) == override.get("ParentRecipe"):
@@ -2620,14 +2620,17 @@ def run_recipes(argv):  # noqa: C901
     recipe_paths = []
     if verb == "install":
         # hold on for syntactic sugar!
-        for index, item in enumerate(arguments):
+        install_arguments = []
+        for item in arguments:
             # if recipe doesn't have an extension, append '.install'
             if not os.path.splitext(item)[1]:
                 # no extension!
-                arguments[index] = item + ".install"
+                install_arguments.append(item + ".install")
             elif os.path.splitext(item)[1] != ".install":
                 log_err(f"Can't install with a non-install recipe: {item}")
-                del arguments[index]
+            else:
+                install_arguments.append(item)
+        arguments = install_arguments
 
     recipe_paths.extend(arguments)
     recipe_list = {}
