@@ -343,7 +343,9 @@ class SparkleUpdateInfoProvider(URLGetter):
                     ).encode("UTF-8")
                 else:
                     description = b""
-                pkginfo["description"] = description.decode("UTF-8")
+                if isinstance(description, bytes):
+                    description = description.decode("UTF-8")
+                pkginfo["description"] = description
 
             if "minimum_os_version" in sparkle_pkginfo_keys:
                 if latest.get("minimum_os_version") is not None:

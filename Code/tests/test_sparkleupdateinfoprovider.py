@@ -328,12 +328,12 @@ class TestSparkleUpdateInfoProvider(unittest.TestCase):
         self.assertEqual(result, "https://example.com/app.dmg?token=abc123")
 
     # Test pkginfo handling
-    def test_handle_pkginfo_with_description_url(self):
-        """Test that handle_pkginfo fetches description from URL."""
+    def test_handle_pkginfo_with_description_url_returns_text(self):
+        """Test URL description content returned as text."""
         self.processor.env["pkginfo_keys_to_copy_from_sparkle_feed"] = ["description"]
 
         latest = {"description_url": "https://example.com/notes.html"}
-        description_content = b"<p>Release notes content</p>"
+        description_content = "<p>Release notes content</p>"
 
         with patch.object(
             self.processor, "fetch_content", return_value=description_content
