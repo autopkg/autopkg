@@ -1915,6 +1915,36 @@ class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
         )
 
 
+class TestUnresolvedSharedProcessorDoesNotShadowCore(
+    _RecipeMapIsolation, unittest.TestCase
+):
+    """A fully-qualified shared-processor reference (RECIPE_ID/Processor)
+    that can't be resolved to a recipe under the active search dirs must
+    fail loudly, not silently fall back to a same-named core processor.
+
+    Otherwise `com.github.homebysix.FindAndReplace/FindAndReplace` would
+    quietly run core `FindAndReplace` (a different implementation) whenever
+    the homebysix recipe is out of scope."""
+
+    def test_qualified_ref_colliding_with_core_name_raises(self):
+        # Precondition: a core processor by this name exists, so a bare
+        # globals() fall-through would succeed and hide the substitution.
+        self.assertIn("FindAndReplace", vars(autopkglib))
+
+        recipe = {"RECIPE_PATH": os.path.join(self.tmpdir, "r.recipe")}
+        env = {"RECIPE_SEARCH_DIRS": [self.tmpdir]}
+        # No map entry, nothing on disk, rebuild already attempted -> the
+        # shared recipe is unresolvable under the search dirs.
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
+
+        with self.assertRaises(KeyError):
+            autopkglib.get_processor(
+                "com.github.homebysix.FindAndReplace/FindAndReplace",
+                recipe=recipe,
+                env=env,
+            )
+
+
 class TestLoadRecipeToleratesStaleMapEntry(_RecipeMapIsolation, unittest.TestCase):
     """Review finding: ``load_recipe`` must not crash with
     ``AttributeError`` when the recipe map returns a path to a file

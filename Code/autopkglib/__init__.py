@@ -2055,6 +2055,14 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
                         traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
                     raise AutoPackagerLoadError(err) from err
 
+    # Fail loudly rather than let an unresolved shared processor fall through
+    # to a same-named core processor (a different implementation).
+    if recipe and processor_recipe_id and shared_processor_recipe_path is None:
+        raise KeyError(
+            f"Shared processor '{processor_recipe_id}/{processor_name}' not "
+            "found under the active search dirs."
+        )
+
     return globals()[processor_name]
 
 
