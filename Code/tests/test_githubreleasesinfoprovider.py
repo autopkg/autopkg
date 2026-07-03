@@ -332,6 +332,22 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         self.processor.main()
         self.assertEqual(self.processor.env["version"], "3.0")
 
+    def test_main_honors_github_releases_per_page(self):
+        """main() passes GITHUB_RELEASES_PER_PAGE to get_releases()."""
+        with patch.object(
+            GitHubReleasesInfoProvider, "get_releases", return_value=_fake_release()
+        ) as mock_get_releases:
+            self.processor.env = {
+                "github_repo": "autopkg/autopkg",
+                "GITHUB_RELEASES_PER_PAGE": 75,
+                **self.base_env,
+            }
+            self.processor.main()
+
+        mock_get_releases.assert_called_once_with(
+            "autopkg/autopkg", latest_only=None, page=1, per_page=75
+        )
+
     def test_main_pagination_with_no_matching_first_page(self):
         """main() continues to next page on NoMatchingReleaseError."""
         page1_releases = [
