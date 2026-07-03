@@ -1510,7 +1510,16 @@ class Processor:
                 fh = open(plist_file, "rb")
             else:
                 fh = plist_file
-            return plistlib.load(fh)
+            data = fh.read()
+            try:
+                return plistlib.loads(data)
+            except plistlib.InvalidFileException as err:
+                # Some build toolchains (e.g. Wails/Go) emit XML plists
+                # starting with "<!DOCTYPE plist" instead of "<?xml …>",
+                # which plistlib's auto-detection doesn't recognize.
+                if not data.lstrip().startswith(b"<!DOCTYPE plist"):
+                    raise err
+                return plistlib.loads(data, fmt=plistlib.FMT_XML)
         except Exception as err:
             raise ProcessorError(f"{exception_text}: {err}") from err
         finally:

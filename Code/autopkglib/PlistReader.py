@@ -20,7 +20,6 @@
 
 import glob
 import os.path
-import plistlib
 
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
@@ -104,8 +103,7 @@ class PlistReader(DmgMounter):
             test_info_path = os.path.join(path, "Contents", "Info.plist")
             if os.path.exists(test_info_path):
                 try:
-                    with open(test_info_path, "rb") as f:
-                        plist = plistlib.load(f)
+                    plist = self.load_plist_from_file(test_info_path)
                 except Exception:
                     raise ProcessorError(
                         f"File {path} looks like a bundle, but its "
@@ -153,8 +151,7 @@ class PlistReader(DmgMounter):
             # Try to read the plist
             self.output(f"Reading: {path}")
             try:
-                with open(path, "rb") as f:
-                    info = plistlib.load(f)
+                info = self.load_plist_from_file(path)
             except Exception as err:
                 raise ProcessorError(err)
 

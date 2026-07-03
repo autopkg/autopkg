@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file. This projec
 > [!NOTE]
 > **Release candidate lineage:** AutoPkg 3.0.0 RC 4 is based on the 2.x improvements in prior versions while re-implementing some of the features previously included in 3.0.0 RCs 1-3. If a previous RC had a needed feature or fix that RC 4 lacks, please [raise an issue](https://github.com/autopkg/autopkg/issues) to alert us.
 
+### Changes since 3.0.0 RC 4
+
+- Multiple processors now gracefully handle plists that don't start with `<?xml` (such as those produced by the Wails template [here](https://github.com/wailsapp/wails/blob/230a6275ed5fd4aeb294ceae338c409f17de64df/v2/pkg/buildassets/build/darwin/Info.plist))
+
 ### Recipe map
 
 AutoPkg now uses a "recipe map," an on-disk JSON cache (`~/Library/AutoPkg/recipe_map.json` by default) of every recipe and override on the local AutoPkg setup, indexed by identifier and shortname. This makes recipe resolution much faster on systems with many configured recipe repos. (This idea was introduced in 3.0.0 release candidates 1-3 but has been freshly reimplemented in 3.0.0 release candidate 4.)
