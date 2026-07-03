@@ -121,6 +121,16 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         self.assertEqual(env["version"], "1.1.16.1")
 
     @patch.object(
+        GitHubReleasesInfoProvider,
+        "get_releases",
+        return_value=_fake_release("vv1.0"),
+    )
+    def test_returns_version_stripping_only_one_v_prefix(self, _mock):
+        """The processor should remove only one leading v from a tag."""
+        env = self._run()
+        self.assertEqual(env["version"], "v1.0")
+
+    @patch.object(
         GitHubReleasesInfoProvider, "get_releases", return_value=_fake_release()
     )
     def test_returns_url(self, _mock):
