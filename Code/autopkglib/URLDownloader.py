@@ -166,9 +166,16 @@ class URLDownloader(URLGetter):
         if isinstance(value, bool):
             return value
         if isinstance(value, str):
-            return value.strip().lower() == "true"
+            normalised = value.strip().lower()
+            if normalised in ("true", "yes", "on", "1"):
+                return True
+            if normalised in ("false", "no", "off", "0", ""):
+                return False
 
-        raise ProcessorError(f"{key} must be a boolean, 'true', 'false', or null")
+        raise ProcessorError(
+            f"{key} must be a boolean or boolean-like string "
+            f"(true/false, yes/no, on/off, 1/0), not {value!r}"
+        )
 
     def prepare_base_curl_cmd(self) -> list[str]:
         """Assemble base curl command and return it."""

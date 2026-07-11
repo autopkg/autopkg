@@ -204,15 +204,28 @@ class TestURLDownloader(unittest.TestCase):
             self.processor.getxattr("any.xattr.name")
 
     def test_env_bool_accepts_strings(self):
-        """Boolean-like env strings must not be treated as truthy by default."""
-        self.processor.env["true_string"] = "true"
-        self.processor.env["false_string"] = "False"
-        self.processor.env["none_value"] = None
+        """Boolean-like env strings are parsed, not evaluated with truthiness."""
+        for value in ("true", "True", "TRUE", "  true  ", "yes", "on", "1"):
+            self.processor.env["flag"] = value
+            self.assertTrue(
+                self.processor.env_bool("flag"), f"{value!r} should be True"
+            )
+        for value in ("false", "False", "no", "off", "0", ""):
+            self.processor.env["flag"] = value
+            self.assertFalse(
+                self.processor.env_bool("flag"), f"{value!r} should be False"
+            )
 
-        self.assertTrue(self.processor.env_bool("true_string"))
-        self.assertFalse(self.processor.env_bool("false_string"))
+        self.processor.env["none_value"] = None
         self.assertFalse(self.processor.env_bool("none_value", default=True))
         self.assertTrue(self.processor.env_bool("missing", default=True))
+
+    def test_env_bool_rejects_unknown_strings(self):
+        """Unrecognised strings fail loudly rather than silently defaulting."""
+        self.processor.env["bad_value"] = "ture"
+
+        with self.assertRaisesRegex(ProcessorError, "bad_value must be a boolean"):
+            self.processor.env_bool("bad_value")
 
     def test_env_bool_rejects_non_boolean_values(self):
         """Unexpected value types fail loudly instead of using Python truthiness."""

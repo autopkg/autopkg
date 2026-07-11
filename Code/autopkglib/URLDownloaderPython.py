@@ -24,7 +24,6 @@ from typing import Any
 from urllib.request import Request, urlopen
 
 import certifi
-
 from autopkglib import ProcessorError
 from autopkglib.URLDownloader import URLDownloader
 
@@ -300,7 +299,7 @@ class URLDownloaderPython(URLDownloader):
         download_dictionary: dict[str, Any] = {}
 
         hashes = None
-        if self.env.get("COMPUTE_HASHES", None):
+        if self.env_bool("COMPUTE_HASHES"):
             hashes = (
                 sha1(usedforsecurity=False),
                 sha256(usedforsecurity=False),
@@ -332,7 +331,9 @@ class URLDownloaderPython(URLDownloader):
         request_obj = Request(url, headers=normalised_headers)
 
         # get http headers
-        response = urlopen(request_obj, context=self.ssl_context_certifi())  # nosec B310 - file:// is a supported url scheme
+        response = urlopen(
+            request_obj, context=self.ssl_context_certifi()
+        )  # nosec B310 - file:// is a supported url scheme
         response_headers = response.info()
 
         self.env["download_changed"] = self.download_changed(response_headers)
@@ -446,7 +447,7 @@ class URLDownloaderPython(URLDownloader):
         self.clear_zero_file(self.env["pathname"])
 
         # change headers to test if CHECK_FILESIZE_ONLY
-        if self.env.get("CHECK_FILESIZE_ONLY", None):
+        if self.env_bool("CHECK_FILESIZE_ONLY"):
             self.env["HEADERS_TO_TEST"] = ["Content-Length"]
 
         pathname_temporary = self.create_temp_file(download_dir)

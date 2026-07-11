@@ -50,9 +50,10 @@ class CaseInsensitiveHeaders:
 
 
 class FakeHTTPResponse:
-    def __init__(self, body, headers):
+    def __init__(self, body, headers, url=None):
         self.body = io.BytesIO(body)
         self.headers = CaseInsensitiveHeaders(headers)
+        self.url = url
 
     def info(self):
         return self.headers
