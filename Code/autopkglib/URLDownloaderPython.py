@@ -24,6 +24,7 @@ from typing import Any
 from urllib.request import Request, urlopen
 
 import certifi
+
 from autopkglib import ProcessorError
 from autopkglib.URLDownloader import URLDownloader
 
@@ -111,6 +112,14 @@ class URLDownloaderPython(URLDownloader):
             ),
             "default": ["ETag", "Last-Modified", "Content-Length"],
         },
+        "download_missing_file": {
+            "required": False,
+            "description": (
+                "If the file is missing but matching metadata is present, "
+                "download the file again. Defaults to True as most current recipes expect the files to be present."
+            ),
+            "default": True,
+        },
     }
     output_variables = {
         "pathname": {"description": "Path to the downloaded file."},
@@ -118,12 +127,16 @@ class URLDownloaderPython(URLDownloader):
             "description": "last-modified header for the downloaded item."
         },
         "etag": {"description": "etag header for the downloaded item."},
+        "download_url": {
+            "description": "The final URL the file was downloaded from (after redirects)."
+        },
         "download_changed": {
             "description": (
                 "Boolean indicating if the download has changed since the "
                 "last time it was downloaded."
             )
         },
+        "download_info": {"description": "Info from previous or current download."},
         "file_sha1": {"description": "SHA-1 hash of the downloaded file."},
         "file_sha256": {"description": "SHA-256 hash of the downloaded file."},
         "file_md5": {"description": "MD5 hash of the downloaded file."},
@@ -153,6 +166,17 @@ class URLDownloaderPython(URLDownloader):
         # get previous info to compare
         previous_download_info = self.get_download_info_json()
 
+        if previous_download_info:
+            self.env["download_info"] = previous_download_info
+
+            previous_http_headers = previous_download_info.get("http_headers", {})
+            if "Last-Modified" in previous_http_headers:
+                self.env["last_modified"] = previous_http_headers["Last-Modified"]
+            if "ETag" in previous_http_headers:
+                self.env["etag"] = previous_http_headers["ETag"]
+            if "download_url" in previous_download_info:
+                self.env["download_url"] = previous_download_info["download_url"]
+
         self.output(
             "previous_download_info: \n{previous_download_info}\n".format(
                 previous_download_info=previous_download_info
@@ -162,9 +186,13 @@ class URLDownloaderPython(URLDownloader):
 
         header_matches = 0
 
-        # check that previous download exits:
+        # check that previous download exists:
         previous_download_path = self.env.get("pathname", None)
-        if not previous_download_path or not os.path.isfile(previous_download_path):
+        previous_download_exists = bool(
+            previous_download_path and os.path.isfile(previous_download_path)
+        )
+        download_missing_file = self.env_bool("download_missing_file", default=True)
+        if not previous_download_exists and download_missing_file:
             # previous download doesn't exist!
             return True
 
@@ -175,7 +203,11 @@ class URLDownloaderPython(URLDownloader):
         try:
             # check Content-Length:
             if "Content-Length" in headers_to_test:
-                previous_file_size = os.path.getsize(previous_download_path)
+                previous_file_size = (
+                    os.path.getsize(previous_download_path)
+                    if previous_download_exists
+                    else int(previous_http_headers["Content-Length"])
+                )
                 if previous_file_size != int(header.get("Content-Length")):
                     self.output("Content-Length is different", 2)
                     return True
@@ -300,9 +332,7 @@ class URLDownloaderPython(URLDownloader):
         request_obj = Request(url, headers=normalised_headers)
 
         # get http headers
-        response = urlopen(
-            request_obj, context=self.ssl_context_certifi()
-        )  # nosec B310 - file:// is a supported url scheme
+        response = urlopen(request_obj, context=self.ssl_context_certifi())  # nosec B310 - file:// is a supported url scheme
         response_headers = response.info()
 
         self.env["download_changed"] = self.download_changed(response_headers)
@@ -351,7 +381,9 @@ class URLDownloaderPython(URLDownloader):
             download_dictionary["file_sha1"] = self.env["file_sha1"]
             download_dictionary["file_sha256"] = self.env["file_sha256"]
             download_dictionary["file_md5"] = self.env["file_md5"]
-        download_dictionary["download_url"] = url
+        download_url = response.url or url
+        download_dictionary["download_url"] = download_url
+        self.env["download_url"] = download_url
         # download_dictionary['http_headers'] = response.info()
         download_dictionary["http_headers"] = {}
         try:

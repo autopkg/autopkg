@@ -129,6 +129,33 @@ class TestURLDownloader(unittest.TestCase):
             "Mon, 01 Jan 2024 00:00:00 GMT",
         )
 
+    def test_store_metadata_uses_redirected_download_url(self):
+        """store_metadata records the final redirected URL when curl reports one."""
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as f:
+            f.write(b"test file content")
+
+        self.processor.env["pathname"] = test_file
+        self.processor.env["url"] = "http://example.com/file.dmg"
+        self.processor.clear_vars()
+
+        header = {
+            "etag": '"abc123"',
+            "http_redirected": "https://cdn.example.com/file.dmg",
+            "last-modified": "Mon, 01 Jan 2024 00:00:00 GMT",
+        }
+
+        with patch.object(self.processor, "store_headers"):
+            self.processor.store_metadata(header)
+
+        with open(test_file + ".info.json", "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+
+        self.assertEqual(metadata["download_url"], "https://cdn.example.com/file.dmg")
+        self.assertEqual(
+            self.processor.env["download_url"], "https://cdn.example.com/file.dmg"
+        )
+
     def test_metadata_retrieval_from_storage(self):
         """Test that metadata can be retrieved correctly from .info.json."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
@@ -175,6 +202,24 @@ class TestURLDownloader(unittest.TestCase):
         """getxattr() must raise ProcessorError in .info.json metadata mode."""
         with self.assertRaises(ProcessorError):
             self.processor.getxattr("any.xattr.name")
+
+    def test_env_bool_accepts_strings(self):
+        """Boolean-like env strings must not be treated as truthy by default."""
+        self.processor.env["true_string"] = "true"
+        self.processor.env["false_string"] = "False"
+        self.processor.env["none_value"] = None
+
+        self.assertTrue(self.processor.env_bool("true_string"))
+        self.assertFalse(self.processor.env_bool("false_string"))
+        self.assertFalse(self.processor.env_bool("none_value", default=True))
+        self.assertTrue(self.processor.env_bool("missing", default=True))
+
+    def test_env_bool_rejects_non_boolean_values(self):
+        """Unexpected value types fail loudly instead of using Python truthiness."""
+        self.processor.env["bad_value"] = 1
+
+        with self.assertRaisesRegex(ProcessorError, "bad_value must be a boolean"):
+            self.processor.env_bool("bad_value")
 
     def test_get_metadata_returns_empty_on_corrupt_json(self):
         """get_metadata() must return {} and not raise when .info.json is corrupt."""
@@ -261,6 +306,75 @@ class TestURLDownloader(unittest.TestCase):
         self.assertEqual(headers, {})
         self.assertEqual(self.processor.existing_file_size, os.path.getsize(test_file))
         self.assertTrue(changed)
+
+    def test_download_changed_populates_cached_download_info(self):
+        """Cache-hit checks expose previous .info.json metadata in env."""
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as f:
+            f.write(b"test content")
+
+        metadata = {
+            "download_url": "https://cdn.example.com/testfile.dmg",
+            "file_size": 12,
+            "http_headers": {
+                "Content-Length": 12,
+                "ETag": '"cached"',
+                "Last-Modified": "Tue, 02 Jan 2024 00:00:00 GMT",
+            },
+        }
+        with open(test_file + ".info.json", "w", encoding="utf-8") as f:
+            json.dump(metadata, f)
+
+        self.processor.env["pathname"] = test_file
+        self.processor.env["HEADERS_TO_TEST"] = ["ETag"]
+        self.processor.clear_vars()
+
+        changed = self.processor.download_changed(
+            {"http_result_code": "200", "etag": '"cached"'}
+        )
+
+        self.assertFalse(changed)
+        self.assertEqual(self.processor.env["download_info"], metadata)
+        self.assertEqual(self.processor.env["etag"], '"cached"')
+        self.assertEqual(
+            self.processor.env["last_modified"], "Tue, 02 Jan 2024 00:00:00 GMT"
+        )
+        self.assertEqual(
+            self.processor.env["download_url"], "https://cdn.example.com/testfile.dmg"
+        )
+
+    def test_download_changed_downloads_missing_file_by_default(self):
+        """Matching metadata does not suppress a download when the file is missing."""
+        test_file = os.path.join(self.temp_dir, "missing.dmg")
+        with open(test_file + ".info.json", "w", encoding="utf-8") as f:
+            json.dump({"http_headers": {"Content-Length": 10}}, f)
+
+        self.processor.env["pathname"] = test_file
+        self.processor.env["HEADERS_TO_TEST"] = ["Content-Length"]
+        self.processor.clear_vars()
+
+        changed = self.processor.download_changed(
+            {"http_result_code": "200", "content-length": "10"}
+        )
+
+        self.assertTrue(changed)
+
+    def test_download_changed_allows_metadata_only_cache_hit(self):
+        """download_missing_file=False permits a metadata-only unchanged result."""
+        test_file = os.path.join(self.temp_dir, "missing.dmg")
+        with open(test_file + ".info.json", "w", encoding="utf-8") as f:
+            json.dump({"http_headers": {"Content-Length": 10}}, f)
+
+        self.processor.env["pathname"] = test_file
+        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["HEADERS_TO_TEST"] = ["Content-Length"]
+        self.processor.clear_vars()
+
+        changed = self.processor.download_changed(
+            {"http_result_code": "200", "content-length": "10"}
+        )
+
+        self.assertFalse(changed)
 
     @unittest.skipUnless(
         sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
