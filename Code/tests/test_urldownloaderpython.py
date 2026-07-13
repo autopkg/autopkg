@@ -164,6 +164,74 @@ class TestURLDownloaderPython(unittest.TestCase):
         with open(cached_path, "rb") as infile:
             self.assertEqual(infile.read(), cached_body)
 
+    def _write_info_json(self, extra=None):
+        """Create downloads/download.bin.info.json with matching size, no file."""
+        download_dir = os.path.join(self.temp_dir.name, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        pathname = os.path.join(download_dir, "download.bin")
+        metadata = {"file_size": 4, "http_headers": {"Content-Length": 4}}
+        if extra:
+            metadata.update(extra)
+        with open(pathname + ".info.json", "w", encoding="utf-8") as outfile:
+            json.dump(metadata, outfile)
+        return pathname
+
+    def test_missing_file_rematerializes_without_marking_changed(self):
+        """Missing file + unchanged version + download_missing_file default:
+        re-fetch the file but keep download_changed False."""
+        pathname = self._write_info_json()
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+
+        self.run_download(b"data", {"Content-Length": "4"})
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertTrue(os.path.isfile(pathname))
+        with open(pathname, "rb") as infile:
+            self.assertEqual(infile.read(), b"data")
+
+    def test_missing_file_metadata_only_skip_when_dmf_false(self):
+        """Missing file + unchanged + download_missing_file=false: skip; the
+        file stays absent and download_changed is False."""
+        pathname = self._write_info_json()
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self.processor.env["download_missing_file"] = "false"
+
+        self.run_download(b"data", {"Content-Length": "4"})
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertFalse(os.path.isfile(pathname))
+
+    def test_missing_file_skip_reuses_stored_hashes(self):
+        """download_missing_file=false + COMPUTE_HASHES + missing file: no crash;
+        hashes come from .info.json."""
+        pathname = self._write_info_json(
+            {"file_sha1": "aaa", "file_sha256": "bbb", "file_md5": "ccc"}
+        )
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["COMPUTE_HASHES"] = True
+
+        self.run_download(b"data", {"Content-Length": "4"})
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertFalse(os.path.isfile(pathname))
+        self.assertEqual(self.processor.env["file_sha1"], "aaa")
+        self.assertEqual(self.processor.env["file_sha256"], "bbb")
+        self.assertEqual(self.processor.env["file_md5"], "ccc")
+
+    def test_missing_file_skip_without_stored_hashes_does_not_crash(self):
+        """Same but no stored hashes: still no crash, hashes skipped."""
+        pathname = self._write_info_json()
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["COMPUTE_HASHES"] = True
+
+        self.run_download(b"data", {"Content-Length": "4"})  # must not raise
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertFalse(os.path.isfile(pathname))
+        self.assertNotIn("file_sha1", self.processor.env)
+
     def test_missing_validator_headers_preserve_download(self):
         body = b"download without validators"
 

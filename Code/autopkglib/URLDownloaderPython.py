@@ -24,6 +24,7 @@ from typing import Any
 from urllib.request import Request, urlopen
 
 import certifi
+
 from autopkglib import ProcessorError
 from autopkglib.URLDownloader import URLDownloader
 
@@ -115,7 +116,10 @@ class URLDownloaderPython(URLDownloader):
             "required": False,
             "description": (
                 "If the file is missing but matching metadata is present, "
-                "download the file again. Defaults to True as most current recipes expect the files to be present."
+                "download the file again. Defaults to True as most current "
+                "recipes expect the files to be present. This re-fetch does "
+                "not mark the item as changed (download_changed stays false); "
+                "download_changed reflects the remote resource only."
             ),
             "default": True,
         },
@@ -185,15 +189,13 @@ class URLDownloaderPython(URLDownloader):
 
         header_matches = 0
 
-        # check that previous download exists:
+        # Whether the cached file is on disk. Used only to prefer the real
+        # file size over the stored Content-Length; it does not affect the
+        # remote resource decision (that is a pure remote-vs-.info.json comparison).
         previous_download_path = self.env.get("pathname", None)
         previous_download_exists = bool(
             previous_download_path and os.path.isfile(previous_download_path)
         )
-        download_missing_file = self.env_bool("download_missing_file", default=True)
-        if not previous_download_exists and download_missing_file:
-            # previous download doesn't exist!
-            return True
 
         previous_http_headers = {}
         if previous_download_info:
@@ -331,18 +333,28 @@ class URLDownloaderPython(URLDownloader):
         request_obj = Request(url, headers=normalised_headers)
 
         # get http headers
-        response = urlopen(
-            request_obj, context=self.ssl_context_certifi()
-        )  # nosec B310 - file:// is a supported url scheme
+        response = urlopen(request_obj, context=self.ssl_context_certifi())  # nosec B310 - file:// is a supported url scheme
         response_headers = response.info()
 
-        self.env["download_changed"] = self.download_changed(response_headers)
-        # check if download changed from last run:
-        if not self.env.get("download_changed", None):
-            # Discard the temp file
+        version_changed = self.download_changed(response_headers)
+        self.env["download_changed"] = version_changed
+
+        # download_missing_file only decides whether to re-fetch a file that
+        # has gone missing while the remote resource is unchanged; it never changes
+        # download_changed.
+        previous_download_path = self.env.get("pathname")
+        previous_download_exists = bool(
+            previous_download_path and os.path.isfile(previous_download_path)
+        )
+        materialize_missing = not previous_download_exists and self.env_bool(
+            "download_missing_file", default=True
+        )
+
+        # Unchanged and either the cached file is present or we've been told
+        # not to re-fetch it: don't read the body, just reuse existing hashes.
+        if not version_changed and not materialize_missing:
             os.remove(file_save_path)
-            if hashes:
-                self.store_hashes_in_env(self.compute_hashes())
+            self.publish_existing_hashes()
             return None
 
         # download file
@@ -408,9 +420,9 @@ class URLDownloaderPython(URLDownloader):
             # should this be a halting error?
             self.output("WARNING: file size != content-length header")
 
-        if self.env.get("download_changed", None):
-            # Move the new temporary download file to the pathname
-            self.move_temp_file(file_save_path)
+        # We streamed a fresh copy (the remote resource changed, or the file was
+        # missing and download_missing_file is set), so move it into place.
+        self.move_temp_file(file_save_path)
 
         # Save last-modified and etag headers to files xattr
         # This is for backwards compatibility with URLDownloader

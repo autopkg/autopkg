@@ -356,8 +356,10 @@ class TestURLDownloader(unittest.TestCase):
             self.processor.env["download_url"], "https://cdn.example.com/testfile.dmg"
         )
 
-    def test_download_changed_downloads_missing_file_by_default(self):
-        """Matching metadata does not suppress a download when the file is missing."""
+    def test_download_changed_is_version_only_ignores_missing_file(self):
+        """download_changed compares versions only. A missing file whose stored
+        metadata matches the remote is NOT 'changed', regardless of
+        download_missing_file (that only affects materialising in main())."""
         test_file = os.path.join(self.temp_dir, "missing.dmg")
         with open(test_file + ".info.json", "w", encoding="utf-8") as f:
             json.dump({"http_headers": {"Content-Length": 10}}, f)
@@ -366,28 +368,13 @@ class TestURLDownloader(unittest.TestCase):
         self.processor.env["HEADERS_TO_TEST"] = ["Content-Length"]
         self.processor.clear_vars()
 
-        changed = self.processor.download_changed(
-            {"http_result_code": "200", "content-length": "10"}
-        )
-
-        self.assertTrue(changed)
-
-    def test_download_changed_allows_metadata_only_cache_hit(self):
-        """download_missing_file=False permits a metadata-only unchanged result."""
-        test_file = os.path.join(self.temp_dir, "missing.dmg")
-        with open(test_file + ".info.json", "w", encoding="utf-8") as f:
-            json.dump({"http_headers": {"Content-Length": 10}}, f)
-
-        self.processor.env["pathname"] = test_file
-        self.processor.env["download_missing_file"] = "false"
-        self.processor.env["HEADERS_TO_TEST"] = ["Content-Length"]
-        self.processor.clear_vars()
-
-        changed = self.processor.download_changed(
-            {"http_result_code": "200", "content-length": "10"}
-        )
-
-        self.assertFalse(changed)
+        response = {"http_result_code": "200", "content-length": "10"}
+        for dmf in ("true", "false"):
+            self.processor.env["download_missing_file"] = dmf
+            self.assertFalse(
+                self.processor.download_changed(response),
+                f"download_missing_file={dmf} must not affect the version check",
+            )
 
     @unittest.skipUnless(
         sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
@@ -711,6 +698,83 @@ class TestURLDownloader(unittest.TestCase):
         self.assertEqual(
             self.processor.env["file_md5"], md5(cached_content).hexdigest()
         )
+
+    def _run_main_with_mocked_curl(self, content_length):
+        """Run main() with curl mocked to return a 200 of the given size."""
+        with (
+            patch.object(URLDownloader, "download_with_curl") as mock_download,
+            patch.object(URLDownloader, "parse_headers") as mock_parse_headers,
+        ):
+            mock_download.return_value = ""
+            mock_parse_headers.return_value = {
+                "http_result_code": "200",
+                "http_result_description": "OK",
+                "content-length": str(content_length),
+            }
+            self.processor.main()
+
+    def test_main_materializes_missing_file_without_marking_changed(self):
+        """Missing file + unchanged version + download_missing_file default:
+        re-fetch the file but keep download_changed False (version is the
+        signal, not file presence)."""
+        download_dir = os.path.join(self.temp_dir, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        pathname = os.path.join(download_dir, "file.dmg")
+        # .info.json present, cached file absent.
+        with open(pathname + ".info.json", "w", encoding="utf-8") as f:
+            json.dump({"file_size": 5, "http_headers": {"Content-Length": 5}}, f)
+
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self._run_main_with_mocked_curl(5)
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertTrue(os.path.isfile(pathname))
+
+    def test_main_metadata_only_skip_reuses_stored_hashes(self):
+        """download_missing_file=false + missing file + unchanged + COMPUTE_HASHES:
+        no crash; hashes are reused from .info.json and the file is not fetched."""
+        download_dir = os.path.join(self.temp_dir, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        pathname = os.path.join(download_dir, "file.dmg")
+        with open(pathname + ".info.json", "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "file_size": 5,
+                    "http_headers": {"Content-Length": 5},
+                    "file_sha1": "aaa",
+                    "file_sha256": "bbb",
+                    "file_md5": "ccc",
+                },
+                f,
+            )
+
+        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["COMPUTE_HASHES"] = True
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self._run_main_with_mocked_curl(5)
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertFalse(os.path.isfile(pathname))
+        self.assertEqual(self.processor.env["file_sha1"], "aaa")
+        self.assertEqual(self.processor.env["file_sha256"], "bbb")
+        self.assertEqual(self.processor.env["file_md5"], "ccc")
+
+    def test_main_metadata_only_skip_without_stored_hashes_does_not_crash(self):
+        """Same as above but .info.json has no stored hashes: still no crash,
+        hashes are simply skipped."""
+        download_dir = os.path.join(self.temp_dir, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        pathname = os.path.join(download_dir, "file.dmg")
+        with open(pathname + ".info.json", "w", encoding="utf-8") as f:
+            json.dump({"file_size": 5, "http_headers": {"Content-Length": 5}}, f)
+
+        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["COMPUTE_HASHES"] = True
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self._run_main_with_mocked_curl(5)  # must not raise
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertNotIn("file_sha1", self.processor.env)
 
     # Clear vars test
 

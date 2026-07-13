@@ -119,7 +119,9 @@ class URLDownloader(URLGetter):
             "description": (
                 "If the file is missing but matching metadata is present, "
                 "download the file again. Defaults to True as most current "
-                "recipes expect the files to be present."
+                "recipes expect the files to be present. This re-fetch does "
+                "not mark the item as changed (download_changed stays false); "
+                "download_changed reflects the remote resource only."
             ),
             "default": True,
         },
@@ -358,6 +360,33 @@ class URLDownloader(URLGetter):
         self.env["file_sha256"] = hashes["sha256"]
         self.env["file_md5"] = hashes["md5"]
 
+    def publish_existing_hashes(self) -> None:
+        """Expose hashes on a cache hit without failing on a missing file.
+
+        Computes from the cached file when present; otherwise reuses the hashes
+        stored in ``.info.json``. When neither is available it warns and skips,
+        so a metadata-only cache hit never crashes on an absent file.
+        """
+        if not self.env_bool("COMPUTE_HASHES"):
+            return
+        hash_keys = ("file_sha1", "file_sha256", "file_md5")
+        if os.path.isfile(self.env["pathname"]):
+            hashes = self.compute_hashes()
+            self.env["file_sha1"] = hashes["sha1"]
+            self.env["file_sha256"] = hashes["sha256"]
+            self.env["file_md5"] = hashes["md5"]
+            return
+        metadata = self.env.get("download_info") or {}
+        if all(metadata.get(key) for key in hash_keys):
+            for key in hash_keys:
+                self.env[key] = metadata[key]
+            self.output("Reusing hashes from .info.json (cached file absent).", 2)
+        else:
+            self.output(
+                "WARNING: COMPUTE_HASHES is set but the cached file is absent "
+                "and no stored hashes were found in .info.json; skipping hashes."
+            )
+
     def create_temp_file(self, download_dir) -> str:
         """Create temporary file and return its path."""
         temporary_file = tempfile.NamedTemporaryFile(dir=download_dir, delete=False)
@@ -397,24 +426,19 @@ class URLDownloader(URLGetter):
         return header.get(header_name.lower(), header.get(header_name))
 
     def download_changed(self, header) -> bool:
-        """Check if downloaded file changed on server."""
+        """Return True if the remote item differs from the cached metadata.
+
+        This is a pure version check against the stored ``.info.json``: it does
+        not depend on whether the cached file is present on disk, and it does
+        not force a download for a missing file. Re-fetching a file that has
+        gone missing is handled in ``main()`` via ``download_missing_file``.
+        """
         metadata = self.get_metadata()
         self.publish_download_info(metadata)
 
-        previous_download_path = self.env.get("pathname")
-        previous_download_exists = bool(
-            previous_download_path and os.path.isfile(previous_download_path)
-        )
-        if not previous_download_exists and self.env_bool(
-            "download_missing_file", default=True
-        ):
-            return True
-
         if header["http_result_code"] == "304":
             # resource not modified
-            self.env["download_changed"] = False
             self.output("Item at URL is unchanged.")
-            self.output(f"Using existing {self.env['pathname']}")
             return False
 
         headers_to_test = (
@@ -423,6 +447,11 @@ class URLDownloader(URLGetter):
         )
         if self.env_bool("CHECK_FILESIZE_ONLY"):
             headers_to_test = ["Content-Length"]
+
+        previous_download_path = self.env.get("pathname")
+        previous_download_exists = bool(
+            previous_download_path and os.path.isfile(previous_download_path)
+        )
 
         header_matches = 0
         for header_name in headers_to_test:
@@ -455,8 +484,6 @@ class URLDownloader(URLGetter):
             header_matches += 1
 
         if header_matches:
-            self.env["download_changed"] = False
-            self.output(f"Using existing {self.env['pathname']}")
             return False
 
         # If Content-Length header is present and we had a cached
@@ -470,7 +497,6 @@ class URLDownloader(URLGetter):
                 and self.existing_file_size is not None
                 and int(size_header) == self.existing_file_size
             ):
-                self.env["download_changed"] = False
                 self.output(
                     "File size returned by webserver matches that "
                     f"of the cached file: {size_header} bytes"
@@ -480,7 +506,6 @@ class URLDownloader(URLGetter):
                     "fallback mechanism that does not guarantee "
                     "that a build is unchanged."
                 )
-                self.output(f"Using existing {self.env['pathname']}")
                 return False
 
         return True
@@ -585,27 +610,46 @@ class URLDownloader(URLGetter):
         raw_headers = self.download_with_curl(curl_cmd)
         header = self.parse_headers(raw_headers)
 
-        if self.download_changed(header):
-            self.env["download_changed"] = True
-        else:
-            # Discard the temp file
+        # download_changed reflects the remote resource only (remote vs .info.json).
+        version_changed = self.download_changed(header)
+        self.env["download_changed"] = version_changed
+
+        # download_missing_file only decides whether to re-fetch a file that
+        # has gone missing while the remote resource is unchanged; it never changes
+        # download_changed.
+        previous_download_exists = os.path.isfile(self.env["pathname"])
+        materialize_missing = not previous_download_exists and self.env_bool(
+            "download_missing_file", default=True
+        )
+
+        if not version_changed and not materialize_missing:
+            # Unchanged: keep the cached file, or skip entirely when it is
+            # absent and download_missing_file is false.
             os.remove(pathname_temporary)
-            if self.env_bool("COMPUTE_HASHES"):
-                self.store_hashes_in_env(self.compute_hashes())
+            self.publish_existing_hashes()
+            if previous_download_exists:
+                self.output(f"Using existing {self.env['pathname']}")
             return
 
-        # New resource was downloaded. Move the temporary download file to the pathname
+        # Either the remote changed, or the file was missing and we have been
+        # told to re-fetch it. Either way, keep the freshly downloaded bytes.
         self.move_temp_file(pathname_temporary)
 
         # Save .info.json metadata and legacy last-modified/etag xattrs.
         self.store_metadata(header)
 
         # Generate output messages and variables
-        self.output(f"Downloaded {self.env['pathname']}")
-        self.env["url_downloader_summary_result"] = {
-            "summary_text": "The following new items were downloaded:",
-            "data": {"download_path": self.env["pathname"]},
-        }
+        if version_changed:
+            self.output(f"Downloaded {self.env['pathname']}")
+            self.env["url_downloader_summary_result"] = {
+                "summary_text": "The following new items were downloaded:",
+                "data": {"download_path": self.env["pathname"]},
+            }
+        else:
+            self.output(
+                "Re-downloaded missing file (version unchanged): "
+                f"{self.env['pathname']}"
+            )
 
 
 if __name__ == "__main__":
