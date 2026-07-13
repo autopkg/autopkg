@@ -24,7 +24,6 @@ from typing import Any
 from urllib.request import Request, urlopen
 
 import certifi
-
 from autopkglib import ProcessorError
 from autopkglib.URLDownloader import URLDownloader
 
@@ -333,7 +332,9 @@ class URLDownloaderPython(URLDownloader):
         request_obj = Request(url, headers=normalised_headers)
 
         # get http headers
-        response = urlopen(request_obj, context=self.ssl_context_certifi())  # nosec B310 - file:// is a supported url scheme
+        response = urlopen(
+            request_obj, context=self.ssl_context_certifi()
+        )  # nosec B310 - file:// is a supported url scheme
         response_headers = response.info()
 
         version_changed = self.download_changed(response_headers)
