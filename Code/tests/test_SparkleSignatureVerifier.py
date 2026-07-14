@@ -119,7 +119,7 @@ class TestSparkleSignatureVerifier(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "!= expected"):
             self.processor.main()
 
-    def test_correct_length_passes(self):
+    def test_matching_length_passes_verification(self):
         actual = os.path.getsize(self.tmp.name)
         self.processor.env["eddsa_signature_length"] = str(actual)
         self.processor.main()  # should not raise
