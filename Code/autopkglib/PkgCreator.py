@@ -296,7 +296,7 @@ class PkgCreator(Processor):
 
     def send_request(self, request) -> str:
         """Send a packaging request to the autopkgserver"""
-        self.socket.send(plistlib.dumps(request))
+        self.socket.sendall(plistlib.dumps(request))
         with self.socket.makefile(mode="r") as fileref:
             reply = fileref.read()
         if reply.startswith("OK:"):

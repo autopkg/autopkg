@@ -156,7 +156,7 @@ class Installer(DmgMounter):
 
     def send_request(self, request) -> str:
         """Send an install request to autopkginstalld"""
-        self.socket.send(plistlib.dumps(request))
+        self.socket.sendall(plistlib.dumps(request))
         with os.fdopen(self.socket.fileno()) as fileref:
             while True:
                 data = fileref.readline()
