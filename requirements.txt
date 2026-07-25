@@ -102,7 +102,7 @@ pyyaml==6.0.3
     #   pre-commit
 requests==2.34.2 ; sys_platform == 'win32'
     # via generateds
-setuptools==80.9.0
+setuptools==83.0.0
     # via -r requirements.in
 six==1.17.0 ; sys_platform == 'win32'
     # via generateds
