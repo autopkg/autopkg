@@ -92,7 +92,7 @@ class TestMunkiLib(unittest.TestCase):
                     MunkiLib("/repo", "FileRepo", tmp_dir, None)
 
         self.assertIn("munkilib import error", str(err.exception))
-        self.assertIn("3.2.0.3462 through 6.7.1", str(err.exception))
+        self.assertIn("Munkilib version 3.2.0.3462 through 6.7.1", str(err.exception))
 
 
 if __name__ == "__main__":

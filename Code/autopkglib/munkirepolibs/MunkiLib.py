@@ -42,7 +42,7 @@ class MunkiLib:
                     "MUNKILIB_DIR at the directory containing munkilib."
                 ) from err
             raise ProcessorError(
-                f"munkilib import error: {str(err)}\nMunki tools version 3.2.0.3462 "
+                f"munkilib import error: {str(err)}\nMunkilib version 3.2.0.3462 "
                 "through 6.7.1 is required."
             ) from err
 
