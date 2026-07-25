@@ -18,6 +18,7 @@ import os
 import sys
 import types
 import unittest
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 from autopkglib import ProcessorError
@@ -69,6 +70,29 @@ class TestMunkiLib(unittest.TestCase):
             f"Could not write pkginfo {pkginfo_path}: plugin refused write",
         )
         self.assertIsInstance(err.exception.__cause__, RuntimeError)
+
+    def test_missing_munkilib_dir_reports_pythonlibs_package(self):
+        """An absent munkilib names the package that installs it, not a Munki version."""
+        with TemporaryDirectory() as tmp_dir:
+            # None in sys.modules makes the munkilib import fail as if absent.
+            with patch.dict(sys.modules, {"munkilib": None}):
+                with self.assertRaises(ProcessorError) as err:
+                    MunkiLib("/repo", "FileRepo", tmp_dir, None)
+
+        self.assertIn("munkitools_pythonlibs", str(err.exception))
+        self.assertIn("MUNKILIB_DIR", str(err.exception))
+        self.assertIsInstance(err.exception.__cause__, ImportError)
+
+    def test_present_but_unimportable_munkilib_reports_version_requirement(self):
+        """A present-but-broken munkilib keeps the minimum-version message."""
+        with TemporaryDirectory() as tmp_dir:
+            os.makedirs(os.path.join(tmp_dir, "munkilib"))
+            with patch.dict(sys.modules, {"munkilib": None}):
+                with self.assertRaises(ProcessorError) as err:
+                    MunkiLib("/repo", "FileRepo", tmp_dir, None)
+
+        self.assertIn("munkilib import error", str(err.exception))
+        self.assertIn("3.2.0.3462", str(err.exception))
 
 
 if __name__ == "__main__":

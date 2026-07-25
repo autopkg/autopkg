@@ -32,10 +32,19 @@ class MunkiLib:
             from munkilib.admin import munkiimportlib
             from munkilib.cliutils import path2url
         except ImportError as err:
+            if not os.path.isdir(os.path.join(munkilib_dir, "munkilib")):
+                # munkilib ships in munkitools_pythonlibs, which the Munki 7 Swift
+                # tools no longer need at runtime and a future Munki release may
+                # stop installing.
+                raise ProcessorError(
+                    f"munkilib not found in {munkilib_dir}. It is installed by the "
+                    "munkitools_pythonlibs package; install that package, or point "
+                    "MUNKILIB_DIR at the directory containing munkilib."
+                ) from err
             raise ProcessorError(
                 f"munkilib import error: {str(err)}\nMunki tools version 3.2.0.3462 or "
                 "later is required."
-            )
+            ) from err
 
         # if munki_repo is a filesystem path, convert it to a format that is understood by
         # munkirepo.
