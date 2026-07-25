@@ -188,11 +188,10 @@ class URLGetter(Processor):
 
     def download_with_curl(self, curl_cmd, text=True) -> str:
         """Launch curl, return its output, and handle failures."""
-        proc_stdout, proc_stderr, retcode = self.execute_curl(curl_cmd, text)
+        # execute_curl runs curl with check=True, so a nonzero exit already
+        # raises ProcessorError there and never reaches us.
+        proc_stdout, _, _ = self.execute_curl(curl_cmd, text)
         self.output(f"Curl command: {curl_cmd}", verbose_level=4)
-        if retcode:  # Non-zero exit code from curl => problem with download
-            curl_err = self.parse_curl_error(proc_stderr)
-            raise ProcessorError(f"curl failure: {curl_err} (exit code {retcode})")
         return proc_stdout
 
     def download(self, url, headers=None, text=False) -> str:

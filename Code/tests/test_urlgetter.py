@@ -325,20 +325,17 @@ class TestURLGetter(unittest.TestCase):
             result = self.processor.download_with_curl(["curl", "http://example.com"])
         self.assertEqual(result, "file content")
 
-    def test_download_with_curl_raises_on_nonzero_exit(self):
-        """download_with_curl() raises ProcessorError on non-zero curl exit code."""
+    def test_download_with_curl_propagates_execute_curl_error(self):
+        """download_with_curl() surfaces the ProcessorError execute_curl raises."""
         with (
             patch.object(
-                self.processor, "execute_curl", return_value=("", "error message", 1)
-            ),
-            patch.object(
-                self.processor, "parse_curl_error", return_value="parsed error"
+                self.processor,
+                "execute_curl",
+                side_effect=ProcessorError("curl: (6) Could not resolve host"),
             ),
             patch.object(self.processor, "output"),
         ):
-            with self.assertRaisesRegex(
-                ProcessorError, r"curl failure: parsed error \(exit code 1\)"
-            ):
+            with self.assertRaisesRegex(ProcessorError, "Could not resolve host"):
                 self.processor.download_with_curl(["curl", "http://example.com"])
 
     def test_download_assembles_curl_command(self):
