@@ -99,43 +99,42 @@ class MunkiInstallsItemsCreator(Processor):
         pkginfo = plistlib.loads(out)
         installs_array = pkginfo.get("installs", [])
 
-        if faux_root:
-            for item in installs_array:
-                if item["path"].startswith(faux_root):
-                    item["path"] = item["path"][len(faux_root) :]
-                self.output(f"Created installs item for {item['path']}")
+        for item in installs_array:
+            if faux_root and item["path"].startswith(faux_root):
+                item["path"] = item["path"][len(faux_root) :]
+            self.output(f"Created installs item for {item['path']}")
 
-                # If key derive_minimum_os_version has a value, try to get the minosversion
-                if self.env.get("derive_minimum_os_version"):
-                    if item.get("minosversion"):
-                        # Set self.env["minimum_os_version"] if not set
-                        if "minimum_os_version" not in self.env:
-                            self.env["minimum_os_version"] = item["minosversion"]
+            # If key derive_minimum_os_version has a value, try to get the minosversion
+            if self.env.get("derive_minimum_os_version"):
+                if item.get("minosversion"):
+                    # Set self.env["minimum_os_version"] if not set
+                    if "minimum_os_version" not in self.env:
+                        self.env["minimum_os_version"] = item["minosversion"]
+                        self.output(
+                            "Derived minimum os version as: "
+                            f"{self.env['minimum_os_version']}"
+                        )
+                    else:
+                        # Compare any subsequent values of item['minosversion']
+                        # against self.env["minimum_os_version"] setting
+                        # self.env["minimum_os_version"] to the highest minimum
+                        if APLooseVersion(item["minosversion"]) > APLooseVersion(
+                            self.env["minimum_os_version"]
+                        ):
                             self.output(
-                                "Derived minimum os version as: "
-                                f"{self.env['minimum_os_version']}"
+                                "Setting minimum os version to: "
+                                f"{item['minosversion']}, as greater than prior "
+                                f"value of: {self.env['minimum_os_version']}"
                             )
-                        else:
-                            # Compare any subsequent values of item['minosversion']
-                            # against self.env["minimum_os_version"] setting
-                            # self.env["minimum_os_version"] to the highest minimum
-                            if APLooseVersion(item["minosversion"]) >= APLooseVersion(
-                                self.env["minimum_os_version"]
-                            ):
-                                self.output(
-                                    "Setting minimum os version to: "
-                                    f"{item['minosversion']}, as greater than prior "
-                                    f"value of: {self.env['minimum_os_version']}"
-                                )
-                                self.env["minimum_os_version"] = item["minosversion"]
-                            if APLooseVersion(item["minosversion"]) <= APLooseVersion(
-                                self.env["minimum_os_version"]
-                            ):
-                                self.output(
-                                    f"Minimum os version: {item['minosversion']}, "
-                                    "is lower than prior value of: "
-                                    f"{self.env['minimum_os_version']}... skipping..."
-                                )
+                            self.env["minimum_os_version"] = item["minosversion"]
+                        elif APLooseVersion(item["minosversion"]) < APLooseVersion(
+                            self.env["minimum_os_version"]
+                        ):
+                            self.output(
+                                f"Minimum os version: {item['minosversion']}, "
+                                "is lower than prior value of: "
+                                f"{self.env['minimum_os_version']}... skipping..."
+                            )
 
         if "version_comparison_key" in self.env:
             for item in installs_array:

@@ -156,7 +156,7 @@ class Installer(DmgMounter):
 
     def send_request(self, request) -> str:
         """Send an install request to autopkginstalld"""
-        self.socket.send(plistlib.dumps(request))
+        self.socket.sendall(plistlib.dumps(request))
         with os.fdopen(self.socket.fileno()) as fileref:
             while True:
                 data = fileref.readline()
@@ -170,9 +170,10 @@ class Installer(DmgMounter):
                 else:
                     break
 
-        errors = data.rstrip().split("\n")
-        if not errors:
+        if not data.strip():
             errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
+        else:
+            errors = data.rstrip().split("\n")
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
     def disconnect(self) -> None:

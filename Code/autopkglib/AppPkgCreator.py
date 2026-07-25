@@ -17,7 +17,6 @@
 """See docstring for AppPkgCreator class"""
 
 import os.path
-import plistlib
 import shutil
 from glob import glob
 
@@ -110,11 +109,9 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         """Read Contents/Info.plist from the app."""
         plistpath = os.path.join(app_path, "Contents", "Info.plist")
         try:
-            with open(plistpath, "rb") as f:
-                plist = plistlib.load(f)
-        except Exception as err:
-            raise ProcessorError(f"Can't read {plistpath}: {err}")
-        return plist
+            return self.load_plist_from_file(plistpath)
+        except Exception as error:
+            raise ProcessorError(f"Can't read {plistpath}: {error}")
 
     def package_app(self, app_path):
         """Build a packaging request, send it to the autopkgserver and get the
@@ -140,13 +137,13 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                     f"Please check the recipe and try again."
                 )
             # Trap all other errors.
-            except BaseException as err:
+            except Exception as err:
                 raise ProcessorError(err)
         if not self.env.get("bundleid"):
             try:
                 self.env["bundleid"] = infoplist["CFBundleIdentifier"]
                 self.output(f"BundleID: {self.env['bundleid']}")
-            except BaseException as err:
+            except Exception as err:
                 raise ProcessorError(err)
 
         # get pkgdir and pkgname

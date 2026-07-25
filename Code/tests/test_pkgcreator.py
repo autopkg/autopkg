@@ -320,6 +320,17 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "Package build failed"):
             self.processor.send_request({"test": "request"})
 
+    def test_send_request_empty_reply(self):
+        """An empty reply should report that the server sent no reply."""
+        mock_socket = MagicMock()
+        mock_file = MagicMock()
+        mock_file.read.return_value = ""
+        mock_socket.makefile.return_value.__enter__.return_value = mock_file
+        self.processor.socket = mock_socket
+
+        with self.assertRaisesRegex(ProcessorError, "No reply from server"):
+            self.processor.send_request({"test": "request"})
+
     def test_disconnect(self):
         """Test disconnection from autopkgserver."""
         mock_socket = MagicMock()

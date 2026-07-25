@@ -102,8 +102,14 @@ class PkgInfoCreator(Processor):
             else:
                 pkg_info.set("auth", "none")
         if "IFPkgFlagRestartAction" in info:
+            restart_action = info["IFPkgFlagRestartAction"]
+            if restart_action not in conversion_map:
+                self.output(
+                    f"WARNING: Unrecognized IFPkgFlagRestartAction "
+                    f"'{restart_action}' in template; treating as 'none'."
+                )
             pkg_info.set(
-                "postinstall-action", conversion_map[info["IFPkgFlagRestartAction"]]
+                "postinstall-action", conversion_map.get(restart_action, "none")
             )
 
         payload = ElementTree.SubElement(pkg_info, "payload")
@@ -181,12 +187,6 @@ class PkgInfoCreator(Processor):
         payload.set("numberOfFiles", str(nfiles))
 
         info.write(self.env["infofile"])
-
-    def create_bundle_info(self, template) -> NoReturn:
-        """Create Info.plist data for bundle-style pkg"""
-        # We don't support the creation of bundle-style pkgs
-        # any longer, so raise an exception
-        raise ProcessorError("Bundle package creation no longer supported!")
 
 
 if __name__ == "__main__":

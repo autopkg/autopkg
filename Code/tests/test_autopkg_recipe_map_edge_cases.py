@@ -983,6 +983,73 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
             )
         self.assertNotIn(processor_name, autopkglib.__dict__)
 
+    def test_get_processor_missing_file_does_not_fall_back_to_core(self):
+        """A resolved shared recipe whose processor file is missing must raise,
+        not silently hand back the same-named core processor."""
+        search_dir = os.path.join(self.tmpdir, "search")
+        os.makedirs(search_dir)
+
+        # Deliberately collides with a core processor name.
+        processor_name = "FindAndReplace"
+        self.assertIn(processor_name, autopkglib.__dict__)
+
+        shared_recipe = os.path.join(search_dir, "Shared.recipe")
+        _write_plist_recipe(
+            shared_recipe,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        autopkglib.globalRecipeMap["identifiers"]["com.example.shared"] = shared_recipe
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
+
+        with self.assertRaises(KeyError):
+            autopkglib.get_processor(
+                f"com.example.shared/{processor_name}",
+                recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
+                env={"RECIPE_SEARCH_DIRS": [search_dir]},
+            )
+
+    def test_get_processor_loads_qualified_processor_not_shadow(self):
+        """A qualified reference loads the implementation next to the resolved
+        recipe, even when the calling recipe's dir has a same-named file."""
+        search_dir = os.path.join(self.tmpdir, "search")
+        shared_dir = os.path.join(search_dir, "shared")
+        caller_dir = os.path.join(search_dir, "caller")
+        os.makedirs(shared_dir)
+        os.makedirs(caller_dir)
+
+        processor_name = "AmbiguousProc"
+        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+
+        shared_recipe = os.path.join(shared_dir, "Shared.recipe")
+        _write_plist_recipe(
+            shared_recipe,
+            {**SAMPLE_RECIPE, "Identifier": "com.example.shared"},
+        )
+        # Both dirs define the class; only the shared one sets marker="shared".
+        for directory, marker in ((shared_dir, "shared"), (caller_dir, "caller")):
+            with open(
+                os.path.join(directory, f"{processor_name}.py"), "w", encoding="utf-8"
+            ) as f:
+                f.write(
+                    "from autopkglib import Processor\n"
+                    f"class {processor_name}(Processor):\n"
+                    "    input_variables = {}\n"
+                    "    output_variables = {}\n"
+                    f"    marker = {marker!r}\n"
+                    "    def main(self):\n"
+                    "        pass\n"
+                )
+
+        autopkglib.globalRecipeMap["identifiers"]["com.example.shared"] = shared_recipe
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
+
+        processor = autopkglib.get_processor(
+            f"com.example.shared/{processor_name}",
+            recipe={"RECIPE_PATH": os.path.join(caller_dir, "Caller.recipe")},
+            env={"RECIPE_SEARCH_DIRS": [search_dir]},
+        )
+        self.assertEqual(processor.marker, "shared")
+
 
 class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
     """Issue coverage for issue #903: `autopkg verify-trust-info
@@ -1913,6 +1980,36 @@ class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
             checked_paths,
             "Invalid map entries must not add their directory to processor search paths.",
         )
+
+
+class TestUnresolvedSharedProcessorDoesNotShadowCore(
+    _RecipeMapIsolation, unittest.TestCase
+):
+    """A fully-qualified shared-processor reference (RECIPE_ID/Processor)
+    that can't be resolved to a recipe under the active search dirs must
+    fail loudly, not silently fall back to a same-named core processor.
+
+    Otherwise `com.github.homebysix.FindAndReplace/FindAndReplace` would
+    quietly run core `FindAndReplace` (a different implementation) whenever
+    the homebysix recipe is out of scope."""
+
+    def test_qualified_ref_colliding_with_core_name_raises(self):
+        # Precondition: a core processor by this name exists, so a bare
+        # globals() fall-through would succeed and hide the substitution.
+        self.assertIn("FindAndReplace", vars(autopkglib))
+
+        recipe = {"RECIPE_PATH": os.path.join(self.tmpdir, "r.recipe")}
+        env = {"RECIPE_SEARCH_DIRS": [self.tmpdir]}
+        # No map entry, nothing on disk, rebuild already attempted -> the
+        # shared recipe is unresolvable under the search dirs.
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
+
+        with self.assertRaises(KeyError):
+            autopkglib.get_processor(
+                "com.github.homebysix.FindAndReplace/FindAndReplace",
+                recipe=recipe,
+                env=env,
+            )
 
 
 class TestLoadRecipeToleratesStaleMapEntry(_RecipeMapIsolation, unittest.TestCase):

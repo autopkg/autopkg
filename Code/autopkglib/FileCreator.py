@@ -49,12 +49,12 @@ class FileCreator(Processor):
             with open(self.env["file_path"], "w") as fileref:
                 fileref.write(self.env["file_content"])
             self.output(f"Created file at {self.env['file_path']}")
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(f"Can't create file at {self.env['file_path']}: {err}")
         if "file_mode" in self.env:
             try:
                 os.chmod(self.env["file_path"], int(self.env["file_mode"], 8))
-            except BaseException as err:
+            except Exception as err:
                 raise ProcessorError(
                     f"Can't set mode of {self.env['file_path']} to "
                     f"{self.env['file_mode']}: {err}"

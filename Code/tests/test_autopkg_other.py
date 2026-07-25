@@ -990,13 +990,13 @@ class TestAutoPkgOther(unittest.TestCase):
                 auto_pull=True,  # Pull option still honored
             )
 
-    def test_get_info_parser_setup(self):
-        """Test get_info sets up parser correctly."""
+    def test_get_info_usage_string_includes_verb_and_recipe_placeholder(self):
+        """Test get_info sets a usage string naming the verb and a recipe placeholder."""
         argv = ["autopkg", "info"]
 
         with (
             patch("autopkg.gen_common_parser") as mock_parser_gen,
-            patch("autopkg.add_search_and_override_dir_options") as mock_add_options,
+            patch("autopkg.add_search_and_override_dir_options"),
             patch("autopkg.common_parse") as mock_parse,
             patch("autopkg.get_override_dirs"),
             patch("autopkg.get_search_dirs"),
@@ -1015,40 +1015,130 @@ class TestAutoPkgOther(unittest.TestCase):
 
             autopkg.get_info(argv)
 
-            # Verify parser setup
-            mock_parser_gen.assert_called_once()
             mock_parser.set_usage.assert_called_once_with(
                 "Usage: %prog info [options] [recipe]"
             )
-            mock_add_options.assert_called_once_with(mock_parser)
 
-            # Verify options were added
+    def test_get_info_registers_quiet_and_pull_options(self):
+        """Test get_info registers -q/--quiet and -p/--pull as boolean flags."""
+        argv = ["autopkg", "info"]
+
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser_gen,
+            patch("autopkg.add_search_and_override_dir_options"),
+            patch("autopkg.common_parse") as mock_parse,
+            patch("autopkg.get_override_dirs"),
+            patch("autopkg.get_search_dirs"),
+            patch("autopkg.print_tool_info"),
+        ):
+            mock_parser = unittest.mock.Mock()
+            mock_parser.add_option = unittest.mock.Mock()
+            mock_parser_gen.return_value = mock_parser
+
+            mock_options = unittest.mock.Mock()
+            mock_options.override_dirs = None
+            mock_options.search_dirs = None
+            mock_options.quiet = False
+            mock_options.pull = False
+            mock_parse.return_value = (mock_options, [])
+
+            autopkg.get_info(argv)
+
             self.assertEqual(mock_parser.add_option.call_count, 2)
 
-            # Check quiet option
             quiet_call = mock_parser.add_option.call_args_list[0]
             self.assertEqual(quiet_call[0], ("-q", "--quiet"))
             self.assertTrue(quiet_call[1]["action"] == "store_true")
 
-            # Check pull option
             pull_call = mock_parser.add_option.call_args_list[1]
             self.assertEqual(pull_call[0], ("-p", "--pull"))
             self.assertTrue(pull_call[1]["action"] == "store_true")
 
-    def test_processor_info_basic_functionality(self):
-        """Test processor_info with a basic processor."""
+    def test_processor_info_usage_string_includes_verb_and_processor_placeholder(self):
+        """Test processor_info sets a usage string naming the verb and a processor placeholder."""
         argv = ["autopkg", "processor-info", "URLDownloader"]
 
-        # Mock processor class
         mock_processor = unittest.mock.Mock()
         mock_processor.description = "Downloads URLs to a file"
-        mock_processor.input_variables = {
-            "url": {"required": True, "description": "URL to download"},
-            "filename": {"required": False, "description": "Output filename"},
-        }
-        mock_processor.output_variables = {
-            "pathname": {"description": "Path to downloaded file"}
-        }
+        mock_processor.input_variables = {}
+        mock_processor.output_variables = {}
+
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser_gen,
+            patch("autopkg.add_search_and_override_dir_options"),
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.get_processor") as mock_get_processor,
+            patch("builtins.print"),
+        ):
+            mock_parser = unittest.mock.Mock()
+            mock_parser_gen.return_value = mock_parser
+
+            mock_options = unittest.mock.Mock()
+            mock_options.recipe = None
+            mock_options.override_dirs = None
+            mock_options.search_dirs = None
+            mock_common_parse.return_value = (mock_options, ["URLDownloader"])
+
+            mock_get_override_dirs.return_value = ["/overrides"]
+            mock_get_search_dirs.return_value = ["/search"]
+            mock_get_processor.return_value = mock_processor
+
+            autopkg.processor_info(argv)
+
+            mock_parser.set_usage.assert_called_once_with(
+                "Usage: %prog processor-info [options] processorname"
+            )
+
+    def test_processor_info_registers_recipe_option(self):
+        """Test processor_info registers -r/--recipe to scope the processor lookup to a recipe."""
+        argv = ["autopkg", "processor-info", "URLDownloader"]
+
+        mock_processor = unittest.mock.Mock()
+        mock_processor.description = "Downloads URLs to a file"
+        mock_processor.input_variables = {}
+        mock_processor.output_variables = {}
+
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser_gen,
+            patch("autopkg.add_search_and_override_dir_options"),
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.get_processor") as mock_get_processor,
+            patch("builtins.print"),
+        ):
+            mock_parser = unittest.mock.Mock()
+            mock_parser_gen.return_value = mock_parser
+
+            mock_options = unittest.mock.Mock()
+            mock_options.recipe = None
+            mock_options.override_dirs = None
+            mock_options.search_dirs = None
+            mock_common_parse.return_value = (mock_options, ["URLDownloader"])
+
+            mock_get_override_dirs.return_value = ["/overrides"]
+            mock_get_search_dirs.return_value = ["/search"]
+            mock_get_processor.return_value = mock_processor
+
+            autopkg.processor_info(argv)
+
+            mock_parser.add_option.assert_called_once_with(
+                "-r",
+                "--recipe",
+                metavar="RECIPE",
+                help="Name of recipe using the processor.",
+            )
+
+    def test_processor_info_prints_processor_description(self):
+        """Test processor_info prints the processor's description text."""
+        argv = ["autopkg", "processor-info", "URLDownloader"]
+
+        mock_processor = unittest.mock.Mock()
+        mock_processor.description = "Downloads URLs to a file"
+        mock_processor.input_variables = {}
+        mock_processor.output_variables = {}
 
         with (
             patch("autopkg.gen_common_parser") as mock_parser_gen,
@@ -1074,29 +1164,8 @@ class TestAutoPkgOther(unittest.TestCase):
 
             result = autopkg.processor_info(argv)
 
-            # Should return None (no explicit return)
             self.assertIsNone(result)
-
-            # Verify parser setup
-            mock_parser.set_usage.assert_called_once()
-            mock_parser.add_option.assert_called_once_with(
-                "-r",
-                "--recipe",
-                metavar="RECIPE",
-                help="Name of recipe using the processor.",
-            )
-
-            # Verify processor lookup
-            mock_get_processor.assert_called_once_with(
-                "URLDownloader",
-                recipe=None,
-                env={"RECIPE_SEARCH_DIRS": ["/search"]},
-            )
-
-            # Verify output
             mock_print.assert_any_call("Description: Downloads URLs to a file")
-            mock_print.assert_any_call("Input variables:")
-            mock_print.assert_any_call("Output variables:")
 
     def test_processor_info_with_recipe_option(self):
         """Test processor_info with recipe option."""

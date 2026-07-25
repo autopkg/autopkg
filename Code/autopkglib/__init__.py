@@ -1358,7 +1358,7 @@ class Processor:
                 self.env = plistlib.loads(indata)
             else:
                 self.env = {}
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(err) from err
 
     def write_output_plist(self) -> None:
@@ -1378,7 +1378,7 @@ class Processor:
                 plistlib.dump(plist_safe, f)
         except TypeError:
             plistlib.dump(plist_safe, self.outfile.buffer)
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(err) from err
 
     def parse_arguments(self) -> None:
@@ -1510,7 +1510,16 @@ class Processor:
                 fh = open(plist_file, "rb")
             else:
                 fh = plist_file
-            return plistlib.load(fh)
+            data = fh.read()
+            try:
+                return plistlib.loads(data)
+            except plistlib.InvalidFileException as err:
+                # Some build toolchains (e.g. Wails/Go) emit XML plists
+                # starting with "<!DOCTYPE plist" instead of "<?xml …>",
+                # which plistlib's auto-detection doesn't recognize.
+                if not data.lstrip().startswith(b"<!DOCTYPE plist"):
+                    raise err
+                return plistlib.loads(data, fmt=plistlib.FMT_XML)
         except Exception as err:
             raise ProcessorError(f"{exception_text}: {err}") from err
         finally:
@@ -1949,6 +1958,29 @@ def extract_processor_name_with_recipe_identifier(
     return (processor_name, identifier)
 
 
+def _load_processor_from_file(processor_name, processor_filename, verbose=None):
+    """Import processor_name from processor_filename, register it in
+    autopkglib's namespace, and return it."""
+    try:
+        spec = importlib.util.spec_from_file_location(
+            processor_name, processor_filename
+        )
+        _tmp = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_tmp)
+        # look for an attribute with the step Processor name
+        _processor = getattr(_tmp, processor_name)
+    except (ImportError, AttributeError) as err:
+        log_err(f"WARNING: {processor_filename}: {err}")
+        if verbose and verbose > 2:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exc(file=sys.stdout)
+            traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+        raise AutoPackagerLoadError(err) from err
+    # add the processor to autopkglib's namespace
+    add_processor(processor_name, _processor)
+    return _processor
+
+
 def get_processor(processor_name, verbose=None, recipe=None, env=None):
     """Returns a Processor object given a name and optionally a recipe,
     importing a processor from the recipe directory if available"""
@@ -2005,10 +2037,26 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
                 shared_processor_recipe_path
             ):
                 shared_processor_recipe_path = None
-            if shared_processor_recipe_path:
-                processor_search_dirs.append(
-                    os.path.dirname(shared_processor_recipe_path)
+            # A qualified reference names exactly one implementation: load it
+            # from the resolved recipe's directory or fail loudly. Never fall
+            # through to a same-named core (or previously imported) processor.
+            if shared_processor_recipe_path is None:
+                raise KeyError(
+                    f"Shared processor '{processor_recipe_id}/{processor_name}' not "
+                    "found under the active search dirs."
                 )
+            processor_filename = os.path.join(
+                os.path.dirname(shared_processor_recipe_path),
+                processor_name + ".py",
+            )
+            if not os.path.exists(processor_filename):
+                raise KeyError(
+                    f"Shared processor '{processor_recipe_id}/{processor_name}' "
+                    f"not found at {processor_filename}."
+                )
+            return _load_processor_from_file(
+                processor_name, processor_filename, verbose
+            )
 
         # search recipe dirs for processor
         if recipe.get("PARENT_RECIPES"):
@@ -2023,28 +2071,9 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
         for directory in deduped_processors:
             processor_filename = os.path.join(directory, processor_name + ".py")
             if os.path.exists(processor_filename):
-                try:
-                    # attempt to import the module
-                    spec = importlib.util.spec_from_file_location(
-                        processor_name, processor_filename
-                    )
-                    _tmp = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(_tmp)
-                    # look for an attribute with the step Processor name
-                    _processor = getattr(_tmp, processor_name)
-                    # add the processor to autopkglib's namespace
-                    add_processor(processor_name, _processor)
-                    # we've added a Processor, so stop searching
-                    break
-                except (ImportError, AttributeError) as err:
-                    # if we aren't successful, that might be OK, we're
-                    # going see if the processor was already imported
-                    log_err(f"WARNING: {processor_filename}: {err}")
-                    if verbose > 2:
-                        exc_type, exc_value, exc_traceback = sys.exc_info()
-                        traceback.print_exc(file=sys.stdout)
-                        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
-                    raise AutoPackagerLoadError(err) from err
+                _load_processor_from_file(processor_name, processor_filename, verbose)
+                # we've added a Processor, so stop searching
+                break
 
     return globals()[processor_name]
 
@@ -2074,7 +2103,7 @@ def plist_serializer(obj) -> Any:
             obj[k] = "" if v is None else plist_serializer(v)
     elif isinstance(obj, list):
         for item in range(len(obj)):
-            plist_serializer(obj[item])
+            obj[item] = "" if obj[item] is None else plist_serializer(obj[item])
     return obj
 
 

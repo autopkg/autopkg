@@ -81,10 +81,6 @@ except ImportError:
 
     _xattr = __xattr_wrapper(__xattr_stub)
 
-assert (
-    _xattr._impl is not None
-), "Failed to initialize xattr library, or stub. This is a bug."
-
 
 def getxattr(path: str, attr: str, symlink: bool = False) -> str | None:
     try:

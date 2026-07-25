@@ -37,7 +37,7 @@ class StopProcessingIf(Processor):
             "required": True,
             "description": (
                 "NSPredicate-style comparison against an environment key. See "
-                "http://developer.apple.com/library/mac/#documentation/"
+                "https://developer.apple.com/library/archive/documentation/"
                 "Cocoa/Conceptual/Predicates/Articles/pSyntax.html"
             ),
         }

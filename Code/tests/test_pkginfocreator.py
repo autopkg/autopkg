@@ -325,6 +325,18 @@ class TestPkgInfoCreator(unittest.TestCase):
 
                 self.assertEqual(root.get("postinstall-action"), expected_flat)
 
+    def test_convert_bundle_info_to_flat_unknown_restart_action(self):
+        """An unrecognized restart action should fall back to 'none', not raise."""
+        bundle_info = {
+            "CFBundleIdentifier": "com.example.app",
+            "IFPkgFlagRestartAction": "RequireTeleportation",
+        }
+
+        flat_tree = self.processor.convert_bundle_info_to_flat(bundle_info)
+        root = flat_tree.getroot()
+
+        self.assertEqual(root.get("postinstall-action"), "none")
+
     def test_convert_bundle_info_to_flat_auth_none(self):
         """Test bundle to flat conversion with non-root authorization."""
         bundle_info = {
@@ -475,15 +487,6 @@ class TestPkgInfoCreator(unittest.TestCase):
             self.processor.create_flat_info(template)
 
         self.assertIn("PackageInfo root should be pkg-info", str(context.exception))
-
-    def test_create_bundle_info_raises_error(self):
-        """Test that create_bundle_info raises error."""
-        with self.assertRaises(ProcessorError) as context:
-            self.processor.create_bundle_info({})
-
-        self.assertIn(
-            "Bundle package creation no longer supported", str(context.exception)
-        )
 
     # Test edge cases and error conditions
     def test_main_with_plist_template_flat_package(self):

@@ -35,20 +35,6 @@ BASE_URL = "https://api.github.com"
 TOKEN = None
 
 
-class RequestWithMethod(urllib.request.Request):
-    """Custom Request class that can accept arbitrary methods besides
-    GET/POST"""
-
-    # http://benjamin.smedbergs.us/blog/2008-10-21/
-    #        putting-and-deleteing-in-python-urllib2/
-    def __init__(self, method, *args, **kwargs):
-        self._method = method
-        urllib.request.Request.__init__(self, *args, **kwargs)
-
-    def get_method(self):
-        return self._method
-
-
 def call_api(
     endpoint,
     method="GET",
@@ -75,8 +61,8 @@ def call_api(
     if data:
         data = json.dumps(data).encode()
 
-    # Setup custom request and its headers
-    req = RequestWithMethod(method, url)
+    # Setup request and its headers
+    req = urllib.request.Request(url, method=method)
     req.add_header("User-Agent", "AutoPkg")
     req.add_header("Accept", accept)
     req.add_header("Authorization", f"token {TOKEN}")
@@ -94,12 +80,14 @@ def call_api(
     except urllib.error.HTTPError as err:
         status = err.code
         print(f"API error: {err}", file=sys.stderr)
+        # Read the body once; a second err.read() would return b"".
+        error_body = err.read()
         try:
-            error_json = json.loads(err.read())
+            error_json = json.loads(error_body)
             print("Server response:", file=sys.stderr)
             pprint(error_json, stream=sys.stderr)
-        except BaseException:
-            print(err.read(), file=sys.stderr)
+        except Exception:
+            print(error_body, file=sys.stderr)
     return (resp_data, status)
 
 
@@ -110,7 +98,9 @@ def clone_repo(url, bare=True):
     if bare:
         cmd.append("--bare")
     cmd.extend([url, clonedir])
-    subprocess.call(cmd)
+    result = subprocess.call(cmd)
+    if result != 0:
+        sys.exit(f"Error cloning {url}, git exited with status {result}.")
     return clonedir
 
 
@@ -300,14 +290,10 @@ Type 'yes' to proceed: """
     # https://help.github.com/articles/duplicating-a-repository
     repodir = clone_repo(f"ssh://git@github.com/{source_repo_user}/{source_repo_name}")
     os.chdir(repodir)
-    subprocess.call(
-        [
-            "git",
-            "push",
-            "--mirror",
-            f"ssh://git@github.com/{dest_org}/{destination_repo_name}",
-        ]
-    )
+    push_dest = f"ssh://git@github.com/{dest_org}/{destination_repo_name}"
+    result = subprocess.call(["git", "push", "--mirror", push_dest])
+    if result != 0:
+        sys.exit(f"Error pushing to {push_dest}, git exited with status {result}.")
 
 
 if __name__ == "__main__":

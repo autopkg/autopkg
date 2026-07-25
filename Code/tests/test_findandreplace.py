@@ -81,6 +81,21 @@ class TestFindAndReplace(unittest.TestCase):
         self.assertEqual(self.processor.env["custom_string"], "Hello World")
         self.assertNotIn("output_string", self.processor.env)
 
+    def test_custom_output_var_keeps_declared_output_string(self):
+        """A custom output var is added to output_variables, not swapped in."""
+        self.processor.env = dict(self.single)
+        self.processor.env["result_output_var_name"] = "custom_string"
+        self.processor.main()
+        self.assertIn("custom_string", self.processor.output_variables)
+        self.assertIn("output_string", self.processor.output_variables)
+
+    def test_custom_output_var_does_not_leak_to_other_instances(self):
+        """Declaring a custom output var must not mutate the class attribute."""
+        self.processor.env = dict(self.single)
+        self.processor.env["result_output_var_name"] = "custom_string"
+        self.processor.main()
+        self.assertNotIn("custom_string", FindAndReplace().output_variables)
+
 
 if __name__ == "__main__":
     unittest.main()

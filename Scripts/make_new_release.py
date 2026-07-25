@@ -244,7 +244,7 @@ if failures:
         smoke_test_bundled_python_architectures(framework_path)
 
 
-class GitHubAPIError(BaseException):
+class GitHubAPIError(Exception):
     """Base error for GitHub API interactions"""
 
     pass
@@ -287,14 +287,12 @@ def api_call(
         error = json.loads(error_json)
         print(f"API message: {error['message']}", file=sys.stderr)
         sys.exit(1)
-    if results:
-        try:
-            parsed = json.loads(results.read())
-            return parsed
-        except BaseException as err:
-            print(err, file=sys.stderr)
-            raise GitHubAPIError from err
-    return None
+    try:
+        parsed = json.loads(results.read())
+        return parsed
+    except Exception as err:
+        print(err, file=sys.stderr)
+        raise GitHubAPIError(str(err)) from err
 
 
 def main():
@@ -421,7 +419,7 @@ def main():
         with open(version_plist_path, "rb") as f:
             plist = plistlib.load(f)
         current_version = plist["Version"]
-    except BaseException:
+    except Exception:
         sys.exit("Couldn't determine current autopkg version!")
     print(f"** Current AutoPkg version: {current_version}")
     try:
@@ -615,7 +613,7 @@ def main():
         try:
             with open(report_plist_path, "rb") as f:
                 report = plistlib.load(f)
-        except BaseException as err:
+        except Exception as err:
             print(
                 "Couldn't parse a valid report plist from the autopkg run!",
                 file=sys.stderr,

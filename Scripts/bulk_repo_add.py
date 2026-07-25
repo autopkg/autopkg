@@ -28,7 +28,7 @@ import urllib.request
 import certifi
 
 
-class GitHubAPIError(BaseException):
+class GitHubAPIError(Exception):
     """Base error for GitHub API interactions"""
 
     pass
@@ -74,9 +74,9 @@ def api_call(
         try:
             parsed = json.loads(results.read())
             return parsed
-        except BaseException as err:
+        except Exception as err:
             print(err, file=sys.stderr)
-            raise GitHubAPIError
+            raise GitHubAPIError(str(err)) from err
     return None
 
 
@@ -89,7 +89,13 @@ def output(quiet, msg):
 def repo_add(repo):
     """Add a repo using 'repo-add'."""
     cmd = ["/usr/local/bin/autopkg", "repo-add", repo]
-    subprocess.run(cmd, check=False, capture_output=True)
+    result = subprocess.run(cmd, check=False, capture_output=True)
+    if result.returncode != 0:
+        print(
+            f"WARNING: repo-add for {repo} failed with status "
+            f"{result.returncode}: {result.stderr.decode(errors='replace').strip()}",
+            file=sys.stderr,
+        )
 
 
 def get_repo_list(prefs):
@@ -98,6 +104,11 @@ def get_repo_list(prefs):
     if prefs:
         cmd.extend(["--prefs", prefs])
     result = subprocess.run(cmd, check=False, capture_output=True)
+    if result.returncode != 0:
+        sys.exit(
+            f"Error running repo-list, autopkg exited with status "
+            f"{result.returncode}: {result.stderr.decode(errors='replace').strip()}"
+        )
     full_repo_list = result.stdout.strip().splitlines()
     repo_list = [x.split(b" ")[0].split(b".")[-1].decode() for x in full_repo_list]
     return repo_list
@@ -176,7 +187,8 @@ def main():
         page += 1
 
     # Ignore autopkg itself
-    repos.remove("autopkg/autopkg")
+    if "autopkg/autopkg" in repos:
+        repos.remove("autopkg/autopkg")
     for repo in repos:
         dirname = repo.replace("autopkg/", "")
         if dirname in repo_list and not args.ignore_existing:

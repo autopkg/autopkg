@@ -135,7 +135,6 @@ class AutoPkgDumper(yaml.SafeDumper):
 
 def print_version(argv) -> None:
     """Prints autopkg version"""
-    _ = argv[1]
     print(get_autopkg_version())
 
 
@@ -635,9 +634,9 @@ def run_git(git_options_and_arguments, git_directory=None):
         )
         cmd_out, cmd_err = proc.communicate()
     except OSError as err:
-        raise GitError from OSError(
+        raise GitError(
             f"ERROR: git execution failed with error code {err.errno}: {err.strerror}"
-        )
+        ) from err
     if proc.returncode != 0:
         raise GitError(f"ERROR: {cmd_err}")
     else:
@@ -1063,9 +1062,13 @@ def repo_update(argv):
 
 
 def do_gh_repo_contents_fetch(
-    repo: str, path: str, use_token=False, decode=True
-) -> bytes | None:
-    """Fetch file contents from GitHub and return as a string."""
+    repo: str, path: str, use_token: bool = False, decode: bool = True
+) -> bytes | str | None:
+    """Fetch file contents from GitHub.
+
+    Returns decoded bytes when `decode` is true, otherwise the API's raw
+    base64 content string.
+    """
     gh_session = GitHubSession()
     if use_token:
         gh_session.get_or_setup_token()
@@ -1086,9 +1089,9 @@ def do_gh_repo_contents_fetch(
     if code is None or code != 200 or results is None:
         log_err("A GitHub API error occurred!")
         return None
-    if decode:
-        return b64decode(results["content"])
-    return results["content"]
+    if not decode:
+        return results["content"]
+    return b64decode(results["content"])
 
 
 def display_help(argv, subcommands):
@@ -1354,7 +1357,7 @@ def get_recipe_list(
                         # AND the override's ParentRecipe matches said
                         # recipe's Identifier, remove the ParentRecipe from the
                         # listing.
-                        for recipe in recipes:
+                        for recipe in list(recipes):
                             if recipe["Name"] == override["Name"] and recipe.get(
                                 "Identifier"
                             ) == override.get("ParentRecipe"):
@@ -2620,14 +2623,17 @@ def run_recipes(argv):  # noqa: C901
     recipe_paths = []
     if verb == "install":
         # hold on for syntactic sugar!
-        for index, item in enumerate(arguments):
+        install_arguments = []
+        for item in arguments:
             # if recipe doesn't have an extension, append '.install'
             if not os.path.splitext(item)[1]:
                 # no extension!
-                arguments[index] = item + ".install"
+                install_arguments.append(item + ".install")
             elif os.path.splitext(item)[1] != ".install":
                 log_err(f"Can't install with a non-install recipe: {item}")
-                del arguments[index]
+            else:
+                install_arguments.append(item)
+        arguments = install_arguments
 
     recipe_paths.extend(arguments)
     recipe_list = {}

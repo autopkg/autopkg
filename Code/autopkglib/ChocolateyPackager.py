@@ -337,7 +337,11 @@ class ChocolateyPackager(Processor):
             elif isinstance(installer_args, str):
                 computed_args = [installer_args]
             else:
-                raise
+                # process() validates this first; this guards direct callers.
+                raise ProcessorError(
+                    "Variable `installer_args` must have type list or string, "
+                    f"got {installer_args.__class__.__name__}"
+                )
         elif self.env["installer_type"] == "msi":
             computed_args = [
                 "/qn",  # No UI

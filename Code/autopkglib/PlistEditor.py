@@ -54,8 +54,7 @@ class PlistEditor(Processor):
         if not pathname:
             return {}
         try:
-            with open(pathname, "rb") as f:
-                return plistlib.load(f)
+            return self.load_plist_from_file(pathname)
         except Exception as err:
             raise ProcessorError(f"Could not read {pathname}: {err}")
 

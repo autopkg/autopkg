@@ -19,10 +19,11 @@ import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from autopkglib import ProcessorError
 from autopkglib.Installer import Installer
 
 
@@ -63,6 +64,24 @@ class TestInstaller(unittest.TestCase):
             }
         )
         mock_disconnect.assert_called_once_with()
+
+    def test_send_request_empty_reply(self):
+        """An empty reply should report that autopkginstalld sent no reply."""
+        mock_file = MagicMock()
+        mock_file.readline.return_value = ""
+        self.processor.socket = MagicMock()
+
+        with (
+            # Patch os directly: autopkglib.Installer resolves to the Installer
+            # class, not the module, so a module-scoped target fails on 3.10.
+            patch("os.fdopen") as mock_fdopen,
+            patch("plistlib.dumps", return_value=b""),
+        ):
+            mock_fdopen.return_value.__enter__.return_value = mock_file
+            with self.assertRaisesRegex(
+                ProcessorError, "No reply from autopkginstalld"
+            ):
+                self.processor.send_request({"package": self.package_path})
 
 
 if __name__ == "__main__":

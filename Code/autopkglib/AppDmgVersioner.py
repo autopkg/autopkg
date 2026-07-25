@@ -18,7 +18,6 @@
 
 import glob
 import os.path
-import plistlib
 
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
@@ -58,14 +57,8 @@ class AppDmgVersioner(DmgMounter):
 
     def read_bundle_info(self, path) -> dict:
         """Read Contents/Info.plist inside a bundle."""
-
         plistpath = os.path.join(path, "Contents", "Info.plist")
-        try:
-            with open(plistpath, "rb") as f:
-                info = plistlib.load(f)
-        except Exception as error:
-            raise ProcessorError(f"Can't read {plistpath}: {error}")
-        return info
+        return self.load_plist_from_file(plistpath, f"Can't read {plistpath}")
 
     def main(self) -> None:
         # Mount the image.
@@ -83,8 +76,10 @@ class AppDmgVersioner(DmgMounter):
                 self.env["version"] = info["CFBundleShortVersionString"]
                 self.output(f"BundleID: {self.env['bundleid']}")
                 self.output(f"Version: {self.env['version']}")
-            except BaseException as err:
-                raise ProcessorError(err)
+            except Exception as err:
+                raise ProcessorError(
+                    f"Can't read bundle info from {app_path}: {err}"
+                ) from err
         finally:
             self.unmount(self.env["dmg_path"])
 

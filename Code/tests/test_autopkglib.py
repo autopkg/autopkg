@@ -527,5 +527,26 @@ class TestUpdateData(unittest.TestCase):
         self.assertIn("%UNDEFINED%", env["PATH"])
 
 
+class TestPlistSerializer(unittest.TestCase):
+    """Tests for plist_serializer None-to-empty-string conversion."""
+
+    def test_none_in_dict_becomes_empty_string(self):
+        self.assertEqual(autopkglib.plist_serializer({"a": None}), {"a": ""})
+
+    def test_none_in_list_becomes_empty_string(self):
+        """plistlib can't dump None, so list members must be converted too."""
+        self.assertEqual(autopkglib.plist_serializer([1, None]), [1, ""])
+
+    def test_none_nested_in_list_of_dicts_becomes_empty_string(self):
+        self.assertEqual(
+            autopkglib.plist_serializer({"items": [{"a": None}, None]}),
+            {"items": [{"a": ""}, ""]},
+        )
+
+    def test_serialized_output_is_plist_dumpable(self):
+        serialized = autopkglib.plist_serializer({"items": [None, {"a": None}]})
+        self.assertIn(b"<string></string>", plistlib.dumps(serialized))
+
+
 if __name__ == "__main__":
     unittest.main()
