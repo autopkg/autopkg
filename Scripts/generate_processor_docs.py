@@ -69,8 +69,8 @@ def writefile(stringdata, path):
     try:
         with open(path, mode="w", buffering=1) as fileobject:
             print(stringdata, file=fileobject)
-    except OSError:
-        print(f"Couldn't write to {path}", file=fileobject)
+    except OSError as err:
+        print(f"Couldn't write to {path}: {err}", file=sys.stderr)
 
 
 def escape(thing):

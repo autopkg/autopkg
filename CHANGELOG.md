@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. This projec
 - GitHubReleasesInfoProvider now honors GITHUB_RELEASES_PER_PAGE.
 - GitHub release recipes now preserve intentional extra leading `v` or `.` characters when deriving `%version%` from unusual release tags, while normal tags like `v1.2.3` and `v.1.2.3` continue to produce `1.2.3`.
 - MunkiInstallsItemsCreator now derives `minimum_os_version` (and reports each created installs item) regardless of whether `faux_root` is set; previously this only worked when `faux_root` had a value. Also fixed a contradictory "lower... skipping" log emitted when a subsequent item's `minosversion` equaled the current minimum.
+- The `generate_processor_docs` script now reports the reason a documentation file couldn't be written, instead of failing with a confusing `NameError` that hid the original error.
 - PkgInfoCreator now warns and falls back to "none" when a bundle-style template contains an unrecognized `IFPkgFlagRestartAction` value, instead of failing with an unexplained `KeyError`.
 - Writing recipes, overrides, and run reports no longer fails when a null value appears inside a list (for example an array of pkginfo items containing a null); nulls in lists are now written as empty strings, matching how nulls in dictionaries were already handled.
 - Installer, InstallFromDMG, and PkgCreator now report "No reply from autopkginstalld/server (crash?), check system logs" when the helper daemon exits without replying. Previously this raised an error with no message at all.
