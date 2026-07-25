@@ -20,6 +20,7 @@ import os
 import plistlib
 import sys
 import unittest
+from base64 import b64encode
 from io import StringIO
 from unittest.mock import Mock, patch
 
@@ -469,6 +470,29 @@ class TestAutoPkgRepos(unittest.TestCase):
 
         self.assertIsNone(result)
         self.assertIn("A GitHub API error occurred", stderr.getvalue())
+
+    @patch("autopkg.GitHubSession")
+    def test_do_gh_repo_contents_fetch_decode_options(self, mock_github_session):
+        """decode/use_token compatibility options behave as documented."""
+        encoded = b64encode(b"contents").decode()
+        mock_session = Mock()
+        mock_github_session.return_value = mock_session
+        mock_session.call_api.return_value = ({"content": encoded}, 200)
+
+        self.assertEqual(
+            autopkg.do_gh_repo_contents_fetch("recipes", "A/A.recipe"), b"contents"
+        )
+        self.assertEqual(
+            autopkg.do_gh_repo_contents_fetch("recipes", "A/A.recipe", decode=False),
+            encoded,
+        )
+        mock_session.get_or_setup_token.assert_not_called()
+
+        self.assertEqual(
+            autopkg.do_gh_repo_contents_fetch("recipes", "A/A.recipe", use_token=True),
+            b"contents",
+        )
+        mock_session.get_or_setup_token.assert_called_once_with()
 
     # Tests for get_recipe_repo function
     @patch("autopkg.run_git")
