@@ -165,12 +165,14 @@ To save the token, paste it to the following prompt.""")
         path_only: bool = False,
         user: str = DEFAULT_SEARCH_USER,
         use_token: bool = False,
+        results_limit: int = 100,
     ) -> list[dict]:
         """Search GitHub for results for a given name.
 
         Note: This method now uses a cached search index instead of the GitHub
-        Code Search API. The user and use_token parameters are deprecated but
-        kept for backward compatibility.
+        Code Search API. The user, use_token, and results_limit parameters are
+        deprecated but kept for backward compatibility. results_limit is
+        accepted and ignored; the cached index returns all matches.
         """
         # Import here to avoid circular dependency
         from autopkgcmd.searchcmd import get_search_results

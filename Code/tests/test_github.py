@@ -510,6 +510,20 @@ class TestGitHubSession(unittest.TestCase):
 
         self.assertEqual(results[0]["repository"]["full_name"], "org/recipes")
 
+    def test_search_for_name_accepts_deprecated_results_limit(self):
+        """results_limit is unused but must stay accepted for old callers."""
+        session = self._session()
+        search_results = [
+            {"Name": "Recipe.rb", "Repo": "recipes", "Path": "recipes/Recipe.rb"}
+        ]
+
+        with patch(
+            "autopkgcmd.searchcmd.get_search_results", return_value=search_results
+        ):
+            results = session.search_for_name("Recipe", results_limit=10)
+
+        self.assertEqual(results[0]["repository"]["full_name"], "autopkg/recipes")
+
 
 if __name__ == "__main__":
     unittest.main()
