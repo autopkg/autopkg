@@ -236,6 +236,14 @@ class TestAppDmgVersioner(unittest.TestCase):
         self.assertEqual(result["CFBundleIdentifier"], TEST_BUNDLE_ID)
         self.assertEqual(result["CFBundleShortVersionString"], TEST_VERSION)
 
+        # Test malformed Info.plist: one error layer, path retained
+        with open(info_plist_path, "wb") as f:
+            f.write(b"not a plist")
+        with self.assertRaises(ProcessorError) as ctx:
+            self.processor.read_bundle_info(app_dir)
+        self.assertIn(info_plist_path, str(ctx.exception))
+        self.assertNotIn("Unable to load plist", str(ctx.exception))
+
         # Test missing Info.plist
         os.remove(info_plist_path)
         with self.assertRaisesRegex(ProcessorError, "Can't read.*Info.plist"):

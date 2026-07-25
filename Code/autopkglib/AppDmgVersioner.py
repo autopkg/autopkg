@@ -58,10 +58,7 @@ class AppDmgVersioner(DmgMounter):
     def read_bundle_info(self, path) -> dict:
         """Read Contents/Info.plist inside a bundle."""
         plistpath = os.path.join(path, "Contents", "Info.plist")
-        try:
-            return self.load_plist_from_file(plistpath)
-        except Exception as error:
-            raise ProcessorError(f"Can't read {plistpath}: {error}") from error
+        return self.load_plist_from_file(plistpath, f"Can't read {plistpath}")
 
     def main(self) -> None:
         # Mount the image.
