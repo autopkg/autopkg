@@ -51,7 +51,7 @@ def get_schema_source(url: str, xmlns: bytes = SCHEMA_XMLNS) -> bytes:
     """Fetch the latest XML schema and replace `{0}` with the given XML namespace."""
     context = ssl.create_default_context()
 
-    with urlopen(SCHEMA_SOURCE_URL, context=context) as res:
+    with urlopen(url, context=context) as res:
         return res.read().replace(b"{0}", xmlns)
 
 

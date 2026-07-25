@@ -146,7 +146,6 @@ class AutoPkgLib:
         If pkg_path is a path within the repo/pkgs directory, copies nothing.
         Renames the item if an item already exists with that name.
         Returns the full path to the item.
-        uninstaller_pkg should be True if the item is an uninstaller (Adobe).
         """
 
         item_version = pkginfo.get("version")

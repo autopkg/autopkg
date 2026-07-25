@@ -163,13 +163,9 @@ class CodeSignatureVerifier(DmgMounter):
             elif strict_verification:
                 self.output("Strict verification enabled...")
                 process.append("--strict")
-            elif not strict_verification:
+            else:
                 self.output("Strict verification disabled...")
                 process.append("--no-strict")
-            else:
-                self.output(
-                    "Strict verification value type unknown. Using codesign defaults..."
-                )
 
         # Add additional arguments (if any).
         for argument in codesign_additional_arguments:

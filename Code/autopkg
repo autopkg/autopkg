@@ -135,7 +135,6 @@ class AutoPkgDumper(yaml.SafeDumper):
 
 def print_version(argv) -> None:
     """Prints autopkg version"""
-    _ = argv[1]
     print(get_autopkg_version())
 
 

@@ -35,20 +35,6 @@ BASE_URL = "https://api.github.com"
 TOKEN = None
 
 
-class RequestWithMethod(urllib.request.Request):
-    """Custom Request class that can accept arbitrary methods besides
-    GET/POST"""
-
-    # http://benjamin.smedbergs.us/blog/2008-10-21/
-    #        putting-and-deleteing-in-python-urllib2/
-    def __init__(self, method, *args, **kwargs):
-        self._method = method
-        urllib.request.Request.__init__(self, *args, **kwargs)
-
-    def get_method(self):
-        return self._method
-
-
 def call_api(
     endpoint,
     method="GET",
@@ -75,8 +61,8 @@ def call_api(
     if data:
         data = json.dumps(data).encode()
 
-    # Setup custom request and its headers
-    req = RequestWithMethod(method, url)
+    # Setup request and its headers
+    req = urllib.request.Request(url, method=method)
     req.add_header("User-Agent", "AutoPkg")
     req.add_header("Accept", accept)
     req.add_header("Authorization", f"token {TOKEN}")
