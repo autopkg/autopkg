@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file. This projec
 - GitHubReleasesInfoProvider now honors GITHUB_RELEASES_PER_PAGE.
 - GitHub release recipes now preserve intentional extra leading `v` or `.` characters when deriving `%version%` from unusual release tags, while normal tags like `v1.2.3` and `v.1.2.3` continue to produce `1.2.3`.
 - MunkiInstallsItemsCreator now derives `minimum_os_version` (and reports each created installs item) regardless of whether `faux_root` is set; previously this only worked when `faux_root` had a value. Also fixed a contradictory "lower... skipping" log emitted when a subsequent item's `minosversion` equaled the current minimum.
+- The `bulk_repo_add` and `setup_new_recipe_repo` maintainer scripts now check whether the git and `autopkg` commands they run actually succeeded, instead of continuing silently after a failed clone, push, `repo-add`, or `repo-list`.
 - FindAndReplace's `result_output_var_name` now adds the custom variable to the processor's declared output variables instead of replacing them, so `output_string` remains documented and `autopkg processor-info` reports both.
 - MunkiInfoCreator now raises a clear error when `makepkginfo` produces output that isn't a valid plist, and no longer fails to report a `makepkginfo` error whose output contains non-UTF-8 characters.
 - The `generate_processor_docs` script now reports the reason a documentation file couldn't be written, instead of failing with a confusing `NameError` that hid the original error.

@@ -110,7 +110,9 @@ def clone_repo(url, bare=True):
     if bare:
         cmd.append("--bare")
     cmd.extend([url, clonedir])
-    subprocess.call(cmd)
+    result = subprocess.call(cmd)
+    if result != 0:
+        sys.exit(f"Error cloning {url}, git exited with status {result}.")
     return clonedir
 
 
@@ -300,14 +302,10 @@ Type 'yes' to proceed: """
     # https://help.github.com/articles/duplicating-a-repository
     repodir = clone_repo(f"ssh://git@github.com/{source_repo_user}/{source_repo_name}")
     os.chdir(repodir)
-    subprocess.call(
-        [
-            "git",
-            "push",
-            "--mirror",
-            f"ssh://git@github.com/{dest_org}/{destination_repo_name}",
-        ]
-    )
+    push_dest = f"ssh://git@github.com/{dest_org}/{destination_repo_name}"
+    result = subprocess.call(["git", "push", "--mirror", push_dest])
+    if result != 0:
+        sys.exit(f"Error pushing to {push_dest}, git exited with status {result}.")
 
 
 if __name__ == "__main__":
