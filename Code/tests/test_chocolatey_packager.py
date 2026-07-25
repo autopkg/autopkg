@@ -417,6 +417,13 @@ class TestChocolateyPackagerValidation(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "type list or string"):
             self.processor(env).process()
 
+    def test_chocolateyinstall_ps1_rejects_invalid_installer_args_type(self):
+        """Called directly, this should raise ProcessorError, not RuntimeError."""
+        env = deepcopy(self.good_file_vars)
+        env["installer_args"] = 123
+        with self.assertRaisesRegex(ProcessorError, "type list or string"):
+            self.processor(env).chocolateyinstall_ps1()
+
     def test_main_unexpected_exception_wrapped(self):
         proc = self.processor()
         with unittest.mock.patch.object(
