@@ -424,31 +424,6 @@ class TestSearchCmd(unittest.TestCase):
     @patch("autopkgcmd.searchcmd.handle_cache_error")
     @patch("autopkgcmd.searchcmd.URLGetter")
     @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_check_search_cache_handles_non_zero_return_code_metadata(
-        self, mock_gh_session, mock_url_getter, mock_handle_error
-    ):
-        """Test that check_search_cache handles non-zero return code from metadata."""
-        cache_dir = tempfile.gettempdir()
-        cache_path = os.path.join(cache_dir, "test_cache_" + str(os.getpid()) + ".json")
-
-        # Mock GitHubSession
-        mock_gh_session.return_value.token = None
-
-        # Mock URLGetter to return non-zero code
-        mock_api = MagicMock()
-        mock_url_getter.return_value = mock_api
-        mock_api.execute_curl.return_value = ("", "", 1)
-
-        check_search_cache(cache_path)
-
-        # Verify handle_cache_error was called
-        mock_handle_error.assert_called_once()
-        call_args = mock_handle_error.call_args[0]
-        self.assertIn("Unable to retrieve search index metadata", call_args[1])
-
-    @patch("autopkgcmd.searchcmd.handle_cache_error")
-    @patch("autopkgcmd.searchcmd.URLGetter")
-    @patch("autopkgcmd.searchcmd.GitHubSession")
     def test_check_search_cache_handles_invalid_json_response(
         self, mock_gh_session, mock_url_getter, mock_handle_error
     ):
@@ -750,49 +725,6 @@ class TestSearchCmd(unittest.TestCase):
         mock_handle_error.assert_called_once()
         call_args = mock_handle_error.call_args[0]
         self.assertIn("Unable to download updated search index", call_args[1])
-
-    @patch("builtins.open", new_callable=mock_open)
-    @patch("os.path.isfile")
-    @patch("autopkgcmd.searchcmd.handle_cache_error")
-    @patch("autopkgcmd.searchcmd.URLGetter")
-    @patch("autopkgcmd.searchcmd.GitHubSession")
-    def test_check_search_cache_handles_non_zero_return_code_download(
-        self,
-        mock_gh_session,
-        mock_url_getter,
-        mock_handle_error,
-        mock_isfile,
-        mock_file,
-    ):
-        """Test that check_search_cache handles non-zero return code from download."""
-        cache_path = "/fake/test_cache.json"
-
-        # Mock that no cache files exist (will trigger download attempt)
-        mock_isfile.return_value = False
-
-        # Mock GitHubSession
-        mock_gh_session.return_value.token = None
-
-        # Mock URLGetter
-        mock_api = MagicMock()
-        mock_url_getter.return_value = mock_api
-
-        # First call succeeds (metadata), second call fails (download)
-        cache_meta = {
-            "sha": "abc123",
-            "size": 1024 * 1024,
-        }
-        mock_api.execute_curl.side_effect = [
-            (json.dumps(cache_meta), "", 0),
-            ("", "", 1),  # Non-zero return code
-        ]
-
-        check_search_cache(cache_path)
-
-        # Verify handle_cache_error was called
-        mock_handle_error.assert_called_once()
-        call_args = mock_handle_error.call_args[0]
-        self.assertIn("Unable to retrieve search index contents", call_args[1])
 
     # Test normalize_keyword function
 

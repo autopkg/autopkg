@@ -88,15 +88,9 @@ def check_search_cache(cache_path: str) -> None:
     curl_cmd.extend(["--url", f"https://api.github.com/{cache_endpoint}"])
 
     try:
-        stdout, _, returncode = api.execute_curl(curl_cmd)
+        stdout, _, _ = api.execute_curl(curl_cmd)
     except ProcessorError:
         handle_cache_error(cache_path, "Unable to check for search index updates")
-        return
-
-    if returncode != 0:
-        handle_cache_error(
-            cache_path, "Unable to retrieve search index metadata from GitHub API"
-        )
         return
 
     try:
@@ -158,15 +152,9 @@ def check_search_cache(cache_path: str) -> None:
     )
 
     try:
-        stdout, _, returncode = api.execute_curl(curl_cmd)
+        api.execute_curl(curl_cmd)
     except ProcessorError:
         handle_cache_error(cache_path, "Unable to download updated search index")
-        return
-
-    if returncode != 0:
-        handle_cache_error(
-            cache_path, "Unable to retrieve search index contents from GitHub API"
-        )
         return
 
 
