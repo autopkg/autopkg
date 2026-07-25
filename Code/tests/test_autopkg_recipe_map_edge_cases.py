@@ -1951,7 +1951,7 @@ class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
             bad_path,
         )
         self.assertTrue(
-            autopkglib.is_path_under_any(bad_path, env["RECIPE_SEARCH_DIRS"])
+            autopkglib._path_under_dirs(bad_path, env["RECIPE_SEARCH_DIRS"])
         )
         self.assertFalse(
             autopkglib.valid_recipe_file(bad_path),

@@ -92,11 +92,6 @@ def _path_under_dirs(path: str, dirs) -> bool:
     )
 
 
-def is_path_under_any(path, bases) -> bool:
-    """Return True if path resolves under any base in bases."""
-    return _path_under_dirs(path, bases)
-
-
 def log(msg, error=False) -> None:
     """Message logger, prints to stdout/stderr."""
     if error:
