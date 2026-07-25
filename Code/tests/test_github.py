@@ -121,7 +121,7 @@ class TestGitHubSession(unittest.TestCase):
         return _execute_curl
 
     def _session(self, token=None):
-        with patch.object(GitHubSession, "_get_token", return_value=token):
+        with patch("autopkglib.github.get_github_token", return_value=token):
             session = GitHubSession()
         session.curl_binary = lambda: "curl"
         return session
@@ -265,7 +265,7 @@ class TestGitHubSession(unittest.TestCase):
         session = self._session()
 
         with (
-            patch.object(session, "_get_token", return_value="ghp_existing"),
+            patch("autopkglib.github.get_github_token", return_value="ghp_existing"),
             patch("builtins.input") as input_mock,
         ):
             token = session.get_or_setup_token()
@@ -279,7 +279,7 @@ class TestGitHubSession(unittest.TestCase):
         file_mock = mock_open()
 
         with (
-            patch.object(session, "_get_token", return_value=None),
+            patch("autopkglib.github.get_github_token", return_value=None),
             patch("autopkglib.github.os.path.exists", return_value=False),
             patch("builtins.input", return_value="ghp_prompttoken"),
             patch("builtins.open", file_mock),
@@ -298,7 +298,7 @@ class TestGitHubSession(unittest.TestCase):
         session = self._session()
 
         with (
-            patch.object(session, "_get_token", return_value=None),
+            patch("autopkglib.github.get_github_token", return_value=None),
             patch("autopkglib.github.os.path.exists", return_value=False),
             patch("builtins.input", return_value=""),
             patch("autopkglib.github.log") as log_mock,
@@ -314,7 +314,7 @@ class TestGitHubSession(unittest.TestCase):
         session = self._session()
 
         with (
-            patch.object(session, "_get_token", return_value=None),
+            patch("autopkglib.github.get_github_token", return_value=None),
             patch("autopkglib.github.os.path.exists", return_value=False),
             patch("builtins.input", return_value="ghp_token"),
             patch("builtins.open", side_effect=OSError("permission denied")),

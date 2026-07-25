@@ -82,21 +82,14 @@ class GitHubSession(URLGetter):
         else:
             self.url = BASE_URL
         self.http_result_code = None
-        self.token = self._get_token(token_path=token_path)
-
-    def _get_token(self, token_path: str = TOKEN_LOCATION) -> str | None:
-        """Reads token from preferences or provided token path.
-        Defaults to TOKEN_LOCATION for the token path.
-        Otherwise returns None.
-        """
-        return get_github_token(token_path)
+        self.token = get_github_token(token_path)
 
     def get_or_setup_token(self) -> str | None:
         """Setup a GitHub OAuth token string. Will help to create one if necessary.
         The string will be stored in TOKEN_LOCATION and used again
         if it exists."""
 
-        token = self._get_token()
+        token = get_github_token(TOKEN_LOCATION)
         if not token and not os.path.exists(TOKEN_LOCATION):
             print("""Create a new token in your GitHub settings page:
 
@@ -172,13 +165,12 @@ To save the token, paste it to the following prompt.""")
         path_only: bool = False,
         user: str = DEFAULT_SEARCH_USER,
         use_token: bool = False,
-        results_limit: int = 100,
     ) -> list[dict]:
         """Search GitHub for results for a given name.
 
         Note: This method now uses a cached search index instead of the GitHub
-        Code Search API. The user, use_token, and results_limit parameters are
-        deprecated but kept for backward compatibility.
+        Code Search API. The user and use_token parameters are deprecated but
+        kept for backward compatibility.
         """
         # Import here to avoid circular dependency
         from autopkgcmd.searchcmd import get_search_results
@@ -193,9 +185,6 @@ To save the token, paste it to the following prompt.""")
         # Warn if token flag is used (no longer needed with cached index)
         if use_token:
             log("WARNING: --use-token flag is deprecated and no longer needed.")
-
-        # Suppress unused parameter warning - kept for backward compatibility
-        _ = results_limit
 
         # Get results from cached index
         results = get_search_results(name, path_only=path_only)
