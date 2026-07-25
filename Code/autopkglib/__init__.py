@@ -2091,7 +2091,7 @@ def plist_serializer(obj) -> Any:
             obj[k] = "" if v is None else plist_serializer(v)
     elif isinstance(obj, list):
         for item in range(len(obj)):
-            plist_serializer(obj[item])
+            obj[item] = "" if obj[item] is None else plist_serializer(obj[item])
     return obj
 
 
