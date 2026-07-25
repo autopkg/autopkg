@@ -1636,6 +1636,20 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_save_pref.assert_any_call("RECIPE_REPOS", {})
         mock_save_pref.assert_any_call("RECIPE_SEARCH_DIRS", [])
 
+    @patch("autopkg.git_cmd")
+    def test_run_git_reports_exec_failure_details(self, mock_git_cmd):
+        """The GitError itself should describe a failure to execute git."""
+        mock_git_cmd.return_value = "/usr/bin/git"
+        exec_error = OSError(13, "Permission denied")
+
+        with patch("subprocess.Popen", side_effect=exec_error):
+            with self.assertRaises(autopkg.GitError) as ctx:
+                autopkg.run_git(["status"])
+
+        self.assertIn("error code 13", str(ctx.exception))
+        self.assertIn("Permission denied", str(ctx.exception))
+        self.assertIs(ctx.exception.__cause__, exec_error)
+
 
 if __name__ == "__main__":
     unittest.main()
