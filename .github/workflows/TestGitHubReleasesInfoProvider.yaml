@@ -18,7 +18,6 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.python-version == '3.12' || matrix.python-version == '3.13' }}
     steps:
       # only needed on self hosted windows runners:
       - name: Set powershell execution policy CurrentUser
