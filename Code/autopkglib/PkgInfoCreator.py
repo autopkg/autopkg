@@ -188,12 +188,6 @@ class PkgInfoCreator(Processor):
 
         info.write(self.env["infofile"])
 
-    def create_bundle_info(self, template) -> NoReturn:
-        """Create Info.plist data for bundle-style pkg"""
-        # We don't support the creation of bundle-style pkgs
-        # any longer, so raise an exception
-        raise ProcessorError("Bundle package creation no longer supported!")
-
 
 if __name__ == "__main__":
     PROCESSOR = PkgInfoCreator()

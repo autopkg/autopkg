@@ -1061,13 +1061,9 @@ def repo_update(argv):
         calculate_recipe_map()
 
 
-def do_gh_repo_contents_fetch(
-    repo: str, path: str, use_token=False, decode=True
-) -> bytes | None:
-    """Fetch file contents from GitHub and return as a string."""
+def do_gh_repo_contents_fetch(repo: str, path: str) -> bytes | None:
+    """Fetch file contents from GitHub and return as decoded bytes."""
     gh_session = GitHubSession()
-    if use_token:
-        gh_session.get_or_setup_token()
     # Do the search, including text match metadata
     results, code = gh_session.call_api(f"/repos/autopkg/{repo}/contents/{quote(path)}")
 
@@ -1085,9 +1081,7 @@ def do_gh_repo_contents_fetch(
     if code is None or code != 200 or results is None:
         log_err("A GitHub API error occurred!")
         return None
-    if decode:
-        return b64decode(results["content"])
-    return results["content"]
+    return b64decode(results["content"])
 
 
 def display_help(argv, subcommands):

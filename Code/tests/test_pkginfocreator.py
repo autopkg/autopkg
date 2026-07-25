@@ -488,15 +488,6 @@ class TestPkgInfoCreator(unittest.TestCase):
 
         self.assertIn("PackageInfo root should be pkg-info", str(context.exception))
 
-    def test_create_bundle_info_raises_error(self):
-        """Test that create_bundle_info raises error."""
-        with self.assertRaises(ProcessorError) as context:
-            self.processor.create_bundle_info({})
-
-        self.assertIn(
-            "Bundle package creation no longer supported", str(context.exception)
-        )
-
     # Test edge cases and error conditions
     def test_main_with_plist_template_flat_package(self):
         """Test main with plist template for flat package (conversion)."""
