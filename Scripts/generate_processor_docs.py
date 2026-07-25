@@ -122,8 +122,9 @@ def generate_sidebar(sidebar_path):
     for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
         if processor_name in EXPERIMENTAL_PROCS:
             continue
+        # Processor names are importable Python identifiers, so they never
+        # contain spaces that would need escaping in a wiki link.
         page_name = f"Processor-{processor_name}"
-        page_name.replace(" ", "-")
         toc_string += f"    * [[{processor_name}|{page_name}]]\n"
 
     with open(sidebar_path) as fdesc:
