@@ -168,7 +168,7 @@ def generate_sidebar(sidebar_path):
     return new_sidebar
 
 
-def main(_):
+def main():
     """Do it all"""
     usage = dedent("""%prog VERSION
 
@@ -317,4 +317,4 @@ def main(_):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())

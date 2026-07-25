@@ -94,12 +94,14 @@ def call_api(
     except urllib.error.HTTPError as err:
         status = err.code
         print(f"API error: {err}", file=sys.stderr)
+        # Read the body once; a second err.read() would return b"".
+        error_body = err.read()
         try:
-            error_json = json.loads(err.read())
+            error_json = json.loads(error_body)
             print("Server response:", file=sys.stderr)
             pprint(error_json, stream=sys.stderr)
-        except BaseException:
-            print(err.read(), file=sys.stderr)
+        except Exception:
+            print(error_body, file=sys.stderr)
     return (resp_data, status)
 
 

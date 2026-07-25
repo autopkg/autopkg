@@ -28,7 +28,7 @@ import urllib.request
 import certifi
 
 
-class GitHubAPIError(BaseException):
+class GitHubAPIError(Exception):
     """Base error for GitHub API interactions"""
 
     pass
@@ -74,9 +74,9 @@ def api_call(
         try:
             parsed = json.loads(results.read())
             return parsed
-        except BaseException as err:
+        except Exception as err:
             print(err, file=sys.stderr)
-            raise GitHubAPIError
+            raise GitHubAPIError(str(err)) from err
     return None
 
 
