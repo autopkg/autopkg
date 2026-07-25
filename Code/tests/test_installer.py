@@ -72,7 +72,9 @@ class TestInstaller(unittest.TestCase):
         self.processor.socket = MagicMock()
 
         with (
-            patch("autopkglib.Installer.os.fdopen") as mock_fdopen,
+            # Patch os directly: autopkglib.Installer resolves to the Installer
+            # class, not the module, so a module-scoped target fails on 3.10.
+            patch("os.fdopen") as mock_fdopen,
             patch("plistlib.dumps", return_value=b""),
         ):
             mock_fdopen.return_value.__enter__.return_value = mock_file
