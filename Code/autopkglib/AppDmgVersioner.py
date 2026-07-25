@@ -61,7 +61,7 @@ class AppDmgVersioner(DmgMounter):
         try:
             return self.load_plist_from_file(plistpath)
         except Exception as error:
-            raise ProcessorError(f"Can't read {plistpath}: {error}")
+            raise ProcessorError(f"Can't read {plistpath}: {error}") from error
 
     def main(self) -> None:
         # Mount the image.
@@ -80,7 +80,9 @@ class AppDmgVersioner(DmgMounter):
                 self.output(f"BundleID: {self.env['bundleid']}")
                 self.output(f"Version: {self.env['version']}")
             except Exception as err:
-                raise ProcessorError(err)
+                raise ProcessorError(
+                    f"Can't read bundle info from {app_path}: {err}"
+                ) from err
         finally:
             self.unmount(self.env["dmg_path"])
 

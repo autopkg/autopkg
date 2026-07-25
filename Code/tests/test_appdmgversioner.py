@@ -178,7 +178,7 @@ class TestAppDmgVersioner(unittest.TestCase):
         mock_mount.return_value = mount_point
         mock_glob.return_value = [app_path]
 
-        with self.assertRaises(ProcessorError):
+        with self.assertRaisesRegex(ProcessorError, "Can't read bundle info"):
             self.processor.main()
 
         mock_unmount.assert_called_once_with(self.good_env["dmg_path"])

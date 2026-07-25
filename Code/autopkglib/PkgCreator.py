@@ -153,7 +153,7 @@ class PkgCreator(Processor):
                 try:
                     os.unlink(pkg_path)
                 except OSError as err:
-                    raise ProcessorError(f"Could not remove {pkg_path}: {err}")
+                    raise ProcessorError(f"Could not remove {pkg_path}: {err}") from err
                 return False
             packageinfo_file = os.path.join(self.env["RECIPE_CACHE_DIR"], "PackageInfo")
             if not os.path.exists(packageinfo_file):
@@ -166,7 +166,7 @@ class PkgCreator(Processor):
                 try:
                     os.unlink(pkg_path)
                 except OSError as err:
-                    raise ProcessorError(f"Could not remove {pkg_path}: {err}")
+                    raise ProcessorError(f"Could not remove {pkg_path}: {err}") from err
                 return False
             # parse the PackageInfo file for version and identifier
             tree = ET.parse(packageinfo_file)  # nosec B314 - parses self-generated pkg
@@ -292,7 +292,7 @@ class PkgCreator(Processor):
                 "The launchd com.github.autopkg.autopkgserver is most likely not "
                 "loaded or running."
                 f"\nError message: {err.strerror}"
-            )
+            ) from err
 
     def send_request(self, request) -> str:
         """Send a packaging request to the autopkgserver"""

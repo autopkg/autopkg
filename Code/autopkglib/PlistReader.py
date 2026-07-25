@@ -153,7 +153,7 @@ class PlistReader(DmgMounter):
             try:
                 info = self.load_plist_from_file(path)
             except Exception as err:
-                raise ProcessorError(err)
+                raise ProcessorError(str(err)) from err
 
             # Copy each plist_keys' values and assign to new env variables
             self.env["plist_reader_output_variables"] = {}
