@@ -42,8 +42,8 @@ class MunkiLib:
                     "MUNKILIB_DIR at the directory containing munkilib."
                 ) from err
             raise ProcessorError(
-                f"munkilib import error: {str(err)}\nMunki tools version 3.2.0.3462 or "
-                "later is required."
+                f"munkilib import error: {str(err)}\nMunki tools version 3.2.0.3462 "
+                "through 6.7.1 is required."
             ) from err
 
         # if munki_repo is a filesystem path, convert it to a format that is understood by
