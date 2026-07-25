@@ -102,8 +102,14 @@ class PkgInfoCreator(Processor):
             else:
                 pkg_info.set("auth", "none")
         if "IFPkgFlagRestartAction" in info:
+            restart_action = info["IFPkgFlagRestartAction"]
+            if restart_action not in conversion_map:
+                self.output(
+                    f"WARNING: Unrecognized IFPkgFlagRestartAction "
+                    f"'{restart_action}' in template; treating as 'none'."
+                )
             pkg_info.set(
-                "postinstall-action", conversion_map[info["IFPkgFlagRestartAction"]]
+                "postinstall-action", conversion_map.get(restart_action, "none")
             )
 
         payload = ElementTree.SubElement(pkg_info, "payload")
