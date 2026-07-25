@@ -290,10 +290,15 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
             with patch.object(self.processor, "output") as mock_log:
                 self.processor.create_installs_items()
 
-        # Value unchanged, and no contradictory "lower ... skipping" log on equality
+        # Value unchanged, and neither the "greater" nor the contradictory
+        # "lower ... skipping" message is emitted on equality
         self.assertEqual(self.processor.env["minimum_os_version"], "10.15")
         skip_calls = [c for c in mock_log.call_args_list if "skipping" in str(c)]
         self.assertEqual(skip_calls, [])
+        greater_calls = [
+            c for c in mock_log.call_args_list if "as greater than" in str(c)
+        ]
+        self.assertEqual(greater_calls, [])
 
     def test_derive_minimum_os_version_disabled(self):
         """Test that minimum OS version is not derived when disabled."""

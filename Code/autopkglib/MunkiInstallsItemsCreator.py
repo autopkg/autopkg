@@ -118,7 +118,7 @@ class MunkiInstallsItemsCreator(Processor):
                         # Compare any subsequent values of item['minosversion']
                         # against self.env["minimum_os_version"] setting
                         # self.env["minimum_os_version"] to the highest minimum
-                        if APLooseVersion(item["minosversion"]) >= APLooseVersion(
+                        if APLooseVersion(item["minosversion"]) > APLooseVersion(
                             self.env["minimum_os_version"]
                         ):
                             self.output(
