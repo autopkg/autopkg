@@ -170,9 +170,10 @@ class Installer(DmgMounter):
                 else:
                     break
 
-        errors = data.rstrip().split("\n")
-        if not errors:
+        if not data.strip():
             errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
+        else:
+            errors = data.rstrip().split("\n")
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
     def disconnect(self) -> None:

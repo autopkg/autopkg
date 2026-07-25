@@ -301,9 +301,10 @@ class PkgCreator(Processor):
             reply = fileref.read()
         if reply.startswith("OK:"):
             return reply.replace("OK:", "").rstrip()
-        errors = reply.rstrip().split("\n")
-        if not errors:
+        if not reply.strip():
             errors = ["ERROR:No reply from server (crash?), check system logs"]
+        else:
+            errors = reply.rstrip().split("\n")
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
     def disconnect(self) -> None:
