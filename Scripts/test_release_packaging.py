@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import importlib.util
+import io
 import subprocess
 import sys
 import tempfile
@@ -62,6 +63,47 @@ class TestReleasePackagingRequirements(unittest.TestCase):
         self.assertEqual(
             entries, ["pyobjc-framework-LaunchServices; sys_platform == 'darwin'"]
         )
+
+
+class TestGitHubAPI(unittest.TestCase):
+    def test_api_call_reports_http_error_bodies(self):
+        cases = (
+            (b'{"message": "rate limit exceeded"}', "rate limit exceeded"),
+            (
+                b'{"documentation_url": "https://example.invalid"}',
+                '{"documentation_url": "https://example.invalid"}',
+            ),
+            (b'["temporary failure"]', '["temporary failure"]'),
+            (b"<html>Bad Gateway</html>", "<html>Bad Gateway</html>"),
+        )
+
+        for body, expected_message in cases:
+            with self.subTest(body=body):
+                http_error = make_new_release.urllib.error.HTTPError(
+                    "https://api.github.com/test",
+                    502,
+                    "Bad Gateway",
+                    {},
+                    io.BytesIO(body),
+                )
+                stderr = io.StringIO()
+
+                with (
+                    patch.object(
+                        make_new_release.urllib.request,
+                        "urlopen",
+                        side_effect=http_error,
+                    ),
+                    patch.object(make_new_release.sys, "stderr", stderr),
+                    self.assertRaises(SystemExit) as raised,
+                ):
+                    make_new_release.api_call("/test")
+
+                self.assertEqual(raised.exception.code, 1)
+                self.assertIn(
+                    f"API message: {expected_message}",
+                    stderr.getvalue(),
+                )
 
 
 class TestBundledPythonSmokeTest(unittest.TestCase):

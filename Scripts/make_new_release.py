@@ -283,9 +283,16 @@ def api_call(
     except urllib.error.HTTPError as err:
         print("HTTP error making API call!", file=sys.stderr)
         print(err, file=sys.stderr)
-        error_json = err.read()
-        error = json.loads(error_json)
-        print(f"API message: {error['message']}", file=sys.stderr)
+        error_body = err.read().decode("utf-8", errors="replace")
+        message = error_body
+        try:
+            error = json.loads(error_body)
+        except json.JSONDecodeError:
+            pass
+        else:
+            if isinstance(error, dict):
+                message = error.get("message", error_body)
+        print(f"API message: {message}", file=sys.stderr)
         sys.exit(1)
     try:
         parsed = json.loads(results.read())
