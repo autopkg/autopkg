@@ -97,6 +97,7 @@ The `audit` verb has been strengthened to provide better signal for recipe pract
 - `audit` now flags insecure `ftp:` URLs alongside `http:` URLs, and flags `ChocolateyPackager` recipes that explicitly use weak installer checksum algorithms (`md5` or `sha1`).
 - `audit` now flags a recipe's top-level `Input` values that look like hard-coded credentials, based on the input's key name (`password`, `secret`, `api_key`, `token`, `client_secret`, `access_key`, `private_key`, `credential`, `bearer`, and variants). A value that is a variable reference such as `%CLIENT_SECRET%`, or that is empty, is not flagged. Only the key name and the reason are reported; the value is never echoed.
 - `audit --json` writes one JSON object per audited recipe, each finding tagged with a stable check name (`sensitive_input`, `missing_codesig`, `insecure_protocol`, `path_safety`, `weak_hash`, `non_core_processor`, `modification_processor`) and a severity of `error`, `warning`, or `info`. Findings are ordered most-severe first. `--json` and `--plist` are mutually exclusive; `--plist` output is unchanged.
+- `audit` can now be gated in CI. `--fail-on error|warning|info` returns exit code 1 if any finding is at or above that severity and 0 otherwise; without it, `audit`'s exit code is unchanged. `--only-check` and `--skip-check` take comma-separated check names and are honored identically by the human-readable, `--plist`, and `--json` output. `--list-checks` prints the available check names with their severities.
 
 #### Path traversal protection
 

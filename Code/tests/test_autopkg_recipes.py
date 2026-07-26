@@ -1449,6 +1449,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options.recipe_list = None
             mock_options.plist = False
             mock_options.json = False
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1495,6 +1499,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options.recipe_list = None
             mock_options.plist = False
             mock_options.json = False
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1552,6 +1560,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
                     mock_options.recipe_list = None
                     mock_options.plist = False
                     mock_options.json = False
+                    mock_options.list_checks = False
+                    mock_options.only_check = None
+                    mock_options.skip_check = None
+                    mock_options.fail_on = None
                     mock_options.override_dirs = None
                     mock_options.search_dirs = None
                     mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1597,6 +1609,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options.recipe_list = None
             mock_options.plist = False
             mock_options.json = False
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1646,6 +1662,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options.recipe_list = None
             mock_options.plist = False
             mock_options.json = False
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1709,6 +1729,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
                     mock_options.recipe_list = None
                     mock_options.plist = False
                     mock_options.json = False
+                    mock_options.list_checks = False
+                    mock_options.only_check = None
+                    mock_options.skip_check = None
+                    mock_options.fail_on = None
                     mock_options.override_dirs = None
                     mock_options.search_dirs = None
                     mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1758,6 +1782,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options.recipe_list = None
             mock_options.plist = True  # Plist output format
             mock_options.json = False
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1804,6 +1832,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options.recipe_list = None
             mock_options.plist = False
             mock_options.json = True
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1842,6 +1874,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options = Mock()
             mock_options.plist = True
             mock_options.json = True
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
 
             result = autopkg.audit(
@@ -1849,6 +1885,123 @@ class TestAutoPkgRecipes(unittest.TestCase):
             )
 
         self.assertEqual(result, -1)
+
+    def _run_audit(self, recipe, **option_overrides):
+        """Run audit() over one recipe. Returns (result, printed, logged_text).
+
+        Every audit option is set explicitly: a bare Mock() returns a truthy
+        Mock for any attribute audit() reads, which silently changes behavior."""
+        options = Mock()
+        options.recipe_list = None
+        options.plist = False
+        options.json = True
+        options.list_checks = False
+        options.only_check = None
+        options.skip_check = None
+        options.fail_on = None
+        options.override_dirs = None
+        options.search_dirs = None
+        for name, value in option_overrides.items():
+            setattr(options, name, value)
+
+        with (
+            patch.object(autopkg, "gen_common_parser"),
+            patch.object(autopkg, "add_search_and_override_dir_options"),
+            patch.object(autopkg, "common_parse", return_value=(options, ["r.recipe"])),
+            patch.object(autopkg, "get_override_dirs", return_value=["/overrides"]),
+            patch.object(autopkg, "get_search_dirs", return_value=["/recipes"]),
+            patch.object(autopkg, "load_recipe", return_value=recipe),
+            patch.object(
+                autopkg, "core_processor_names", return_value=["URLDownloader"]
+            ),
+            patch.object(autopkg, "log") as mock_log,
+            patch.object(autopkg, "log_err"),
+            patch("builtins.print") as mock_print,
+        ):
+            result = autopkg.audit(["autopkg", "audit", "r.recipe"])
+
+        printed = mock_print.call_args[0][0] if mock_print.call_args else None
+        logged = " ".join(str(call) for call in mock_log.call_args_list)
+        return result, printed, logged
+
+    # A recipe with one info finding (non-core processor) and one warning
+    # finding (no CodeSignatureVerifier after a download).
+    AUDIT_MIXED_SEVERITY_RECIPE = {
+        "RECIPE_PATH": "/path/to/r.recipe",
+        "Process": [{"Processor": "URLDownloader"}, {"Processor": "SharedThing"}],
+        "Input": {},
+    }
+
+    def test_audit_only_check_narrows_the_report(self):
+        _, printed, _ = self._run_audit(
+            self.AUDIT_MIXED_SEVERITY_RECIPE, only_check="non_core_processor"
+        )
+
+        checks = {f["check"] for f in json.loads(printed)[0]["findings"]}
+        self.assertEqual(checks, {"non_core_processor"})
+
+    def test_audit_skip_check_removes_a_finding(self):
+        _, printed, _ = self._run_audit(
+            self.AUDIT_MIXED_SEVERITY_RECIPE, skip_check="missing_codesig"
+        )
+
+        checks = {f["check"] for f in json.loads(printed)[0]["findings"]}
+        self.assertNotIn("missing_codesig", checks)
+        self.assertIn("non_core_processor", checks)
+
+    def test_audit_unknown_check_name_is_an_error(self):
+        result, _, _ = self._run_audit(
+            self.AUDIT_MIXED_SEVERITY_RECIPE, only_check="not_a_check"
+        )
+
+        self.assertEqual(result, -1)
+
+    def test_audit_only_check_and_skip_check_are_mutually_exclusive(self):
+        result, _, _ = self._run_audit(
+            self.AUDIT_MIXED_SEVERITY_RECIPE,
+            only_check="weak_hash",
+            skip_check="weak_hash",
+        )
+
+        self.assertEqual(result, -1)
+
+    def test_audit_fail_on_returns_non_zero_at_or_above_threshold(self):
+        result, _, _ = self._run_audit(
+            self.AUDIT_MIXED_SEVERITY_RECIPE, fail_on="warning"
+        )
+
+        self.assertEqual(result, 1)
+
+    def test_audit_fail_on_returns_zero_when_only_lower_severities_found(self):
+        result, _, _ = self._run_audit(
+            self.AUDIT_MIXED_SEVERITY_RECIPE,
+            fail_on="warning",
+            skip_check="missing_codesig",
+        )
+
+        self.assertEqual(result, 0)
+
+    def test_audit_without_fail_on_still_returns_none(self):
+        """The default exit code must not change; CI opts in explicitly."""
+        result, _, _ = self._run_audit(self.AUDIT_MIXED_SEVERITY_RECIPE)
+
+        self.assertIsNone(result)
+
+    def test_audit_unknown_fail_on_severity_is_an_error(self):
+        result, _, _ = self._run_audit(
+            self.AUDIT_MIXED_SEVERITY_RECIPE, fail_on="catastrophic"
+        )
+
+        self.assertEqual(result, -1)
+
+    def test_audit_list_checks_prints_names_and_exits(self):
+        result, _, logged = self._run_audit(
+            self.AUDIT_MIXED_SEVERITY_RECIPE, list_checks=True
+        )
+
+        self.assertIsNone(result)
+        for check in autopkg.AUDIT_CHECKS:
+            self.assertIn(check, logged)
 
     def test_sensitive_input_flags_hard_coded_credential(self):
         """Shape taken from a real public recipe: the sensitive name is in the
@@ -1944,6 +2097,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options.recipe_list = "/path/to/recipes.txt"
             mock_options.plist = False
             mock_options.json = False
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, [])  # No command line recipes
@@ -1985,6 +2142,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options.recipe_list = None
             mock_options.plist = False
             mock_options.json = False
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, [])  # No recipes
@@ -2015,6 +2176,10 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options.recipe_list = None
             mock_options.plist = False
             mock_options.json = False
+            mock_options.list_checks = False
+            mock_options.only_check = None
+            mock_options.skip_check = None
+            mock_options.fail_on = None
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["nonexistent.recipe"])

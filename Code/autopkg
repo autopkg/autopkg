@@ -3022,8 +3022,8 @@ def find_http_urls_in_recipe(recipe):
 # contract for --json; the audit_results keys are the --plist output schema.
 # Keep them decoupled: renaming one must not force renaming the other.
 AUDIT_CHECKS = {
-    "sensitive_input": ("sensitive_inputs", "error"),
     "missing_codesig": ("MissingCodeSignatureVerifier", "warning"),
+    "sensitive_input": ("sensitive_inputs", "error"),
     "insecure_protocol": ("http_urls", "warning"),
     "path_safety": ("path_safety_warnings", "warning"),
     "weak_hash": ("weak_hashes", "warning"),
@@ -3399,10 +3399,71 @@ def audit(argv):
         default=False,
         help="Output in JSON format, with a severity for each finding.",
     )
+    parser.add_option(
+        "--only-check",
+        metavar="CHECKS",
+        help="Comma-separated list of check names to report; omit all others.",
+    )
+    parser.add_option(
+        "--skip-check",
+        metavar="CHECKS",
+        help="Comma-separated list of check names to omit from the report.",
+    )
+    parser.add_option(
+        "--list-checks",
+        action="store_true",
+        default=False,
+        help="Print the available check names and exit.",
+    )
+    parser.add_option(
+        "--fail-on",
+        metavar="SEVERITY",
+        help=(
+            "Return a non-zero exit code if any finding is at or above this "
+            f"severity ({', '.join(AUDIT_SEVERITY_RANK)})."
+        ),
+    )
     options, arguments = common_parse(parser, argv)
+
+    if options.list_checks:
+        for check in sorted(AUDIT_CHECKS):
+            log(f"{check} ({AUDIT_CHECKS[check][1]})")
+        return
 
     if options.plist and options.json:
         log_err("Only one of --plist and --json may be used.")
+        return -1
+
+    if options.only_check and options.skip_check:
+        log_err("Only one of --only-check and --skip-check may be used.")
+        return -1
+
+    selected_keys = None
+    for option_value, keep_selected in (
+        (options.only_check, True),
+        (options.skip_check, False),
+    ):
+        if not option_value:
+            continue
+        names = [name.strip() for name in option_value.split(",") if name.strip()]
+        unknown = [name for name in names if name not in AUDIT_CHECKS]
+        if unknown:
+            log_err(
+                f"Unknown check name(s): {', '.join(unknown)}. "
+                f"Valid checks: {', '.join(sorted(AUDIT_CHECKS))}."
+            )
+            return -1
+        selected_keys = {
+            key
+            for check, (key, _) in AUDIT_CHECKS.items()
+            if (check in names) == keep_selected
+        }
+
+    if options.fail_on and options.fail_on not in AUDIT_SEVERITY_RANK:
+        log_err(
+            f"Unknown severity '{options.fail_on}'. "
+            f"Valid severities: {', '.join(AUDIT_SEVERITY_RANK)}."
+        )
         return -1
 
     override_dirs = options.override_dirs or get_override_dirs()
@@ -3507,6 +3568,14 @@ def audit(argv):
             ) + list(modification_processors)
         if non_core_processors:
             audit_results[recipe_path]["non_core_processors"] = non_core_processors
+        if selected_keys is not None:
+            # Filter here, before any output, so the human, plist, and JSON
+            # views honor --only-check / --skip-check identically.
+            audit_results[recipe_path] = {
+                key: value
+                for key, value in audit_results[recipe_path].items()
+                if key in selected_keys
+            }
         if options.plist or options.json:
             # skip all the printing; we'll print machine-readable output later.
             continue
@@ -3574,6 +3643,16 @@ def audit(argv):
         log(f"    {len(audit_results)} recipes audited")
         log(f"    {recipe_issue_count} recipes with audit issues")
         log(f"    {recipe_no_issue_count} recipes triggered no audit flags")
+
+    if options.fail_on:
+        # Computed from the same findings --json emits, so severity is
+        # single-sourced. Without --fail-on, audit returns None as before.
+        threshold = AUDIT_SEVERITY_RANK[options.fail_on]
+        for recipe_findings in audit_findings(audit_results):
+            for finding in recipe_findings["findings"]:
+                if AUDIT_SEVERITY_RANK[finding["severity"]] >= threshold:
+                    return 1
+        return 0
 
 
 def generate_recipe_map(argv):
