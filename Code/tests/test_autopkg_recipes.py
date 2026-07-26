@@ -16,6 +16,7 @@
 
 import importlib.machinery
 import importlib.util
+import json
 import os
 import plistlib
 import sys
@@ -1447,6 +1448,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options = Mock()
             mock_options.recipe_list = None
             mock_options.plist = False
+            mock_options.json = False
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1492,6 +1494,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options = Mock()
             mock_options.recipe_list = None
             mock_options.plist = False
+            mock_options.json = False
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1548,6 +1551,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
                     mock_options = Mock()
                     mock_options.recipe_list = None
                     mock_options.plist = False
+                    mock_options.json = False
                     mock_options.override_dirs = None
                     mock_options.search_dirs = None
                     mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1592,6 +1596,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options = Mock()
             mock_options.recipe_list = None
             mock_options.plist = False
+            mock_options.json = False
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1640,6 +1645,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options = Mock()
             mock_options.recipe_list = None
             mock_options.plist = False
+            mock_options.json = False
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1702,6 +1708,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
                     mock_options = Mock()
                     mock_options.recipe_list = None
                     mock_options.plist = False
+                    mock_options.json = False
                     mock_options.override_dirs = None
                     mock_options.search_dirs = None
                     mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1750,6 +1757,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options = Mock()
             mock_options.recipe_list = None
             mock_options.plist = True  # Plist output format
+            mock_options.json = False
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["test.recipe"])
@@ -1768,6 +1776,94 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_print.assert_called_once()
             args = mock_print.call_args[0]
             self.assertTrue(args[0].startswith(b"<?xml"))  # Plist format
+
+    @patch("sys.argv", ["autopkg", "audit", "--json", "test.recipe"])
+    def test_audit_json_output(self):
+        """--json emits valid JSON with a check name and severity per finding."""
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/test.recipe",
+            "Process": [{"Processor": "URLDownloader"}],
+            "Input": {"url": "http://insecure.example.com/file.dmg"},
+        }
+
+        with (
+            patch.object(autopkg, "gen_common_parser") as mock_parser_gen,
+            patch.object(autopkg, "add_search_and_override_dir_options"),
+            patch.object(autopkg, "common_parse") as mock_parse,
+            patch.object(autopkg, "get_override_dirs") as mock_get_override_dirs,
+            patch.object(autopkg, "get_search_dirs") as mock_get_search_dirs,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "find_http_urls_in_recipe") as mock_find_urls,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch("builtins.print") as mock_print,
+        ):
+            mock_parser = Mock()
+            mock_parser.add_option = Mock()
+            mock_parser_gen.return_value = mock_parser
+            mock_options = Mock()
+            mock_options.recipe_list = None
+            mock_options.plist = False
+            mock_options.json = True
+            mock_options.override_dirs = None
+            mock_options.search_dirs = None
+            mock_parse.return_value = (mock_options, ["test.recipe"])
+            mock_get_override_dirs.return_value = ["/overrides"]
+            mock_get_search_dirs.return_value = ["/recipes"]
+            mock_load_recipe.return_value = mock_recipe
+            mock_find_urls.return_value = {
+                "Input": {"url": "http://insecure.example.com/file.dmg"}
+            }
+            mock_core_processors.return_value = ["URLDownloader"]
+
+            result = autopkg.audit(["autopkg", "audit", "--json", "test.recipe"])
+
+        self.assertIsNone(result)
+        mock_print.assert_called_once()
+        payload = json.loads(mock_print.call_args[0][0])
+        self.assertEqual(payload[0]["recipe"], "test.recipe")
+        checks = {finding["check"]: finding for finding in payload[0]["findings"]}
+        self.assertEqual(checks["insecure_protocol"]["severity"], "warning")
+        self.assertIn(
+            "http://insecure.example.com/file.dmg",
+            checks["insecure_protocol"]["detail"],
+        )
+        self.assertEqual(checks["missing_codesig"]["severity"], "warning")
+
+    @patch("sys.argv", ["autopkg", "audit", "--json", "--plist", "test.recipe"])
+    def test_audit_json_and_plist_are_mutually_exclusive(self):
+        """--json and --plist are separate views; asking for both is an error."""
+        with (
+            patch.object(autopkg, "gen_common_parser") as mock_parser_gen,
+            patch.object(autopkg, "add_search_and_override_dir_options"),
+            patch.object(autopkg, "common_parse") as mock_parse,
+            patch.object(autopkg, "log_err"),
+        ):
+            mock_parser_gen.return_value = Mock()
+            mock_options = Mock()
+            mock_options.plist = True
+            mock_options.json = True
+            mock_parse.return_value = (mock_options, ["test.recipe"])
+
+            result = autopkg.audit(
+                ["autopkg", "audit", "--json", "--plist", "test.recipe"]
+            )
+
+        self.assertEqual(result, -1)
+
+    def test_audit_findings_orders_by_severity(self):
+        """Findings sort most-severe first, so a reader sees errors before info."""
+        findings = autopkg.audit_findings(
+            {
+                "R.recipe": {
+                    "non_core_processors": ["SomeSharedProcessor"],
+                    "weak_hashes": [{"location": "Input.HASH", "reason": "md5"}],
+                }
+            }
+        )[0]["findings"]
+
+        self.assertEqual(
+            [finding["severity"] for finding in findings], ["warning", "info"]
+        )
 
     @patch("sys.argv", ["autopkg", "audit", "--recipe-list", "/path/to/recipes.txt"])
     def test_audit_recipe_list_file(self):
@@ -1796,6 +1892,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options = Mock()
             mock_options.recipe_list = "/path/to/recipes.txt"
             mock_options.plist = False
+            mock_options.json = False
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, [])  # No command line recipes
@@ -1836,6 +1933,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options = Mock()
             mock_options.recipe_list = None
             mock_options.plist = False
+            mock_options.json = False
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, [])  # No recipes
@@ -1865,6 +1963,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             mock_options = Mock()
             mock_options.recipe_list = None
             mock_options.plist = False
+            mock_options.json = False
             mock_options.override_dirs = None
             mock_options.search_dirs = None
             mock_parse.return_value = (mock_options, ["nonexistent.recipe"])

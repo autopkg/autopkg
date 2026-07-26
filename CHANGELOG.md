@@ -95,6 +95,7 @@ The `audit` verb has been strengthened to provide better signal for recipe pract
 - `audit` now recognizes `AppPkgCreator` and `ChocolateyPackager` as artifact creators, so modification processors preceding them are surfaced (previously only `DmgCreator`, `FlatPkgPacker`, and `PkgCreator` were recognized).
 - `audit` now reports path-sensitive recipe values that deserve closer inspection, including identifiers with path traversal markers, suspicious privileged install/copy paths, `PkgRootCreator` parent-directory references, generic parent-directory traversal in `Copier`, `FileMover`, `PathDeleter`, and `Unarchiver` path arguments, unsafe DMG pseudo-paths, and Chocolatey package identifiers or versions containing path separators.
 - `audit` now flags insecure `ftp:` URLs alongside `http:` URLs, and flags `ChocolateyPackager` recipes that explicitly use weak installer checksum algorithms (`md5` or `sha1`).
+- `audit --json` writes one JSON object per audited recipe, each finding tagged with a stable check name (`missing_codesig`, `insecure_protocol`, `path_safety`, `weak_hash`, `non_core_processor`, `modification_processor`) and a severity of `error`, `warning`, or `info`. Findings are ordered most-severe first. `--json` and `--plist` are mutually exclusive; `--plist` output is unchanged.
 
 #### Path traversal protection
 

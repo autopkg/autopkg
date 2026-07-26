@@ -20,6 +20,7 @@ import copy
 import difflib
 import glob
 import hashlib
+import json
 import os
 import plistlib
 import pprint
@@ -3016,6 +3017,59 @@ def find_http_urls_in_recipe(recipe):
     return recipe_urls
 
 
+# Audit check vocabulary, mapping each public check name to the internal
+# audit_results key it accumulates into and its severity. Check names are the
+# contract for --json; the audit_results keys are the --plist output schema.
+# Keep them decoupled: renaming one must not force renaming the other.
+AUDIT_CHECKS = {
+    "missing_codesig": ("MissingCodeSignatureVerifier", "warning"),
+    "insecure_protocol": ("http_urls", "warning"),
+    "path_safety": ("path_safety_warnings", "warning"),
+    "weak_hash": ("weak_hashes", "warning"),
+    "non_core_processor": ("non_core_processors", "info"),
+    "modification_processor": ("audit_processors", "info"),
+}
+AUDIT_SEVERITY_RANK = {"info": 0, "warning": 1, "error": 2}
+
+
+def _audit_insecure_url_details(http_urls):
+    """Flatten find_http_urls_in_recipe's nested dict to one string per URL."""
+    for key, value in sorted(http_urls.get("Input", {}).items()):
+        yield f"Input.{key}: {value}"
+    for processor, arguments in sorted(http_urls.get("Process", {}).items()):
+        for key, value in sorted(arguments.items()):
+            yield f"Process.{processor}.{key}: {value}"
+
+
+def _audit_check_details(check, data) -> list[str]:
+    """Render one audit_results value as one detail string per finding."""
+    if check == "missing_codesig":
+        return ["No CodeSignatureVerifier step in a recipe that downloads."]
+    if check == "insecure_protocol":
+        return list(_audit_insecure_url_details(data))
+    if check in ("path_safety", "weak_hash"):
+        return [f"{item['location']}: {item['reason']}" for item in data]
+    return [str(item) for item in data]
+
+
+def audit_findings(audit_results) -> list[dict[str, Any]]:
+    """Convert the audit_results accumulator into a severity-tagged per-recipe
+    view. Single-sourced so --json and --fail-on can't disagree."""
+    findings_by_recipe = []
+    for recipe_path, results in audit_results.items():
+        findings = []
+        for check, (key, severity) in AUDIT_CHECKS.items():
+            if key not in results:
+                continue
+            findings.extend(
+                {"severity": severity, "check": check, "detail": detail}
+                for detail in _audit_check_details(check, results[key])
+            )
+        findings.sort(key=lambda f: (-AUDIT_SEVERITY_RANK[f["severity"]], f["check"]))
+        findings_by_recipe.append({"recipe": recipe_path, "findings": findings})
+    return findings_by_recipe
+
+
 AUDIT_DMG_EXTENSIONS = (".dmg/", ".iso/")
 AUDIT_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 AUDIT_RUNTIME_PATH_PREFIXES = ("%RECIPE_CACHE_DIR%", "%CACHE_DIR%")
@@ -3301,7 +3355,18 @@ def audit(argv):
         default=False,
         help="Output in plist format.",
     )
+    parser.add_option(
+        "-j",
+        "--json",
+        action="store_true",
+        default=False,
+        help="Output in JSON format, with a severity for each finding.",
+    )
     options, arguments = common_parse(parser, argv)
+
+    if options.plist and options.json:
+        log_err("Only one of --plist and --json may be used.")
+        return -1
 
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
@@ -3402,8 +3467,8 @@ def audit(argv):
             ) + list(modification_processors)
         if non_core_processors:
             audit_results[recipe_path]["non_core_processors"] = non_core_processors
-        if options.plist:
-            # skip all the printing; we'll print plist output later.
+        if options.plist or options.json:
+            # skip all the printing; we'll print machine-readable output later.
             continue
         if audit_results[recipe_path]:
             recipe_issue_count += 1
@@ -3454,6 +3519,8 @@ def audit(argv):
             log(f"{recipe_path}: no audit flags triggered.")
     if options.plist:
         print(plistlib.dumps(audit_results))
+    elif options.json:
+        print(json.dumps(audit_findings(audit_results), indent=2))
     elif len(recipe_paths) > 1:
         log("\nSummary:")
         log(f"    {len(audit_results)} recipes audited")
