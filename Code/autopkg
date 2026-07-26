@@ -1513,7 +1513,9 @@ def find_processor_path(processor_name, recipe, env=None):
     """Returns the pathname to a processor given a name and a recipe"""
     if env is None:
         env = {}
-        env["RECIPE_SEARCH_DIRS"] = get_pref("RECIPE_SEARCH_DIRS") or []
+    search_dirs = env.get("RECIPE_SEARCH_DIRS")
+    if search_dirs is None:
+        search_dirs = get_search_dirs()
     if recipe:
         recipe_dir = os.path.dirname(recipe["RECIPE_PATH"])
         processor_search_dirs = [recipe_dir]
@@ -1542,14 +1544,14 @@ def find_processor_path(processor_name, recipe, env=None):
                 processor_recipe_id
             )
             if shared_processor_recipe_path and not _path_under_dirs(
-                shared_processor_recipe_path, env.get("RECIPE_SEARCH_DIRS", [])
+                shared_processor_recipe_path, search_dirs
             ):
                 # Map hit points outside the caller's declared search
                 # scope; do not honour it.
                 shared_processor_recipe_path = None
             if shared_processor_recipe_path is None:
                 shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
-                    processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+                    processor_recipe_id, search_dirs
                 )
             if shared_processor_recipe_path is None and _try_cwd_rebuild_once(
                 f"resolving shared processor {processor_recipe_id!r}"
@@ -1561,7 +1563,7 @@ def find_processor_path(processor_name, recipe, env=None):
                 )
                 if shared_processor_recipe_path and not _path_under_dirs(
                     shared_processor_recipe_path,
-                    env.get("RECIPE_SEARCH_DIRS", []),
+                    search_dirs,
                 ):
                     shared_processor_recipe_path = None
             if shared_processor_recipe_path:

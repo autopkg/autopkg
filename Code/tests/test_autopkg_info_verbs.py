@@ -1188,7 +1188,7 @@ class TestInfoVerbs(unittest.TestCase):
         env = None
 
         with (
-            patch("autopkg.get_pref") as mock_get_pref,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
             patch("os.path.dirname") as mock_dirname,
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
@@ -1196,7 +1196,7 @@ class TestInfoVerbs(unittest.TestCase):
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
         ):
-            mock_get_pref.return_value = ["/default/search/dir"]
+            mock_get_search_dirs.return_value = ["/default/search/dir"]
             mock_dirname.return_value = "/recipes"
             mock_extract.return_value = ("TestProcessor", None)
             mock_exists.return_value = True
@@ -1206,8 +1206,7 @@ class TestInfoVerbs(unittest.TestCase):
 
             self.assertEqual(result, "/recipes/TestProcessor.py")
 
-            # Verify it got default search dirs from preferences
-            mock_get_pref.assert_called_once_with("RECIPE_SEARCH_DIRS")
+            mock_get_search_dirs.assert_called_once_with()
 
     def test_find_processor_path_search_multiple_directories(self):
         """Test find_processor_path searches multiple directories in order."""
@@ -1352,33 +1351,37 @@ class TestInfoVerbs(unittest.TestCase):
 
             self.assertEqual(result, "/shared/CustomProcessor.py")
 
-    def test_find_processor_path_get_pref_returns_none(self):
-        """Test find_processor_path when get_pref returns None for search dirs."""
-        processor_name = "TestProcessor"
+    def test_find_processor_path_env_without_search_dirs(self):
+        """Test find_processor_path when env omits the search dirs key."""
+        processor_name = "com.example.shared/TestProcessor"
         recipe = {"RECIPE_PATH": "/recipes/TestApp.recipe"}
-        env = None
+        env = {}
 
         with (
-            patch("autopkg.get_pref") as mock_get_pref,
-            patch("os.path.dirname") as mock_dirname,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
+            patch("autopkg.find_recipe_by_identifier_in_map", return_value=None),
+            patch(
+                "autopkg.find_recipe_by_identifier_on_disk",
+                return_value="/default/search/dir/Shared.recipe",
+            ) as mock_find_on_disk,
             patch("os.path.exists") as mock_exists,
-            patch("os.path.join") as mock_join,
         ):
-            mock_get_pref.return_value = None  # No search dirs in prefs
-            mock_dirname.return_value = "/recipes"
-            mock_extract.return_value = ("TestProcessor", None)
-            mock_exists.return_value = True
-            mock_join.return_value = "/recipes/TestProcessor.py"
+            mock_get_search_dirs.return_value = ["/default/search/dir"]
+            mock_extract.return_value = ("TestProcessor", "com.example.shared")
+            mock_exists.side_effect = (
+                lambda path: path == "/default/search/dir/TestProcessor.py"
+            )
 
             result = autopkg.find_processor_path(processor_name, recipe, env)
 
-            self.assertEqual(result, "/recipes/TestProcessor.py")
-
-            # Should still work with empty search dirs list
-            mock_get_pref.assert_called_once_with("RECIPE_SEARCH_DIRS")
+            self.assertEqual(result, "/default/search/dir/TestProcessor.py")
+            mock_get_search_dirs.assert_called_once_with()
+            mock_find_on_disk.assert_called_once_with(
+                "com.example.shared", ["/default/search/dir"]
+            )
 
 
 if __name__ == "__main__":
