@@ -177,7 +177,7 @@ class URLDownloader(URLGetter):
             metadata = self.get_metadata()
             self.existing_file_size: int | None = os.path.getsize(self.env["pathname"])
             if not self.env.get("CHECK_FILESIZE_ONLY"):
-                http_headers: dict[str, Any] = metadata.get("http_headers", {})
+                http_headers: dict[str, str] = metadata.get("http_headers", {})
                 if etag := http_headers.get("ETag"):
                     headers["If-None-Match"] = etag
                 if last_modified := http_headers.get("Last-Modified"):
@@ -335,7 +335,11 @@ class URLDownloader(URLGetter):
             "CHECK_FILESIZE_ONLY"
         ]:
             size_header = header.get("content-length")
-            if size_header and int(size_header) == self.existing_file_size:
+            if (
+                size_header
+                and self.existing_file_size is not None
+                and int(size_header) == self.existing_file_size
+            ):
                 self.env["download_changed"] = False
                 self.output(
                     "File size returned by webserver matches that "
