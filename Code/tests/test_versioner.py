@@ -125,6 +125,33 @@ class TestVersioner(unittest.TestCase):
     @patch.object(Versioner, "_read_from_dmg", return_value={})
     def test_read_auto_detect(self, mock_dmg, mock_zip, mock_exists):
         """File type auto detection"""
+        mock_deserializer = mock.MagicMock()
+        zip_inner_path = self._mkpath("archive.zip", "dummy", "file.txt")
+        dmg_inner_path = self._mkpath("image.dmg", "dummy", "file2.txt")
+        real_path = self._mkpath("regular", "dummy", "file3.txt")
+        for path in (
+            real_path,
+            zip_inner_path,
+            dmg_inner_path,
+        ):
+            with self.subTest(path=path):
+                self.processor._read_auto_detect(
+                    path=path,
+                    skip_single_root_dir=False,
+                    deserializer=mock_deserializer,
+                )
+        mock_deserializer.assert_called_once_with(real_path)
+        mock_exists.assert_called_once_with(real_path)
+        mock_zip.assert_called_once_with(zip_inner_path, False, mock_deserializer)
+        mock_dmg.assert_called_once_with(dmg_inner_path, mock_deserializer)
+
+    @patch("os.path.exists", return_value=True)
+    @patch.object(Versioner, "_read_from_zip", return_value={})
+    @patch.object(Versioner, "_read_from_dmg", return_value={})
+    def test_read_auto_detect_default_deserializer(
+        self, mock_dmg, mock_zip, mock_exists
+    ):
+        """When no deserializer is supplied, the default plist loader is used."""
         zip_inner_path = self._mkpath("archive.zip", "dummy", "file.txt")
         dmg_inner_path = self._mkpath("image.dmg", "dummy", "file2.txt")
         real_path = self._mkpath("regular", "dummy", "file3.txt")
@@ -141,8 +168,8 @@ class TestVersioner(unittest.TestCase):
                     )
         mock_load.assert_called_once_with(real_path)
         mock_exists.assert_called_once_with(real_path)
-        mock_zip.assert_called_once_with(zip_inner_path, False)
-        mock_dmg.assert_called_once_with(dmg_inner_path)
+        mock_zip.assert_called_once_with(zip_inner_path, False, mock_load)
+        mock_dmg.assert_called_once_with(dmg_inner_path, mock_load)
 
     def test_version_from_image(self):
         """Inner image-like (DMG/ISO) paths work"""
