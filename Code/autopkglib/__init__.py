@@ -92,9 +92,22 @@ def _path_under_dirs(path: str, dirs) -> bool:
     )
 
 
+_LOG_TO_STDERR = False
+
+
+def redirect_log_to_stderr(enabled: bool = True) -> None:
+    """Route log() to stderr instead of stdout for the rest of the process.
+
+    For verbs that write machine-readable output, stdout is the payload.
+    Informational messages printed there (a recipe map rebuild, an overridden
+    map path) corrupt it for anything parsing stdout."""
+    global _LOG_TO_STDERR
+    _LOG_TO_STDERR = enabled
+
+
 def log(msg, error=False) -> None:
     """Message logger, prints to stdout/stderr."""
-    if error:
+    if error or _LOG_TO_STDERR:
         print(msg, file=sys.stderr)
     else:
         print(msg)

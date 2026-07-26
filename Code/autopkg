@@ -71,6 +71,7 @@ from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict
     processor_names,
     read_recipe_map,
     recipe_from_file,
+    redirect_log_to_stderr,
     remove_recipe_extension,
     set_pref,
     valid_override_dict,
@@ -3466,6 +3467,12 @@ def audit(argv):
         )
         return -1
 
+    if options.plist or options.json:
+        # stdout is the machine-readable payload from here on. Recipe loading
+        # logs to stdout (map rebuilds, overridden map paths), which would
+        # otherwise be interleaved with it.
+        redirect_log_to_stderr()
+
     override_dirs = options.override_dirs or get_override_dirs()
     search_dirs = options.search_dirs or get_search_dirs()
 
@@ -3635,7 +3642,7 @@ def audit(argv):
             recipe_no_issue_count += 1
             log(f"{recipe_path}: no audit flags triggered.")
     if options.plist:
-        print(plistlib.dumps(audit_results))
+        print(plistlib.dumps(audit_results).decode())
     elif options.json:
         print(json.dumps(audit_findings(audit_results), indent=2))
     elif len(recipe_paths) > 1:

@@ -23,6 +23,7 @@ import sys
 import textwrap
 import unittest
 import unittest.mock
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from unittest.mock import Mock, patch
@@ -62,6 +63,9 @@ class TestAutoPkgRecipes(unittest.TestCase):
         self.tmp_dir.cleanup()
         for patcher in self._recipe_map_patches:
             patcher.stop()
+        # audit's machine-readable output flips log() to stderr process-wide;
+        # undo it so the setting can't leak into later tests in the same run.
+        autopkg.redirect_log_to_stderr(False)
 
     def test_recipe_has_step_processor_with_processor(self):
         """Test recipe_has_step_processor when recipe contains the specified processor."""
@@ -1800,10 +1804,57 @@ class TestAutoPkgRecipes(unittest.TestCase):
             result = autopkg.audit(["autopkg", "audit", "--plist", "test.recipe"])
 
             self.assertIsNone(result)
-            # Should print plist format output
+            # Should print plist format output as text, not a bytes repr.
             mock_print.assert_called_once()
             args = mock_print.call_args[0]
-            self.assertTrue(args[0].startswith(b"<?xml"))  # Plist format
+            self.assertTrue(args[0].startswith("<?xml"))  # Plist format
+
+    def test_audit_plist_writes_only_the_plist_to_stdout(self):
+        """#922: stdout carries the --plist payload, so anything the recipe
+        loader logs there has to move to stderr, and the payload has to be text
+        rather than a bytes repr, or the output won't parse."""
+        recipe = {
+            "RECIPE_PATH": "/path/to/r.recipe",
+            "Process": [{"Processor": "URLDownloader"}],
+            "Input": {"url": "http://insecure.example.com/file.dmg"},
+        }
+
+        def load_recipe_and_log(*_args, **_kwargs):
+            # Stands in for the recipe map notices, which log to stdout.
+            autopkg.log("Rebuilding recipe map with current working directories")
+            return recipe
+
+        options = Mock()
+        options.recipe_list = None
+        options.plist = True
+        options.json = False
+        options.list_checks = False
+        options.only_check = None
+        options.skip_check = None
+        options.fail_on = None
+        options.override_dirs = None
+        options.search_dirs = None
+
+        out, err = StringIO(), StringIO()
+        with (
+            patch.object(autopkg, "gen_common_parser"),
+            patch.object(autopkg, "add_search_and_override_dir_options"),
+            patch.object(autopkg, "common_parse", return_value=(options, ["r.recipe"])),
+            patch.object(autopkg, "get_override_dirs", return_value=["/overrides"]),
+            patch.object(autopkg, "get_search_dirs", return_value=["/recipes"]),
+            patch.object(autopkg, "load_recipe", side_effect=load_recipe_and_log),
+            patch.object(
+                autopkg, "core_processor_names", return_value=["URLDownloader"]
+            ),
+            redirect_stdout(out),
+            redirect_stderr(err),
+        ):
+            autopkg.audit(["autopkg", "audit", "--plist", "r.recipe"])
+
+        self.assertIn("Rebuilding recipe map", err.getvalue())
+        self.assertNotIn("Rebuilding recipe map", out.getvalue())
+        # The real assertion: stdout parses as a plist on its own.
+        self.assertIn("r.recipe", plistlib.loads(out.getvalue().encode()))
 
     @patch("sys.argv", ["autopkg", "audit", "--json", "test.recipe"])
     def test_audit_json_output(self):
