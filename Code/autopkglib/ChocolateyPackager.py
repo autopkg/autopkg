@@ -288,20 +288,15 @@ class ChocolateyPackager(Processor):
         self._safe_path_component("version")
 
     def _path_under_dir(self, base_dir: str, *parts: str) -> str:
+        r"""Return an absolute path under base_dir.
+
+        Example: ``self._path_under_dir(build_dir, "tools/chocolateyInstall.ps1")``
+        returns ``<build_dir>/tools/chocolateyInstall.ps1``.
+        """
         path = os.path.abspath(os.path.join(base_dir, *parts))
         if not is_path_under(path, base_dir):
             raise ProcessorError(f"Path resolves outside {base_dir}: {path}")
         return path
-
-    def _build_path(self, build_dir: str, *additional_parts: str) -> str:
-        r"""Return absolute path of `build_dir` and any additional path parts.
-        Example:
-        ```
-        self._build_path(build_dir, "tools/chocolateyInstall.ps1")`
-        # C:\choco_builds\build_xy2820.44\tools\chocolateyInstall.ps1
-        ```
-        """
-        return self._path_under_dir(build_dir, *additional_parts)
 
     @property
     def idver(self) -> str:
@@ -310,10 +305,12 @@ class ChocolateyPackager(Processor):
         )
 
     def _nuspec_path(self, build_dir: str) -> str:
-        return self._build_path(build_dir, f"{self._safe_path_component('id')}.nuspec")
+        return self._path_under_dir(
+            build_dir, f"{self._safe_path_component('id')}.nuspec"
+        )
 
     def _chocolateyinstall_path(self, build_dir: str) -> str:
-        return self._build_path(build_dir, "tools", "chocolateyInstall.ps1")
+        return self._path_under_dir(build_dir, "tools", "chocolateyInstall.ps1")
 
     def nuspec_definition(self) -> NuspecGenerator:
         def_args: dict[str, Any] = {}
@@ -377,7 +374,7 @@ class ChocolateyPackager(Processor):
 
     def write_build_configs(self, build_dir: str) -> None:
         """Given a directory, writes the necessary files to run `choco.exe pack`"""
-        tools_dir = self._build_path(build_dir, "tools")
+        tools_dir = self._path_under_dir(build_dir, "tools")
         os.mkdir(tools_dir)
         nuspec_gen = self.nuspec_definition()
 
@@ -478,7 +475,7 @@ class ChocolateyPackager(Processor):
         output_dir = os.path.abspath(
             self.env.get(
                 "output_directory",
-                os.path.abspath(os.path.join(self.env["RECIPE_CACHE_DIR"], "nupkgs")),
+                os.path.join(self.env["RECIPE_CACHE_DIR"], "nupkgs"),
             )
         )
         if not os.path.exists(output_dir):

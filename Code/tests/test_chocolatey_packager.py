@@ -129,7 +129,7 @@ class TestChocolateyPackagerPathSafety(unittest.TestCase):
         build_dir = os.path.join(self.test_dir.name, "build")
 
         with self.assertRaisesRegex(ProcessorError, "resolves outside"):
-            processor._build_path(build_dir, "..", "escape")
+            processor._path_under_dir(build_dir, "..", "escape")
 
     def test_remote_installer_renders_url_checksum_fields(self):
         env = deepcopy(self.good_file_vars)
