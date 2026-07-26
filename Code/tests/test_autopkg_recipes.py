@@ -2043,6 +2043,17 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
         self.assertEqual(result, 1)
 
+    def test_audit_json_with_fail_on_computes_findings_once(self):
+        with patch.object(
+            autopkg, "audit_findings", wraps=autopkg.audit_findings
+        ) as mock_audit_findings:
+            result, _, _ = self._run_audit(
+                self.AUDIT_MIXED_SEVERITY_RECIPE, fail_on="warning"
+            )
+
+        self.assertEqual(result, 1)
+        mock_audit_findings.assert_called_once()
+
     def test_audit_fail_on_returns_zero_when_only_lower_severities_found(self):
         result, _, _ = self._run_audit(
             self.AUDIT_MIXED_SEVERITY_RECIPE,

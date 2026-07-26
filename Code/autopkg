@@ -3312,7 +3312,7 @@ def find_sensitive_inputs_in_recipe(recipe):
             continue
         # A pure variable reference (%CLIENT_SECRET%) is the correct pattern,
         # not a finding. A '%' anywhere means some substitution is in play.
-        if RE_KEYREF.fullmatch(value) or "%" in value:
+        if "%" in value:
             continue
         sensitive_inputs.append(
             {
@@ -3598,10 +3598,12 @@ def audit(argv):
         else:
             recipe_no_issue_count += 1
             log(f"{recipe_path}: no audit flags triggered.")
+    findings = audit_findings(audit_results) if options.json or options.fail_on else []
+
     if options.plist:
         print(plistlib.dumps(audit_results).decode())
     elif options.json:
-        print(json.dumps(audit_findings(audit_results), indent=2))
+        print(json.dumps(findings, indent=2))
     elif len(recipe_paths) > 1:
         log("\nSummary:")
         log(f"    {len(audit_results)} recipes audited")
@@ -3612,11 +3614,13 @@ def audit(argv):
         # Computed from the same findings --json emits, so severity is
         # single-sourced. Without --fail-on, audit returns None as before.
         threshold = AUDIT_SEVERITY_RANK[options.fail_on]
-        for recipe_findings in audit_findings(audit_results):
-            for finding in recipe_findings["findings"]:
-                if AUDIT_SEVERITY_RANK[finding["severity"]] >= threshold:
-                    return 1
-        return 0
+        return int(
+            any(
+                AUDIT_SEVERITY_RANK[finding["severity"]] >= threshold
+                for recipe_findings in findings
+                for finding in recipe_findings["findings"]
+            )
+        )
 
 
 def generate_recipe_map(argv):
