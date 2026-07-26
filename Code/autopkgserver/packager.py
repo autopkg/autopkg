@@ -291,7 +291,7 @@ class Packager:
             raise PackagerError(
                 f"Couldn't copy pkgroot from {self.request['pkgroot']} to "
                 f"{self.tmp_pkgroot}: {' '.join(str(e.stderr).split())}"
-            )
+            ) from e
         except OSError as e:
             raise PackagerError(
                 f"ditto execution failed with error code {e.errno}: {e.strerror}"
