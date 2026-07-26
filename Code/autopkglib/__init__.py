@@ -24,6 +24,7 @@ import os
 import plistlib
 import pprint
 import re
+import socket
 import subprocess
 import sys
 import textwrap
@@ -1318,6 +1319,53 @@ class ProcessorError(Exception):
     """Base Error class"""
 
     pass
+
+
+_AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
+
+
+class _AutopkginstalldClient:
+    """Shared socket protocol for processors that call autopkginstalld."""
+
+    def connect(self) -> None:
+        """Connect to autopkginstalld."""
+        try:
+            self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.socket.connect(_AUTOPKGINSTALLD_SOCKET)
+        except OSError as err:
+            raise ProcessorError(f"Couldn't connect to autopkginstalld: {err.strerror}")
+
+    def send_request(self, request) -> str:
+        """Send a request to autopkginstalld."""
+        self.socket.sendall(plistlib.dumps(request))
+        # makefile, not os.fdopen(self.socket.fileno()): fdopen takes ownership
+        # of the descriptor and closes it here, leaving disconnect() to close a
+        # descriptor the socket no longer owns. makefile shares it instead, so
+        # the fd is closed exactly once. Matches PkgCreator.
+        with self.socket.makefile(mode="r") as fileref:
+            while True:
+                data = fileref.readline()
+                if data:
+                    if data.startswith("OK:"):
+                        return data.replace("OK:", "").rstrip()
+                    if data.startswith("ERROR:"):
+                        break
+                    self.output(data.rstrip())
+                else:
+                    break
+
+        if not data.strip():
+            errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
+        else:
+            errors = data.rstrip().split("\n")
+        raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
+
+    def disconnect(self) -> None:
+        """Disconnect from autopkginstalld."""
+        try:
+            self.socket.close()
+        except OSError:
+            pass
 
 
 class Processor:

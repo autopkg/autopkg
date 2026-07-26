@@ -24,7 +24,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from autopkglib import ProcessorError
+from autopkglib import ProcessorError, _AutopkginstalldClient
 from autopkglib.Installer import Installer
 
 
@@ -65,6 +65,44 @@ class TestInstaller(unittest.TestCase):
             }
         )
         mock_disconnect.assert_called_once_with()
+
+    def test_uses_shared_autopkginstalld_client(self):
+        self.assertIs(Installer.connect, _AutopkginstalldClient.connect)
+        self.assertIs(Installer.send_request, _AutopkginstalldClient.send_request)
+        self.assertIs(Installer.disconnect, _AutopkginstalldClient.disconnect)
+
+    def test_send_request_forwards_status_lines(self):
+        mock_file = MagicMock()
+        mock_file.readline.side_effect = ["Installing package\n", "OK:DONE\n"]
+        self.processor.socket = MagicMock()
+        self.processor.socket.makefile.return_value.__enter__.return_value = mock_file
+
+        with (
+            patch("plistlib.dumps", return_value=b""),
+            patch.object(self.processor, "output") as mock_output,
+        ):
+            result = self.processor.send_request({"package": self.package_path})
+
+        self.assertEqual(result, "DONE")
+        mock_output.assert_called_once_with("Installing package")
+
+    def test_send_request_error(self):
+        mock_file = MagicMock()
+        mock_file.readline.return_value = "ERROR:Installation failed\n"
+        self.processor.socket = MagicMock()
+        self.processor.socket.makefile.return_value.__enter__.return_value = mock_file
+
+        with (
+            patch("plistlib.dumps", return_value=b""),
+            self.assertRaisesRegex(ProcessorError, "Installation failed"),
+        ):
+            self.processor.send_request({"package": self.package_path})
+
+    def test_disconnect_tolerates_close_error(self):
+        self.processor.socket = MagicMock()
+        self.processor.socket.close.side_effect = OSError("already closed")
+
+        self.processor.disconnect()
 
     def test_send_request_empty_reply(self):
         """An empty reply should report that autopkginstalld sent no reply."""

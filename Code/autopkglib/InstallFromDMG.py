@@ -16,19 +16,13 @@
 
 """See docstring for InstallFromDMG class"""
 
-import plistlib
-import socket
-
-from autopkglib import ProcessorError
+from autopkglib import _AutopkginstalldClient
 from autopkglib.DmgMounter import DmgMounter
-
-AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
-
 
 __all__ = ["InstallFromDMG"]
 
 
-class InstallFromDMG(DmgMounter):
+class InstallFromDMG(_AutopkginstalldClient, DmgMounter):
     """Calls autopkginstalld to copy items from a disk image to the root
     filesystem."""
 
@@ -109,48 +103,6 @@ class InstallFromDMG(DmgMounter):
                 }
         finally:
             self.unmount_if_mounted(self.env["dmg_path"])
-
-    def connect(self) -> None:
-        """Connect to autopkginstalld"""
-        try:
-            self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self.socket.connect(AUTOPKGINSTALLD_SOCKET)
-        except OSError as err:
-            raise ProcessorError(f"Couldn't connect to autopkginstalld: {err.strerror}")
-
-    def send_request(self, request) -> str:
-        """Send an install request to autopkginstalld"""
-        self.socket.sendall(plistlib.dumps(request))
-        # makefile, not os.fdopen(self.socket.fileno()): fdopen takes ownership
-        # of the descriptor and closes it here, leaving disconnect() to close a
-        # descriptor the socket no longer owns. makefile shares it instead, so
-        # the fd is closed exactly once. Matches PkgCreator.
-        with self.socket.makefile(mode="r") as fileref:
-            while True:
-                data = fileref.readline()
-                if data:
-                    if data.startswith("OK:"):
-                        return data.replace("OK:", "").rstrip()
-                    elif data.startswith("ERROR:"):
-                        break
-                    else:
-                        self.output(data.rstrip())
-                else:
-                    break
-
-        if not data.strip():
-            errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
-        else:
-            errors = data.rstrip().split("\n")
-        raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
-
-    def disconnect(self) -> None:
-        """Disconnect from autopkginstalld"""
-        try:
-            self.socket.close()
-        except OSError:
-            # the socket is already closed
-            pass
 
     def main(self) -> None:
         """Install something!"""
