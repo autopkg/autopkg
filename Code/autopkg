@@ -3078,6 +3078,17 @@ AUDIT_SENSITIVE_INPUT_KEY = re.compile(
     r"|access[_-]?key|private[_-]?key|credential|bearer",
     re.IGNORECASE,
 )
+# Key suffixes that mark a field as a location/endpoint rather than a secret,
+# regardless of any sensitive-looking term earlier in the name (e.g.
+# OAUTH_TOKEN_REQUEST_URL, WS1_OAUTH_TOKEN_URL, TOKEN_AUTH_ENDPOINT).
+AUDIT_LOCATION_KEY_SUFFIXES = (
+    "url",
+    "uri",
+    "endpoint",
+    "server",
+    "host",
+    "address",
+)
 AUDIT_GENERIC_TRAVERSAL_KEYS = {
     "Copier": ("source_path", "destination_path"),
     "FileMover": ("source", "target"),
@@ -3346,6 +3357,13 @@ def find_sensitive_inputs_in_recipe(recipe):
     Reports the key name and reason only. Never echo the value."""
     sensitive_inputs = []
     for key, value in recipe.get("Input", {}).items():
+        # A key ending in a location suffix (url/uri/endpoint/...) names an
+        # endpoint, not a credential — even if it contains "token" or similar.
+        # Strip trailing separators so OAUTH_TOKEN_URL and OAUTH_TOKEN_URL_ both
+        # qualify.
+        stem = key.rstrip("_-").lower()
+        if stem.endswith(AUDIT_LOCATION_KEY_SUFFIXES):
+            continue
         if not AUDIT_SENSITIVE_INPUT_KEY.search(key):
             continue
         if not isinstance(value, str) or not value:

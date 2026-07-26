@@ -2111,6 +2111,25 @@ class TestAutoPkgRecipes(unittest.TestCase):
             [],
         )
 
+    def test_sensitive_input_ignores_token_endpoint_fields(self):
+        """A key ending in a location suffix (url/uri/endpoint/...) names an
+        endpoint, not a credential — even when a sensitive-looking term such
+        as ``token`` appears earlier in the name, including with intervening
+        segments (e.g. OAUTH_TOKEN_REQUEST_URL). Regression test for the
+        unbounded ``token`` match that false-positived on endpoint keys."""
+        findings = autopkg.find_sensitive_inputs_in_recipe(
+            {
+                "Input": {
+                    "WS1_OAUTH_TOKEN_URL": "OAUTH2_ACCESS_TOKEN_SERVER_URL_HERE",
+                    "OAUTH_TOKEN_REQUEST_URL": "https://example.com/oauth/token",
+                    "OAUTH_TOKEN_SERVICE_URI": "https://example.com/token",
+                    "TOKEN_AUTH_ENDPOINT": "https://example.com/auth",
+                    "API_TOKEN": "hard-coded-bare-value",
+                }
+            }
+        )
+        self.assertEqual([f["location"] for f in findings], ["Input.API_TOKEN"])
+
     def test_sensitive_input_severity_is_error(self):
         findings = autopkg.audit_findings(
             {
