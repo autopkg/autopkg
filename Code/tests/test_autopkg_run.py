@@ -242,6 +242,56 @@ class TestAutoPkgRun(unittest.TestCase):
 
         self.assertEqual(result, 70)  # RECIPE_FAILED_CODE
 
+    def test_run_recipes_load_error_is_reported_and_batch_continues(self):
+        """A recipe load failure must not prevent later recipes from loading."""
+        with NamedTemporaryFile(suffix=".plist") as report_file:
+            argv = [
+                "autopkg",
+                "run",
+                "--report-plist",
+                report_file.name,
+                "Stale.recipe",
+                "Next.recipe",
+            ]
+            load_error = autopkglib.StaleRecipeMapError(
+                "Recipe map entry is stale; run `autopkg generate-recipe-map`."
+            )
+            next_recipe = {
+                "RECIPE_PATH": "/path/to/Next.recipe",
+                "Identifier": "com.example.next",
+                "Input": {},
+                "Process": [],
+            }
+            mock_autopackager = Mock()
+            mock_autopackager.results = []
+            mock_autopackager.env = {"RECIPE_CACHE_DIR": self.tmp_dir.name}
+
+            with (
+                patch.object(autopkg, "get_override_dirs", return_value=[]),
+                patch.object(autopkg, "get_search_dirs", return_value=[]),
+                patch.object(
+                    autopkg, "load_recipe", side_effect=[load_error, next_recipe]
+                ) as mock_load_recipe,
+                patch.object(autopkg, "get_all_prefs", return_value={}),
+                patch.object(autopkg, "AutoPackager", return_value=mock_autopackager),
+                patch.object(autopkg, "plist_serializer", return_value={}),
+                patch.object(autopkg.plistlib, "dump"),
+                patch.object(autopkg, "log"),
+                patch.object(autopkg, "log_err"),
+                patch.object(autopkg, "write_plist_exit_on_fail") as mock_write_plist,
+            ):
+                result = autopkg.run_recipes(argv)
+
+        self.assertEqual(result, 70)
+        self.assertEqual(mock_load_recipe.call_count, 2)
+        mock_autopackager.process.assert_called_once_with(next_recipe)
+        report = mock_write_plist.call_args_list[-1].args[0]
+        self.assertEqual(len(report["failures"]), 1)
+        failure = report["failures"][0]
+        self.assertEqual(failure["recipe"], "Stale.recipe")
+        self.assertEqual(failure["message"], str(load_error))
+        self.assertIn("StaleRecipeMapError", failure["traceback"])
+
     def test_parse_recipe_list_plist_format(self):
         """Test parse_recipe_list with plist format."""
         recipe_list_data = {
