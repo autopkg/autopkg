@@ -19,6 +19,7 @@ import plistlib
 import unittest
 from unittest.mock import patch
 
+from autopkglib import ProcessorError
 from autopkglib.PkgCopier import PkgCopier
 
 
@@ -60,6 +61,51 @@ class TestPkgCopier(unittest.TestCase):
         mock_copy.assert_called_with(
             "source.pkg", self.processor.env["pkg_path"], overwrite=True
         )
+
+    @patch.object(PkgCopier, "copy")
+    @patch("autopkglib.glob.glob", return_value=[])
+    def test_no_filesystem_matches_raises_processor_error(self, mock_glob, mock_copy):
+        """An unmatched filesystem glob should report a processor error."""
+        self.processor.env = self.good_glob_dest_env
+
+        with self.assertRaisesRegex(
+            ProcessorError,
+            "Error processing path 'source\\*' with glob",
+        ):
+            self.processor.main()
+
+        mock_copy.assert_not_called()
+
+    def test_no_dmg_matches_raises_processor_error_and_unmounts(self):
+        """An unmatched DMG glob should report an error and unmount the image."""
+        self.processor.env = {
+            "source_pkg": "source.dmg/*.pkg",
+            "pkg_path": "dest.pkg",
+        }
+
+        with (
+            patch.object(
+                self.processor,
+                "parsePathForDMG",
+                return_value=("source.dmg", True, "*.pkg"),
+            ),
+            patch.object(self.processor, "mount", return_value="/Volumes/source"),
+            patch.object(
+                self.processor,
+                "glob_paths_in_mount",
+                return_value=("/Volumes/source/*.pkg", []),
+            ),
+            patch.object(self.processor, "unmount_if_mounted") as unmount,
+            patch.object(self.processor, "copy") as copy,
+            self.assertRaisesRegex(
+                ProcessorError,
+                "Error processing path '/Volumes/source/\\*\\.pkg' with glob",
+            ),
+        ):
+            self.processor.main()
+
+        copy.assert_not_called()
+        unmount.assert_called_once_with("source.dmg")
 
 
 if __name__ == "__main__":

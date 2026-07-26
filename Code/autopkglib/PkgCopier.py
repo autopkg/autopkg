@@ -74,6 +74,10 @@ class PkgCopier(Copier):
                 source_pkg = self.env["source_pkg"]
                 # Process the path for globs
                 matches = glob.glob(source_pkg)
+            if len(matches) == 0:
+                raise ProcessorError(
+                    f"Error processing path '{source_pkg}' with glob. "
+                )
             matched_source_path = matches[0]
             if len(matches) > 1:
                 self.output(
