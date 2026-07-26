@@ -147,7 +147,8 @@ class CodeSignatureVerifier(DmgMounter):
 
         # Use --deep option in OS X 10.9.5 or later
         darwin_version = os.uname()[2]
-        if _version_tuple(darwin_version) >= (13, 4, 0):
+        darwin_version_tuple = _version_tuple(darwin_version)
+        if darwin_version_tuple >= (13, 4, 0):
             if deep_verification:
                 self.output("Deep verification enabled...")
                 process.append("--deep")
@@ -155,7 +156,7 @@ class CodeSignatureVerifier(DmgMounter):
                 self.output("Deep verification disabled...")
 
         # Use --strict option in OS X 10.11 or later and only if requested by the recipe
-        if _version_tuple(darwin_version) >= (15, 0, 0):
+        if darwin_version_tuple >= (15, 0, 0):
             if strict_verification is None:
                 self.output(
                     "Strict verification not defined. Using codesign defaults..."
