@@ -66,7 +66,7 @@ PYTHON_APP_EXECUTABLE = pathlib.Path(
 REQUIRED_PYTHON_ARCHITECTURES = {"arm64", "x86_64"}
 
 
-def version_tuple(version_string: str) -> tuple[int, ...]:
+def version_tuple(version_string: str) -> tuple[int, int, int]:
     """Return a (major, minor, patch) int tuple for a MAJOR.MINOR.PATCH version.
 
     Raises ValueError if version_string is not exactly MAJOR.MINOR.PATCH.
