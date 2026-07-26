@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import grp
 import importlib.util
 import os
 import sys
@@ -54,12 +53,21 @@ def load_worker_module(name, path):
     return module
 
 
-installer = load_worker_module(
-    "autopkgserver_installer_worker", AUTOPKGSERVER_DIR / "installer.py"
-)
-itemcopier = load_worker_module(
-    "autopkgserver_itemcopier_worker", AUTOPKGSERVER_DIR / "itemcopier.py"
-)
+# Only load the worker modules on Darwin: itemcopier imports the POSIX-only
+# grp and pwd, so importing it on Windows fails at test discovery time. Every
+# test class below is skipped off Darwin anyway.
+if sys.platform == "darwin":
+    import grp
+
+    installer = load_worker_module(
+        "autopkgserver_installer_worker", AUTOPKGSERVER_DIR / "installer.py"
+    )
+    itemcopier = load_worker_module(
+        "autopkgserver_itemcopier_worker", AUTOPKGSERVER_DIR / "itemcopier.py"
+    )
+else:
+    # Dummy objects for non-Darwin platforms, referenced only inside skipped tests.
+    grp = installer = itemcopier = None
 
 
 @unittest.skipUnless(sys.platform == "darwin", "autopkgserver is macOS-only")
