@@ -42,7 +42,6 @@ from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
-    StaleRecipeMapError,
     _normalize_dirs,
     _path_under_dirs,
     _recipe_map_path,
@@ -218,16 +217,9 @@ def find_recipe(
         map_safe = _dirs_equal_prefs(search_dirs, override_dirs)
 
     if map_safe:
-        try:
-            result = find_recipe_by_identifier_in_map(
-                id_or_name, skip_overrides=skip_overrides
-            ) or find_recipe_by_name_in_map(id_or_name, skip_overrides=skip_overrides)
-        except StaleRecipeMapError as err:
-            # Surface the actionable stale-map message and fall through to the
-            # on-disk scan. The edited override no longer matches the old
-            # identifier on disk, so any on-disk match is a real current result.
-            log_err(f"WARNING: {err}")
-            result = None
+        result = find_recipe_by_identifier_in_map(
+            id_or_name, skip_overrides=skip_overrides
+        ) or find_recipe_by_name_in_map(id_or_name, skip_overrides=skip_overrides)
         if result:
             return result
 

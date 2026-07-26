@@ -2178,23 +2178,45 @@ class TestStaleOverrideIdentifier(RecipeMapIsolation, unittest.TestCase):
         with self.assertRaises(autopkglib.StaleRecipeMapError):
             autopkglib.find_recipe_by_identifier_in_map("local.myapp.original")
 
-    def test_find_recipe_converts_stale_error_to_logged_miss(self):
-        """find_recipe() catches the error, logs it, and falls back to disk."""
+    def test_find_recipe_propagates_stale_error(self):
+        """find_recipe() must let StaleRecipeMapError propagate rather than
+        catching it and falling back to disk, which could silently resolve to
+        a stock recipe sharing the old identifier."""
         self._stale_override()
 
-        with patch.object(autopkg, "log_err") as mock_log_err:
-            result = autopkg.find_recipe(
+        with self.assertRaises(autopkglib.StaleRecipeMapError):
+            autopkg.find_recipe(
                 "local.myapp.original",
                 search_dirs=[self.overrides_dir],
                 override_dirs=[],
                 map_safe=True,
             )
 
-        self.assertIsNone(result)
-        self.assertTrue(
-            any("generate-recipe-map" in str(c) for c in mock_log_err.call_args_list),
-            "find_recipe must log the actionable stale-map message.",
+    def test_find_recipe_propagates_stale_error_when_stock_dir_has_old_identifier(self):
+        """Regression: when a stock recipe in the search dir shares the stale
+        override's old identifier, find_recipe() must still raise rather than
+        fall through to the on-disk scan and return the stock recipe — which
+        would quietly run stock behavior in place of the user's override."""
+        stock_dir = os.path.join(self.tmpdir, "StockRecipes")
+        os.makedirs(stock_dir, exist_ok=True)
+        stock_path = os.path.join(stock_dir, "MyApp.munki.recipe")
+        _write_plist_recipe(
+            stock_path,
+            {
+                "Identifier": "local.myapp.original",
+                "Input": {"NAME": "MyApp"},
+                "Process": [],
+            },
         )
+        self._stale_override()
+
+        with self.assertRaises(autopkglib.StaleRecipeMapError):
+            autopkg.find_recipe(
+                "local.myapp.original",
+                search_dirs=[stock_dir],
+                override_dirs=[],
+                map_safe=True,
+            )
 
     def test_shared_processor_lookup_propagates_stale_error(self):
         """get_processor's map lookup must surface the message, not a misleading
