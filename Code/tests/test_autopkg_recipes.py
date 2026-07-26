@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib.machinery
-import importlib.util
 import json
 import os
 import plistlib
@@ -31,10 +29,9 @@ from unittest.mock import Mock, patch
 # Add the Code directory to the Python path to resolve autopkg dependencies
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-autopkg_path = os.path.join(os.path.dirname(__file__), "..", "autopkg")
-loader = importlib.machinery.SourceFileLoader("autopkg", autopkg_path)
-autopkg = loader.load_module()
-sys.modules["autopkg"] = autopkg
+from tests import load_autopkg_module
+
+autopkg = load_autopkg_module()
 
 
 class TestAutoPkgRecipes(unittest.TestCase):
@@ -50,19 +47,32 @@ class TestAutoPkgRecipes(unittest.TestCase):
         # slowing the suite down enormously and leaking state from the
         # developer's machine. Silence them at the class level; tests
         # that care about the map will patch it explicitly.
+        #
+        # find_recipe's on-disk fallback needs the same treatment: it
+        # treats an empty search_dirs list as "not supplied" and falls
+        # back to the pref baseline, so a test passing [] would scan the
+        # developer's real RecipeRepos. Point the baseline at the empty
+        # temp dir. Tests that assert on specific dirs patch these again
+        # locally, which takes precedence over the class-level patch.
         self._recipe_map_patches = [
             patch("autopkg.calculate_recipe_map"),
             patch("autopkg.read_recipe_map"),
             patch("autopkg.add_recipe_to_map"),
+            patch("autopkg.get_search_dirs", return_value=[self.tmp_dir.name]),
+            patch("autopkg.get_override_dirs", return_value=[self.tmp_dir.name]),
         ]
         for patcher in self._recipe_map_patches:
             patcher.start()
+        autopkg._locate_recipe_rebuild_attempted = False
 
     def tearDown(self):
         """Clean up test fixtures."""
         self.tmp_dir.cleanup()
         for patcher in self._recipe_map_patches:
             patcher.stop()
+        # One-shot cwd-rebuild latch; reset so one test's map miss can't
+        # stop a later test from exercising the same path.
+        autopkg._locate_recipe_rebuild_attempted = False
         # audit's machine-readable output flips log() to stderr process-wide;
         # undo it so the setting can't leak into later tests in the same run.
         autopkg.redirect_log_to_stderr(False)

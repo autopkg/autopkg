@@ -237,11 +237,23 @@ class TestItemCopierValidation(unittest.TestCase):
         self.assertEqual(worker.mountpoint, os.path.realpath(self.mountpoint))
 
     def test_accepts_arbitrary_absolute_destination(self):
-        """Should let trusted recipes choose an absolute destination."""
+        """Should let trusted recipes choose an absolute destination outside
+        the recipe cache, resolving it without rewriting or confining it."""
         destination_path = "/Library/Application Support/Test"
+        item = {"source_item": "Test.app", "destination_path": destination_path}
         with self._patched_environment():
             worker = self._copier(self._request(destination_path=destination_path))
             worker.verify_request()
+            source_itempath, destpath, full_destpath = worker.paths_for_item(item)
+
+        self.assertEqual(worker.mountpoint, os.path.realpath(self.mountpoint))
+        self.assertEqual(
+            source_itempath, os.path.join(os.path.realpath(self.mountpoint), "Test.app")
+        )
+        self.assertEqual(destpath, os.path.realpath(destination_path))
+        self.assertEqual(
+            full_destpath, os.path.join(os.path.realpath(destination_path), "Test.app")
+        )
 
     def test_rejects_unmounted_mount_point(self):
         """Should reject source roots that are not mounted volumes."""

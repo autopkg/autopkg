@@ -27,22 +27,17 @@ Covers:
 All filesystem I/O is done against per-test temporary directories so
 these tests are hermetic and safe to run in parallel with others."""
 
-import importlib
-import importlib.machinery
 import json
 import os
 import plistlib
-import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 import autopkglib
+from tests import RecipeMapIsolation, load_autopkg_module
 
-autopkg_path = os.path.join(os.path.dirname(__file__), "..", "autopkg")
-loader = importlib.machinery.SourceFileLoader("autopkg", autopkg_path)
-autopkg = loader.load_module()
-sys.modules["autopkg"] = autopkg
+autopkg = load_autopkg_module()
 
 
 # Sample on-disk recipe used to populate temp repos.
@@ -68,47 +63,7 @@ def _write_plist_recipe(path, recipe_dict):
         plistlib.dump(recipe_dict, f)
 
 
-class _RecipeMapIsolationMixin:
-    """Mixin that resets ``autopkglib.globalRecipeMap`` between tests and
-    redirects ``DEFAULT_RECIPE_MAP`` to a temp location so tests never
-    touch the developer's real ``~/Library/AutoPkg`` directory."""
-
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp(prefix="autopkg_recipe_map_test_")
-        self.addCleanup(self._cleanup_tmp)
-
-        # Mutate globalRecipeMap IN PLACE rather than rebinding the
-        # module attribute — the invariant established in commit f6b4f2e
-        # requires object-identity stability so `from autopkglib import
-        # globalRecipeMap` importers always see the live dict.
-        self._saved_map = {
-            key: dict(value) if isinstance(value, dict) else value
-            for key, value in autopkglib.globalRecipeMap.items()
-        }
-        self._saved_default = autopkglib.DEFAULT_RECIPE_MAP
-        autopkglib.globalRecipeMap.clear()
-        autopkglib.globalRecipeMap.update(
-            {
-                "identifiers": {},
-                "shortnames": {},
-                "overrides": {},
-                "overrides-identifiers": {},
-            }
-        )
-        autopkglib.DEFAULT_RECIPE_MAP = os.path.join(self.tmpdir, "recipe_map.json")
-
-    def tearDown(self):
-        autopkglib.globalRecipeMap.clear()
-        autopkglib.globalRecipeMap.update(self._saved_map)
-        autopkglib.DEFAULT_RECIPE_MAP = self._saved_default
-
-    def _cleanup_tmp(self):
-        import shutil
-
-        shutil.rmtree(self.tmpdir, ignore_errors=True)
-
-
-class TestRecipeMapLookups(_RecipeMapIsolationMixin, unittest.TestCase):
+class TestRecipeMapLookups(RecipeMapIsolation, unittest.TestCase):
     """Covers find_recipe_by_identifier_in_map / find_recipe_by_name_in_map and
     the reverse lookup helpers."""
 
@@ -120,7 +75,7 @@ class TestRecipeMapLookups(_RecipeMapIsolationMixin, unittest.TestCase):
         self.override_path = os.path.join(self.tmpdir, "Override.recipe")
         _write_plist_recipe(self.override_path, SAMPLE_OVERRIDE)
 
-        # Populate in place (see _RecipeMapIsolationMixin setUp for
+        # Populate in place (see RecipeMapIsolation setUp for
         # why identity matters).
         autopkglib.globalRecipeMap["identifiers"].update(
             {SAMPLE_RECIPE["Identifier"]: self.recipe_path}
@@ -181,7 +136,7 @@ class TestRecipeMapLookups(_RecipeMapIsolationMixin, unittest.TestCase):
         self.assertIsNone(autopkglib.find_recipe_by_name_in_map("NopeRecipe"))
 
 
-class TestRecipeMapPersistence(_RecipeMapIsolationMixin, unittest.TestCase):
+class TestRecipeMapPersistence(RecipeMapIsolation, unittest.TestCase):
     """write_recipe_map_to_disk / handle_reading_recipe_map_file /
     validate_recipe_map."""
 
@@ -283,7 +238,7 @@ class TestRecipeMapPersistence(_RecipeMapIsolationMixin, unittest.TestCase):
         )
 
 
-class TestMapKeyToPaths(_RecipeMapIsolationMixin, unittest.TestCase):
+class TestMapKeyToPaths(RecipeMapIsolation, unittest.TestCase):
     """map_key_to_paths should walk a directory one level deep and emit
     first-wins entries keyed correctly for both identifiers and shortnames."""
 
@@ -340,7 +295,7 @@ class TestMapKeyToPaths(_RecipeMapIsolationMixin, unittest.TestCase):
         self.assertIn(result["DuplicateName"], {dup_a, dup_b})
 
 
-class TestCalculateRecipeMap(_RecipeMapIsolationMixin, unittest.TestCase):
+class TestCalculateRecipeMap(RecipeMapIsolation, unittest.TestCase):
     """End-to-end tests for calculate_recipe_map: honours prefs, writes to
     disk only when appropriate, and skips '.' by default."""
 
@@ -464,7 +419,7 @@ class TestCalculateRecipeMap(_RecipeMapIsolationMixin, unittest.TestCase):
         )
 
 
-class TestReadRecipeMapAutoCreate(_RecipeMapIsolationMixin, unittest.TestCase):
+class TestReadRecipeMapAutoCreate(RecipeMapIsolation, unittest.TestCase):
     """A missing or invalid map MUST auto-rebuild rather than exit the process."""
 
     def test_auto_creates_when_file_missing(self):
@@ -521,7 +476,7 @@ class TestReadRecipeMapAutoCreate(_RecipeMapIsolationMixin, unittest.TestCase):
             mock_calc.assert_called_once()
 
 
-class TestGenerateRecipeMapVerb(_RecipeMapIsolationMixin, unittest.TestCase):
+class TestGenerateRecipeMapVerb(RecipeMapIsolation, unittest.TestCase):
     """The new ``autopkg generate-recipe-map`` subcommand."""
 
     def setUp(self):

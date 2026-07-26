@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib.machinery
-import importlib.util
 import os
 import plistlib
 import sys
@@ -26,10 +24,9 @@ from unittest.mock import Mock, mock_open, patch
 # Add the Code directory to the Python path to resolve autopkg dependencies
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-autopkg_path = os.path.join(os.path.dirname(__file__), "..", "autopkg")
-loader = importlib.machinery.SourceFileLoader("autopkg", autopkg_path)
-autopkg = loader.load_module()
-sys.modules["autopkg"] = autopkg
+from tests import load_autopkg_module
+
+autopkg = load_autopkg_module()
 
 
 class TestAutoPkgRun(unittest.TestCase):

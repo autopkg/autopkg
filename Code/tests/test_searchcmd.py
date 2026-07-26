@@ -728,61 +728,30 @@ class TestSearchCmd(unittest.TestCase):
 
     # Test normalize_keyword function
 
-    def test_normalize_keyword_converts_to_lowercase(self):
-        """Test that normalize_keyword converts strings to lowercase."""
-        self.assertEqual(normalize_keyword("Firefox"), "firefox")
-        self.assertEqual(normalize_keyword("NetNewsWire"), "netnewswire")
-        self.assertEqual(normalize_keyword("ALLCAPS"), "allcaps")
-
-    def test_normalize_keyword_removes_recipe_extension(self):
-        """Test that normalize_keyword removes .recipe extension."""
-        self.assertEqual(normalize_keyword("Firefox.recipe"), "firefox")
-        self.assertEqual(normalize_keyword("App.recipe"), "app")
-
-    def test_normalize_keyword_removes_recipe_plist_extension(self):
-        """Test that normalize_keyword removes .recipe.plist extension."""
-        self.assertEqual(normalize_keyword("Firefox.recipe.plist"), "firefox")
-        self.assertEqual(normalize_keyword("App.recipe.plist"), "app")
-
-    def test_normalize_keyword_removes_recipe_yaml_extension(self):
-        """Test that normalize_keyword removes .recipe.yaml extension."""
-        self.assertEqual(normalize_keyword("Firefox.recipe.yaml"), "firefox")
-        self.assertEqual(normalize_keyword("App.recipe.yaml"), "app")
-
-    def test_normalize_keyword_removes_spaces(self):
-        """Test that normalize_keyword removes spaces."""
-        self.assertEqual(normalize_keyword("Google Chrome"), "googlechrome")
-        self.assertEqual(normalize_keyword("My App Name"), "myappname")
-
-    def test_normalize_keyword_removes_periods(self):
-        """Test that normalize_keyword removes periods."""
-        self.assertEqual(normalize_keyword("app.name"), "appname")
-        self.assertEqual(normalize_keyword("test.app.name"), "testappname")
-
-    def test_normalize_keyword_removes_commas(self):
-        """Test that normalize_keyword removes commas."""
-        self.assertEqual(normalize_keyword("app,name"), "appname")
-        self.assertEqual(normalize_keyword("test,app,name"), "testappname")
-
-    def test_normalize_keyword_removes_dashes(self):
-        """Test that normalize_keyword removes dashes."""
-        self.assertEqual(normalize_keyword("app-name"), "appname")
-        self.assertEqual(normalize_keyword("my-test-app"), "mytestapp")
-
-    def test_normalize_keyword_handles_combination_of_removals(self):
-        """Test that normalize_keyword handles multiple transformations."""
-        self.assertEqual(normalize_keyword("Google-Chrome.recipe"), "googlechrome")
-        self.assertEqual(normalize_keyword("My App-Name.recipe.yaml"), "myappname")
-        self.assertEqual(normalize_keyword("Test.App,Name"), "testappname")
-
-    def test_normalize_keyword_handles_empty_string(self):
-        """Test that normalize_keyword handles empty string."""
-        self.assertEqual(normalize_keyword(""), "")
-
-    def test_normalize_keyword_handles_already_normalized(self):
-        """Test that normalize_keyword handles already normalized strings."""
-        self.assertEqual(normalize_keyword("firefox"), "firefox")
-        self.assertEqual(normalize_keyword("appname"), "appname")
+    def test_normalize_keyword(self):
+        """Test that normalize_keyword lowercases, strips one recipe
+        extension, and removes spaces and common punctuation."""
+        cases = [
+            # (keyword, expected, what it covers)
+            ("Firefox", "firefox", "lowercase"),
+            ("NetNewsWire", "netnewswire", "lowercase"),
+            ("ALLCAPS", "allcaps", "lowercase"),
+            ("Firefox.recipe", "firefox", ".recipe extension"),
+            ("Firefox.recipe.plist", "firefox", ".recipe.plist extension"),
+            ("Firefox.recipe.yaml", "firefox", ".recipe.yaml extension"),
+            ("Google Chrome", "googlechrome", "spaces"),
+            ("app.name", "appname", "periods"),
+            ("app,name", "appname", "commas"),
+            ("app-name", "appname", "dashes"),
+            ("Google-Chrome.recipe", "googlechrome", "combined"),
+            ("My App-Name.recipe.yaml", "myappname", "combined"),
+            ("Test.App,Name", "testappname", "combined"),
+            ("", "", "empty string"),
+            ("firefox", "firefox", "already normalized"),
+        ]
+        for keyword, expected, covers in cases:
+            with self.subTest(covers=covers, keyword=keyword):
+                self.assertEqual(normalize_keyword(keyword), expected)
 
     # Test get_search_results function
 
@@ -1097,45 +1066,6 @@ class TestSearchCmd(unittest.TestCase):
 
         # Check for expected output (this may need to be adjusted based on actual output)
         self.assertIn("coconutBattery", output)
-
-    @patch("autopkgcmd.searchcmd.check_search_cache")
-    @patch("builtins.open", new_callable=mock_open)
-    def test_search_prints_warning_for_too_many_results(
-        self, mock_file, mock_check_cache
-    ):
-        """Test search_recipes prints a warning when there are too many results."""
-        # Mock check_search_cache to prevent network calls
-        mock_check_cache.return_value = None
-
-        # Create a search index with 101 recipes
-        large_index = {"shortnames": {}, "identifiers": {}}
-        for i in range(101):
-            recipe_id = f"com.test.recipe{i}"
-            large_index["shortnames"][f"recipe{i}"] = [recipe_id]
-            large_index["identifiers"][recipe_id] = {
-                "name": f"Recipe{i}.recipe",
-                "path": f"Recipes/Recipe{i}.recipe",
-                "repo": "recipes",
-                "deprecated": False,
-            }
-
-        mock_file.return_value.read.return_value = json.dumps(large_index).encode()
-        mock_file.return_value.__enter__.return_value.read.return_value = json.dumps(
-            large_index
-        ).encode()
-
-        argv = ["autopkg", "search", "recipe"]
-        with (
-            patch("sys.stdout", new=StringIO()) as mock_stdout,
-            patch("sys.stderr", new=StringIO()) as mock_stderr,
-        ):
-            search_recipes(argv)
-            stdout = mock_stdout.getvalue()
-            stderr = mock_stderr.getvalue()
-
-        # Check for warning message about too many results (goes to stderr via log_err)
-        combined_output = (stdout + stderr).lower()
-        self.assertIn("try a more specific search term.", combined_output)
 
     # Test print_gh_search_results function
 

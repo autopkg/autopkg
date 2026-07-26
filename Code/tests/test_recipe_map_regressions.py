@@ -25,7 +25,6 @@ import json
 import os
 import plistlib
 import shutil
-import sys
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -36,10 +35,9 @@ import autopkglib
 # on platforms (e.g. Windows) where it can't be imported.
 _HAS_PWD = importlib.util.find_spec("pwd") is not None
 
-autopkg_path = os.path.join(os.path.dirname(__file__), "..", "autopkg")
-loader = importlib.machinery.SourceFileLoader("autopkg", autopkg_path)
-autopkg = loader.load_module()
-sys.modules["autopkg"] = autopkg
+from tests import RecipeMapIsolation, load_autopkg_module
+
+autopkg = load_autopkg_module()
 
 
 SAMPLE_RECIPE = {
@@ -73,43 +71,7 @@ def _unregister_processor(name):
         autopkglib._PROCESSOR_NAMES.remove(name)
 
 
-class _RecipeMapIsolation:
-    """Shared fixture: redirect DEFAULT_RECIPE_MAP to a per-test tempdir
-    and reset globalRecipeMap between tests."""
-
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp(prefix="autopkg_recipe_map_")
-        self.addCleanup(lambda: shutil.rmtree(self.tmpdir, ignore_errors=True))
-
-        self._saved_map = dict(autopkglib.globalRecipeMap)
-        self._saved_default = autopkglib.DEFAULT_RECIPE_MAP
-        self._saved_write_disabled = autopkglib._recipe_map_write_disabled
-        self._saved_cwd_rebuild_attempted = autopkglib._recipe_map_cwd_rebuild_attempted
-        autopkglib._recipe_map_write_disabled = False
-        autopkglib.DEFAULT_RECIPE_MAP = os.path.join(self.tmpdir, "recipe_map.json")
-
-        for sub in (
-            "identifiers",
-            "shortnames",
-            "overrides",
-            "overrides-identifiers",
-        ):
-            autopkglib.globalRecipeMap.setdefault(sub, {}).clear()
-
-        # Reset the cross-test latch so one test's miss-rebuild doesn't
-        # prevent another test from exercising the same code path.
-        autopkg._locate_recipe_rebuild_attempted = False
-        autopkglib._recipe_map_cwd_rebuild_attempted = False
-
-    def tearDown(self):
-        autopkglib.globalRecipeMap.clear()
-        autopkglib.globalRecipeMap.update(self._saved_map)
-        autopkglib.DEFAULT_RECIPE_MAP = self._saved_default
-        autopkglib._recipe_map_write_disabled = self._saved_write_disabled
-        autopkglib._recipe_map_cwd_rebuild_attempted = self._saved_cwd_rebuild_attempted
-
-
-class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCase):
+class TestIssue918And908And886CliPrecedence(RecipeMapIsolation, unittest.TestCase):
     """Issue coverage for upstream issues #886, #908, #918 (related to
     #894): the recipe map is pref-scoped, so when the user passes
     ``--search-dir`` / ``--override-dir`` with values that differ from the
@@ -252,7 +214,7 @@ class TestIssue918And908And886CliPrecedence(_RecipeMapIsolation, unittest.TestCa
         self.assertIsNone(result)
 
 
-class TestCallerDirOrderPrecedence(_RecipeMapIsolation, unittest.TestCase):
+class TestCallerDirOrderPrecedence(RecipeMapIsolation, unittest.TestCase):
     """Caller-supplied directory order is authoritative whenever it
     diverges from the pref order used to build the persisted map."""
 
@@ -547,7 +509,7 @@ class TestCallerDirOrderPrecedence(_RecipeMapIsolation, unittest.TestCase):
         self.assertNotEqual(result, colliding_override_path)
 
 
-class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
+class TestIssue894ProcessorLookup(RecipeMapIsolation, unittest.TestCase):
     """Issue coverage for issue #894: shared-processor recipes in the
     current working directory weren't being found because
     find_processor_path only walked RECIPE_SEARCH_DIRS on disk, ignoring
@@ -713,7 +675,7 @@ class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
             mock_calc.assert_called_once()
 
 
-class TestSharedProcessorScope(_RecipeMapIsolation, unittest.TestCase):
+class TestSharedProcessorScope(RecipeMapIsolation, unittest.TestCase):
     """Shared processor imports must respect the caller's recipe search dirs."""
 
     def _write_processor(self, path, class_name):
@@ -833,7 +795,7 @@ class TestSharedProcessorScope(_RecipeMapIsolation, unittest.TestCase):
         self.assertNotIn(processor_name, autopkglib._PROCESSORS)
 
 
-class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
+class TestPathScopeSymlinkEscape(RecipeMapIsolation, unittest.TestCase):
     """Recipe-map scope checks must resolve symlinks before deciding
     whether a mapped path is under the caller-declared search dirs. A
     symlink inside a search dir that points outside it must not let a
@@ -1060,7 +1022,7 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
         self.assertEqual(processor.marker, "shared")
 
 
-class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
+class TestIssue903TrustInfoByPath(RecipeMapIsolation, unittest.TestCase):
     """Issue coverage for issue #903: `autopkg verify-trust-info
     <path/to/override.recipe>` failed to recognise the file as an override
     because the configured override_dirs didn't contain the parent of the
@@ -1171,7 +1133,7 @@ class TestIssue903TrustInfoByPath(_RecipeMapIsolation, unittest.TestCase):
             mock_log_err.assert_called()
 
 
-class TestIssue874MissingOverridesIdentifiers(_RecipeMapIsolation, unittest.TestCase):
+class TestIssue874MissingOverridesIdentifiers(RecipeMapIsolation, unittest.TestCase):
     """Issue coverage for issue #874: a map file written by an older version
     of autopkg doesn't have the ``overrides-identifiers`` key. The old
     code did ``globalRecipeMap["overrides-identifiers"]`` directly,
@@ -1211,7 +1173,7 @@ class TestIssue874MissingOverridesIdentifiers(_RecipeMapIsolation, unittest.Test
             )
 
 
-class TestIssue869InvalidRecipeRobustness(_RecipeMapIsolation, unittest.TestCase):
+class TestIssue869InvalidRecipeRobustness(RecipeMapIsolation, unittest.TestCase):
     """Issue coverage for issue #869: a syntactically-invalid recipe in a
     search dir used to crash ``calculate_recipe_map`` with a TypeError
     during the JSON sort because ``get_identifier_from_recipe_file``
@@ -1467,7 +1429,7 @@ class TestRecipeMapPathSecurityWarning(unittest.TestCase):
         )
 
 
-class TestSchemaVersion(_RecipeMapIsolation, unittest.TestCase):
+class TestSchemaVersion(RecipeMapIsolation, unittest.TestCase):
     """Tests for the RECIPE_MAP_SCHEMA_VERSION field used for schema evolution."""
 
     def test_persisted_file_includes_schema_version(self):
@@ -1514,7 +1476,7 @@ class TestSchemaVersion(_RecipeMapIsolation, unittest.TestCase):
         self.assertFalse(autopkglib.validate_recipe_map(future))
 
 
-class TestAtomicWrite(_RecipeMapIsolation, unittest.TestCase):
+class TestAtomicWrite(RecipeMapIsolation, unittest.TestCase):
     """The map write must be atomic so concurrent autopkg invocations
     can't observe a half-written file (review recommendation: atomic
     writes for on-disk cache files)."""
@@ -1582,7 +1544,7 @@ class TestAtomicWrite(_RecipeMapIsolation, unittest.TestCase):
         )
 
 
-class TestEscapeHatch(_RecipeMapIsolation, unittest.TestCase):
+class TestEscapeHatch(RecipeMapIsolation, unittest.TestCase):
     """The AUTOPKG_DISABLE_RECIPE_MAP / DISABLE_RECIPE_MAP escape hatch
     (review recommendation: provide an operational bypass)."""
 
@@ -1613,7 +1575,7 @@ class TestEscapeHatch(_RecipeMapIsolation, unittest.TestCase):
         )
 
 
-class TestRepoAddSingleRebuild(_RecipeMapIsolation, unittest.TestCase):
+class TestRepoAddSingleRebuild(RecipeMapIsolation, unittest.TestCase):
     """Guard: repo-add was calling calculate_recipe_map() twice.
     Assert it now calls it exactly once."""
 
@@ -1645,7 +1607,7 @@ class TestRepoAddSingleRebuild(_RecipeMapIsolation, unittest.TestCase):
         )
 
 
-class TestIncrementalMapUpdateForSingleFile(_RecipeMapIsolation, unittest.TestCase):
+class TestIncrementalMapUpdateForSingleFile(RecipeMapIsolation, unittest.TestCase):
     """Review finding: `make-override` and `new-recipe` used to trigger
     a full RECIPE_SEARCH_DIRS tree walk to index one newly-written file.
     They now use `add_recipe_to_map` for an O(1) incremental update."""
@@ -1747,7 +1709,7 @@ class TestIncrementalMapUpdateForSingleFile(_RecipeMapIsolation, unittest.TestCa
         self.assertFalse(os.path.exists(autopkglib.DEFAULT_RECIPE_MAP))
 
 
-class TestRepoUpdateHeadDiffing(_RecipeMapIsolation, unittest.TestCase):
+class TestRepoUpdateHeadDiffing(RecipeMapIsolation, unittest.TestCase):
     """Guard: `autopkg repo-update` should only rebuild the map
     when git pull actually changed HEAD."""
 
@@ -1802,7 +1764,7 @@ class TestRepoUpdateHeadDiffing(_RecipeMapIsolation, unittest.TestCase):
         mock_calc.assert_called_once()
 
 
-class TestRepoDeletePrefMapConsistency(_RecipeMapIsolation, unittest.TestCase):
+class TestRepoDeletePrefMapConsistency(RecipeMapIsolation, unittest.TestCase):
     """Guard: repo-delete must keep prefs and the persisted map
     consistent even when rmtree fails."""
 
@@ -1841,7 +1803,7 @@ class TestRepoDeletePrefMapConsistency(_RecipeMapIsolation, unittest.TestCase):
         mock_calc.assert_called_once()
 
 
-class TestReadRecipeMapRebuildForce(_RecipeMapIsolation, unittest.TestCase):
+class TestReadRecipeMapRebuildForce(RecipeMapIsolation, unittest.TestCase):
     """Review finding: rebuild=True must always rebuild, even when
     the on-disk file happens to be valid."""
 
@@ -1879,7 +1841,7 @@ class TestReadRecipeMapRebuildForce(_RecipeMapIsolation, unittest.TestCase):
         self.assertEqual(autopkglib.globalRecipeMap["identifiers"], {"x": "/x"})
 
 
-class TestGlobalRecipeMapInPlaceMutation(_RecipeMapIsolation, unittest.TestCase):
+class TestGlobalRecipeMapInPlaceMutation(RecipeMapIsolation, unittest.TestCase):
     """Review finding: calculate_recipe_map must mutate in place so
     ``from autopkglib import globalRecipeMap`` importers see fresh
     data, not a stale reference to the original empty dict."""
@@ -1928,7 +1890,7 @@ class TestGlobalRecipeMapInPlaceMutation(_RecipeMapIsolation, unittest.TestCase)
         )
 
 
-class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
+class TestMapEntryMustParseAsRecipe(RecipeMapIsolation, unittest.TestCase):
     """Defence-in-depth: the shared-processor code-import path in
     ``get_processor`` must reject a map entry that isn't structurally a
     recipe. Otherwise a user with write access to ``recipe_map.json``
@@ -1992,7 +1954,7 @@ class TestMapEntryMustParseAsRecipe(_RecipeMapIsolation, unittest.TestCase):
 
 
 class TestUnresolvedSharedProcessorDoesNotShadowCore(
-    _RecipeMapIsolation, unittest.TestCase
+    RecipeMapIsolation, unittest.TestCase
 ):
     """A fully-qualified shared-processor reference (RECIPE_ID/Processor)
     that can't be resolved to a recipe under the active search dirs must
@@ -2021,7 +1983,7 @@ class TestUnresolvedSharedProcessorDoesNotShadowCore(
             )
 
 
-class TestLoadRecipeToleratesStaleMapEntry(_RecipeMapIsolation, unittest.TestCase):
+class TestLoadRecipeToleratesStaleMapEntry(RecipeMapIsolation, unittest.TestCase):
     """Review finding: ``load_recipe`` must not crash with
     ``AttributeError`` when the recipe map returns a path to a file
     that exists but isn't parseable (stale entry, truncated mid-write
@@ -2073,7 +2035,7 @@ class TestLoadRecipeToleratesStaleMapEntry(_RecipeMapIsolation, unittest.TestCas
         )
 
 
-class TestStaleOverrideIdentifier(_RecipeMapIsolation, unittest.TestCase):
+class TestStaleOverrideIdentifier(RecipeMapIsolation, unittest.TestCase):
     """Issue coverage: if a user edits an override file to change its
     Identifier (e.g. when copying an override for a multi-arch setup), the
     on-disk map still indexes the file under the old identifier. A lookup by

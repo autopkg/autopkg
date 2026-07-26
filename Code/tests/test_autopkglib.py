@@ -14,13 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
-import importlib.machinery
-import importlib.util
 import json
 import os
 import plistlib
-import sys
 import tempfile
 import unittest
 from textwrap import dedent
@@ -28,11 +24,9 @@ from types import SimpleNamespace
 from unittest.mock import mock_open, patch
 
 import autopkglib
+from tests import load_autopkg_module
 
-autopkg_path = os.path.join(os.path.dirname(__file__), "..", "autopkg")
-loader = importlib.machinery.SourceFileLoader("autopkg", autopkg_path)
-autopkg = loader.load_module()
-sys.modules["autopkg"] = autopkg
+autopkg = load_autopkg_module()
 
 
 class TestAutoPkg(unittest.TestCase):
@@ -148,12 +142,11 @@ class TestAutoPkg(unittest.TestCase):
     munki_struct = plistlib.loads(munki_recipe.encode("utf-8"))
 
     def setUp(self):
-        # This forces autopkglib to accept our patching of memoize
-        importlib.reload(autopkglib)
-        autopkglib.globalPreferences
-
-    def tearDown(self):
-        pass
+        # Reset the cached preferences between tests without reloading
+        # autopkglib: a reload rebinds module-level objects such as
+        # globalRecipeMap, which the autopkg CLI module imported by name,
+        # and silently breaks every test module discovered after this one.
+        autopkglib.globalPreferences = autopkglib.Preferences()
 
     @patch("autopkglib.sys.platform", "Darwin-20.6.0")
     def test_is_mac_returns_true_on_mac(self):
@@ -471,54 +464,26 @@ class TestAutoPackagerGithubToken(unittest.TestCase):
 class TestUpdateData(unittest.TestCase):
     """Tests for update_data / getdata variable substitution."""
 
-    def test_integer_value_substituted_as_string(self):
-        """Integer values referenced via %KEY% must be coerced to str so
-        RE_KEYREF.sub doesn't raise TypeError (regression fixed in #1038)."""
-        env = {"BUILD": 42, "NAME": "MyApp-%BUILD%"}
-        autopkglib.update_data(env, "NAME", env["NAME"])
-        self.assertEqual(env["NAME"], "MyApp-42")
-
-    def test_float_value_substituted_as_string(self):
-        """Float values referenced via %KEY% must also be coerced to str."""
-        env = {"VERSION": 1.5, "NAME": "App-%VERSION%"}
-        autopkglib.update_data(env, "NAME", env["NAME"])
-        self.assertEqual(env["NAME"], "App-1.5")
-
-    def test_none_value_substituted_as_empty_string(self):
-        """None/null values referenced via %KEY% must expand to empty string."""
-        env = {"INCLUDE_PRERELEASES": None, "ARG": "%INCLUDE_PRERELEASES%"}
-        autopkglib.update_data(env, "ARG", env["ARG"])
-        self.assertEqual(env["ARG"], "")
-
-    def test_false_value_substituted_as_empty_string(self):
-        """False values referenced via %KEY% must expand to empty string."""
-        env = {"INCLUDE_PRERELEASES": False, "ARG": "%INCLUDE_PRERELEASES%"}
-        autopkglib.update_data(env, "ARG", env["ARG"])
-        self.assertEqual(env["ARG"], "")
-
-    def test_true_value_substituted_as_string(self):
-        """True values referenced via %KEY% continue to expand to a string."""
-        env = {"INCLUDE_PRERELEASES": True, "ARG": "%INCLUDE_PRERELEASES%"}
-        autopkglib.update_data(env, "ARG", env["ARG"])
-        self.assertEqual(env["ARG"], "True")
-
-    def test_zero_value_substituted_as_string(self):
-        """Zero values referenced via %KEY% continue to expand to a string."""
-        env = {"BUILD": 0, "NAME": "MyApp-%BUILD%"}
-        autopkglib.update_data(env, "NAME", env["NAME"])
-        self.assertEqual(env["NAME"], "MyApp-0")
-
-    def test_false_string_substitution_unchanged(self):
-        """The string 'False' is substituted as-is."""
-        env = {"INCLUDE_PRERELEASES": "False", "ARG": "%INCLUDE_PRERELEASES%"}
-        autopkglib.update_data(env, "ARG", env["ARG"])
-        self.assertEqual(env["ARG"], "False")
-
-    def test_plain_string_substitution_unchanged(self):
-        """String values are substituted as-is."""
-        env = {"NAME": "Firefox", "PATH": "%NAME%.pkg"}
-        autopkglib.update_data(env, "PATH", env["PATH"])
-        self.assertEqual(env["PATH"], "Firefox.pkg")
+    def test_value_substitution_by_type(self):
+        """Non-string values referenced via %KEY% must be coerced to str so
+        RE_KEYREF.sub doesn't raise TypeError (regression fixed in #1038).
+        None and False expand to empty string; everything else to str()."""
+        cases = [
+            # (referenced value, template key, template, expected)
+            (42, "NAME", "MyApp-%BUILD%", "MyApp-42", "BUILD"),
+            (1.5, "NAME", "App-%VERSION%", "App-1.5", "VERSION"),
+            (0, "NAME", "MyApp-%BUILD%", "MyApp-0", "BUILD"),
+            (None, "ARG", "%FLAG%", "", "FLAG"),
+            (False, "ARG", "%FLAG%", "", "FLAG"),
+            (True, "ARG", "%FLAG%", "True", "FLAG"),
+            ("False", "ARG", "%FLAG%", "False", "FLAG"),
+            ("Firefox", "PATH", "%NAME%.pkg", "Firefox.pkg", "NAME"),
+        ]
+        for value, key, template, expected, ref in cases:
+            with self.subTest(value=value, template=template):
+                env = {ref: value, key: template}
+                autopkglib.update_data(env, key, template)
+                self.assertEqual(env[key], expected)
 
     def test_missing_key_does_not_raise(self):
         """Reference to an undefined key is logged and left as-is, not raised."""

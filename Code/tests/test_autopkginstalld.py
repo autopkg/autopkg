@@ -21,6 +21,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from tests import DaemonHandlerContractTests, DaemonServerContractTests
+
 # Only load the module on Darwin, otherwise create empty module
 if sys.platform == "darwin":
     # Mock the imports before importing the module
@@ -61,8 +63,11 @@ else:
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
-class TestRunHandler(unittest.TestCase):
+class TestRunHandler(DaemonHandlerContractTests, unittest.TestCase):
     """Test class for RunHandler."""
+
+    daemon_module = "autopkginstalld"
+    outer_error_message = b"ERROR:Caught exception: RuntimeError('boom')"
 
     def setUp(self):
         """Set up test fixtures."""
@@ -91,15 +96,6 @@ class TestRunHandler(unittest.TestCase):
         self.assertFalse(syntax_ok)
         self.assertIn("Request does not contain package", errors[0])
 
-    def test_verify_request_syntax_not_a_dict(self):
-        """Should return False and error when plist is not a dictionary."""
-        plist = ["not", "a", "dict"]
-        syntax_ok, errors = self.handler.verify_request_syntax(plist)
-
-        self.assertFalse(syntax_ok)
-        self.assertEqual(len(errors), 1)
-        self.assertIn("Request root is not a dictionary", errors[0])
-
     def test_verify_request_syntax_missing_package_key(self):
         """Should return False and error when package key is missing."""
         plist = {"something": "else"}
@@ -118,7 +114,8 @@ class TestRunHandler(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertIn("Request does not contain recipe_cache_dir", errors[0])
 
-    def _handler_for_plist(self, plist):
+    def _make_handler(self, plist=None):
+        plist = {} if plist is None else plist
         handler = RunHandler.__new__(RunHandler)
         handler.server = types.SimpleNamespace(log=MagicMock())
         handler.request = MagicMock()
@@ -132,7 +129,7 @@ class TestRunHandler(unittest.TestCase):
             "package": "/path/to/package.pkg",
             "recipe_cache_dir": "/path/to/cache",
         }
-        handler = self._handler_for_plist(plist)
+        handler = self._make_handler(plist)
 
         with patch("autopkginstalld.Installer") as mock_installer:
             handler.handle()
@@ -151,7 +148,7 @@ class TestRunHandler(unittest.TestCase):
                 {"source_item": "Test.app", "destination_path": "/Applications"}
             ],
         }
-        handler = self._handler_for_plist(plist)
+        handler = self._make_handler(plist)
 
         with patch("autopkginstalld.ItemCopier") as mock_itemcopier:
             handler.handle()
@@ -162,140 +159,22 @@ class TestRunHandler(unittest.TestCase):
         mock_itemcopier.return_value.copy.assert_called_once_with()
         handler.request.send.assert_called_with(b"OK:DONE\n")
 
-    def test_handle_reports_malformed_request_for_parse_error(self):
-        """Should report malformed requests for ordinary parse errors."""
-        handler = self._handler_for_plist({})
 
-        with patch("autopkginstalld.plistlib.loads", side_effect=ValueError):
-            handler.handle()
-
-        handler.request.send.assert_called_once_with(b"ERROR:Malformed request\n")
-
-    def test_handle_parse_does_not_wrap_keyboard_interrupt(self):
-        """Should let process termination exceptions propagate."""
-        handler = self._handler_for_plist({})
-
-        with (
-            patch("autopkginstalld.plistlib.loads", side_effect=KeyboardInterrupt),
-            self.assertRaises(KeyboardInterrupt),
-        ):
-            handler.handle()
-
-    def test_handle_reports_ordinary_outer_errors(self):
-        """Should report ordinary unexpected request handling errors."""
-        handler = self._handler_for_plist({})
-        handler.getpeerid.side_effect = RuntimeError("boom")
-
-        handler.handle()
-
-        handler.request.send.assert_called_once_with(
-            b"ERROR:Caught exception: RuntimeError('boom')"
-        )
-
-    def test_handle_outer_error_does_not_wrap_keyboard_interrupt(self):
-        """Should let process termination exceptions propagate."""
-        handler = self._handler_for_plist({})
-        handler.getpeerid.side_effect = KeyboardInterrupt
-
-        with self.assertRaises(KeyboardInterrupt):
-            handler.handle()
+if __name__ == "__main__":
+    unittest.main()
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
-class TestAutoPkgInstallDaemon(unittest.TestCase):
-    """Test class for AutoPkgInstallDaemon."""
+class TestAutoPkgInstallDaemon(DaemonServerContractTests, unittest.TestCase):
+    """Socket, logging, main() and constants for the autopkginstalld daemon."""
 
-    @patch("autopkginstalld.socket.fromfd")
-    def test_init_creates_socket(self, mock_fromfd):
-        """Should create socket from file descriptor."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-
-        daemon = AutoPkgInstallDaemon(socket_fd=3, RequestHandlerClass=RunHandler)
-
-        mock_fromfd.assert_called_once()
-        mock_socket.listen.assert_called_once_with(daemon.request_queue_size)
-        self.assertFalse(daemon.timed_out)
-
-    @patch("autopkginstalld.socket.fromfd")
-    def test_handle_timeout_sets_flag(self, mock_fromfd):
-        """Should set timed_out flag when handle_timeout is called."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-
-        daemon = AutoPkgInstallDaemon(socket_fd=3, RequestHandlerClass=RunHandler)
-        self.assertFalse(daemon.timed_out)
-
-        daemon.handle_timeout()
-        self.assertTrue(daemon.timed_out)
-
-    @patch("autopkginstalld.socket.fromfd")
-    @patch("autopkginstalld.logging.getLogger")
-    @patch("autopkginstalld.logging.StreamHandler")
-    @patch("autopkginstalld.logging.handlers.RotatingFileHandler")
-    def test_setup_logging_success(
-        self, mock_file_handler, mock_stream_handler, mock_get_logger, mock_fromfd
-    ):
-        """Should set up logging handlers successfully."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
-        daemon = AutoPkgInstallDaemon(socket_fd=3, RequestHandlerClass=RunHandler)
-        daemon.setup_logging()
-
-        mock_get_logger.assert_called_once_with(APPNAME)
-        mock_logger.setLevel.assert_called_once()
-        self.assertEqual(mock_logger.addHandler.call_count, 2)
-
-    @patch("autopkginstalld.socket.fromfd")
-    @patch("autopkginstalld.logging.getLogger")
-    @patch("autopkginstalld.logging.handlers.RotatingFileHandler")
-    def test_setup_logging_raises_on_file_error(
-        self, mock_file_handler, mock_get_logger, mock_fromfd
-    ):
-        """Should raise AutoPkgInstallDaemonError when file logging fails."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-        mock_get_logger.return_value = MagicMock()
-        mock_file_handler.side_effect = OSError(13, "Permission denied")
-
-        daemon = AutoPkgInstallDaemon(socket_fd=3, RequestHandlerClass=RunHandler)
-
-        with self.assertRaises(AutoPkgInstallDaemonError) as ctx:
-            daemon.setup_logging()
-
-        self.assertIn("Can't open log", str(ctx.exception))
-
-
-@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
-class TestMain(unittest.TestCase):
-    """Test class for main function."""
-
-    @patch("autopkginstalld.os.geteuid")
-    def test_main_requires_root(self, mock_geteuid):
-        """Should return 1 if not running as root."""
-        mock_geteuid.return_value = 501  # Not root
-
-        with patch("autopkginstalld.time.sleep"):
-            result = main([])
-
-        self.assertEqual(result, 1)
-
-
-@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
-class TestConstants(unittest.TestCase):
-    """Test class for module constants."""
-
-    def test_appname_constant(self):
-        """APPNAME should be set correctly."""
-        self.assertEqual(APPNAME, "autopkginstalld")
-
-    def test_version_constant(self):
-        """VERSION should be set and be a valid version string."""
-        self.assertIsInstance(VERSION, str)
-        self.assertRegex(VERSION, r"^\d+\.\d+")
+    daemon_module = "autopkginstalld"
+    daemon_cls = AutoPkgInstallDaemon
+    handler_cls = RunHandler
+    daemon_error_cls = AutoPkgInstallDaemonError
+    appname = APPNAME
+    version = VERSION
+    main_func = staticmethod(main)
 
 
 if __name__ == "__main__":

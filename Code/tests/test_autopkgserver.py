@@ -18,7 +18,9 @@ import sys
 import types
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
+from tests import DaemonHandlerContractTests, DaemonServerContractTests
 
 # Only load the module on Darwin, otherwise create empty module
 if sys.platform == "darwin":
@@ -65,8 +67,11 @@ else:
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
-class TestPkgHandler(unittest.TestCase):
+class TestPkgHandler(DaemonHandlerContractTests, unittest.TestCase):
     """Test class for PkgHandler."""
+
+    daemon_module = "autopkgserver"
+    outer_error_message = b"ERROR:Caught exception: boom"
 
     def setUp(self):
         """Set up test fixtures."""
@@ -93,15 +98,6 @@ class TestPkgHandler(unittest.TestCase):
 
         self.assertTrue(syntax_ok)
         self.assertEqual(errors, [])
-
-    def test_verify_request_syntax_not_a_dict(self):
-        """Should return False and error when plist is not a dictionary."""
-        plist = ["not", "a", "dict"]
-        syntax_ok, errors = self.handler.verify_request_syntax(plist)
-
-        self.assertFalse(syntax_ok)
-        self.assertEqual(len(errors), 1)
-        self.assertIn("Request root is not a dictionary", errors[0])
 
     def test_verify_request_syntax_missing_required_key(self):
         """Should return False and error when required key is missing."""
@@ -306,7 +302,7 @@ class TestPkgHandler(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(plist["pkgbuild_args"], [])
 
-    def _handler_for_request(self, request_bytes=b""):
+    def _make_handler(self, request_bytes=b""):
         handler = PkgHandler.__new__(PkgHandler)
         handler.server = types.SimpleNamespace(log=MagicMock())
         handler.request = MagicMock()
@@ -314,138 +310,18 @@ class TestPkgHandler(unittest.TestCase):
         handler.getpeerid = MagicMock(return_value=(501, (20,)))
         return handler
 
-    def test_handle_reports_malformed_request_for_parse_error(self):
-        """Should report malformed requests for ordinary parse errors."""
-        handler = self._handler_for_request()
-
-        with patch("autopkgserver.plistlib.loads", side_effect=ValueError):
-            handler.handle()
-
-        handler.request.send.assert_called_once_with(b"ERROR:Malformed request\n")
-
-    def test_handle_parse_does_not_wrap_keyboard_interrupt(self):
-        """Should let process termination exceptions propagate."""
-        handler = self._handler_for_request()
-
-        with (
-            patch("autopkgserver.plistlib.loads", side_effect=KeyboardInterrupt),
-            self.assertRaises(KeyboardInterrupt),
-        ):
-            handler.handle()
-
-    def test_handle_reports_ordinary_outer_errors(self):
-        """Should report ordinary unexpected request handling errors."""
-        handler = self._handler_for_request()
-        handler.getpeerid.side_effect = RuntimeError("boom")
-
-        handler.handle()
-
-        handler.request.send.assert_called_once_with(b"ERROR:Caught exception: boom")
-
-    def test_handle_outer_error_does_not_wrap_keyboard_interrupt(self):
-        """Should let process termination exceptions propagate."""
-        handler = self._handler_for_request()
-        handler.getpeerid.side_effect = KeyboardInterrupt
-
-        with self.assertRaises(KeyboardInterrupt):
-            handler.handle()
-
 
 @unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
-class TestAutoPkgServer(unittest.TestCase):
-    """Test class for AutoPkgServer."""
+class TestConstants(DaemonServerContractTests, unittest.TestCase):
+    """Socket, logging, main() and constants for the autopkgserver daemon."""
 
-    @patch("autopkgserver.socket.fromfd")
-    def test_init_creates_socket(self, mock_fromfd):
-        """Should create socket from file descriptor."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-
-        server = AutoPkgServer(socket_fd=3, RequestHandlerClass=PkgHandler)
-
-        mock_fromfd.assert_called_once()
-        mock_socket.listen.assert_called_once_with(server.request_queue_size)
-        self.assertFalse(server.timed_out)
-
-    @patch("autopkgserver.socket.fromfd")
-    def test_handle_timeout_sets_flag(self, mock_fromfd):
-        """Should set timed_out flag when handle_timeout is called."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-
-        server = AutoPkgServer(socket_fd=3, RequestHandlerClass=PkgHandler)
-        self.assertFalse(server.timed_out)
-
-        server.handle_timeout()
-        self.assertTrue(server.timed_out)
-
-    @patch("autopkgserver.socket.fromfd")
-    @patch("autopkgserver.logging.getLogger")
-    @patch("autopkgserver.logging.StreamHandler")
-    @patch("autopkgserver.logging.handlers.RotatingFileHandler")
-    def test_setup_logging_success(
-        self, mock_file_handler, mock_stream_handler, mock_get_logger, mock_fromfd
-    ):
-        """Should set up logging handlers successfully."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
-        server = AutoPkgServer(socket_fd=3, RequestHandlerClass=PkgHandler)
-        server.setup_logging()
-
-        mock_get_logger.assert_called_once_with(APPNAME)
-        mock_logger.setLevel.assert_called_once()
-        self.assertEqual(mock_logger.addHandler.call_count, 2)
-
-    @patch("autopkgserver.socket.fromfd")
-    @patch("autopkgserver.logging.getLogger")
-    @patch("autopkgserver.logging.handlers.RotatingFileHandler")
-    def test_setup_logging_raises_on_file_error(
-        self, mock_file_handler, mock_get_logger, mock_fromfd
-    ):
-        """Should raise AutoPkgServerError when file logging fails."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-        mock_get_logger.return_value = MagicMock()
-        mock_file_handler.side_effect = OSError(13, "Permission denied")
-
-        server = AutoPkgServer(socket_fd=3, RequestHandlerClass=PkgHandler)
-
-        with self.assertRaises(AutoPkgServerError) as ctx:
-            server.setup_logging()
-
-        self.assertIn("Can't open log", str(ctx.exception))
-
-
-@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
-class TestMain(unittest.TestCase):
-    """Test class for main function."""
-
-    @patch("autopkgserver.os.geteuid")
-    def test_main_requires_root(self, mock_geteuid):
-        """Should return 1 if not running as root."""
-        mock_geteuid.return_value = 501  # Not root
-
-        with patch("autopkgserver.time.sleep"):
-            result = main([])
-
-        self.assertEqual(result, 1)
-
-
-@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
-class TestConstants(unittest.TestCase):
-    """Test class for module constants."""
-
-    def test_appname_constant(self):
-        """APPNAME should be set correctly."""
-        self.assertEqual(APPNAME, "autopkgserver")
-
-    def test_version_constant(self):
-        """VERSION should be set and be a valid version string."""
-        self.assertIsInstance(VERSION, str)
-        self.assertRegex(VERSION, r"^\d+\.\d+")
+    daemon_module = "autopkgserver"
+    daemon_cls = AutoPkgServer
+    handler_cls = PkgHandler
+    daemon_error_cls = AutoPkgServerError
+    appname = APPNAME
+    version = VERSION
+    main_func = staticmethod(main)
 
     def test_socket_constant(self):
         """SOCKET should be set correctly."""
