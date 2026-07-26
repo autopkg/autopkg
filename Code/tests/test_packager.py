@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import importlib.util
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -114,6 +115,40 @@ class TestPackager(unittest.TestCase):
             self.assertRaises(KeyboardInterrupt),
         ):
             self.packager.make_component_property_list()
+
+    def test_copy_pkgroot_raises_on_failed_ditto(self):
+        self.packager.request = {"pkgroot": "/source/pkgroot"}
+        ditto_error = subprocess.CalledProcessError(
+            1, ["/usr/bin/ditto"], stderr="copy failed\n"
+        )
+
+        with (
+            patch("packager.tempfile.mkdtemp", return_value="/tmp/tmproot"),
+            patch("packager.os.mkdir"),
+            patch("packager.os.chmod"),
+            patch("packager.os.chown"),
+            patch("packager.subprocess.run", side_effect=ditto_error) as mock_run,
+            self.assertRaisesRegex(PackagerError, "copy failed"),
+        ):
+            self.packager.copy_pkgroot()
+
+        self.assertTrue(mock_run.call_args.kwargs["check"])
+
+    def test_copy_pkgroot_preserves_ditto_launch_errors(self):
+        self.packager.request = {"pkgroot": "/source/pkgroot"}
+
+        with (
+            patch("packager.tempfile.mkdtemp", return_value="/tmp/tmproot"),
+            patch("packager.os.mkdir"),
+            patch("packager.os.chmod"),
+            patch("packager.os.chown"),
+            patch(
+                "packager.subprocess.run",
+                side_effect=OSError(2, "No such file or directory"),
+            ),
+            self.assertRaisesRegex(PackagerError, "error code 2"),
+        ):
+            self.packager.copy_pkgroot()
 
 
 @unittest.skipUnless(sys.platform == "darwin", "Uses Unix grp module")

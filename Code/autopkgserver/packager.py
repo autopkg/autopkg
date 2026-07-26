@@ -280,20 +280,21 @@ class Packager:
         os.chmod(self.tmp_pkgroot, 0o1775)
         os.chown(self.tmp_pkgroot, 0, 80)
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ("/usr/bin/ditto", self.request["pkgroot"], self.tmp_pkgroot),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise PackagerError(
+                f"Couldn't copy pkgroot from {self.request['pkgroot']} to "
+                f"{self.tmp_pkgroot}: {' '.join(str(e.stderr).split())}"
             )
         except OSError as e:
             raise PackagerError(
                 f"ditto execution failed with error code {e.errno}: {e.strerror}"
-            )
-        if result.returncode != 0:
-            raise PackagerError(
-                f"Couldn't copy pkgroot from {self.request['pkgroot']} to "
-                f"{self.tmp_pkgroot}: {' '.join(str(result.stderr).split())}"
             )
 
         self.log.info("Package root copied to %s", self.tmp_pkgroot)
