@@ -181,6 +181,49 @@ class TestInstallerValidation(unittest.TestCase):
         ):
             worker.do_install()
 
+    def test_do_install_preserves_installer_errors(self):
+        """Should not wrap errors that already use the worker's error type."""
+        package_path = os.path.join(self.recipe_cache, "Test.pkg")
+        worker = self._installer(package_path)
+        worker.package_path = package_path
+        expected = installer.InstallerError("installer failed")
+
+        with (
+            patch.object(installer.subprocess, "Popen", side_effect=expected),
+            self.assertRaises(installer.InstallerError) as raised,
+        ):
+            worker.do_install()
+
+        self.assertIs(raised.exception, expected)
+
+    def test_install_preserves_installer_errors(self):
+        """Should not wrap validation errors in another InstallerError."""
+        package_path = os.path.join(self.recipe_cache, "Test.pkg")
+        worker = self._installer(package_path)
+        expected = installer.InstallerError("invalid request")
+
+        with (
+            patch.object(worker, "verify_request", side_effect=expected),
+            self.assertRaises(installer.InstallerError) as raised,
+        ):
+            worker.install()
+
+        self.assertIs(raised.exception, expected)
+
+    def test_install_chains_unexpected_errors(self):
+        """Should retain the cause when adapting an unexpected exception."""
+        package_path = os.path.join(self.recipe_cache, "Test.pkg")
+        worker = self._installer(package_path)
+        expected = RuntimeError("unexpected failure")
+
+        with (
+            patch.object(worker, "verify_request", side_effect=expected),
+            self.assertRaises(installer.InstallerError) as raised,
+        ):
+            worker.install()
+
+        self.assertIs(raised.exception.__cause__, expected)
+
     def test_install_does_not_wrap_keyboard_interrupt(self):
         """Should let process termination exceptions propagate."""
         package_path = os.path.join(self.recipe_cache, "Test.pkg")
@@ -485,6 +528,32 @@ class TestItemCopierValidation(unittest.TestCase):
             self.assertRaises(KeyboardInterrupt),
         ):
             worker.copy()
+
+    def test_copy_preserves_itemcopier_errors(self):
+        """Should not wrap validation errors in another ItemCopierError."""
+        worker = self._copier(self._request())
+        expected = itemcopier.ItemCopierError("invalid request")
+
+        with (
+            patch.object(worker, "verify_request", side_effect=expected),
+            self.assertRaises(itemcopier.ItemCopierError) as raised,
+        ):
+            worker.copy()
+
+        self.assertIs(raised.exception, expected)
+
+    def test_copy_chains_unexpected_errors(self):
+        """Should retain the cause when adapting an unexpected exception."""
+        worker = self._copier(self._request())
+        expected = RuntimeError("unexpected failure")
+
+        with (
+            patch.object(worker, "verify_request", side_effect=expected),
+            self.assertRaises(itemcopier.ItemCopierError) as raised,
+        ):
+            worker.copy()
+
+        self.assertIs(raised.exception.__cause__, expected)
 
 
 if __name__ == "__main__":

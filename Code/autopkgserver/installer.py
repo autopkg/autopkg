@@ -145,14 +145,18 @@ class Installer:
                 raise InstallerError(f"ERROR:{proc.returncode}\n")
             self.log.info("install request completed.")
             return True
+        except InstallerError:
+            raise
         except Exception as err:
             self.log.error("Install failed: %s", err)
-            raise InstallerError(f"ERROR:{err}\n")
+            raise InstallerError(f"ERROR:{err}\n") from err
 
     def install(self) -> None:
         """Main method."""
         try:
             self.verify_request()
             self.do_install()
+        except InstallerError:
+            raise
         except Exception as err:
-            raise InstallerError(err)
+            raise InstallerError(err) from err

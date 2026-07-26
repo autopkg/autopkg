@@ -325,5 +325,7 @@ class ItemCopier:
         try:
             self.verify_request()
             self.copy_items()
+        except ItemCopierError:
+            raise
         except Exception as err:
-            raise ItemCopierError(err)
+            raise ItemCopierError(err) from err
