@@ -721,32 +721,6 @@ def find_recipe_by_name_in_map(name: str, skip_overrides: bool = False) -> str |
     return None
 
 
-def find_name_from_identifier(identifier: str) -> str | None:
-    """Reverse lookup: return a shortname for the given identifier, or None."""
-    recipe_path = globalRecipeMap.get("identifiers", {}).get(identifier)
-    if recipe_path is None:
-        log_err(f"Could not find shortname from {identifier}!")
-        return None
-    for shortname, path in globalRecipeMap.get("shortnames", {}).items():
-        if recipe_path == path:
-            return shortname
-    log_err(f"Could not find shortname from {identifier}!")
-    return None
-
-
-def find_identifier_from_name(name: str) -> str | None:
-    """Reverse lookup: return an identifier for the given shortname, or None."""
-    recipe_path = globalRecipeMap.get("shortnames", {}).get(name)
-    if recipe_path is None:
-        log_err(f"Could not find identifier from {name}!")
-        return None
-    for recipe_id, path in globalRecipeMap.get("identifiers", {}).items():
-        if recipe_path == path:
-            return recipe_id
-    log_err(f"Could not find identifier from {name}!")
-    return None
-
-
 # Keys in globalRecipeMap that index by recipe Identifier (read from the
 # plist/yaml). All other keys index by shortname (filename minus extension).
 _IDENTIFIER_KEYS = frozenset({"identifiers", "overrides-identifiers"})

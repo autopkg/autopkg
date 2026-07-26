@@ -166,12 +166,6 @@ def builds_a_package(recipe) -> bool:
     return recipe_has_step_processor(recipe, "PkgCreator")
 
 
-def find_recipe_by_name(name, search_dirs) -> str | None:
-    """Legacy helper retained for call-site compatibility. Defers to the
-    canonical on-disk scanner now defined in autopkglib."""
-    return find_recipe_by_name_on_disk(name, search_dirs)
-
-
 def _dirs_equal_prefs(caller_search_dirs, caller_override_dirs) -> bool:
     """Return True when the caller's effective dirs are omitted or match
     the pref baseline in normalized order.

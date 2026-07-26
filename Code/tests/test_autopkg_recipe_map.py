@@ -17,8 +17,7 @@
 """Tests for the recipe map cache.
 
 Covers:
-* Lookup helpers (find_recipe_by_identifier_in_map, find_recipe_by_name_in_map,
-  find_identifier_from_name, find_name_from_identifier).
+* Lookup helpers (find_recipe_by_identifier_in_map, find_recipe_by_name_in_map).
 * Persistence (write_recipe_map_to_disk, handle_reading_recipe_map_file,
   validate_recipe_map).
 * Rebuild behaviour (map_key_to_paths, calculate_recipe_map).
@@ -180,30 +179,6 @@ class TestRecipeMapLookups(_RecipeMapIsolationMixin, unittest.TestCase):
 
     def test_find_by_name_returns_none_for_missing(self):
         self.assertIsNone(autopkglib.find_recipe_by_name_in_map("NopeRecipe"))
-
-    def test_find_name_from_identifier(self):
-        self.assertEqual(
-            autopkglib.find_name_from_identifier(SAMPLE_RECIPE["Identifier"]),
-            "Sample",
-        )
-
-    def test_find_name_from_identifier_missing_logs_and_returns_none(self):
-        with patch.object(autopkglib, "log_err") as mock_log_err:
-            self.assertIsNone(
-                autopkglib.find_name_from_identifier("com.example.missing")
-            )
-            mock_log_err.assert_called()
-
-    def test_find_identifier_from_name(self):
-        self.assertEqual(
-            autopkglib.find_identifier_from_name("Sample"),
-            SAMPLE_RECIPE["Identifier"],
-        )
-
-    def test_find_identifier_from_name_missing_logs_and_returns_none(self):
-        with patch.object(autopkglib, "log_err") as mock_log_err:
-            self.assertIsNone(autopkglib.find_identifier_from_name("Nope"))
-            mock_log_err.assert_called()
 
 
 class TestRecipeMapPersistence(_RecipeMapIsolationMixin, unittest.TestCase):

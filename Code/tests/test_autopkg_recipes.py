@@ -537,8 +537,8 @@ class TestAutoPkgRecipes(unittest.TestCase):
         result = autopkg.valid_recipe_dict_with_keys(recipe_dict, keys_to_verify)
         self.assertFalse(result)
 
-    def test_find_recipe_by_name_with_valid_recipe(self):
-        """Test find_recipe_by_name when a valid recipe file exists."""
+    def test_find_recipe_by_name_on_disk_with_valid_recipe(self):
+        """Test find_recipe_by_name_on_disk when a valid recipe file exists."""
 
         # Create a temporary recipe file
         recipe_dict = {
@@ -553,13 +553,13 @@ class TestAutoPkgRecipes(unittest.TestCase):
         with open(recipe_file, "wb") as f:
             plistlib.dump(recipe_dict, f)
 
-        result = autopkg.find_recipe_by_name(
+        result = autopkg.find_recipe_by_name_on_disk(
             "TestApp.download.recipe", [self.tmp_dir.name]
         )
         self.assertEqual(result, recipe_file)
 
-    def test_find_recipe_by_name_without_extension(self):
-        """Test find_recipe_by_name when recipe name is provided without extension."""
+    def test_find_recipe_by_name_on_disk_without_extension(self):
+        """Test find_recipe_by_name_on_disk when recipe name is provided without extension."""
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -573,11 +573,13 @@ class TestAutoPkgRecipes(unittest.TestCase):
             plistlib.dump(recipe_dict, f)
 
         # Should find recipe even without .recipe extension
-        result = autopkg.find_recipe_by_name("TestApp.download", [self.tmp_dir.name])
+        result = autopkg.find_recipe_by_name_on_disk(
+            "TestApp.download", [self.tmp_dir.name]
+        )
         self.assertEqual(result, recipe_file)
 
-    def test_find_recipe_by_name_in_subdirectory(self):
-        """Test find_recipe_by_name when recipe is in a subdirectory."""
+    def test_find_recipe_by_name_on_disk_in_subdirectory(self):
+        """Test find_recipe_by_name_on_disk when recipe is in a subdirectory."""
 
         recipe_dict = {
             "Description": "Test recipe",
@@ -592,36 +594,42 @@ class TestAutoPkgRecipes(unittest.TestCase):
         with open(recipe_file, "wb") as f:
             plistlib.dump(recipe_dict, f)
 
-        result = autopkg.find_recipe_by_name("TestApp.download", [self.tmp_dir.name])
+        result = autopkg.find_recipe_by_name_on_disk(
+            "TestApp.download", [self.tmp_dir.name]
+        )
         self.assertEqual(result, recipe_file)
 
-    def test_find_recipe_by_name_nonexistent_recipe(self):
-        """Test find_recipe_by_name when recipe doesn't exist."""
+    def test_find_recipe_by_name_on_disk_nonexistent_recipe(self):
+        """Test find_recipe_by_name_on_disk when recipe doesn't exist."""
 
-        result = autopkg.find_recipe_by_name(
+        result = autopkg.find_recipe_by_name_on_disk(
             "NonExistent.download", [self.tmp_dir.name]
         )
         self.assertIsNone(result)
 
-    def test_find_recipe_by_name_invalid_recipe(self):
-        """Test find_recipe_by_name when recipe file exists but is invalid."""
+    def test_find_recipe_by_name_on_disk_invalid_recipe(self):
+        """Test find_recipe_by_name_on_disk when recipe file exists but is invalid."""
 
         # Create an invalid recipe file (missing required keys)
         invalid_recipe_file = os.path.join(self.tmp_dir.name, "Invalid.download.recipe")
         with open(invalid_recipe_file, "w") as f:
             f.write("This is not a valid plist")
 
-        result = autopkg.find_recipe_by_name("Invalid.download", [self.tmp_dir.name])
+        result = autopkg.find_recipe_by_name_on_disk(
+            "Invalid.download", [self.tmp_dir.name]
+        )
         self.assertIsNone(result)
 
-    def test_find_recipe_by_name_empty_search_dirs(self):
-        """Test find_recipe_by_name with empty search directories."""
-        result = autopkg.find_recipe_by_name("TestApp.download", [])
+    def test_find_recipe_by_name_on_disk_empty_search_dirs(self):
+        """Test find_recipe_by_name_on_disk with empty search directories."""
+        result = autopkg.find_recipe_by_name_on_disk("TestApp.download", [])
         self.assertIsNone(result)
 
-    def test_find_recipe_by_name_nonexistent_search_dir(self):
-        """Test find_recipe_by_name with nonexistent search directory."""
-        result = autopkg.find_recipe_by_name("TestApp.download", ["/nonexistent/path"])
+    def test_find_recipe_by_name_on_disk_nonexistent_search_dir(self):
+        """Test find_recipe_by_name_on_disk with nonexistent search directory."""
+        result = autopkg.find_recipe_by_name_on_disk(
+            "TestApp.download", ["/nonexistent/path"]
+        )
         self.assertIsNone(result)
 
     def test_find_recipe_finds_by_identifier(self):
