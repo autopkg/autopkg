@@ -1454,13 +1454,21 @@ def list_recipes(argv):
         print("\n".join(output))
 
 
-def get_git_commit_hash(filepath):
+def get_git_commit_hash(filepath, git_toplevel_cache=None):
     """Get the current git commit hash if possible"""
-    try:
-        git_toplevel_dir = run_git(
-            ["rev-parse", "--show-toplevel"], git_directory=os.path.dirname(filepath)
-        ).rstrip("\n")
-    except GitError:
+    lookup_dir = os.path.dirname(filepath)
+    if git_toplevel_cache is None or lookup_dir not in git_toplevel_cache:
+        try:
+            git_toplevel_dir = run_git(
+                ["rev-parse", "--show-toplevel"], git_directory=lookup_dir
+            ).rstrip("\n")
+        except GitError:
+            git_toplevel_dir = None
+        if git_toplevel_cache is not None:
+            git_toplevel_cache[lookup_dir] = git_toplevel_dir
+    else:
+        git_toplevel_dir = git_toplevel_cache[lookup_dir]
+    if git_toplevel_dir is None:
         return None
     try:
         relative_path = os.path.relpath(filepath, git_toplevel_dir)
@@ -1621,12 +1629,13 @@ def os_path_compressuser(pathname):
 def get_trust_info(recipe, search_dirs=None):
     """Gets information from a recipe we use to ensure parent recipes and
     non-core processors have not changed"""
+    git_toplevel_cache = {}
     # generate hashes for each parent recipe
     parent_recipe_paths = recipe.get("PARENT_RECIPES", []) + [recipe["RECIPE_PATH"]]
     parent_recipe_hashes = {}
     for p_recipe_path in parent_recipe_paths:
         p_recipe_hash = getsha256hash(p_recipe_path)
-        git_hash = get_git_commit_hash(p_recipe_path)
+        git_hash = get_git_commit_hash(p_recipe_path, git_toplevel_cache)
         p_recipe = load_recipe(p_recipe_path, override_dirs=[], recipe_dirs=search_dirs)
         identifier = get_identifier(p_recipe)
         parent_recipe_hashes[identifier] = {
@@ -1646,7 +1655,7 @@ def get_trust_info(recipe, search_dirs=None):
         processor_path = find_processor_path(processor, recipe)
         if processor_path:
             processor_hash = getsha256hash(processor_path)
-            git_hash = get_git_commit_hash(processor_path)
+            git_hash = get_git_commit_hash(processor_path, git_toplevel_cache)
         else:
             log_err(f"WARNING: processor path not found for processor: {processor}")
             processor_path = ""
@@ -1684,7 +1693,7 @@ def get_trust_info(recipe, search_dirs=None):
                 if script_key in script_hashes:
                     continue
                 script_hash = getsha256hash(script_path)
-                git_hash = get_git_commit_hash(script_path)
+                git_hash = get_git_commit_hash(script_path, git_toplevel_cache)
                 script_hashes[script_key] = {
                     "path": os_path_compressuser(script_path),
                     "sha256_hash": script_hash,

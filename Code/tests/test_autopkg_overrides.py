@@ -49,6 +49,31 @@ class TestAutoPkgOverrides(unittest.TestCase):
         for patcher in self._recipe_map_patches:
             patcher.stop()
 
+    def test_get_git_commit_hash_caches_toplevel_by_directory(self):
+        def fake_run_git(arguments, git_directory=None):
+            if arguments == ["rev-parse", "--show-toplevel"]:
+                return "/repo\n"
+            if arguments[:2] == ["rev-list", "-1"]:
+                return "abc123\n"
+            if arguments[0] == "diff":
+                return ""
+            self.fail(f"Unexpected git arguments: {arguments}")
+
+        cache = {}
+        with patch.object(autopkg, "run_git", side_effect=fake_run_git) as mock_run_git:
+            first = autopkg.get_git_commit_hash("/repo/Scripts/preinstall", cache)
+            second = autopkg.get_git_commit_hash("/repo/Scripts/postinstall", cache)
+
+        self.assertEqual(first, "abc123")
+        self.assertEqual(second, "abc123")
+        self.assertEqual(cache, {"/repo/Scripts": "/repo"})
+        rev_parse_calls = [
+            call
+            for call in mock_run_git.call_args_list
+            if call.args[0] == ["rev-parse", "--show-toplevel"]
+        ]
+        self.assertEqual(len(rev_parse_calls), 1)
+
     def test_get_trust_info_basic_recipe(self):
         """Test get_trust_info with a basic recipe."""
         mock_recipe = {
@@ -249,6 +274,8 @@ class TestAutoPkgOverrides(unittest.TestCase):
                 result["scripts"]["Scripts/preinstall"]["sha256_hash"],
                 "pre_hash",
             )
+            cache_ids = {id(call.args[1]) for call in mock_git_hash.call_args_list}
+            self.assertEqual(len(cache_ids), 1)
 
     def test_get_trust_info_pkgcreator_scripts_dedupes_same_path(self):
         """Test get_trust_info dedupes scripts used by multiple PkgCreator steps."""
