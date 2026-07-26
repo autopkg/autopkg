@@ -843,7 +843,7 @@ Example: '%prog repo-add recipes'
 
     recipe_search_dirs = get_search_dirs()
     recipe_repos = get_pref("RECIPE_REPOS") or {}
-    added_repo_dirs: list[str] = []
+    repo_added = False
     for repo_url in arguments:
         if "file://" in repo_url:
             log_err(
@@ -859,7 +859,7 @@ Example: '%prog repo-add recipes'
                 recipe_search_dirs.append(new_recipe_repo_dir)
             # add info about this repo to our prefs
             recipe_repos[new_recipe_repo_dir] = {"URL": repo_url}
-            added_repo_dirs.append(new_recipe_repo_dir)
+            repo_added = True
 
     # save our updated RECIPE_REPOS and RECIPE_SEARCH_DIRS
     save_pref_or_warn("RECIPE_REPOS", recipe_repos)
@@ -869,7 +869,7 @@ Example: '%prog repo-add recipes'
     # available. The RECIPE_SEARCH_DIRS pref was already updated above,
     # so a single calculate_recipe_map() call picks up the new repos and
     # persists the result.
-    if added_repo_dirs:
+    if repo_added:
         calculate_recipe_map()
 
     log("Updated search path:")
@@ -950,6 +950,14 @@ def repo_list(argv):
         print("No recipe repos.")
 
 
+def _head_hash(repo_dir: str) -> str | None:
+    """Return the current HEAD hash for repo_dir, or None on failure."""
+    try:
+        return run_git(["rev-parse", "HEAD"], git_directory=repo_dir).strip() or None
+    except GitError:
+        return None
+
+
 def repo_update(argv):
     """Update one or more recipe repos"""
     verb = argv[1]
@@ -995,24 +1003,13 @@ def repo_update(argv):
         # the on-disk contents actually changed. Avoids paying a full
         # scan cost for `autopkg repo-update all` on a fully-up-to-date
         # tree (common in CI pipelines that run on every commit).
-        pre_hash: str | None
-        try:
-            pre_hash = (
-                run_git(["rev-parse", "HEAD"], git_directory=repo_dir).strip() or None
-            )
-        except GitError:
-            pre_hash = None
+        pre_hash = _head_hash(repo_dir)
         try:
             log(run_git(["pull"], git_directory=repo_dir))
         except GitError as err:
             log_err(err)
             continue
-        try:
-            post_hash: str | None = (
-                run_git(["rev-parse", "HEAD"], git_directory=repo_dir).strip() or None
-            )
-        except GitError:
-            post_hash = None
+        post_hash = _head_hash(repo_dir)
         if (
             migrated_to_main
             or pre_hash is None

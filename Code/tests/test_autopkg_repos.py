@@ -1414,6 +1414,20 @@ class TestAutoPkgRepos(unittest.TestCase):
             "ERROR: Can't find an installed repo for https://github.com/autopkg/nonexistent"
         )
 
+    @patch("autopkg.run_git", return_value="abc123\n")
+    def test_head_hash_returns_stripped_revision(self, mock_run_git):
+        self.assertEqual(autopkg._head_hash("/repo/path"), "abc123")
+        mock_run_git.assert_called_once_with(
+            ["rev-parse", "HEAD"], git_directory="/repo/path"
+        )
+
+    @patch("autopkg.run_git", side_effect=autopkg.GitError("not a repository"))
+    def test_head_hash_returns_none_on_git_error(self, mock_run_git):
+        self.assertIsNone(autopkg._head_hash("/repo/path"))
+        mock_run_git.assert_called_once_with(
+            ["rev-parse", "HEAD"], git_directory="/repo/path"
+        )
+
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")
     @patch("autopkg.get_repo_info")
