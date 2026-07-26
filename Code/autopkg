@@ -1673,7 +1673,10 @@ def os_path_compressuser(pathname):
     home_dir = os.path.expanduser("~")
     if pathname == home_dir:
         return "~"
-    elif pathname.startswith(home_dir):
+    # Compare against home_dir plus a separator so a sibling directory that
+    # merely shares a string prefix (/Users/user2 against home /Users/user)
+    # isn't treated as living inside home.
+    elif pathname.startswith(home_dir.rstrip(os.sep) + os.sep):
         return "~/" + os.path.relpath(pathname, home_dir)
     else:
         return pathname
