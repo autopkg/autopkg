@@ -294,6 +294,33 @@ class TestMapKeyToPaths(RecipeMapIsolation, unittest.TestCase):
         self.assertIn("DuplicateName", result)
         self.assertIn(result["DuplicateName"], {dup_a, dup_b})
 
+    def test_multiple_keys_share_one_walk(self):
+        with patch.object(
+            autopkglib,
+            "_iter_recipe_glob_matches",
+            wraps=autopkglib._iter_recipe_glob_matches,
+        ) as mock_iter:
+            result = autopkglib.map_keys_to_paths(
+                ("identifiers", "shortnames"), self.tmpdir
+            )
+
+        mock_iter.assert_called_once_with([self.tmpdir])
+        self.assertEqual(result["identifiers"]["com.example.a"], self.recipe_a)
+        self.assertEqual(result["shortnames"]["RecipeA"], self.recipe_a)
+
+    def test_invalid_recipe_still_has_shortname_entry(self):
+        invalid_path = os.path.join(self.tmpdir, "Broken.recipe")
+        with open(invalid_path, "w", encoding="utf-8") as f:
+            f.write("not a recipe")
+
+        with patch.object(autopkglib, "log_err"):
+            result = autopkglib.map_keys_to_paths(
+                ("identifiers", "shortnames"), self.tmpdir
+            )
+
+        self.assertNotIn("Broken", result["identifiers"])
+        self.assertEqual(result["shortnames"]["Broken"], invalid_path)
+
 
 class TestCalculateRecipeMap(RecipeMapIsolation, unittest.TestCase):
     """End-to-end tests for calculate_recipe_map: honours prefs, writes to
@@ -352,6 +379,29 @@ class TestCalculateRecipeMap(RecipeMapIsolation, unittest.TestCase):
             },
         )
 
+    def test_first_search_directory_wins(self):
+        later_dir = os.path.join(self.tmpdir, "later-repo")
+        later_recipe = os.path.join(later_dir, "Sample.recipe")
+        _write_plist_recipe(later_recipe, SAMPLE_RECIPE)
+
+        with (
+            self._run_with_prefs(
+                RECIPE_SEARCH_DIRS=[self.recipes_dir, later_dir],
+                RECIPE_OVERRIDE_DIRS=[],
+            ),
+            patch.object(autopkglib, "get_override_dirs", return_value=[]),
+        ):
+            autopkglib.calculate_recipe_map()
+
+        first_recipe = os.path.join(self.recipes_dir, "Sample.recipe")
+        self.assertEqual(
+            autopkglib.globalRecipeMap["identifiers"][SAMPLE_RECIPE["Identifier"]],
+            first_recipe,
+        )
+        self.assertEqual(
+            autopkglib.globalRecipeMap["shortnames"]["Sample"], first_recipe
+        )
+
     def test_persists_when_no_extras(self):
         with self._run_with_prefs(
             RECIPE_SEARCH_DIRS=[self.recipes_dir],
@@ -407,7 +457,9 @@ class TestCalculateRecipeMap(RecipeMapIsolation, unittest.TestCase):
             RECIPE_OVERRIDE_DIRS=[self.overrides_dir],
         ):
             with patch.object(
-                autopkglib, "map_key_to_paths", return_value={}
+                autopkglib,
+                "map_keys_to_paths",
+                side_effect=lambda keynames, _: {keyname: {} for keyname in keynames},
             ) as mk_mock:
                 autopkglib.calculate_recipe_map(skip_cwd=False)
 

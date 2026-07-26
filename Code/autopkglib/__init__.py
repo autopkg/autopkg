@@ -29,7 +29,7 @@ import sys
 import textwrap
 import traceback
 from copy import deepcopy
-from typing import IO, Any, Union
+from typing import IO, Any, Iterable, Union
 
 import appdirs
 import yaml
@@ -727,36 +727,43 @@ def find_recipe_by_name_in_map(name: str, skip_overrides: bool = False) -> str |
 _IDENTIFIER_KEYS = frozenset({"identifiers", "overrides-identifiers"})
 
 
-def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
-    """Walk ``repo_dir`` one level deep and emit {key: absolute_path} entries
-    suitable for inclusion in ``globalRecipeMap[keyname]``.
+def map_keys_to_paths(
+    keynames: Iterable[str], repo_dir: str
+) -> dict[str, dict[str, str]]:
+    """Build multiple recipe-map buckets in one walk of ``repo_dir``.
 
     For identifier-keyed dicts (``identifiers``, ``overrides-identifiers``)
     the key is read from the recipe file's Identifier field; for the
     shortname-keyed dicts (``shortnames``, ``overrides``) the key is the
     filename minus the recipe extension.
 
-    First-wins: if a key is already present in the return dict or in
+    First-wins: if a key is already present in the return bucket or in
     ``globalRecipeMap[keyname]`` the new path is ignored."""
-    recipe_map: dict[str, str] = {}
-    use_identifier = keyname in _IDENTIFIER_KEYS
+    keynames = tuple(keynames)
+    recipe_maps: dict[str, dict[str, str]] = {keyname: {} for keyname in keynames}
+    needs_identifier = any(keyname in _IDENTIFIER_KEYS for keyname in keynames)
     for match in _iter_recipe_glob_matches([repo_dir]):
-        if use_identifier:
-            key = get_identifier_from_recipe_file(match)
-        else:
-            key = remove_recipe_extension(os.path.basename(match))
-        if not key:
+        identifier = (
+            get_identifier_from_recipe_file(match) if needs_identifier else None
+        )
+        shortname = remove_recipe_extension(os.path.basename(match))
+        if needs_identifier and not identifier:
             log_err(
                 f"WARNING: {match} is potentially an invalid file, not "
                 "adding it to the recipe map! Please file a GitHub Issue "
                 "for this repo."
             )
-            continue
-        if key in recipe_map or key in globalRecipeMap.get(keyname, {}):
-            # first-wins; do not overwrite an existing entry
-            continue
-        recipe_map[key] = match
-    return recipe_map
+        for keyname, recipe_map in recipe_maps.items():
+            key = identifier if keyname in _IDENTIFIER_KEYS else shortname
+            if not key or key in recipe_map or key in globalRecipeMap.get(keyname, {}):
+                continue
+            recipe_map[key] = match
+    return recipe_maps
+
+
+def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
+    """Build one recipe-map bucket while preserving the public helper API."""
+    return map_keys_to_paths((keyname,), repo_dir)[keyname]
 
 
 def add_recipe_to_map(recipe_path: str, is_override: bool) -> None:
@@ -856,10 +863,9 @@ def calculate_recipe_map(
             # If the caller opted back in to scanning '.', resolve it so the
             # absolute path ends up in the map.
             search_dir = os.path.abspath(".")
-        globalRecipeMap["identifiers"].update(
-            map_key_to_paths("identifiers", search_dir)
-        )
-        globalRecipeMap["shortnames"].update(map_key_to_paths("shortnames", search_dir))
+        recipe_maps = map_keys_to_paths(("identifiers", "shortnames"), search_dir)
+        for keyname, recipe_map in recipe_maps.items():
+            globalRecipeMap[keyname].update(recipe_map)
 
     for override in get_override_dirs() + extra_override_dirs:
         if override == ".":
@@ -868,10 +874,11 @@ def calculate_recipe_map(
             if skip_cwd:
                 continue
             override = os.path.abspath(".")
-        globalRecipeMap["overrides"].update(map_key_to_paths("overrides", override))
-        globalRecipeMap["overrides-identifiers"].update(
-            map_key_to_paths("overrides-identifiers", override)
+        recipe_maps = map_keys_to_paths(
+            ("overrides", "overrides-identifiers"), override
         )
+        for keyname, recipe_map in recipe_maps.items():
+            globalRecipeMap[keyname].update(recipe_map)
 
     if persist is None:
         persist = not (extra_search_dirs or extra_override_dirs)
