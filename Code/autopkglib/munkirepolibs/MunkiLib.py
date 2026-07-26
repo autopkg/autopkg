@@ -89,7 +89,12 @@ class MunkiLib:
         """Updates an existing pkginfo file in the repo via the repo plugin."""
         try:
             from munkilib import FoundationPlist
+        except ImportError as err:
+            raise ProcessorError(
+                f"Could not import munkilib FoundationPlist: {err}"
+            ) from err
 
+        try:
             relative_path = os.path.relpath(pkginfo_path, self.munki_repo)
             content = FoundationPlist.writePlistToString(pkginfo)
             self.repo.put(relative_path, content)

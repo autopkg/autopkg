@@ -71,6 +71,22 @@ class TestMunkiLib(unittest.TestCase):
         )
         self.assertIsInstance(err.exception.__cause__, RuntimeError)
 
+    def test_put_pkginfo_to_repo_reports_foundationplist_import_errors(self):
+        library = self._library()
+        fake_munkilib = types.ModuleType("munkilib")
+        pkginfo_path = os.path.join("/repo", "pkgsinfo", "TestApp.plist")
+
+        with patch.dict(sys.modules, {"munkilib": fake_munkilib}):
+            with self.assertRaises(ProcessorError) as err:
+                library.put_pkginfo_to_repo({"name": "TestApp"}, pkginfo_path)
+
+        self.assertIn(
+            "Could not import munkilib FoundationPlist",
+            str(err.exception),
+        )
+        self.assertIsInstance(err.exception.__cause__, ImportError)
+        library.repo.put.assert_not_called()
+
     def test_missing_munkilib_dir_reports_pythonlibs_package(self):
         """An absent munkilib names the package that installs it, not a Munki version."""
         with TemporaryDirectory() as tmp_dir:
