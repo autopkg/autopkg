@@ -1850,6 +1850,57 @@ class TestAutoPkgRecipes(unittest.TestCase):
 
         self.assertEqual(result, -1)
 
+    def test_sensitive_input_flags_hard_coded_credential(self):
+        """Shape taken from a real public recipe: the sensitive name is in the
+        key and the secret is a bare value."""
+        findings = autopkg.find_sensitive_inputs_in_recipe(
+            {"Input": {"NAME": "CrowdStrike Falcon", "CS_CLIENT_SECRET": "093Uhd09xY"}}
+        )
+
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0]["location"], "Input.CS_CLIENT_SECRET")
+
+    def test_sensitive_input_never_echoes_the_value(self):
+        """Printing the secret to audit output would defeat the purpose."""
+        secret = "093Uhd09xY"
+        findings = autopkg.find_sensitive_inputs_in_recipe(
+            {"Input": {"CS_CLIENT_SECRET": secret}}
+        )
+
+        self.assertNotIn(secret, str(findings))
+        self.assertNotIn(
+            secret,
+            str(autopkg.audit_findings({"R.recipe": {"sensitive_inputs": findings}})),
+        )
+
+    def test_sensitive_input_ignores_variable_references_and_empty_values(self):
+        """A variable reference is the correct pattern, not a finding."""
+        self.assertEqual(
+            autopkg.find_sensitive_inputs_in_recipe(
+                {
+                    "Input": {
+                        "API_TOKEN": "%API_TOKEN%",
+                        "PASSWORD": "",
+                        "PARTIAL_SECRET": "prefix-%SUFFIX%",
+                        "NAME": "NotASecretKeyName",
+                    }
+                }
+            ),
+            [],
+        )
+
+    def test_sensitive_input_severity_is_error(self):
+        findings = autopkg.audit_findings(
+            {
+                "R.recipe": {
+                    "sensitive_inputs": [{"location": "Input.TOKEN", "reason": "x"}]
+                }
+            }
+        )[0]["findings"]
+
+        self.assertEqual(findings[0]["severity"], "error")
+        self.assertEqual(findings[0]["check"], "sensitive_input")
+
     def test_audit_findings_orders_by_severity(self):
         """Findings sort most-severe first, so a reader sees errors before info."""
         findings = autopkg.audit_findings(

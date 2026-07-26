@@ -3022,6 +3022,7 @@ def find_http_urls_in_recipe(recipe):
 # contract for --json; the audit_results keys are the --plist output schema.
 # Keep them decoupled: renaming one must not force renaming the other.
 AUDIT_CHECKS = {
+    "sensitive_input": ("sensitive_inputs", "error"),
     "missing_codesig": ("MissingCodeSignatureVerifier", "warning"),
     "insecure_protocol": ("http_urls", "warning"),
     "path_safety": ("path_safety_warnings", "warning"),
@@ -3047,7 +3048,7 @@ def _audit_check_details(check, data) -> list[str]:
         return ["No CodeSignatureVerifier step in a recipe that downloads."]
     if check == "insecure_protocol":
         return list(_audit_insecure_url_details(data))
-    if check in ("path_safety", "weak_hash"):
+    if check in ("path_safety", "weak_hash", "sensitive_input"):
         return [f"{item['location']}: {item['reason']}" for item in data]
     return [str(item) for item in data]
 
@@ -3074,6 +3075,11 @@ AUDIT_DMG_EXTENSIONS = (".dmg/", ".iso/")
 AUDIT_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 AUDIT_RUNTIME_PATH_PREFIXES = ("%RECIPE_CACHE_DIR%", "%CACHE_DIR%")
 WEAK_HASH_ALGORITHMS = ("md5", "sha1")
+AUDIT_SENSITIVE_INPUT_KEY = re.compile(
+    r"password|passwd|secret|api[_-]?key|apikey|token|client[_-]?secret"
+    r"|access[_-]?key|private[_-]?key|credential|bearer",
+    re.IGNORECASE,
+)
 AUDIT_GENERIC_TRAVERSAL_KEYS = {
     "Copier": ("source_path", "destination_path"),
     "FileMover": ("source", "target"),
@@ -3331,6 +3337,37 @@ def find_weak_hashes_in_recipe(recipe):
     return weak_hashes
 
 
+def find_sensitive_inputs_in_recipe(recipe):
+    """Find hard-coded credentials among a recipe's top-level Input values.
+
+    Only top-level Input is walked — that's where credentials are declared.
+    Recipe inputs are key/value pairs, so a hard-coded secret arrives as a bare
+    value with the sensitive name in a separate key; assignment-syntax regexes
+    can't match it, hence the key-name match.
+
+    Reports the key name and reason only. Never echo the value."""
+    sensitive_inputs = []
+    for key, value in recipe.get("Input", {}).items():
+        if not AUDIT_SENSITIVE_INPUT_KEY.search(key):
+            continue
+        if not isinstance(value, str) or not value:
+            continue
+        # A pure variable reference (%CLIENT_SECRET%) is the correct pattern,
+        # not a finding. A '%' anywhere means some substitution is in play.
+        if AUDIT_KEYREF.fullmatch(value) or "%" in value:
+            continue
+        sensitive_inputs.append(
+            {
+                "location": f"Input.{key}",
+                "reason": (
+                    "appears to contain a hard-coded credential; supply it via "
+                    "a variable or an override instead"
+                ),
+            }
+        )
+    return sensitive_inputs
+
+
 def audit(argv):
     """Audit one or more recipes."""
     verb = argv[1]
@@ -3435,6 +3472,9 @@ def audit(argv):
         weak_hashes = find_weak_hashes_in_recipe(recipe)
         if weak_hashes:
             audit_results[recipe_path]["weak_hashes"] = weak_hashes
+        sensitive_inputs = find_sensitive_inputs_in_recipe(recipe)
+        if sensitive_inputs:
+            audit_results[recipe_path]["sensitive_inputs"] = sensitive_inputs
         recipe_processors = [step["Processor"] for step in recipe["Process"]]
         if (
             set(recipe_processors).intersection(DOWNLOAD_PROCESSORS)
@@ -3477,6 +3517,14 @@ def audit(argv):
             if recipe.get("PARENT_RECIPES"):
                 text = "\n                      ".join(recipe["PARENT_RECIPES"])
                 log(f"    Parent recipe(s): {text}")
+            sensitive_inputs = audit_results[recipe_path].get("sensitive_inputs")
+            if sensitive_inputs:
+                log("    The following inputs may contain hard-coded credentials:")
+                for sensitive_input in sensitive_inputs:
+                    log(
+                        f"        {sensitive_input['location']}: "
+                        f"{sensitive_input['reason']}"
+                    )
             if audit_results[recipe_path].get("MissingCodeSignatureVerifier"):
                 log("    Missing CodeSignatureVerifier")
             if audit_results[recipe_path].get("http_urls"):
