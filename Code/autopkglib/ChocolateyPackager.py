@@ -300,14 +300,10 @@ class ChocolateyPackager(Processor):
 
     @property
     def idver(self) -> str:
-        return (
-            f"{self._safe_path_component('id')}.{self._safe_path_component('version')}"
-        )
+        return f"{self.env['id']}.{self.env['version']}"
 
     def _nuspec_path(self, build_dir: str) -> str:
-        return self._path_under_dir(
-            build_dir, f"{self._safe_path_component('id')}.nuspec"
-        )
+        return self._path_under_dir(build_dir, f"{self.env['id']}.nuspec")
 
     def _chocolateyinstall_path(self, build_dir: str) -> str:
         return self._path_under_dir(build_dir, "tools", "chocolateyInstall.ps1")
@@ -492,9 +488,7 @@ class ChocolateyPackager(Processor):
         self.env["chocolatey_packager_summary_result"] = {}
         build_dir: str | None = None
         try:
-            build_dir = mkdtemp(
-                prefix=f"{self._safe_path_component('id')}.", dir=build_dir_base
-            )
+            build_dir = mkdtemp(prefix=f"{self.env['id']}.", dir=build_dir_base)
 
             self.write_build_configs(build_dir)
             nuget_package_path = self.choco_pack(build_dir, output_dir)
