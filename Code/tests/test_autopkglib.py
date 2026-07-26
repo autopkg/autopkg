@@ -292,6 +292,44 @@ class TestPathContainment(unittest.TestCase):
         self.assertTrue(autopkglib._path_under_dirs("/outside/Shared.recipe", []))
 
 
+class TestGetCacheDir(unittest.TestCase):
+    """Tests for normalized cache-directory resolution."""
+
+    def test_override_is_normalized_without_reading_preferences(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            original_cwd = os.getcwd()
+            os.chdir(tmp_dir)
+            try:
+                expected = os.path.abspath("relative-cache")
+                with patch.object(autopkglib, "get_pref") as mock_get_pref:
+                    result = autopkglib.get_cache_dir("relative-cache")
+            finally:
+                os.chdir(original_cwd)
+
+        self.assertEqual(result, expected)
+        mock_get_pref.assert_not_called()
+
+    def test_preference_is_normalized(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_dir = os.path.join(tmp_dir, "cache")
+            with patch.object(autopkglib, "get_pref", return_value=cache_dir):
+                self.assertEqual(autopkglib.get_cache_dir(), cache_dir)
+
+    def test_default_is_expanded_and_made_absolute(self):
+        expanded_default = os.path.join(os.sep, "users", "test", "AutoPkg", "Cache")
+        with (
+            patch.object(autopkglib, "get_pref", return_value=None),
+            patch.object(
+                autopkglib.os.path,
+                "expanduser",
+                return_value=expanded_default,
+            ) as mock_expanduser,
+        ):
+            self.assertEqual(autopkglib.get_cache_dir(), expanded_default)
+
+        mock_expanduser.assert_called_once_with(autopkglib.DEFAULT_USER_CACHE_DIR)
+
+
 class TestAutoPackagerRecipeCacheDir(unittest.TestCase):
     """Tests for AutoPackager RECIPE_CACHE_DIR creation."""
 

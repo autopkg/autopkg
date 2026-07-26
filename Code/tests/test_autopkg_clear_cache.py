@@ -59,11 +59,8 @@ class TestClearCache(unittest.TestCase):
         search_dirs = search_dirs or []
         override_dirs = override_dirs or []
 
-        def pref(key):
-            return cache_dir if key == "CACHE_DIR" else None
-
         with (
-            patch("autopkg.get_pref", side_effect=pref),
+            patch("autopkg.get_cache_dir", return_value=cache_dir),
             patch("autopkg.get_search_dirs", return_value=search_dirs),
             patch("autopkg.get_override_dirs", return_value=override_dirs),
             patch.dict(

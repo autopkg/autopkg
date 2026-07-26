@@ -57,6 +57,7 @@ from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict
     find_recipe_by_name_on_disk,
     get_all_prefs,
     get_autopkg_version,
+    get_cache_dir,
     get_identifier,
     get_override_dirs,
     get_pref,
@@ -2400,9 +2401,7 @@ def clear_cache(argv):
         log_err(parser.get_usage())
         return 1
 
-    cache_dir = os.path.abspath(
-        os.path.expanduser(get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache")
-    )
+    cache_dir = get_cache_dir()
     if not os.path.isdir(cache_dir):
         log_err(f"ERROR: Cache directory does not exist: {cache_dir}")
         return 1
@@ -2656,9 +2655,7 @@ def run_recipes(argv):  # noqa: C901
             f"will be available to {disable_scope}."
         )
 
-    cache_dir = os.path.abspath(
-        os.path.expanduser(get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache")
-    )
+    cache_dir = get_cache_dir()
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0o755)
     current_run_results_plist = os.path.join(cache_dir, "autopkg_results.plist")

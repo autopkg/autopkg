@@ -764,8 +764,8 @@ class TestSearchCmd(unittest.TestCase):
     ):
         """Test that get_search_results successfully retries and returns results after corrupted cache."""
         # Use a normalized path to avoid mixed separators on Windows
-        cache_path = os.path.normpath(
-            os.path.join("fake", "cache", "search_index.json")
+        cache_path = os.path.abspath(
+            os.path.normpath(os.path.join("fake", "cache", "search_index.json"))
         )
 
         # Mock cache directory exists

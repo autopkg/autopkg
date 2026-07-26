@@ -18,7 +18,7 @@ import re
 from urllib.parse import quote_plus
 
 from autopkgcmd.opts import common_parse, gen_common_parser
-from autopkglib import RECIPE_EXTS, ProcessorError, log, log_err
+from autopkglib import RECIPE_EXTS, ProcessorError, get_cache_dir, log, log_err
 from autopkglib.github import (
     DEFAULT_SEARCH_USER,
     GitHubSession,
@@ -180,11 +180,8 @@ def normalize_keyword(keyword: str) -> str:
 
 def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
     """Return an array of recipe search results."""
-    from autopkglib import get_pref
-
     # Update and load local search index cache
-    cache_dir = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
-    cache_dir = os.path.expanduser(cache_dir)
+    cache_dir = get_cache_dir()
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0o755)
     cache_path = os.path.join(cache_dir, "search_index.json")

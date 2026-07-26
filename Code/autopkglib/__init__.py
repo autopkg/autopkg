@@ -407,6 +407,13 @@ def get_pref(key) -> Any | None:
     return globalPreferences.get_pref(key)
 
 
+def get_cache_dir(override: str | None = None) -> str:
+    """Return the normalized AutoPkg cache directory."""
+    return os.path.abspath(
+        os.path.expanduser(override or get_pref("CACHE_DIR") or DEFAULT_USER_CACHE_DIR)
+    )
+
+
 def set_pref(key, value) -> None:
     """Sets a preference for domain"""
     globalPreferences.set_pref(key, value)
@@ -1691,9 +1698,7 @@ class AutoPackager:
         """Process a recipe."""
         identifier = self.get_recipe_identifier(recipe)
         # define a cache/work directory for use by the recipe
-        cache_dir = os.path.abspath(
-            os.path.expanduser(self.env.get("CACHE_DIR") or "~/Library/AutoPkg/Cache")
-        )
+        cache_dir = get_cache_dir(self.env.get("CACHE_DIR"))
         recipe_cache_dir = os.path.normpath(os.path.join(cache_dir, identifier))
         if not is_path_under(recipe_cache_dir, cache_dir):
             raise AutoPackagerError(

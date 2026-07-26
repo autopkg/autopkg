@@ -24,6 +24,7 @@ from unittest.mock import Mock, mock_open, patch
 # Add the Code directory to the Python path to resolve autopkg dependencies
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import autopkglib
 from tests import load_autopkg_module
 
 autopkg = load_autopkg_module()
@@ -31,6 +32,10 @@ autopkg = load_autopkg_module()
 
 class TestAutoPkgRun(unittest.TestCase):
     """Test cases for recipe run related functions of AutoPkg."""
+
+    def _cache_dir_pref(self, key):
+        """Answer only CACHE_DIR so other preference reads stay untouched."""
+        return self.tmp_dir.name if key == "CACHE_DIR" else None
 
     def setUp(self):
         """Set up test fixtures."""
@@ -40,6 +45,9 @@ class TestAutoPkgRun(unittest.TestCase):
         self._recipe_map_patches = [
             patch("autopkg.calculate_recipe_map"),
             patch("autopkg.read_recipe_map"),
+            # Keep CACHE_DIR inside the temp dir. Patched where get_cache_dir
+            # reads it, so callers still run the real normalization.
+            patch("autopkglib.get_pref", side_effect=self._cache_dir_pref),
         ]
         for patcher in self._recipe_map_patches:
             patcher.start()
@@ -413,6 +421,9 @@ TestApp2.recipe
                 patch.object(autopkg, "get_override_dirs", return_value=[]),
                 patch.object(autopkg, "get_search_dirs", return_value=[]),
                 patch.object(autopkg, "get_pref", return_value=cache_pref),
+                # get_cache_dir is deliberately NOT patched: normalizing
+                # cache_pref into expected_cache_dir is what this test checks.
+                patch.object(autopkglib, "get_pref", return_value=cache_pref),
                 patch.object(
                     autopkg,
                     "get_all_prefs",
