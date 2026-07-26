@@ -38,6 +38,7 @@ import yaml
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
 from autopkgcmd.searchcmd import get_search_results
 from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict_with_keys re-exported for tests)
+    RE_KEYREF,
     RECIPE_EXTS,
     AutoPackager,
     AutoPackagerError,
@@ -3012,7 +3013,6 @@ def audit_findings(audit_results) -> list[dict[str, Any]]:
 
 
 AUDIT_DMG_EXTENSIONS = (".dmg/", ".iso/")
-AUDIT_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 AUDIT_RUNTIME_PATH_PREFIXES = ("%RECIPE_CACHE_DIR%", "%CACHE_DIR%")
 WEAK_HASH_ALGORITHMS = ("md5", "sha1")
 AUDIT_SENSITIVE_INPUT_KEY = re.compile(
@@ -3065,7 +3065,7 @@ def _audit_substitute_recipe_variables(value, env, depth=0):
     if depth > 5:
         return value
     if isinstance(value, str):
-        full_match = AUDIT_KEYREF.fullmatch(value)
+        full_match = RE_KEYREF.fullmatch(value)
         if full_match:
             key = full_match.group("key")
             if key in env:
@@ -3075,7 +3075,7 @@ def _audit_substitute_recipe_variables(value, env, depth=0):
             key = match.group("key")
             return str(env.get(key, match.group(0)))
 
-        return AUDIT_KEYREF.sub(getdata, value)
+        return RE_KEYREF.sub(getdata, value)
     if isinstance(value, list):
         return [
             _audit_substitute_recipe_variables(item, env, depth + 1) for item in value
@@ -3312,7 +3312,7 @@ def find_sensitive_inputs_in_recipe(recipe):
             continue
         # A pure variable reference (%CLIENT_SECRET%) is the correct pattern,
         # not a finding. A '%' anywhere means some substitution is in play.
-        if AUDIT_KEYREF.fullmatch(value) or "%" in value:
+        if RE_KEYREF.fullmatch(value) or "%" in value:
             continue
         sensitive_inputs.append(
             {
