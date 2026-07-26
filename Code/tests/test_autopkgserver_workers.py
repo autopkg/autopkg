@@ -383,7 +383,16 @@ class TestItemCopierValidation(unittest.TestCase):
         """Should reject modes that set setuid or setgid bits."""
         worker = self._copier(self._request())
 
-        for mode in ("4755", "04755", "2755", "02755", "u+s", "g+rwxs", "a=rwxs"):
+        for mode in (
+            "4755",
+            "04755",
+            "2755",
+            "02755",
+            "u+s",
+            "go=s",
+            "a+rwxs",
+            "u+r,g+s",
+        ):
             with self.subTest(mode=mode):
                 with self.assertRaises(itemcopier.ItemCopierError):
                     worker.verify_mode(mode)

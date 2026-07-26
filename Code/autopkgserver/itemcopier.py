@@ -105,9 +105,7 @@ class ItemCopier:
             return
 
         mode = mode.lower()
-        if re.search(r"(^|,)[ugoa]*\+[^,]*s", mode) or re.search(
-            r"(^|,)[ugoa]*=[^,]*s", mode
-        ):
+        if re.search(r"(^|,)[ugoa]*[+=][^,]*s", mode):
             raise ItemCopierError("mode may not set setuid or setgid bits")
 
     def verify_mountpoint(self):
