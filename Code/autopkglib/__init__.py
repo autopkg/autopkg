@@ -655,19 +655,33 @@ def find_recipe_by_identifier_in_map(
     overrides we do a cheap identifier cross-check: users routinely edit
     override files (e.g. when copying for multi-arch setups), and a stale
     entry would cause a split-identifier run (map resolves via old id, recipe
-    loads with new id, RECIPE_CACHE_DIR disagrees) rather than a clean miss."""
+    loads with new id, RECIPE_CACHE_DIR disagrees) rather than a clean miss.
+
+    A stale override entry raises StaleRecipeMapError rather than falling
+    through: if a stock recipe shares the identifier, falling through would
+    quietly swap override behavior for stock behavior."""
     if not skip_overrides and identifier in globalRecipeMap.get(
         "overrides-identifiers", {}
     ):
         override_path = globalRecipeMap["overrides-identifiers"][identifier]
         if os.path.isfile(override_path):
-            if get_identifier_from_recipe_file(override_path) == identifier:
+            on_disk_id = get_identifier_from_recipe_file(override_path)
+            if on_disk_id == identifier:
                 return override_path
-            log_err(
-                f"WARNING: Recipe map entry for '{identifier}' points to "
-                f"'{override_path}', but that file's identifier no longer "
-                "matches. The map is stale — run "
-                "`autopkg generate-recipe-map` to rebuild."
+            if on_disk_id is None:
+                # File is unparseable, truncated, or missing an Identifier key.
+                raise StaleRecipeMapError(
+                    f"Recipe map entry for '{identifier}' points to "
+                    f"'{override_path}', but that file is unreadable or has no "
+                    "Identifier. Check the file, then run "
+                    "`autopkg generate-recipe-map` to rebuild."
+                )
+            raise StaleRecipeMapError(
+                f"Recipe map entry for '{identifier}' points to "
+                f"'{override_path}', but that file's identifier is now "
+                f"'{on_disk_id}'. The map is stale — run "
+                "`autopkg generate-recipe-map` to rebuild, then re-run using "
+                "the correct identifier."
             )
     if identifier in globalRecipeMap.get("identifiers", {}):
         recipe_path = globalRecipeMap["identifiers"][identifier]
@@ -1570,6 +1584,12 @@ class AutoPackagerError(Exception):
 
 class AutoPackagerLoadError(Exception):
     """Represent an exception loading a recipe or processor."""
+
+    pass
+
+
+class StaleRecipeMapError(AutoPackagerError):
+    """The recipe map points at an override whose identifier has changed."""
 
     pass
 
