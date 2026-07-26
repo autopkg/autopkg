@@ -878,11 +878,18 @@ def calculate_recipe_map(
         write_recipe_map_to_disk()
 
 
+# Shared one-shot latch for every CLI and library lookup path. Without it,
+# unrelated misses in one process could each trigger a full cwd-inclusive map
+# rebuild.
 _recipe_map_cwd_rebuild_attempted = False
 
 
 def _try_cwd_rebuild_once(reason: str) -> bool:
-    """Perform a one-shot cwd-inclusive recipe-map rebuild."""
+    """Perform a one-shot cwd-inclusive recipe-map rebuild.
+
+    Return True only when this call performed the rebuild so callers know
+    whether to retry their lookup.
+    """
     global _recipe_map_cwd_rebuild_attempted
     if _recipe_map_cwd_rebuild_attempted:
         return False

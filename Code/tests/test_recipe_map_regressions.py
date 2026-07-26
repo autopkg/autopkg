@@ -570,7 +570,7 @@ class TestIssue894ProcessorLookup(RecipeMapIsolation, unittest.TestCase):
         rebuild. Subsequent misses in the same process must NOT trigger
         a second rebuild (review recommendation: avoid pathological
         multi-miss rebuilds)."""
-        autopkg._locate_recipe_rebuild_attempted = False
+        autopkglib._recipe_map_cwd_rebuild_attempted = False
 
         # Write a real recipe for the first lookup so the rebuild has
         # something to find.
@@ -588,7 +588,9 @@ class TestIssue894ProcessorLookup(RecipeMapIsolation, unittest.TestCase):
             ] = shared_recipe
 
         with (
-            patch("autopkg.calculate_recipe_map", side_effect=fake_calc) as mock_calc,
+            patch(
+                "autopkglib.calculate_recipe_map", side_effect=fake_calc
+            ) as mock_calc,
             patch(
                 "autopkg.find_recipe_by_identifier_on_disk",
                 return_value=None,
@@ -620,6 +622,11 @@ class TestIssue894ProcessorLookup(RecipeMapIsolation, unittest.TestCase):
                 "Second miss must not trigger another full rebuild "
                 "Pathological multi-miss runs must not trigger N full rebuilds.",
             )
+
+            self.assertFalse(
+                autopkglib._try_cwd_rebuild_once("library lookup after CLI lookup")
+            )
+            self.assertEqual(mock_calc.call_count, first_calls)
 
     def test_get_processor_triggers_cwd_rebuild_once(self):
         """The code-import path should recover from the same cwd map miss
@@ -845,7 +852,7 @@ class TestPathScopeSymlinkEscape(RecipeMapIsolation, unittest.TestCase):
         autopkglib.globalRecipeMap["identifiers"][
             "com.example.shared"
         ] = shared_recipe_symlink_path
-        autopkg._locate_recipe_rebuild_attempted = True
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
 
         with patch(
             "autopkg.find_recipe_by_identifier_on_disk",
@@ -870,7 +877,7 @@ class TestPathScopeSymlinkEscape(RecipeMapIsolation, unittest.TestCase):
         )
         with open(os.path.join(outside_dir, "MyProc.py"), "w", encoding="utf-8") as f:
             f.write("")
-        autopkg._locate_recipe_rebuild_attempted = True
+        autopkglib._recipe_map_cwd_rebuild_attempted = True
 
         result = autopkg.find_processor_path(
             "com.example.shared/MyProc",

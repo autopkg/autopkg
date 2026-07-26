@@ -88,7 +88,6 @@ class RecipeMapIsolation:
 
     def setUp(self):
         super().setUp()
-        autopkg = load_autopkg_module()
         self.tmpdir = tempfile.mkdtemp(prefix="autopkg_recipe_map_")
         self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
 
@@ -105,7 +104,6 @@ class RecipeMapIsolation:
         autopkglib.DEFAULT_RECIPE_MAP = os.path.join(self.tmpdir, "recipe_map.json")
         autopkglib._recipe_map_write_disabled = False
         autopkglib._recipe_map_cwd_rebuild_attempted = False
-        autopkg._locate_recipe_rebuild_attempted = False
 
         # Clear the sub-dicts in place: `globalRecipeMap` must keep object
         # identity so `from autopkglib import globalRecipeMap` importers
@@ -114,13 +112,11 @@ class RecipeMapIsolation:
             autopkglib.globalRecipeMap.setdefault(sub, {}).clear()
 
     def tearDown(self):
-        autopkg = load_autopkg_module()
         autopkglib.globalRecipeMap.clear()
         autopkglib.globalRecipeMap.update(self._saved_map)
         autopkglib.DEFAULT_RECIPE_MAP = self._saved_default
         autopkglib._recipe_map_write_disabled = self._saved_write_disabled
         autopkglib._recipe_map_cwd_rebuild_attempted = self._saved_cwd_rebuild
-        autopkg._locate_recipe_rebuild_attempted = False
         super().tearDown()
 
 

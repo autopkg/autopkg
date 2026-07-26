@@ -23,6 +23,7 @@ from unittest.mock import patch
 # Add the Code directory to the Python path to resolve autopkg dependencies
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import autopkglib
 from tests import load_autopkg_module
 
 autopkg = load_autopkg_module()
@@ -38,6 +39,7 @@ class TestInfoVerbs(unittest.TestCase):
         rationale)."""
         self._recipe_map_patches = [
             patch("autopkg.calculate_recipe_map"),
+            patch("autopkglib.calculate_recipe_map"),
             patch("autopkg.read_recipe_map"),
         ]
         for patcher in self._recipe_map_patches:
@@ -1112,7 +1114,7 @@ class TestInfoVerbs(unittest.TestCase):
         recipe = {"RECIPE_PATH": "/sandboxed/x.recipe"}
         env = {"RECIPE_SEARCH_DIRS": ["/sandboxed"]}
 
-        autopkg._locate_recipe_rebuild_attempted = True  # skip rebuild
+        autopkglib._recipe_map_cwd_rebuild_attempted = True  # skip rebuild
         with (
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
@@ -1122,7 +1124,7 @@ class TestInfoVerbs(unittest.TestCase):
                 "autopkg.find_recipe_by_identifier_on_disk",
                 return_value=None,
             ) as mock_find_on_disk,
-            patch("autopkg.calculate_recipe_map"),
+            patch("autopkglib.calculate_recipe_map"),
             patch("os.path.exists", return_value=False),
         ):
             mock_extract.return_value = ("Proc", "com.example.shared")
@@ -1258,7 +1260,7 @@ class TestInfoVerbs(unittest.TestCase):
         # find_processor_path consults the map first then the on-disk
         # scanner. Stub both to "not found" so we exercise the
         # cwd-rebuild fallback path.
-        autopkg._locate_recipe_rebuild_attempted = True  # skip rebuild
+        autopkglib._recipe_map_cwd_rebuild_attempted = True  # skip rebuild
         with (
             patch("os.path.dirname") as mock_dirname,
             patch(

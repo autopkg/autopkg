@@ -45,6 +45,7 @@ from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict
     _normalize_dirs,
     _path_under_dirs,
     _recipe_map_path,
+    _try_cwd_rebuild_once,
     add_recipe_to_map,
     calculate_recipe_map,
     core_processor_names,
@@ -88,38 +89,6 @@ _ = f"""{sys.version_info.major} It looks like you're running the autopkg tool w
 
 # If any recipe fails during 'autopkg run', return this exit code
 RECIPE_FAILED_CODE = 70
-
-# Module-level latch: have we already paid the cost of rebuilding the
-# recipe map with cwd included during this process? Gated to once per
-# process so pathological multi-miss runs (e.g. `autopkg run -l typos`
-# against a list of non-existent identifiers) don't trigger N full
-# rebuilds for N misses.
-_locate_recipe_rebuild_attempted = False
-
-
-def _try_cwd_rebuild_once(reason: str) -> bool:
-    """Perform a one-shot cwd-inclusive recipe-map rebuild, or return
-    False if we've already tried in this process.
-
-    Call sites use this to recover from map misses where the recipe may
-    be in the current working directory (which is excluded from the
-    persisted map by default). Returns True iff a rebuild was actually
-    performed; callers should retry their lookup on True.
-
-    ``reason`` is included in the log line so users can correlate the
-    rebuild with the verb that triggered it (``locate_recipe`` for a
-    recipe miss, ``find_processor_path`` for a shared-processor miss).
-
-    Tests reset the latch by patching ``_locate_recipe_rebuild_attempted``
-    directly; there is no public setter."""
-    global _locate_recipe_rebuild_attempted
-    if _locate_recipe_rebuild_attempted:
-        return False
-    _locate_recipe_rebuild_attempted = True
-    log(f"Rebuilding recipe map with current working directories ({reason})...")
-    calculate_recipe_map(skip_cwd=False, persist=False)
-    return True
-
 
 # Override global yaml state with our str representer
 # See https://github.com/autopkg/autopkg/issues/768

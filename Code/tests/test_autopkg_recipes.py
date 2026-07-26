@@ -29,6 +29,7 @@ from unittest.mock import Mock, patch
 # Add the Code directory to the Python path to resolve autopkg dependencies
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import autopkglib
 from tests import load_autopkg_module
 
 autopkg = load_autopkg_module()
@@ -56,6 +57,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
         # locally, which takes precedence over the class-level patch.
         self._recipe_map_patches = [
             patch("autopkg.calculate_recipe_map"),
+            patch("autopkglib.calculate_recipe_map"),
             patch("autopkg.read_recipe_map"),
             patch("autopkg.add_recipe_to_map"),
             patch("autopkg.get_search_dirs", return_value=[self.tmp_dir.name]),
@@ -63,7 +65,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
         ]
         for patcher in self._recipe_map_patches:
             patcher.start()
-        autopkg._locate_recipe_rebuild_attempted = False
+        autopkglib._recipe_map_cwd_rebuild_attempted = False
 
     def tearDown(self):
         """Clean up test fixtures."""
@@ -72,7 +74,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
             patcher.stop()
         # One-shot cwd-rebuild latch; reset so one test's map miss can't
         # stop a later test from exercising the same path.
-        autopkg._locate_recipe_rebuild_attempted = False
+        autopkglib._recipe_map_cwd_rebuild_attempted = False
         # audit's machine-readable output flips log() to stderr process-wide;
         # undo it so the setting can't leak into later tests in the same run.
         autopkg.redirect_log_to_stderr(False)
