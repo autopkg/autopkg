@@ -19,9 +19,9 @@
 import os.path
 import posixpath
 import zipfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
-from autopkglib import ProcessorError, VarDict
+from autopkglib import FileOrPath, ProcessorError, VarDict
 from autopkglib.DmgMounter import DmgMounter
 
 # The version string to use when the version cannot be determined
@@ -86,6 +86,7 @@ class Versioner(DmgMounter):
         self,
         path: str,
         skip_single_root_dir: bool,
+        deserializer: Callable[[FileOrPath], VarDict] | None = None,
     ) -> VarDict | None:
         """Parse a member from a zip and return `bytes`, or `None` if it does not exist.
 
@@ -99,7 +100,12 @@ class Versioner(DmgMounter):
 
         Archive extensions in `ZIP_EXTENSIONS` include a leading `.` i.e., `.zip`,
         and are considered case-insensitively.
+
+        The optional `deserializer` hook defaults to `load_plist_from_file`; subclasses
+        may pass a custom callable to interpret the opened member differently.
         """
+        if deserializer is None:
+            deserializer = self.load_plist_from_file
         # Normalize path to ensure consistent cross-platform behavior.
         path = os.path.normpath(path)
         archive_path: str | None = None
@@ -125,7 +131,7 @@ class Versioner(DmgMounter):
             self.output(f"Zip archive '{archive_path}' is empty.")
             return None
         if not skip_single_root_dir:
-            return self.load_plist_from_file(archive.open(inner_path))
+            return deserializer(archive.open(inner_path))
         if skip_single_root_dir and len(root_names) > 1:
             raise ProcessorError(
                 f"Zip archive '{archive_path}' has more than one directory at "
@@ -136,9 +142,13 @@ class Versioner(DmgMounter):
         if inner_path not in archive.namelist():
             self.output(f"Zip archive '{archive_path}' does not contain '{inner_path}'")
             return None
-        return self.load_plist_from_file(archive.open(inner_path))
+        return deserializer(archive.open(inner_path))
 
-    def _read_from_dmg(self, path: str) -> VarDict | None:
+    def _read_from_dmg(
+        self,
+        path: str,
+        deserializer: Callable[[FileOrPath], VarDict] | None = None,
+    ) -> VarDict | None:
         """Parse a file from a DMG and return `bytes`, or `None` if no such file exists.
 
         The `path` argument should be structured such that the path into the disk image
@@ -146,7 +156,12 @@ class Versioner(DmgMounter):
 
         Example:
             path/to/disk.dmg/path/in/dmg/to/version.plist
+
+        The optional `deserializer` hook defaults to `load_plist_from_file`; subclasses
+        may pass a custom callable to interpret the mounted file differently.
         """
+        if deserializer is None:
+            deserializer = self.load_plist_from_file
         # Check if we're trying to read something inside a dmg.
         dmg_path, dmg, dmg_source_path = self.parsePathForDMG(path)
         if not dmg:
@@ -159,7 +174,7 @@ class Versioner(DmgMounter):
             if not os.path.exists(input_plist_path):
                 return None
             try:
-                return self.load_plist_from_file(input_plist_path)
+                return deserializer(input_plist_path)
             except Exception as err:
                 raise ProcessorError(str(err)) from err
         finally:
@@ -169,19 +184,25 @@ class Versioner(DmgMounter):
         self,
         path: str,
         skip_single_root_dir: bool,
+        deserializer: Callable[[FileOrPath], VarDict] | None = None,
     ) -> VarDict | None:
         """Use simple heuristics to read a file from a dmg, zip, or the filesystem.
 
         Returns `None` if the provided `path` could not be found. Exceptions are raised
         in the event that the file is corrupt or unaccessible.
+
+        The optional `deserializer` hook defaults to `load_plist_from_file`; subclasses
+        may pass a custom callable (e.g. an asar reader) to interpret the file.
         """
+        if deserializer is None:
+            deserializer = self.load_plist_from_file
         if any(ext in path for ext in self.DMG_EXTENSIONS):
-            return self._read_from_dmg(path)
+            return self._read_from_dmg(path, deserializer)
         elif any(ext in path for ext in self.ZIP_EXTENSIONS):
-            return self._read_from_zip(path, skip_single_root_dir)
+            return self._read_from_zip(path, skip_single_root_dir, deserializer)
         elif not os.path.exists(path):
             return None
-        return self.load_plist_from_file(path)
+        return deserializer(path)
 
     def main(self) -> None:
         """Return a version for file at input_plist_path"""
