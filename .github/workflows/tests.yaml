@@ -75,38 +75,45 @@ jobs:
         run: python Scripts/run_tests.py
 
       - name: Run e2e tests
-        # cross platform options from: https://github.com/autopkg/autopkg/blob/master/Code/tests/e2e_tests.sh
+        # A deliberate cross-platform subset of Code/tests/e2e_tests.sh, which
+        # is macOS-only and can't run here. Verbs intentionally NOT run:
+        #   install                   - needs root
+        #   search                    - GitHub API rate limits
+        #   run, clear-cache          - need network and a populated cache
+        #   help, generate-recipe-map - covered by the unit tests
+        # Adding a verb to e2e_tests.sh does not add it here. If it works
+        # cross-platform without root or network, add it below as well.
         # e2e tests that hit the github apis will not work due to api limits unless it properly uses ".autopkg_gh_token"
         shell: bash
         run: |
           echo "**List-processors:"
-          python Code/autopkg list-processors --prefs tests/preferences.plist
+          python Code/autopkg list-processors
           echo "**Processor-info:"
-          python Code/autopkg processor-info URLDownloader --prefs tests/preferences.plist
+          python Code/autopkg processor-info URLDownloader
           echo "**Repo-add:"
-          python Code/autopkg repo-add recipes --prefs tests/preferences.plist
+          python Code/autopkg repo-add recipes
           echo "**Repo-list:"
-          python Code/autopkg repo-list --prefs tests/preferences.plist
+          python Code/autopkg repo-list
           echo "**Repo-update:"
-          python Code/autopkg repo-update all --prefs tests/preferences.plist
+          python Code/autopkg repo-update all
           echo "**Audit:"
-          python Code/autopkg audit Firefox.munki --prefs tests/preferences.plist
+          python Code/autopkg audit Firefox.munki
           echo "**Info:"
-          python Code/autopkg info Firefox.munki --prefs tests/preferences.plist
+          python Code/autopkg info Firefox.munki
           echo "**List-recipes:"
-          python Code/autopkg list-recipes --prefs tests/preferences.plist
+          python Code/autopkg list-recipes
           echo "**Make-override:"
-          python Code/autopkg make-override Firefox.munki --force --prefs tests/preferences.plist
+          python Code/autopkg make-override Firefox.munki --force
           echo "**New-recipe:"
-          python Code/autopkg new-recipe TestRecipe.check --prefs tests/preferences.plist
+          python Code/autopkg new-recipe TestRecipe.check
           echo "**Verify-trust-info:"
-          python Code/autopkg verify-trust-info Firefox.munki --prefs tests/preferences.plist
+          python Code/autopkg verify-trust-info Firefox.munki
           echo "**Update-trust-info:"
-          python Code/autopkg update-trust-info Firefox.munki --prefs tests/preferences.plist
+          python Code/autopkg update-trust-info Firefox.munki
           echo "**Version:"
           python Code/autopkg version
           echo "**Repo-delete:"
-          python Code/autopkg repo-delete recipes --prefs tests/preferences.plist
+          python Code/autopkg repo-delete recipes
 
       - name: Run integration recipe
         # using recipe path to NOT rely on prefs or current working directory
