@@ -1,4 +1,6 @@
 
-See here to run all tests: https://github.com/autopkg/autopkg/blob/master/Scripts/run_tests.py
+See the wiki for how to run the unit tests, the end-to-end tests, and the branch
+exit-code comparison: https://github.com/autopkg/autopkg/wiki/Running-Unit-Tests
 
-Also for on non-windows platforms: https://github.com/autopkg/autopkg/blob/master/Code/tests/e2e_tests.sh
+Shared test helpers live in `__init__.py`: `get_processor_module()`,
+`load_autopkg_module()`, `RecipeMapIsolation`, and the daemon contract mixins.

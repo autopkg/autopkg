@@ -1,6 +1,11 @@
 #!/bin/bash
 # End-to-end integration tests for AutoPkg CLI verbs. Exercises each verb
 # against a real git repo clone in an isolated temp directory. macOS only.
+#
+# CI (.github/workflows/tests.yaml, "Run e2e tests") runs a cross-platform
+# subset of these verbs inline rather than calling this script, because this
+# script is macOS-only and some verbs need root or network. Adding a verb here
+# does not add it to CI; see that step's comment for what it skips and why.
 
 TESTDIR="${TMPDIR%/}/autopkg-e2e-tests"
 AUTOPKG=../Code/autopkg
