@@ -64,6 +64,15 @@ def _write_plist_recipe(path, recipe_dict):
         plistlib.dump(recipe_dict, f)
 
 
+def _unregister_processor(name):
+    """Undo an add_processor() side effect. Both containers must be cleared: a
+    name left in _PROCESSOR_NAMES leaks into processor_names() for every later
+    test in the same process."""
+    autopkglib._PROCESSORS.pop(name, None)
+    if name in autopkglib._PROCESSOR_NAMES:
+        autopkglib._PROCESSOR_NAMES.remove(name)
+
+
 class _RecipeMapIsolation:
     """Shared fixture: redirect DEFAULT_RECIPE_MAP to a per-test tempdir
     and reset globalRecipeMap between tests."""
@@ -663,7 +672,7 @@ class TestIssue894ProcessorLookup(_RecipeMapIsolation, unittest.TestCase):
             {**SAMPLE_RECIPE, "Identifier": "com.example.cwd.shared"},
         )
         processor_name = "CwdSharedProc"
-        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+        self.addCleanup(_unregister_processor, processor_name)
         processor_path = os.path.join(cwd_dir, f"{processor_name}.py")
         with open(processor_path, "w", encoding="utf-8") as f:
             f.write(
@@ -725,7 +734,7 @@ class TestSharedProcessorScope(_RecipeMapIsolation, unittest.TestCase):
         os.makedirs(outside_dir)
 
         processor_name = "OutsideMapProc"
-        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+        self.addCleanup(_unregister_processor, processor_name)
 
         shared_recipe = os.path.join(outside_dir, "Shared.recipe")
         _write_plist_recipe(
@@ -744,7 +753,7 @@ class TestSharedProcessorScope(_RecipeMapIsolation, unittest.TestCase):
                 recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
                 env={"RECIPE_SEARCH_DIRS": [search_dir]},
             )
-        self.assertNotIn(processor_name, autopkglib.__dict__)
+        self.assertNotIn(processor_name, autopkglib._PROCESSORS)
 
     def test_get_processor_without_env_uses_configured_search_dirs(self):
         search_dir = os.path.join(self.tmpdir, "search")
@@ -753,7 +762,7 @@ class TestSharedProcessorScope(_RecipeMapIsolation, unittest.TestCase):
         os.makedirs(outside_dir)
 
         processor_name = "DefaultScopeProc"
-        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+        self.addCleanup(_unregister_processor, processor_name)
 
         shared_recipe = os.path.join(outside_dir, "Shared.recipe")
         _write_plist_recipe(
@@ -800,7 +809,7 @@ class TestSharedProcessorScope(_RecipeMapIsolation, unittest.TestCase):
         os.makedirs(outside_dir)
 
         processor_name = "DefaultScopeRejectProc"
-        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+        self.addCleanup(_unregister_processor, processor_name)
 
         shared_recipe = os.path.join(outside_dir, "Shared.recipe")
         _write_plist_recipe(
@@ -821,7 +830,7 @@ class TestSharedProcessorScope(_RecipeMapIsolation, unittest.TestCase):
                 f"com.example.shared/{processor_name}",
                 recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
             )
-        self.assertNotIn(processor_name, autopkglib.__dict__)
+        self.assertNotIn(processor_name, autopkglib._PROCESSORS)
 
 
 class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
@@ -937,7 +946,7 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
         search_dir, outside_dir, link_dir = self._make_search_with_escaped_link()
 
         processor_name = "EscapingMapProc"
-        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+        self.addCleanup(_unregister_processor, processor_name)
 
         shared_recipe_real_path = os.path.join(outside_dir, "Shared.recipe")
         _write_plist_recipe(
@@ -958,13 +967,13 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
                 recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
                 env={"RECIPE_SEARCH_DIRS": [search_dir]},
             )
-        self.assertNotIn(processor_name, autopkglib.__dict__)
+        self.assertNotIn(processor_name, autopkglib._PROCESSORS)
 
     def test_get_processor_rejects_disk_fallback_symlink_escape(self):
         search_dir, outside_dir, _ = self._make_search_with_escaped_link()
 
         processor_name = "EscapingDiskProc"
-        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+        self.addCleanup(_unregister_processor, processor_name)
 
         _write_plist_recipe(
             os.path.join(outside_dir, "Shared.recipe"),
@@ -981,7 +990,7 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
                 recipe={"RECIPE_PATH": os.path.join(search_dir, "Caller.recipe")},
                 env={"RECIPE_SEARCH_DIRS": [search_dir]},
             )
-        self.assertNotIn(processor_name, autopkglib.__dict__)
+        self.assertNotIn(processor_name, autopkglib._PROCESSORS)
 
     def test_get_processor_missing_file_does_not_fall_back_to_core(self):
         """A resolved shared recipe whose processor file is missing must raise,
@@ -991,7 +1000,7 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
 
         # Deliberately collides with a core processor name.
         processor_name = "FindAndReplace"
-        self.assertIn(processor_name, autopkglib.__dict__)
+        self.assertIn(processor_name, autopkglib._PROCESSORS)
 
         shared_recipe = os.path.join(search_dir, "Shared.recipe")
         _write_plist_recipe(
@@ -1018,7 +1027,7 @@ class TestPathScopeSymlinkEscape(_RecipeMapIsolation, unittest.TestCase):
         os.makedirs(caller_dir)
 
         processor_name = "AmbiguousProc"
-        self.addCleanup(lambda: autopkglib.__dict__.pop(processor_name, None))
+        self.addCleanup(_unregister_processor, processor_name)
 
         shared_recipe = os.path.join(shared_dir, "Shared.recipe")
         _write_plist_recipe(
@@ -1994,9 +2003,9 @@ class TestUnresolvedSharedProcessorDoesNotShadowCore(
     the homebysix recipe is out of scope."""
 
     def test_qualified_ref_colliding_with_core_name_raises(self):
-        # Precondition: a core processor by this name exists, so a bare
-        # globals() fall-through would succeed and hide the substitution.
-        self.assertIn("FindAndReplace", vars(autopkglib))
+        # Precondition: a core processor by this name is registered, so a bare
+        # registry fall-through would succeed and hide the substitution.
+        self.assertIn("FindAndReplace", autopkglib._PROCESSORS)
 
         recipe = {"RECIPE_PATH": os.path.join(self.tmpdir, "r.recipe")}
         env = {"RECIPE_SEARCH_DIRS": [self.tmpdir]}

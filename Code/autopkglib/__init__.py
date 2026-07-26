@@ -1919,6 +1919,8 @@ class APLooseVersion:
 
 _CORE_PROCESSOR_NAMES: list[str] = []
 _PROCESSOR_NAMES: list[str] = []
+# Single source of truth for name -> processor class. See add_processor().
+_PROCESSORS: dict[str, type] = {}
 
 
 def import_processors() -> None:
@@ -1930,17 +1932,20 @@ def import_processors() -> None:
 
     # Warning! Fancy dynamic importing ahead!
     #
-    # import the filename as a submodule
-    # then add the attribute with the same name to the globals()
-    #
-    # This is the equivalent of:
+    # import the filename as a submodule, then take the attribute with the
+    # same name. This is the equivalent of:
     #
     #    from Bar.Foo import Foo
     #
     for name in filter(lambda f: f not in ("__init__", "xattr"), processor_files):
-        globals()[name] = getattr(
+        processor_class = getattr(
             __import__(__name__ + "." + name, fromlist=[name]), name
         )
+        _PROCESSORS[name] = processor_class
+        # Compatibility mirror: third-party shared processors do
+        # `from autopkglib import URLGetter`. Only core names are mirrored, and
+        # only here, where the name set is fixed and trusted.
+        globals()[name] = processor_class
         _PROCESSOR_NAMES.append(name)
         _CORE_PROCESSOR_NAMES.append(name)
 
@@ -1948,8 +1953,12 @@ def import_processors() -> None:
 # convenience functions for adding and accessing processors
 # since these can change dynamically
 def add_processor(name, processor_object) -> None:
-    """Adds a Processor to the autopkglib namespace"""
-    globals()[name] = processor_object
+    """Registers a Processor for lookup by name.
+
+    Deliberately does not write into autopkglib's module globals: `name` comes
+    from a recipe, and binding it here would let a recipe shadow autopkglib's
+    own imports (os, plistlib) and API (Processor, ProcessorError)."""
+    _PROCESSORS[name] = processor_object
     if name not in _PROCESSOR_NAMES:
         _PROCESSOR_NAMES.append(name)
 
@@ -1975,7 +1984,7 @@ def extract_processor_name_with_recipe_identifier(
 
 def _load_processor_from_file(processor_name, processor_filename, verbose=None):
     """Import processor_name from processor_filename, register it in
-    autopkglib's namespace, and return it."""
+    autopkglib's registry, and return it."""
     try:
         spec = importlib.util.spec_from_file_location(
             processor_name, processor_filename
@@ -1991,7 +2000,7 @@ def _load_processor_from_file(processor_name, processor_filename, verbose=None):
             traceback.print_exc(file=sys.stdout)
             traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
         raise AutoPackagerLoadError(err) from err
-    # add the processor to autopkglib's namespace
+    # register the processor for lookup by name
     add_processor(processor_name, _processor)
     return _processor
 
@@ -2090,7 +2099,9 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
                 # we've added a Processor, so stop searching
                 break
 
-    return globals()[processor_name]
+    # KeyError here is the "Unknown processor" contract AutoPackager.verify()
+    # depends on; don't soften it to a .get().
+    return _PROCESSORS[processor_name]
 
 
 def processor_names():
