@@ -132,14 +132,6 @@ class URLDownloaderPython(URLDownloader):
         },
     }
 
-    def store_hashes_in_env(  # type: ignore[override]
-        self, file_sha1: str, file_sha256: str, file_md5: str
-    ) -> None:
-        """Store computed hashes for downstream processors."""
-        self.env["file_sha1"] = file_sha1
-        self.env["file_sha256"] = file_sha256
-        self.env["file_md5"] = file_md5
-
     def download_changed(self, header) -> bool:
         """Check if downloaded file changed on server."""
 
@@ -319,12 +311,7 @@ class URLDownloaderPython(URLDownloader):
             # Discard the temp file
             os.remove(file_save_path)
             if hashes:
-                existing_hashes = self.compute_hashes()
-                self.store_hashes_in_env(
-                    existing_hashes["sha1"],
-                    existing_hashes["sha256"],
-                    existing_hashes["md5"],
-                )
+                self.store_hashes_in_env(self.compute_hashes())
             return None
 
         # download file
@@ -355,7 +342,11 @@ class URLDownloaderPython(URLDownloader):
         self.env["file_size"] = size
         if hashes:
             self.store_hashes_in_env(
-                hashes[0].hexdigest(), hashes[1].hexdigest(), hashes[2].hexdigest()
+                {
+                    "sha1": hashes[0].hexdigest(),
+                    "sha256": hashes[1].hexdigest(),
+                    "md5": hashes[2].hexdigest(),
+                }
             )
             download_dictionary["file_sha1"] = self.env["file_sha1"]
             download_dictionary["file_sha256"] = self.env["file_sha256"]

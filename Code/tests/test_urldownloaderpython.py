@@ -181,7 +181,9 @@ class TestURLDownloaderPython(unittest.TestCase):
     def test_store_hashes_in_env_sets_env_vars(self):
         self.processor.env = {}
 
-        self.processor.store_hashes_in_env("abc123", "def456", "ghi789")
+        self.processor.store_hashes_in_env(
+            {"sha1": "abc123", "sha256": "def456", "md5": "ghi789"}
+        )
 
         self.assertEqual(self.processor.env["file_sha1"], "abc123")
         self.assertEqual(self.processor.env["file_sha256"], "def456")
