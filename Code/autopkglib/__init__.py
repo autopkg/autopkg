@@ -492,13 +492,7 @@ def get_identifier_from_recipe_file(filename) -> str | None:
 def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
     """Attempts to read a dict and ensures the keys in
     keys_to_verify exist. Returns False on any failure, True otherwise."""
-    if recipe_dict:
-        for key in keys_to_verify:
-            if key not in recipe_dict:
-                return False
-        # if we get here, we found all the keys
-        return True
-    return False
+    return bool(recipe_dict) and all(key in recipe_dict for key in keys_to_verify)
 
 
 def valid_recipe_dict(recipe_dict) -> bool:
