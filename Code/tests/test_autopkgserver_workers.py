@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import grp
 import importlib.util
 import os
 import sys
@@ -318,8 +319,28 @@ class TestItemCopierValidation(unittest.TestCase):
             with self.subTest(mode=mode):
                 worker.verify_mode(mode)
 
+    @contextmanager
+    def _patched_copy(self):
+        """Run a real copy, stubbing only what a non-root test user can't do.
+
+        Ownership is requested as root:admin, so os.lchown has to be stubbed;
+        everything else (removal, copying, xattr lookup) runs for real."""
+        copied_attrs = MagicMock()
+        copied_attrs.list.return_value = []
+        with (
+            self._patched_environment(),
+            patch.object(itemcopier.os, "lchown") as lchown,
+            patch.object(
+                itemcopier.subprocess, "call", return_value=0
+            ) as subprocess_call,
+            patch.object(
+                itemcopier.xattr, "xattr", return_value=copied_attrs
+            ) as xattr_call,
+        ):
+            yield lchown, subprocess_call, xattr_call
+
     def test_copy_items_processes_all_items(self):
-        """Should copy every requested item."""
+        """Should copy every requested item, then set owner, group, and mode."""
         destination_path = os.path.join(self.cache, "installed")
         os.makedirs(destination_path)
         Path(os.path.join(self.mountpoint, "Second.app")).touch()
@@ -330,52 +351,91 @@ class TestItemCopierValidation(unittest.TestCase):
                 "destination_path": destination_path,
             }
         )
-        real_mountpoint = os.path.realpath(self.mountpoint)
         real_destination_path = os.path.realpath(destination_path)
-        copy_pairs = [
-            (
-                os.path.join(real_mountpoint, "Test.app"),
-                os.path.join(real_destination_path, "Test.app"),
-            ),
-            (
-                os.path.join(real_mountpoint, "Second.app"),
-                os.path.join(real_destination_path, "Second.app"),
-            ),
+        dest_paths = [
+            os.path.join(real_destination_path, "Test.app"),
+            os.path.join(real_destination_path, "Second.app"),
         ]
-        expected_calls = []
-        for source_path, dest_path in copy_pairs:
-            expected_calls.extend(
-                [
-                    ["/bin/cp", "-pR", source_path, dest_path],
-                    ["/usr/sbin/chown", "-R", "root", dest_path],
-                    ["/usr/bin/chgrp", "-R", "admin", dest_path],
-                    ["/bin/chmod", "-R", "o-w", dest_path],
-                ]
-            )
-        copied_attrs = MagicMock()
-        copied_attrs.list.return_value = []
+        admin_gid = grp.getgrnam("admin").gr_gid
 
-        with (
-            self._patched_environment(),
-            patch.object(
-                itemcopier.subprocess, "call", return_value=0
-            ) as subprocess_call,
-            patch.object(
-                itemcopier.xattr, "xattr", return_value=copied_attrs
-            ) as xattr_call,
-        ):
+        with self._patched_copy() as (lchown, subprocess_call, xattr_call):
             worker = self._copier(request)
             worker.verify_request()
             self.assertTrue(worker.copy_items())
 
+        # The copies are real files now, not a mocked-out /bin/cp invocation.
+        for dest_path in dest_paths:
+            self.assertTrue(os.path.isfile(dest_path))
+        self.assertEqual(
+            [args for args, _ in lchown.call_args_list],
+            [(dest_path, 0, admin_gid) for dest_path in dest_paths],
+        )
+        # chmod is the one remaining shell-out; it takes symbolic modes.
         self.assertEqual(
             [args[0] for args, _ in subprocess_call.call_args_list],
-            expected_calls,
+            [["/bin/chmod", "-R", "o-w", dest_path] for dest_path in dest_paths],
         )
         self.assertEqual(
             [args[0] for args, _ in xattr_call.call_args_list],
-            [dest_path for _, dest_path in copy_pairs],
+            dest_paths,
         )
+
+    def test_copy_items_replaces_an_existing_file_destination(self):
+        """A destination that is a file, not a directory, must still be
+        replaced. shutil.rmtree alone would raise NotADirectoryError here."""
+        destination_path = os.path.join(self.cache, "installed")
+        os.makedirs(destination_path)
+        dest_path = os.path.join(os.path.realpath(destination_path), "Test.app")
+        Path(dest_path).write_text("stale")
+        Path(os.path.join(self.mountpoint, "Test.app")).write_text("fresh")
+
+        with self._patched_copy():
+            worker = self._copier(self._request(destination_path=destination_path))
+            worker.verify_request()
+            self.assertTrue(worker.copy_items())
+
+        self.assertEqual(Path(dest_path).read_text(), "fresh")
+
+    def test_copy_items_copies_a_directory_and_keeps_symlinks_as_links(self):
+        """A bundle is a directory tree, and its internal symlinks have to stay
+        symlinks rather than being resolved into copies of their targets."""
+        source_bundle = os.path.join(self.mountpoint, "Bundle.app")
+        os.makedirs(os.path.join(source_bundle, "Contents"))
+        Path(os.path.join(source_bundle, "Contents", "real")).write_text("data")
+        os.symlink("real", os.path.join(source_bundle, "Contents", "alias"))
+        destination_path = os.path.join(self.cache, "installed")
+        os.makedirs(destination_path)
+        dest_bundle = os.path.join(os.path.realpath(destination_path), "Bundle.app")
+
+        with self._patched_copy():
+            worker = self._copier(
+                self._request(
+                    source_item="Bundle.app", destination_path=destination_path
+                )
+            )
+            worker.verify_request()
+            self.assertTrue(worker.copy_items())
+
+        self.assertEqual(
+            Path(os.path.join(dest_bundle, "Contents", "real")).read_text(), "data"
+        )
+        self.assertTrue(os.path.islink(os.path.join(dest_bundle, "Contents", "alias")))
+
+    def test_resolve_id_accepts_names_and_numeric_ids(self):
+        """chown(8) and chgrp(8) take either, so the native path has to too."""
+        self.assertEqual(
+            itemcopier.resolve_id("admin", lambda n: grp.getgrnam(n).gr_gid, "group"),
+            grp.getgrnam("admin").gr_gid,
+        )
+        self.assertEqual(itemcopier.resolve_id("80", lambda n: None, "group"), 80)
+        self.assertEqual(itemcopier.resolve_id(80, lambda n: None, "group"), 80)
+
+    def test_resolve_id_rejects_an_unknown_name(self):
+        """An unknown name used to surface only as a chown exit code."""
+        with self.assertRaises(itemcopier.ItemCopierError):
+            itemcopier.resolve_id(
+                "no.such.group", lambda n: grp.getgrnam(n).gr_gid, "group"
+            )
 
     def test_copy_items_does_not_wrap_keyboard_interrupt_from_xattr(self):
         """Should let process termination exceptions propagate."""
@@ -387,6 +447,7 @@ class TestItemCopierValidation(unittest.TestCase):
 
         with (
             self._patched_environment(),
+            patch.object(itemcopier.os, "lchown"),
             patch.object(itemcopier.subprocess, "call", return_value=0),
             patch.object(itemcopier.xattr, "xattr", return_value=copied_attrs),
         ):

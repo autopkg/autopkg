@@ -15,8 +15,11 @@
 """Runs installer to install a package. Can install a package located inside a
 disk image file."""
 
+import logging
 import os
+import socket
 import subprocess
+from typing import Any
 
 PRIVATE_TMP = "/private/tmp"
 
@@ -56,7 +59,12 @@ def path_has_mountpoint_under(path, root):
 class Installer:
     """Runs /usr/sbin/installer to install a package"""
 
-    def __init__(self, log, socket, request):
+    def __init__(
+        self,
+        log: logging.Logger,
+        socket: socket.socket,
+        request: dict[str, Any],
+    ) -> None:
         """Arguments:
 
         log     A logger instance.

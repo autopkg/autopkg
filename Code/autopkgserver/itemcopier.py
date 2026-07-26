@@ -17,10 +17,16 @@
 drag-n-drop vendor disk images so we don't have to package it first to install
 it"""
 
+import grp
+import logging
 import os
+import pwd
 import re
+import shutil
+import socket
 import stat
 import subprocess
+from typing import Any
 
 import xattr
 
@@ -41,10 +47,31 @@ def is_path_under(path, root):
         return False
 
 
+def resolve_id(value, lookup, kind):
+    """Resolve a user or group to its numeric id.
+
+    A numeric value is used as-is, matching chown(8) and chgrp(8), which accept
+    either a name or an id."""
+    if isinstance(value, int):
+        return value
+    text = str(value)
+    if re.fullmatch(r"[0-9]+", text):
+        return int(text)
+    try:
+        return lookup(text)
+    except KeyError:
+        raise ItemCopierError(f"Unknown {kind} {value}")
+
+
 class ItemCopier:
     """Copies items from a mount_point to the current root volume"""
 
-    def __init__(self, log, socket, request):
+    def __init__(
+        self,
+        log: logging.Logger,
+        socket: socket.socket,
+        request: dict[str, Any],
+    ) -> None:
         """Arguments:
 
         log     A logger instance.
@@ -209,42 +236,37 @@ class ItemCopier:
                     os.chown(new_path, parent_uid, parent_gid)
 
             # remove item if it already exists
-            if os.path.exists(full_destpath):
+            if os.path.lexists(full_destpath):
                 self.log.info("Removing existing %s", full_destpath)
-                retcode = subprocess.call(["/bin/rm", "-rf", full_destpath])
-                if retcode:
-                    raise ItemCopierError(
-                        f"Error removing existing {full_destpath}: {retcode}"
-                    )
+                self.remove_existing(full_destpath)
 
             # all tests passed, OK to copy
             self.log.info("Copying %s to %s", source_itemname, full_destpath)
             self.socket.send(
                 f"STATUS:Copying {source_itemname} to {full_destpath}\n".encode()
             )
-            retcode = subprocess.call(
-                ["/bin/cp", "-pR", source_itempath, full_destpath]
-            )
-            if retcode:
-                raise ItemCopierError(
-                    f"Error copying {source_itempath} to {full_destpath}: {retcode}"
-                )
+            self.copy_item(source_itempath, full_destpath)
 
-            # set owner
+            # set owner and group
             user = item.get("user", "root")
-            self.log.info("Setting owner for '%s' to '%s'", full_destpath, user)
-            retcode = subprocess.call(["/usr/sbin/chown", "-R", user, full_destpath])
-            if retcode:
-                raise ItemCopierError(f"Error setting owner for {full_destpath}")
-
-            # set group
             group = item.get("group", "admin")
-            self.log.info("Setting group for '%s' to '%s'", full_destpath, group)
-            retcode = subprocess.call(["/usr/bin/chgrp", "-R", group, full_destpath])
-            if retcode:
-                raise ItemCopierError(f"Error setting group for {full_destpath}")
+            self.log.info(
+                "Setting owner and group for '%s' to '%s:%s'",
+                full_destpath,
+                user,
+                group,
+            )
+            self.set_ownership(
+                full_destpath,
+                resolve_id(user, lambda name: pwd.getpwnam(name).pw_uid, "user"),
+                resolve_id(group, lambda name: grp.getgrnam(name).gr_gid, "group"),
+            )
 
             # set mode
+            # ponytail: still a shell-out. The default mode is symbolic ("o-w"),
+            # and os.chmod takes only a numeric mode, so going native here would
+            # mean writing a chmod(1) symbolic-mode parser. Revisit only if a
+            # numeric-only mode contract is acceptable.
             mode = item.get("mode", "o-w")
             self.log.info("Setting mode for '%s' to '%s'", full_destpath, mode)
             retcode = subprocess.call(["/bin/chmod", "-R", mode, full_destpath])
@@ -255,9 +277,48 @@ class ItemCopier:
             try:
                 if "com.apple.quarantine" in xattr.xattr(full_destpath).list():
                     xattr.xattr(full_destpath).remove("com.apple.quarantine")
-            except Exception as err:
+            except OSError as err:
                 raise ItemCopierError(f"Error removing xattr: {err}")
         return True
+
+    def remove_existing(self, path) -> None:
+        """Delete path, whether it's a directory, a file, or a symlink."""
+        try:
+            if os.path.isdir(path) and not os.path.islink(path):
+                shutil.rmtree(path)
+            else:
+                os.unlink(path)
+        except OSError as err:
+            raise ItemCopierError(f"Error removing existing {path}: {err}")
+
+    def copy_item(self, source, destination) -> None:
+        """Copy source to destination, preserving metadata and symlinks.
+
+        Ownership isn't preserved, unlike the `cp -pR` this replaces; the caller
+        sets owner and group on the result immediately afterwards."""
+        try:
+            if os.path.isdir(source) and not os.path.islink(source):
+                shutil.copytree(
+                    source, destination, symlinks=True, copy_function=shutil.copy2
+                )
+            else:
+                shutil.copy2(source, destination, follow_symlinks=False)
+        except (OSError, shutil.Error) as err:
+            raise ItemCopierError(f"Error copying {source} to {destination}: {err}")
+
+    def set_ownership(self, path, uid, gid) -> None:
+        """Set owner and group on path and everything below it.
+
+        os.lchown, not os.chown: `chown -R` without -h retargets a symlink's
+        destination, which for a copied tree can be a file outside the tree
+        entirely. packager.py already uses lchown for the same reason."""
+        try:
+            os.lchown(path, uid, gid)
+            for dirpath, dirnames, filenames in os.walk(path):
+                for name in dirnames + filenames:
+                    os.lchown(os.path.join(dirpath, name), uid, gid)
+        except OSError as err:
+            raise ItemCopierError(f"Error setting owner and group for {path}: {err}")
 
     def copy(self) -> None:
         """Main method."""

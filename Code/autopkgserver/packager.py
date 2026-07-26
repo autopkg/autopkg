@@ -14,6 +14,7 @@
 
 
 import grp
+import logging
 import os
 import plistlib
 import pwd
@@ -22,6 +23,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+from typing import Any
 from xml.parsers.expat import ExpatError
 
 __all__ = ["Packager", "PackagerError"]
@@ -40,7 +42,14 @@ class Packager:
     re_id = re.compile(r"^[a-z0-9]([a-z0-9 \-]*[a-z0-9])?$", re.I)
     re_version = re.compile(r"^[a-z0-9_ ]*[0-9][a-z0-9_ -]*$", re.I)
 
-    def __init__(self, log, request, name, uid, gid):
+    def __init__(
+        self,
+        log: logging.Logger,
+        request: dict[str, Any],
+        name: str,
+        uid: int,
+        gid: int,
+    ) -> None:
         """Arguments:
 
         log     A logger instance.
@@ -409,8 +418,9 @@ class Packager:
         try:
             with open(self.component_plist, "rb") as f:
                 plist = plistlib.load(f)
-        except Exception:
-            raise PackagerError(f"Couldn't read {self.component_plist}")
+        # ValueError covers plistlib.InvalidFileException, which subclasses it.
+        except (OSError, ValueError, ExpatError) as err:
+            raise PackagerError(f"Couldn't read {self.component_plist}: {err}")
         # plist is an array of dicts, iterate through
         for bundle in plist:
             if bundle.get("BundleIsRelocatable"):
@@ -418,8 +428,8 @@ class Packager:
         try:
             with open(self.component_plist, "wb") as f:
                 plistlib.dump(plist, f)
-        except Exception:
-            raise PackagerError(f"Couldn't write {self.component_plist}")
+        except (OSError, TypeError) as err:
+            raise PackagerError(f"Couldn't write {self.component_plist}: {err}")
 
     def create_pkg(self) -> str:
         self.log.info("Creating package")
