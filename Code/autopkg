@@ -1817,22 +1817,14 @@ def recipe_from_external_repo(recipe_path):
 
 
 def recipe_in_override_dir(recipe_path, override_dirs):
-    """Returns True if ``recipe_path`` is in one of ``override_dirs`` or
-    is listed in the recipe map's overrides tables AND the listed path
-    also resides under a configured override directory.
-
-    The directory containment check is the authoritative answer; the map
-    lookup is an optimisation that lets us short-circuit for paths that
-    have already been classified.
+    """Return True if ``recipe_path`` is in one of ``override_dirs``.
 
     Security: the recipe map is a user-writable on-disk file.
-    Trusting map entries as the sole source of truth for
-    override classification would let an attacker who can write to
-    ``recipe_map.json`` insert arbitrary paths into ``overrides`` and
-    have them treated as overrides for trust-info purposes. We require
-    the path to still live under a configured override dir to preserve
-    the invariant that override-ness is determined by on-disk location,
-    not by a cache."""
+    Trusting map entries for override classification would let an attacker
+    who can write to ``recipe_map.json`` insert arbitrary paths into
+    ``overrides`` and have them treated as overrides for trust-info purposes.
+    Override-ness is therefore determined only by on-disk location. The map
+    is consulted only to warn about stale or tampered entries."""
     normalized_recipe_path = os.path.realpath(os.path.expanduser(recipe_path))
     normalized_override_dirs = [
         os.path.realpath(os.path.expanduser(directory)) for directory in override_dirs
@@ -1844,26 +1836,18 @@ def recipe_in_override_dir(recipe_path, override_dirs):
                 return True
         return False
 
-    # Directory containment check against the caller-supplied override_dirs.
+    # The on-disk location is the only thing that grants override status.
     if _under_configured_override_dir(normalized_recipe_path):
         return True
 
-    # Map hint: a path listed in the map's overrides tables is still
-    # required to live under one of the configured override dirs. This
-    # lets us honour issue #903 (file paths that aren't directly rooted
-    # in override_dirs but are known to the map) without introducing an
-    # easy trust-bypass via a tampered map.
+    # Diagnostic only: this cannot change the result. A path listed in the
+    # map's overrides tables but not under a configured override dir indicates
+    # a stale or tampered map entry. Warn, then still refuse override status.
     for key in ("overrides", "overrides-identifiers"):
         for path in globalRecipeMap.get(key, {}).values():
             resolved = os.path.realpath(os.path.expanduser(path))
             if resolved != normalized_recipe_path:
                 continue
-            if _under_configured_override_dir(resolved):
-                return True
-            # Path is in the map's overrides tables but does NOT live
-            # under any configured override dir. This is the pattern an
-            # attacker would use to plant a bogus override entry; refuse
-            # to honour it.
             log_err(
                 f"WARNING: recipe map lists {resolved} as an override "
                 "but the path is not under any configured "

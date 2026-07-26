@@ -1022,12 +1022,15 @@ class TestPathScopeSymlinkEscape(RecipeMapIsolation, unittest.TestCase):
         self.assertEqual(processor.marker, "shared")
 
 
-class TestIssue903TrustInfoByPath(RecipeMapIsolation, unittest.TestCase):
-    """Issue coverage for issue #903: `autopkg verify-trust-info
-    <path/to/override.recipe>` failed to recognise the file as an override
-    because the configured override_dirs didn't contain the parent of the
-    user-supplied path. The fix uses the recipe map's overrides tables
-    as the source of truth."""
+class TestRecipeInOverrideDir(RecipeMapIsolation, unittest.TestCase):
+    """Override status comes only from caller-configured directories.
+
+    Recipe-map entries outside those directories are diagnostic signals, not
+    an alternate source of override status. Issue #903 (`verify-trust-info
+    <path/to/override.recipe>` not recognising an override) was a path
+    normalisation bug, fixed by resolving symlinks in the containment check;
+    the symlink tests below cover it.
+    """
 
     def _symlink_or_skip(self, target, link_name):
         try:
@@ -1035,22 +1038,16 @@ class TestIssue903TrustInfoByPath(RecipeMapIsolation, unittest.TestCase):
         except (AttributeError, NotImplementedError, OSError) as err:
             self.skipTest(f"symlink creation is unavailable: {err}")
 
-    def test_recipe_in_override_dir_via_map_and_configured_dir(self):
-        """A file listed in globalRecipeMap['overrides'] AND residing
-        under a configured override dir is considered an override. The
-        map is a hint; the configured dir is the authoritative answer.
-        This is the shape of the #903 fix after the F-4 security
-        hardening."""
+    def test_configured_dir_with_overrides_map_entry(self):
+        """Directory containment grants override status despite a map entry."""
         override_dir = os.path.join(self.tmpdir, "overrides")
         os.makedirs(override_dir)
         override_path = os.path.join(override_dir, "path.recipe")
         autopkglib.globalRecipeMap["overrides"]["SomeOverride"] = override_path
         self.assertTrue(autopkg.recipe_in_override_dir(override_path, [override_dir]))
 
-    def test_recipe_in_override_dir_via_map_identifiers_and_configured_dir(
-        self,
-    ):
-        """Same via the overrides-identifiers table."""
+    def test_configured_dir_with_identifiers_map_entry(self):
+        """The identifiers map also does not affect containment."""
         override_dir = os.path.join(self.tmpdir, "o")
         os.makedirs(override_dir)
         override_path = os.path.join(override_dir, "by-id.recipe")
@@ -1059,23 +1056,22 @@ class TestIssue903TrustInfoByPath(RecipeMapIsolation, unittest.TestCase):
         ] = override_path
         self.assertTrue(autopkg.recipe_in_override_dir(override_path, [override_dir]))
 
-    def test_recipe_in_override_dir_via_map_but_not_under_configured_dir(
-        self,
-    ):
-        """Security F-4: a map entry that points OUTSIDE any configured
-        override dir must NOT be trusted. This blocks the attack where
-        an attacker with write access to recipe_map.json plants an
-        arbitrary path in the overrides table to bypass trust checks."""
+    def test_unconfigured_map_entries_are_refused_and_logged(self):
+        """Security F-4: neither map table can grant override status."""
         bogus_path = os.path.join(self.tmpdir, "notanoverridedir", "Sneaky.recipe")
-        autopkglib.globalRecipeMap["overrides"]["Sneaky"] = bogus_path
-
         configured_dir = os.path.join(self.tmpdir, "configured_overrides")
-        with patch.object(autopkg, "log_err") as mock_log_err:
-            self.assertFalse(
-                autopkg.recipe_in_override_dir(bogus_path, [configured_dir])
-            )
-            # Should have logged a warning about the bogus map entry.
-            mock_log_err.assert_called()
+
+        for key in ("overrides", "overrides-identifiers"):
+            with self.subTest(key=key):
+                autopkglib.globalRecipeMap["overrides"].clear()
+                autopkglib.globalRecipeMap["overrides-identifiers"].clear()
+                autopkglib.globalRecipeMap[key]["Sneaky"] = bogus_path
+
+                with patch.object(autopkg, "log_err") as mock_log_err:
+                    self.assertFalse(
+                        autopkg.recipe_in_override_dir(bogus_path, [configured_dir])
+                    )
+                mock_log_err.assert_called_once()
 
     def test_recipe_in_override_dir_via_configured_dir(self):
         """The existing path-prefix check still works for files that the
@@ -1114,8 +1110,8 @@ class TestIssue903TrustInfoByPath(RecipeMapIsolation, unittest.TestCase):
         self.assertFalse(autopkg.recipe_in_override_dir(escaped_path, [override_dir]))
 
     def test_recipe_in_override_dir_map_symlink_escape_not_matched(self):
-        """A recipe-map override entry still must resolve under a
-        configured override dir."""
+        """A map entry whose target resolves outside the configured override
+        dir is refused and warned about, not honoured."""
         override_dir = os.path.join(self.tmpdir, "overrides")
         outside_dir = os.path.join(self.tmpdir, "outside")
         os.makedirs(override_dir)
