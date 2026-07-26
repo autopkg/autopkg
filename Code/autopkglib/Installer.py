@@ -16,7 +16,6 @@
 
 """See docstring for Installer class"""
 
-import os.path
 import plistlib
 import socket
 from glob import glob
@@ -157,7 +156,11 @@ class Installer(DmgMounter):
     def send_request(self, request) -> str:
         """Send an install request to autopkginstalld"""
         self.socket.sendall(plistlib.dumps(request))
-        with os.fdopen(self.socket.fileno()) as fileref:
+        # makefile, not os.fdopen(self.socket.fileno()): fdopen takes ownership
+        # of the descriptor and closes it here, leaving disconnect() to close a
+        # descriptor the socket no longer owns. makefile shares it instead, so
+        # the fd is closed exactly once. Matches PkgCreator.
+        with self.socket.makefile(mode="r") as fileref:
             while True:
                 data = fileref.readline()
                 if data:

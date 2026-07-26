@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import os
+import socket
 import sys
 import unittest
 from pathlib import Path
@@ -71,17 +72,39 @@ class TestInstaller(unittest.TestCase):
         mock_file.readline.return_value = ""
         self.processor.socket = MagicMock()
 
-        with (
-            # Patch os directly: autopkglib.Installer resolves to the Installer
-            # class, not the module, so a module-scoped target fails on 3.10.
-            patch("os.fdopen") as mock_fdopen,
-            patch("plistlib.dumps", return_value=b""),
-        ):
-            mock_fdopen.return_value.__enter__.return_value = mock_file
+        self.processor.socket.makefile.return_value.__enter__.return_value = mock_file
+
+        with patch("plistlib.dumps", return_value=b""):
             with self.assertRaisesRegex(
                 ProcessorError, "No reply from autopkginstalld"
             ):
                 self.processor.send_request({"package": self.package_path})
+
+        # The socket's own fd must be shared, not handed to os.fdopen, which
+        # would close it here and leave disconnect() closing it a second time.
+        self.processor.socket.makefile.assert_called_once_with(mode="r")
+
+    def test_send_request_leaves_the_socket_usable_for_disconnect(self):
+        """Reading the reply must not close the socket's descriptor.
+
+        os.fdopen(socket.fileno()) took ownership of the descriptor and closed
+        it when the reader closed, so disconnect() went on to close a
+        descriptor the socket no longer owned -- harmless only for as long as
+        nothing else had claimed that number in the meantime."""
+        ours, theirs = socket.socketpair()
+        self.addCleanup(ours.close)
+        self.addCleanup(theirs.close)
+        theirs.sendall(b"OK:/tmp/installed.pkg\n")
+        self.processor.socket = ours
+
+        with patch("plistlib.dumps", return_value=b""):
+            result = self.processor.send_request({"package": self.package_path})
+
+        self.assertEqual(result, "/tmp/installed.pkg")
+        # Fails with EBADF if the reply reader closed the socket's descriptor.
+        ours.sendall(b"still open\n")
+        self.processor.disconnect()
+        self.assertEqual(ours.fileno(), -1)
 
 
 if __name__ == "__main__":
