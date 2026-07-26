@@ -130,6 +130,18 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         env = self._run()
         self.assertEqual(env["version"], "v1.0")
 
+    def test_preserves_intentional_extra_leading_dots(self):
+        for tag_name in ("v..1.2", ".1.2"):
+            with self.subTest(tag_name=tag_name):
+                with patch.object(
+                    GitHubReleasesInfoProvider,
+                    "get_releases",
+                    return_value=_fake_release(tag_name),
+                ):
+                    env = self._run()
+
+                self.assertEqual(env["version"], ".1.2")
+
     @patch.object(
         GitHubReleasesInfoProvider, "get_releases", return_value=_fake_release()
     )
