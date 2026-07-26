@@ -1868,7 +1868,7 @@ class APLooseVersion:
         self_cmp_version = self._pad(self.version, max_length)
         other_cmp_version = self._pad(other.version, max_length)
         cmp_result = 0
-        for value, other_value in zip(self_cmp_version, other_cmp_version):
+        for value, other_value in zip(self_cmp_version, other_cmp_version, strict=True):
             try:
                 cmp_result = _cmp(value, other_value)
             except TypeError:
