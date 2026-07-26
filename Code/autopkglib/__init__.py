@@ -1975,6 +1975,32 @@ def extract_processor_name_with_recipe_identifier(
     return (processor_name, identifier)
 
 
+def resolve_shared_processor_recipe_path(
+    processor_recipe_id: str, search_dirs
+) -> str | None:
+    """Resolve a shared processor recipe within the active search dirs."""
+    shared_processor_recipe_path = find_recipe_by_identifier_in_map(processor_recipe_id)
+    if shared_processor_recipe_path and not _path_under_dirs(
+        shared_processor_recipe_path, search_dirs
+    ):
+        shared_processor_recipe_path = None
+    if shared_processor_recipe_path is None:
+        shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
+            processor_recipe_id, search_dirs
+        )
+    if shared_processor_recipe_path is None and _try_cwd_rebuild_once(
+        f"resolving shared processor {processor_recipe_id!r}"
+    ):
+        shared_processor_recipe_path = find_recipe_by_identifier_in_map(
+            processor_recipe_id
+        )
+        if shared_processor_recipe_path and not _path_under_dirs(
+            shared_processor_recipe_path, search_dirs
+        ):
+            shared_processor_recipe_path = None
+    return shared_processor_recipe_path
+
+
 def _load_processor_from_file(processor_name, processor_filename, verbose=None):
     """Import processor_name from processor_filename, register it in
     autopkglib's registry, and return it."""
@@ -2019,30 +2045,9 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             search_dirs = env.get("RECIPE_SEARCH_DIRS")
             if search_dirs is None:
                 search_dirs = get_search_dirs()
-            # Prefer the recipe map (cheap, O(1) lookup); fall back to an
-            # on-disk scan when the map doesn't know about this identifier.
-            shared_processor_recipe_path = find_recipe_by_identifier_in_map(
-                processor_recipe_id
+            shared_processor_recipe_path = resolve_shared_processor_recipe_path(
+                processor_recipe_id, search_dirs
             )
-            if shared_processor_recipe_path and not _path_under_dirs(
-                shared_processor_recipe_path, search_dirs
-            ):
-                shared_processor_recipe_path = None
-            if shared_processor_recipe_path is None:
-                shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
-                    processor_recipe_id, search_dirs
-                )
-            if shared_processor_recipe_path is None and _try_cwd_rebuild_once(
-                f"resolving shared processor {processor_recipe_id!r}"
-            ):
-                shared_processor_recipe_path = find_recipe_by_identifier_in_map(
-                    processor_recipe_id
-                )
-                if shared_processor_recipe_path and not _path_under_dirs(
-                    shared_processor_recipe_path,
-                    search_dirs,
-                ):
-                    shared_processor_recipe_path = None
             # Re-validate the map-returned path is actually a recipe before
             # adding its directory to the Python import path below. The map
             # lookup only stat's the file (for speed); this call site feeds

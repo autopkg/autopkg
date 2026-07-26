@@ -1077,9 +1077,9 @@ class TestInfoVerbs(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier_in_map") as mock_find_in_map,
-            patch("autopkg.find_recipe_by_identifier_on_disk") as mock_find_on_disk,
-            patch("autopkg._path_under_dirs", return_value=True),
+            patch("autopkglib.find_recipe_by_identifier_in_map") as mock_find_in_map,
+            patch("autopkglib.find_recipe_by_identifier_on_disk") as mock_find_on_disk,
+            patch("autopkglib._path_under_dirs", return_value=True),
             patch("os.path.dirname") as mock_dirname,
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
@@ -1119,9 +1119,9 @@ class TestInfoVerbs(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier_in_map") as mock_find_in_map,
+            patch("autopkglib.find_recipe_by_identifier_in_map") as mock_find_in_map,
             patch(
-                "autopkg.find_recipe_by_identifier_on_disk",
+                "autopkglib.find_recipe_by_identifier_on_disk",
                 return_value=None,
             ) as mock_find_on_disk,
             patch("autopkglib.calculate_recipe_map"),
@@ -1265,8 +1265,8 @@ class TestInfoVerbs(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier_in_map", return_value=None),
-            patch("autopkg.find_recipe_by_identifier_on_disk", return_value=None),
+            patch("autopkglib.find_recipe_by_identifier_in_map", return_value=None),
+            patch("autopkglib.find_recipe_by_identifier_on_disk", return_value=None),
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
         ):
@@ -1325,9 +1325,9 @@ class TestInfoVerbs(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier_in_map") as mock_find_in_map,
-            patch("autopkg.find_recipe_by_identifier_on_disk"),
-            patch("autopkg._path_under_dirs", return_value=True),
+            patch("autopkglib.find_recipe_by_identifier_in_map") as mock_find_in_map,
+            patch("autopkglib.find_recipe_by_identifier_on_disk"),
+            patch("autopkglib._path_under_dirs", return_value=True),
             patch("os.path.exists") as mock_exists,
             patch("os.path.join") as mock_join,
         ):
@@ -1362,9 +1362,9 @@ class TestInfoVerbs(unittest.TestCase):
             patch(
                 "autopkg.extract_processor_name_with_recipe_identifier"
             ) as mock_extract,
-            patch("autopkg.find_recipe_by_identifier_in_map", return_value=None),
+            patch("autopkglib.find_recipe_by_identifier_in_map", return_value=None),
             patch(
-                "autopkg.find_recipe_by_identifier_on_disk",
+                "autopkglib.find_recipe_by_identifier_on_disk",
                 return_value="/default/search/dir/Shared.recipe",
             ) as mock_find_on_disk,
             patch("os.path.exists") as mock_exists,

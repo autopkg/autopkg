@@ -530,7 +530,7 @@ class TestIssue894ProcessorLookup(RecipeMapIsolation, unittest.TestCase):
         autopkglib.globalRecipeMap["identifiers"]["com.example.shared"] = shared_recipe
 
         with (
-            patch("autopkg.find_recipe_by_identifier_on_disk") as mock_disk,
+            patch("autopkglib.find_recipe_by_identifier_on_disk") as mock_disk,
             # Make the processor file appear to exist so the verb returns
             # a truthy path.
             patch(
@@ -552,7 +552,7 @@ class TestIssue894ProcessorLookup(RecipeMapIsolation, unittest.TestCase):
         kicks in — preserving the legacy behaviour."""
         with (
             patch(
-                "autopkg.find_recipe_by_identifier_on_disk",
+                "autopkglib.find_recipe_by_identifier_on_disk",
                 return_value="/disk/Shared.recipe",
             ) as mock_disk,
             patch("os.path.exists", return_value=True),
@@ -855,7 +855,7 @@ class TestPathScopeSymlinkEscape(RecipeMapIsolation, unittest.TestCase):
         autopkglib._recipe_map_cwd_rebuild_attempted = True
 
         with patch(
-            "autopkg.find_recipe_by_identifier_on_disk",
+            "autopkglib.find_recipe_by_identifier_on_disk",
             return_value=None,
         ) as mock_disk:
             result = autopkg.find_processor_path(
