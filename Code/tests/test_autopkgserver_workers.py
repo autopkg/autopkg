@@ -59,6 +59,7 @@ def load_worker_module(name, path):
 if sys.platform == "darwin":
     import grp
 
+    common = load_worker_module("_common", AUTOPKGSERVER_DIR / "_common.py")
     installer = load_worker_module(
         "autopkgserver_installer_worker", AUTOPKGSERVER_DIR / "installer.py"
     )
@@ -67,7 +68,20 @@ if sys.platform == "darwin":
     )
 else:
     # Dummy objects for non-Darwin platforms, referenced only inside skipped tests.
-    grp = installer = itemcopier = None
+    common = grp = installer = itemcopier = None
+
+
+@unittest.skipUnless(sys.platform == "darwin", "autopkgserver is macOS-only")
+class TestCommonPathContainment(unittest.TestCase):
+    """Tests for the workers' shared pre-resolved path helper."""
+
+    def test_accepts_root_and_child(self):
+        self.assertTrue(common.is_path_under("/cache", "/cache"))
+        self.assertTrue(common.is_path_under("/cache/recipe/file", "/cache"))
+
+    def test_rejects_sibling_prefix_and_mixed_roots(self):
+        self.assertFalse(common.is_path_under("/cache-evil/file", "/cache"))
+        self.assertFalse(common.is_path_under("relative/file", "/cache"))
 
 
 @unittest.skipUnless(sys.platform == "darwin", "autopkgserver is macOS-only")

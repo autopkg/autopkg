@@ -21,6 +21,8 @@ import socket
 import subprocess
 from typing import Any
 
+from _common import is_path_under
+
 PRIVATE_TMP = "/private/tmp"
 
 
@@ -28,14 +30,6 @@ class InstallerError(Exception):
     """Base error for Installer errors"""
 
     pass
-
-
-def is_path_under(path, root):
-    """Return True if path is at or below root."""
-    try:
-        return os.path.commonpath([path, root]) == root
-    except ValueError:
-        return False
 
 
 def path_has_mountpoint_under(path, root):
