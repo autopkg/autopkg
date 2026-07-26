@@ -20,6 +20,7 @@ import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from xml.etree import ElementTree
+from xml.parsers.expat import ExpatError
 
 from autopkglib import ProcessorError
 from autopkglib.PkgInfoCreator import PkgInfoCreator
@@ -262,6 +263,41 @@ class TestPkgInfoCreator(unittest.TestCase):
             self.processor.load_template(template_path, "flat")
 
         self.assertIn("Malformed Info.plist template", str(context.exception))
+        self.assertIsInstance(
+            context.exception.__cause__, plistlib.InvalidFileException
+        )
+
+    def test_load_template_malformed_xml_plist(self):
+        """Test loading a malformed XML plist raises a processor error."""
+        template_path = os.path.join(self.tmp_dir.name, "bad-xml.plist")
+        with open(template_path, "w") as f:
+            f.write(
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<plist version="1.0">\n'
+                "<dict>\n"
+                "<key>name</key>\n"
+                "<string>Test</dict>\n"
+                "</plist>\n"
+            )
+
+        with self.assertRaises(ProcessorError) as context:
+            self.processor.load_template(template_path, "flat")
+
+        self.assertIn("Malformed Info.plist template", str(context.exception))
+        self.assertIsInstance(context.exception.__cause__, ExpatError)
+
+    def test_load_template_missing_plist_reports_read_error(self):
+        """Test that a missing plist template is not reported as malformed."""
+        template_path = os.path.join(self.tmp_dir.name, "missing.plist")
+
+        with self.assertRaises(ProcessorError) as context:
+            self.processor.load_template(template_path, "flat")
+
+        self.assertIn(
+            f"Could not read Info.plist template {template_path}",
+            str(context.exception),
+        )
+        self.assertIsInstance(context.exception.__cause__, OSError)
 
     def test_load_template_malformed_xml(self):
         """Test loading malformed XML template raises error."""
@@ -275,6 +311,20 @@ class TestPkgInfoCreator(unittest.TestCase):
             self.processor.load_template(template_path, "flat")
 
         self.assertIn("Malformed PackageInfo template", str(context.exception))
+        self.assertIsInstance(context.exception.__cause__, ElementTree.ParseError)
+
+    def test_load_template_missing_xml_reports_read_error(self):
+        """Test that a missing XML template is not reported as malformed."""
+        template_path = os.path.join(self.tmp_dir.name, "missing.xml")
+
+        with self.assertRaises(ProcessorError) as context:
+            self.processor.load_template(template_path, "flat")
+
+        self.assertIn(
+            f"Could not read PackageInfo template {template_path}",
+            str(context.exception),
+        )
+        self.assertIsInstance(context.exception.__cause__, OSError)
 
     # Test bundle to flat conversion
     def test_convert_bundle_info_to_flat_basic(self):

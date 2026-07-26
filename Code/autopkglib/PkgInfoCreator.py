@@ -131,8 +131,14 @@ class PkgInfoCreator(Processor):
             try:
                 with open(template_path, "rb") as f:
                     info = plistlib.load(f)
-            except Exception:
-                raise ProcessorError(f"Malformed Info.plist template {template_path}")
+            except OSError as err:
+                raise ProcessorError(
+                    f"Could not read Info.plist template {template_path}: {err}"
+                ) from err
+            except Exception as err:
+                raise ProcessorError(
+                    f"Malformed Info.plist template {template_path}: {err}"
+                ) from err
             if template_type == "bundle":
                 return info
             else:
@@ -143,10 +149,14 @@ class PkgInfoCreator(Processor):
                 info = ElementTree.parse(
                     template_path
                 )  # nosec B314 - recipe-supplied template; DoS accepted
-            except Exception:
+            except OSError as err:
                 raise ProcessorError(
-                    f"Malformed PackageInfo template {self.env['template_path']}"
-                )
+                    f"Could not read PackageInfo template {template_path}: {err}"
+                ) from err
+            except ElementTree.ParseError as err:
+                raise ProcessorError(
+                    f"Malformed PackageInfo template {template_path}: {err}"
+                ) from err
             if template_type == "flat":
                 return info
             else:
