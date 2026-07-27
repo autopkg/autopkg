@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from autopkglib import ProcessorError, _AutopkginstalldClient
-from autopkglib.Installer import Installer
+from autopkglib.Installer import AUTOPKGINSTALLD_SOCKET, Installer
 
 
 class TestInstaller(unittest.TestCase):
@@ -70,6 +70,9 @@ class TestInstaller(unittest.TestCase):
         self.assertIs(Installer.connect, _AutopkginstalldClient.connect)
         self.assertIs(Installer.send_request, _AutopkginstalldClient.send_request)
         self.assertIs(Installer.disconnect, _AutopkginstalldClient.disconnect)
+
+    def test_exposes_autopkginstalld_socket(self):
+        self.assertEqual(AUTOPKGINSTALLD_SOCKET, "/var/run/autopkginstalld")
 
     def test_send_request_forwards_status_lines(self):
         mock_file = MagicMock()

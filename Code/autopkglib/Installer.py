@@ -18,8 +18,13 @@
 
 from glob import glob
 
-from autopkglib import ProcessorError, _AutopkginstalldClient
+from autopkglib import _AUTOPKGINSTALLD_SOCKET, ProcessorError, _AutopkginstalldClient
 from autopkglib.DmgMounter import DmgMounter
+
+# Compatibility re-export for third-party code that imported this name before
+# the socket client moved to autopkglib._AutopkginstalldClient. Reading it still
+# works; rebinding it does not change the socket connect() uses.
+AUTOPKGINSTALLD_SOCKET = _AUTOPKGINSTALLD_SOCKET
 
 __all__ = ["Installer"]
 

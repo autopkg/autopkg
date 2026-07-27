@@ -23,7 +23,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from autopkglib import ProcessorError, _AutopkginstalldClient
-from autopkglib.InstallFromDMG import InstallFromDMG
+from autopkglib.InstallFromDMG import AUTOPKGINSTALLD_SOCKET, InstallFromDMG
 
 
 class TestInstallFromDMG(unittest.TestCase):
@@ -44,6 +44,9 @@ class TestInstallFromDMG(unittest.TestCase):
         self.assertIs(InstallFromDMG.connect, _AutopkginstalldClient.connect)
         self.assertIs(InstallFromDMG.send_request, _AutopkginstalldClient.send_request)
         self.assertIs(InstallFromDMG.disconnect, _AutopkginstalldClient.disconnect)
+
+    def test_exposes_autopkginstalld_socket(self):
+        self.assertEqual(AUTOPKGINSTALLD_SOCKET, "/var/run/autopkginstalld")
 
     def test_send_request_leaves_the_socket_usable_for_disconnect(self):
         """Reading the reply must not close the socket's descriptor.
