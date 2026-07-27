@@ -22,5 +22,5 @@ Provide the output of `autopkg run -vvvv <RecipeName>`, or any other command you
 A clear and concise description of what you expected to happen. What specific part of the recipe or AutoPkg run did not behave correctly?
 
 **Version (please complete the following information):**
- - OS version: [e.g. 10.14.6, 10.15.1]
+ - OS version: [e.g. 14.5, 15.1]
 - AutoPkg Version: (generally expected that everyone should be on the latest release, but if you are using master or a specific commit, please specify)
