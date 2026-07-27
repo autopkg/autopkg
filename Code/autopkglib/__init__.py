@@ -2033,7 +2033,12 @@ def extract_processor_name_with_recipe_identifier(
 def resolve_shared_processor_recipe_path(
     processor_recipe_id: str, search_dirs
 ) -> str | None:
-    """Resolve a shared processor recipe within the active search dirs."""
+    """Resolve a shared processor recipe within the active search dirs.
+
+    Prefer the O(1) recipe map, but reject a pref-scoped map hit outside the
+    caller's active search dirs. Fall back to an on-disk scan, then retry the
+    map once after a cwd-inclusive rebuild for issue #894.
+    """
     shared_processor_recipe_path = find_recipe_by_identifier_in_map(processor_recipe_id)
     if shared_processor_recipe_path and not _path_under_dirs(
         shared_processor_recipe_path, search_dirs

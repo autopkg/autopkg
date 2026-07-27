@@ -1538,13 +1538,6 @@ def find_processor_path(processor_name, recipe, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            # Security scope check: the map is pref-scoped. If the caller has
-            # narrowed env["RECIPE_SEARCH_DIRS"] to a subset of the prefs
-            # (e.g., `autopkg run --search-dir /sandboxed/repo`), a map
-            # hit could point at a recipe outside that subset, causing
-            # us to load a `<processor_name>.py` from a directory the
-            # caller explicitly excluded. Gate the map lookup on the
-            # resolved path living under env["RECIPE_SEARCH_DIRS"].
             shared_processor_recipe_path = resolve_shared_processor_recipe_path(
                 processor_recipe_id, search_dirs
             )
