@@ -24,9 +24,7 @@
 # This skips the bootstrap installation script at 'Scripts/install.sh', because
 # this step would require root.
 #
-# Requires an OAuth token with push access to the repo. Currently the GitHub
-# Releases API is in a 'preview' status, and this script does very little error
-# handling.
+# Requires an OAuth token with push access to the repo.
 """See docstring for main() function"""
 
 import json
