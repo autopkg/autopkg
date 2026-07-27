@@ -72,7 +72,6 @@ echo "Copying autopkgcmd"
 cp Code/autopkgcmd/__init__.py "$INSTALL_DIR/autopkgcmd/"
 cp Code/autopkgcmd/opts.py "$INSTALL_DIR/autopkgcmd/"
 cp Code/autopkgcmd/searchcmd.py "$INSTALL_DIR/autopkgcmd/"
-cp Code/autopkgcmd/searchcmd.py "$INSTALL_DIR/autopkgcmd/"
 
 echo "Copying autopkglib"
 cp Code/autopkglib/*.py "$INSTALL_DIR/autopkglib/"
