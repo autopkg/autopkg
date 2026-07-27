@@ -9,7 +9,7 @@ This project uses three methods of code style enforcement, linting, and checking
 All code that is contributed to AutoPkg must match these style requirements. These
 requirements are enforced by [pre-commit](https://pre-commit.com).
 
-## Use relocatable-python to safely build 3
+## Use relocatable-python to safely build a Python 3 framework
 
 We recommend using Greg Neagle's [Relocatable Python](https://github.com/gregneagle/relocatable-python) to build a custom Python 3 framework with the included [requirements.txt](https://github.com/autopkg/autopkg/blob/master/requirements.txt).
 
@@ -24,14 +24,14 @@ mkdir -p /Users/Shared/Python3
 Now create your relocatable Python frameworks using the provided requirements.txt files:
 
 ```sh
-./make_relocatable_python_framework.py --python-version 3.10.11 --pip-requirements /path/to/requirements.txt --destination /Users/Shared/Python3/
+./make_relocatable_python_framework.py --python-version 3.11.9 --pip-requirements /path/to/requirements.txt --destination /Users/Shared/Python3/
 ```
 
 ### Symlink the frameworks
 You can symlink in the python executables into a more useful path:
 
 ```sh
-sudo ln -s /Users/Shared/Python3/Python.framework/Versions/3.7/bin/python3 /usr/local/bin/python3_custom
+sudo ln -s /Users/Shared/Python3/Python.framework/Versions/Current/bin/python3 /usr/local/bin/python3_custom
 ```
 
 ## Use pre-commit to set automatic commit requirements
@@ -44,7 +44,7 @@ while in your current autopkg git checkout:
 
 ```sh
 cd ~/autopkg
-/Users/Shared/Python3/Python.framework/Versions/3.7/bin/pre-commit install --install-hooks
+/Users/Shared/Python3/Python.framework/Versions/Current/bin/pre-commit install --install-hooks
 ```
 
 ```console
@@ -86,7 +86,7 @@ hookid: isort
 
 Files were modified by this hook. Additional output:
 
-Fixing C:\Users\nmcspadden\Documents\GitHub\nmcspadden-autopkg\Code\autopkglib\AppDmgVersioner.py
+Fixing Code/autopkglib/AppDmgVersioner.py
 
 Flake8...................................................................Failed
 hookid: flake8
