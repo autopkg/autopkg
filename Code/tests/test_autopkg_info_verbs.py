@@ -1356,6 +1356,9 @@ class TestInfoVerbs(unittest.TestCase):
         processor_name = "com.example.shared/TestProcessor"
         recipe = {"RECIPE_PATH": "/recipes/TestApp.recipe"}
         env = {}
+        # os.path.join uses a backslash on Windows, so build the expected
+        # processor path the same way find_processor_path does.
+        expected_path = os.path.join("/default/search/dir", "TestProcessor.py")
 
         with (
             patch("autopkg.get_search_dirs") as mock_get_search_dirs,
@@ -1371,13 +1374,11 @@ class TestInfoVerbs(unittest.TestCase):
         ):
             mock_get_search_dirs.return_value = ["/default/search/dir"]
             mock_extract.return_value = ("TestProcessor", "com.example.shared")
-            mock_exists.side_effect = (
-                lambda path: path == "/default/search/dir/TestProcessor.py"
-            )
+            mock_exists.side_effect = lambda path: path == expected_path
 
             result = autopkg.find_processor_path(processor_name, recipe, env)
 
-            self.assertEqual(result, "/default/search/dir/TestProcessor.py")
+            self.assertEqual(result, expected_path)
             mock_get_search_dirs.assert_called_once_with()
             mock_find_on_disk.assert_called_once_with(
                 "com.example.shared", ["/default/search/dir"]

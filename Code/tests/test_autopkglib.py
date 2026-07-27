@@ -316,7 +316,11 @@ class TestGetCacheDir(unittest.TestCase):
                 self.assertEqual(autopkglib.get_cache_dir(), cache_dir)
 
     def test_default_is_expanded_and_made_absolute(self):
-        expanded_default = os.path.join(os.sep, "users", "test", "AutoPkg", "Cache")
+        # A drive-less path isn't absolute on Windows, so abspath() would
+        # prepend the current drive. Start from an already-absolute path.
+        expanded_default = os.path.abspath(
+            os.path.join(os.sep, "users", "test", "AutoPkg", "Cache")
+        )
         with (
             patch.object(autopkglib, "get_pref", return_value=None),
             patch.object(
