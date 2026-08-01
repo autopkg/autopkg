@@ -77,11 +77,11 @@ class GitHubReleasesInfoProvider(Processor):
                 "the download request."
             ),
         },
-        "ignore_archived": {
+        "fail_if_archived": {
             "required": False,
-            "default": False,
+            "default": True,
             "description": (
-                "Fail if the GitHub repo is archived unless ignore_archived is set."
+                "Fail if the GitHub repo is archived. Set to False to allow archived repos."
             ),
         },
         "CURL_PATH": {
@@ -243,14 +243,14 @@ class GitHubReleasesInfoProvider(Processor):
         )
 
     def main(self) -> None:
-        # Check if we should ignore archived repos
-        ignore_archived = bool(self.env.get("ignore_archived"))
+        # Check if we should fail when repo is archived
+        fail_if_archived = bool(self.env.get("fail_if_archived", True))
         self.output(
-            f"bool(self.env.get('ignore_archived')): {ignore_archived}",
+            f"fail_if_archived: {fail_if_archived}",
             verbose_level=2,
         )
-        if not ignore_archived:
-            # Only check if repo is archived if we're not ignoring archived repos
+        if fail_if_archived:
+            # Check if repo is archived and fail if it is
             repo_is_archived = self.is_archived(self.env["github_repo"])
             self.output(
                 f"self.env['github_repo'] is archived: {repo_is_archived}",
@@ -259,8 +259,8 @@ class GitHubReleasesInfoProvider(Processor):
             if repo_is_archived:
                 raise ProcessorError(
                     f"GitHub repo '{self.env['github_repo']}' is archived. "
-                    "If you are absolutely sure you still want to use this repo, "
-                    "set the 'ignore_archived' input variable to True."
+                    "If you still want to use this repo, "
+                    "set the 'fail_if_archived' input variable to False."
                 )
 
         # Iterate through our list of releases

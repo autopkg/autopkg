@@ -87,17 +87,17 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
             with self.assertRaises(ProcessorError):
                 self.processor.main()
 
-    def test_main_with_archived_repo_ignore_archived(self):
-        """The processor should not raise an error if repo is archived and ignore_archived is set."""
-        test_env = {"github_repo": "autopkg/autopkg", "ignore_archived": "true"}
+    def test_main_with_archived_repo_fail_if_archived_false(self):
+        """The processor should not raise an error if repo is archived and fail_if_archived is False."""
+        test_env = {"github_repo": "autopkg/autopkg", "fail_if_archived": False}
         test_env.update(self.base_env)
         self.processor.env = test_env
         with patch.object(
             GitHubReleasesInfoProvider, "is_archived", return_value=True
         ):
-            # When ignore_archived is set, is_archived should not be called
+            # When fail_if_archived is False, is_archived should not be called
             # This test verifies that the processor doesn't attempt the archived check
-            # when ignore_archived is True, and proceeds with normal release fetching.
+            # when fail_if_archived is False, and proceeds with normal release fetching.
             # Since we're not mocking get_releases, this will make a real API call.
             # To avoid that, we also mock get_releases.
             with patch.object(
@@ -125,7 +125,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
                     self.processor.main()
                 except ProcessorError:
                     self.fail(
-                        "Processor should not raise error when ignore_archived is set"
+                        "Processor should not raise error when fail_if_archived is False"
                     )
 
 
