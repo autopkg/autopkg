@@ -77,6 +77,13 @@ class GitHubReleasesInfoProvider(Processor):
                 "the download request."
             ),
         },
+        "fail_if_archived": {
+            "required": False,
+            "default": True,
+            "description": (
+                "Fail if the GitHub repo is archived. Set to False to allow archived repos."
+            ),
+        },
         "CURL_PATH": {
             "required": False,
             "description": "Path to curl binary. Defaults to /usr/bin/curl.",
@@ -161,6 +168,33 @@ class GitHubReleasesInfoProvider(Processor):
 
         return releases
 
+    def get_repo(self, repo_name):
+        """Return metadata for a given GitHub repo. repo_name must
+        be of the form 'user/repo'"""
+        curl_opts = self.env.get("curl_opts")
+        github = autopkglib.github.GitHubSession(
+            self.env["CURL_PATH"],
+            curl_opts,
+            self.env["GITHUB_URL"],
+            self.env["GITHUB_TOKEN_PATH"],
+        )
+        repo, status = github.call_api(f"/repos/{repo_name}")
+        if status != 200:
+            raise ProcessorError(f"Unexpected GitHub API status code {status}.")
+        if not repo:
+            raise ProcessorError(f"No repo found for '{repo_name}'")
+        self.output(f"found repo {repo_name}", verbose_level=2)
+        self.output(f"repo metadata: {repo}", verbose_level=2)
+        return repo
+
+    def is_archived(self, repo_name) -> bool:
+        """Return True if the repo is archived, False otherwise. repo_name must
+        be of the form 'user/repo'"""
+        repo = self.get_repo(repo_name)
+        archived_status = repo.get("archived")
+        self.output(f"{repo_name} is archived: {archived_status}")
+        return bool(archived_status)
+
     def select_asset(self, releases, regex):
         """Iterates through the releases in order and determines the first
         eligible asset that matches the criteria. Sets the selected release
@@ -209,6 +243,26 @@ class GitHubReleasesInfoProvider(Processor):
         )
 
     def main(self) -> None:
+        # Check if we should fail when repo is archived
+        fail_if_archived = bool(self.env.get("fail_if_archived", True))
+        self.output(
+            f"fail_if_archived: {fail_if_archived}",
+            verbose_level=2,
+        )
+        if fail_if_archived:
+            # Check if repo is archived and fail if it is
+            repo_is_archived = self.is_archived(self.env["github_repo"])
+            self.output(
+                f"self.env['github_repo'] is archived: {repo_is_archived}",
+                verbose_level=2,
+            )
+            if repo_is_archived:
+                raise ProcessorError(
+                    f"GitHub repo '{self.env['github_repo']}' is archived. "
+                    "If you still want to use this repo, "
+                    "set the 'fail_if_archived' input variable to False."
+                )
+
         # Iterate through our list of releases
         page = 1
         while True:
