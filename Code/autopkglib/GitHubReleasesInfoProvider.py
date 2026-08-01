@@ -178,7 +178,7 @@ class GitHubReleasesInfoProvider(Processor):
             self.env["GITHUB_URL"],
             self.env["GITHUB_TOKEN_PATH"],
         )
-        (repo, status) = github.call_api(f"/repos/{repo_name}")
+        repo, status = github.call_api(f"/repos/{repo_name}")
         if status != 200:
             raise ProcessorError(f"Unexpected GitHub API status code {status}.")
         if not repo:

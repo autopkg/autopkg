@@ -81,9 +81,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         test_env = {"github_repo": "autopkg/autopkg"}
         test_env.update(self.base_env)
         self.processor.env = test_env
-        with patch.object(
-            GitHubReleasesInfoProvider, "is_archived", return_value=True
-        ):
+        with patch.object(GitHubReleasesInfoProvider, "is_archived", return_value=True):
             with self.assertRaises(ProcessorError):
                 self.processor.main()
 
@@ -92,9 +90,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         test_env = {"github_repo": "autopkg/autopkg", "fail_if_archived": False}
         test_env.update(self.base_env)
         self.processor.env = test_env
-        with patch.object(
-            GitHubReleasesInfoProvider, "is_archived", return_value=True
-        ):
+        with patch.object(GitHubReleasesInfoProvider, "is_archived", return_value=True):
             # When fail_if_archived is False, is_archived should not be called
             # This test verifies that the processor doesn't attempt the archived check
             # when fail_if_archived is False, and proceeds with normal release fetching.
