@@ -410,6 +410,52 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         self.assertEqual(call_count["n"], 2)
         self.assertEqual(self.processor.env["version"], "3.0.2")
 
+    def test_main_latest_only_stops_when_no_asset_matches(self):
+        """main() gives up after one request when latest_only finds no match.
+
+        A latest_only request asks for the single latest release and ignores the
+        page number, so advancing to the next page can never return anything new.
+        """
+        call_count = {"n": 0}
+
+        def side_effect(repo, page=1, per_page=30, latest_only=False):
+            call_count["n"] += 1
+            if call_count["n"] > 5:
+                self.fail("get_releases() called repeatedly; latest_only is looping")
+            return _fake_release()
+
+        with patch.object(
+            GitHubReleasesInfoProvider, "get_releases", side_effect=side_effect
+        ):
+            self.processor.env = {
+                "github_repo": "autopkg/autopkg",
+                "latest_only": True,
+                "asset_regex": r"^this-will-never-match\.pkg$",
+                **self.base_env,
+            }
+            with self.assertRaises(NoMatchingReleaseError):
+                self.processor.main()
+
+        self.assertEqual(call_count["n"], 1)
+
+    def test_main_latest_only_selects_matching_asset(self):
+        """main() still resolves an asset normally when latest_only is set."""
+        with patch.object(
+            GitHubReleasesInfoProvider, "get_releases", return_value=_fake_release()
+        ) as mock_get_releases:
+            self.processor.env = {
+                "github_repo": "autopkg/autopkg",
+                "latest_only": True,
+                "asset_regex": r"^test\.pkg$",
+                **self.base_env,
+            }
+            self.processor.main()
+
+        mock_get_releases.assert_called_once_with(
+            "autopkg/autopkg", latest_only=True, page=1, per_page=30
+        )
+        self.assertEqual(self.processor.env["version"], "3.0.2")
+
 
 if __name__ == "__main__":
     unittest.main()
