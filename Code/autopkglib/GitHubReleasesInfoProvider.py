@@ -209,13 +209,14 @@ class GitHubReleasesInfoProvider(Processor):
         )
 
     def main(self) -> None:
+        latest_only = self.env.get("latest_only")
         # Iterate through our list of releases
         page = 1
         while True:
             self.output(f"Fetching page {page} of GitHub releases")
             releases = self.get_releases(
                 self.env["github_repo"],
-                latest_only=self.env.get("latest_only"),
+                latest_only=latest_only,
                 page=page,
                 per_page=self.env.get("GITHUB_RELEASES_PER_PAGE", 30),
             )
@@ -228,6 +229,8 @@ class GitHubReleasesInfoProvider(Processor):
                 self.select_asset(releases, self.env.get("asset_regex"))
                 break
             except NoMatchingReleaseError:
+                if latest_only:
+                    raise
                 self.output(f"No releases found on page {page}")
             page += 1
 
