@@ -16,7 +16,6 @@
 
 """See docstring for URLDownloaderPython class"""
 
-import json
 import os
 import ssl
 from hashlib import md5, sha1, sha256
@@ -37,244 +36,16 @@ class URLDownloaderPython(URLDownloader):
 
     description = __doc__
     lifecycle = {"introduced": "2.4.1"}
-    input_variables = {
-        "url": {"required": True, "description": "The URL to download."},
-        "request_headers": {
-            "required": False,
-            "description": (
-                "Optional dictionary of headers to include with the download request. "
-                "Keys are header names and values are header values."
-            ),
-        },
-        "download_dir": {
-            "required": False,
-            "description": (
-                "The directory where the file will be downloaded to. Defaults "
-                "to RECIPE_CACHE_DIR/downloads."
-            ),
-        },
-        "filename": {
-            "required": False,
-            "description": "Filename to override the URL's tail.",
-        },
-        "prefetch_filename": {
-            "required": False,
-            "description": (
-                "If True, URLDownloader attempts to determine filename from HTTP "
-                "headers downloaded before the file itself. 'prefetch_filename' "
-                "overrides 'filename' option. Filename is determined from the first "
-                "available source of information in this order:\n"
-                "\t1. Content-Disposition header\n"
-                "\t2. Location header\n"
-                "\t3. 'filename' option (if set)\n"
-                "\t4. last part of 'url'.  \n"
-                "'prefetch_filename' is useful for URLs with redirects."
-            ),
-            "default": False,
-        },
-        "CHECK_FILESIZE_ONLY": {
-            "required": False,
-            "description": (
-                "If True, a server's ETag and Last-Modified "
-                "headers will not be checked to verify whether "
-                "a download is newer than a cached item, and only "
-                "Content-Length (filesize) will be used. This "
-                "is useful for cases where a download always "
-                "redirects to different mirrors, which could "
-                "cause items to be needlessly re-downloaded. "
-                "Defaults to False."
-            ),
-            "default": False,
-        },
-        "PKG": {
-            "required": False,
-            "description": (
-                "Local path to the pkg/dmg we'd otherwise download. "
-                "If provided, the download is skipped and we just use "
-                "this package or disk image."
-            ),
-        },
-        "COMPUTE_HASHES": {
-            "required": False,
-            "description": (
-                "Determine whether to compute md5, sha1, and sha256 hashes of "
-                "the downloaded file."
-            ),
-            "default": False,
-        },
-        "HEADERS_TO_TEST": {
-            "required": False,
-            "description": (
-                "List of HTTP headers to compare against the previous download "
-                "to detect changes. If 'CHECK_FILESIZE_ONLY' is enabled, this "
-                "list is overridden to ['Content-Length'] only."
-            ),
-            "default": ["ETag", "Last-Modified", "Content-Length"],
-        },
-        "download_missing_file": {
-            "required": False,
-            "description": (
-                "If the file is missing but matching metadata is present, "
-                "download the file again. Defaults to True as most current "
-                "recipes expect the files to be present. This re-fetch does "
-                "not mark the item as changed (download_changed stays false); "
-                "download_changed reflects the remote resource only."
-            ),
-            "default": True,
-        },
+    input_variables = URLDownloader.input_variables.copy()
+    input_variables.pop("curl_opts")
+    input_variables["request_headers"] = {
+        "required": False,
+        "description": (
+            "Optional dictionary of headers to include with the download request. "
+            "Keys are header names and values are header values."
+        ),
     }
-    output_variables = {
-        "pathname": {"description": "Path to the downloaded file."},
-        "last_modified": {
-            "description": "last-modified header for the downloaded item."
-        },
-        "etag": {"description": "etag header for the downloaded item."},
-        "download_url": {
-            "description": "The final URL the file was downloaded from (after redirects)."
-        },
-        "download_changed": {
-            "description": (
-                "Boolean indicating if the download has changed since the "
-                "last time it was downloaded."
-            )
-        },
-        "download_info": {"description": "Info from previous or current download."},
-        "file_sha1": {"description": "SHA-1 hash of the downloaded file."},
-        "file_sha256": {"description": "SHA-256 hash of the downloaded file."},
-        "file_md5": {"description": "MD5 hash of the downloaded file."},
-        "url_downloader_summary_result": {
-            "description": "Description of interesting results."
-        },
-    }
-
-    def download_changed(self, header) -> bool:
-        """Check if downloaded file changed on server."""
-
-        self.output(f"HTTP Headers: \n{header}", 2)
-
-        # get the list of headers to check
-        headers_to_test = (
-            self.env.get("HEADERS_TO_TEST")
-            or self.input_variables["HEADERS_TO_TEST"]["default"]
-        )
-
-        self.output(
-            "headers_to_test: {headers_to_test}".format(
-                headers_to_test=headers_to_test
-            ),
-            2,
-        )
-
-        # get previous info to compare
-        previous_download_info = self.get_download_info_json()
-
-        if previous_download_info:
-            self.env["download_info"] = previous_download_info
-
-            previous_http_headers = previous_download_info.get("http_headers", {})
-            if "Last-Modified" in previous_http_headers:
-                self.env["last_modified"] = previous_http_headers["Last-Modified"]
-            if "ETag" in previous_http_headers:
-                self.env["etag"] = previous_http_headers["ETag"]
-            if "download_url" in previous_download_info:
-                self.env["download_url"] = previous_download_info["download_url"]
-
-        self.output(
-            "previous_download_info: \n{previous_download_info}\n".format(
-                previous_download_info=previous_download_info
-            ),
-            2,
-        )
-
-        header_matches = 0
-
-        # Whether the cached file is on disk. Used only to prefer the real
-        # file size over the stored Content-Length; it does not affect the
-        # remote resource decision (that is a pure remote-vs-.info.json comparison).
-        previous_download_path = self.env.get("pathname", None)
-        previous_download_exists = bool(
-            previous_download_path and os.path.isfile(previous_download_path)
-        )
-
-        previous_http_headers = {}
-        if previous_download_info:
-            previous_http_headers = previous_download_info.get("http_headers", {})
-
-        try:
-            # check Content-Length:
-            if "Content-Length" in headers_to_test:
-                previous_file_size = (
-                    os.path.getsize(previous_download_path)
-                    if previous_download_exists
-                    else int(previous_http_headers["Content-Length"])
-                )
-                if previous_file_size != int(header.get("Content-Length")):
-                    self.output("Content-Length is different", 2)
-                    return True
-                header_matches += 1
-        except (KeyError, TypeError, ValueError) as err:
-            self.output(
-                "WARNING: 'Content-Length' missing. ({err_type}) {err}".format(
-                    err=err, err_type=type(err).__name__
-                ),
-                1,
-            )
-
-        # check other headers:
-        for test in headers_to_test:
-            if test != "Content-Length":
-                try:
-                    previous_header = previous_http_headers[test]
-                    current_header = header.get(test)
-                    if current_header is None and previous_header in ("", None):
-                        continue
-                    if previous_header != current_header:
-                        self.output(f"{test} is different", 2)
-                        return True
-                    else:
-                        header_matches += 1
-                except (KeyError, TypeError, ValueError) as err:
-                    self.output(
-                        "WARNING: header missing. ({err_type}) {err}".format(
-                            err=err, err_type=type(err).__name__
-                        ),
-                        1,
-                    )
-
-        # if no header checks work without throwing exceptions:
-        if header_matches == 0:
-            return True
-        # if all above pass, then return False:
-        return False
-
-    def store_download_info_json(self, download_dictionary) -> None:
-        """If file is downloaded, store info"""
-        pathname = self.env.get("pathname")
-        pathname_info_json = pathname + ".info.json"
-        # https://stackoverflow.com/questions/16267767/python-writing-json-to-file
-        with open(pathname_info_json, "w", encoding="utf-8") as outfile:
-            json.dump(download_dictionary, outfile, indent=4)
-            # add newline at end of file:
-            outfile.write("\n")
-
-    def get_download_info_json(self) -> dict | None:
-        """get info from previous download"""
-        pathname = self.env.get("pathname")
-        pathname_info_json = pathname + ".info.json"
-
-        try:
-            with open(pathname_info_json, encoding="utf-8") as infile:
-                info_json = json.load(infile)
-        except FileNotFoundError as err:
-            self.output(
-                "WARNING: missing download info ({err_type})\n{err}\n".format(
-                    err=err, err_type=type(err).__name__
-                ),
-                1,
-            )
-            return None
-
-        return info_json
+    output_variables = URLDownloader.output_variables.copy()
 
     def ssl_context_certifi(self) -> ssl.SSLContext:
         """SSL context using certifi CAs or custom CAs if the env SSL_CERT_FILE is set"""
@@ -399,26 +170,16 @@ class URLDownloaderPython(URLDownloader):
         download_dictionary["download_url"] = download_url
         self.env["download_url"] = download_url
         # download_dictionary['http_headers'] = response.info()
-        download_dictionary["http_headers"] = {}
-        try:
-            content_length = int(response.headers.get("Content-Length", size))
-        except (TypeError, ValueError) as err:
-            self.output(
-                "WARNING: invalid Content-Length header ({err_type})\n{err}\n".format(
-                    err=err, err_type=type(err).__name__
-                ),
-                1,
-            )
-            content_length = size
-        download_dictionary["http_headers"]["Content-Length"] = content_length
-        download_dictionary["http_headers"]["ETag"] = response.headers.get("ETag") or ""
-        download_dictionary["http_headers"]["Last-Modified"] = (
-            response.headers.get("Last-Modified") or ""
+        download_dictionary["http_headers"] = self.download_headers(
+            response.headers, size
         )
         self.env["etag"] = download_dictionary["http_headers"]["ETag"]
         self.env["last_modified"] = download_dictionary["http_headers"]["Last-Modified"]
-        if download_dictionary["http_headers"]["Content-Length"] != size:
-            # should this be a halting error?
+        try:
+            content_length = int(response.headers.get("Content-Length", size))
+        except (TypeError, ValueError):
+            content_length = size
+        if content_length != size:
             self.output("WARNING: file size != content-length header")
 
         # We streamed a fresh copy (the remote resource changed, or the file was
@@ -459,10 +220,6 @@ class URLDownloaderPython(URLDownloader):
         # clear empty file from previous run
         self.clear_zero_file(self.env["pathname"])
 
-        # change headers to test if CHECK_FILESIZE_ONLY
-        if self.env_bool("CHECK_FILESIZE_ONLY"):
-            self.env["HEADERS_TO_TEST"] = ["Content-Length"]
-
         pathname_temporary = self.create_temp_file(download_dir)
 
         # download file
@@ -478,19 +235,11 @@ class URLDownloaderPython(URLDownloader):
         # clear temp file if 0 size
         self.clear_zero_file(pathname_temporary)
 
-        if self.env.get("download_changed", None):
-            if download_dictionary is None:
-                raise ProcessorError("Download did not produce metadata.")
-
-            # store download info for checking for existing download
-            self.store_download_info_json(download_dictionary)
-
-            # Generate output messages and variables
-            self.output(f"Downloaded {self.env['pathname']}")
-            self.env["url_downloader_summary_result"] = {
-                "summary_text": "The following new items were downloaded:",
-                "data": {"download_path": self.env["pathname"]},
-            }
+        if self.env["download_changed"] and download_dictionary is None:
+            raise ProcessorError("Download did not produce metadata.")
+        if download_dictionary is not None:
+            self.write_metadata(download_dictionary)
+            self.report_download(self.env["download_changed"])
 
         self.output(f"self.env: \n{self.env}\n", 4)
 
