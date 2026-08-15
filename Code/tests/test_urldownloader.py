@@ -123,11 +123,94 @@ class TestURLDownloader(unittest.TestCase):
 
         self.assertEqual(metadata["download_url"], "http://example.com/file.dmg")
         self.assertEqual(metadata["file_size"], len(test_content))
+        self.assertEqual(self.processor.env["download_info"], metadata)
         self.assertEqual(metadata["http_headers"]["ETag"], '"abc123"')
         self.assertEqual(
             metadata["http_headers"]["Last-Modified"],
             "Mon, 01 Jan 2024 00:00:00 GMT",
         )
+
+    def test_store_metadata_uses_redirected_download_url(self):
+        """store_metadata records the final redirected URL when curl reports one."""
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as f:
+            f.write(b"test file content")
+
+        self.processor.env["pathname"] = test_file
+        self.processor.env["url"] = "http://example.com/file.dmg"
+        self.processor.clear_vars()
+        self.processor.env["download_url"] = "https://old.example.com/file.dmg"
+
+        header = {
+            "etag": '"abc123"',
+            "http_redirected": "https://cdn.example.com/file.dmg",
+            "last-modified": "Mon, 01 Jan 2024 00:00:00 GMT",
+        }
+
+        with patch.object(self.processor, "store_headers"):
+            self.processor.store_metadata(header)
+
+        with open(test_file + ".info.json", "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+
+        self.assertEqual(metadata["download_url"], "https://cdn.example.com/file.dmg")
+        self.assertEqual(
+            self.processor.env["download_url"], "https://cdn.example.com/file.dmg"
+        )
+
+    def test_store_metadata_replaces_stale_redirect_with_current_url(self):
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as outfile:
+            outfile.write(b"test file content")
+        self.processor.env.update(
+            {
+                "download_url": "https://old.example.com/file.dmg",
+                "pathname": test_file,
+            }
+        )
+
+        with patch.object(self.processor, "store_headers"):
+            self.processor.store_metadata({})
+
+        with open(test_file + ".info.json", encoding="utf-8") as infile:
+            metadata = json.load(infile)
+        self.assertEqual(metadata["download_url"], self.processor.env["url"])
+
+    def test_download_changed_invalid_content_length_returns_changed(self):
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as outfile:
+            outfile.write(b"test data")
+        with open(test_file + ".info.json", "w", encoding="utf-8") as outfile:
+            json.dump({"http_headers": {}}, outfile)
+        self.processor.env["pathname"] = test_file
+
+        with patch.object(self.processor, "output") as mock_output:
+            changed = self.processor.download_changed(
+                {"http_result_code": "200", "content-length": "invalid"}
+            )
+
+        self.assertTrue(changed)
+        self.assertTrue(
+            any(
+                "Content-Length' invalid" in call.args[0]
+                for call in mock_output.call_args_list
+            )
+        )
+
+    def test_store_metadata_preserves_custom_headers(self):
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as outfile:
+            outfile.write(b"test file content")
+        self.processor.env.update(
+            {"HEADERS_TO_TEST": ["X-Release"], "pathname": test_file}
+        )
+
+        with patch.object(self.processor, "store_headers"):
+            self.processor.store_metadata({"x-release": "2026.08"})
+
+        with open(test_file + ".info.json", encoding="utf-8") as infile:
+            metadata = json.load(infile)
+        self.assertEqual(metadata["http_headers"]["X-Release"], "2026.08")
 
     def test_metadata_retrieval_from_storage(self):
         """Test that metadata can be retrieved correctly from .info.json."""
@@ -176,6 +259,43 @@ class TestURLDownloader(unittest.TestCase):
         with self.assertRaises(ProcessorError):
             self.processor.getxattr("any.xattr.name")
 
+    def test_env_bool_accepts_strings(self):
+        """Boolean-like env strings are parsed, not evaluated with truthiness."""
+        for value in ("true", "True", "TRUE", "  true  ", "yes", "on", "1"):
+            self.processor.env["flag"] = value
+            self.assertTrue(
+                self.processor.env_bool("flag"), f"{value!r} should be True"
+            )
+        for value in ("false", "False", "no", "off", "0", ""):
+            self.processor.env["flag"] = value
+            self.assertFalse(
+                self.processor.env_bool("flag"), f"{value!r} should be False"
+            )
+
+        self.processor.env["none_value"] = None
+        self.assertTrue(self.processor.env_bool("none_value", default=True))
+        self.assertTrue(self.processor.env_bool("missing", default=True))
+
+    def test_env_bool_prefetch_error_mentions_filename(self):
+        self.processor.env["prefetch_filename"] = "file.dmg"
+
+        with self.assertRaisesRegex(ProcessorError, "use filename"):
+            self.processor.env_bool("prefetch_filename")
+
+    def test_env_bool_rejects_unknown_strings(self):
+        """Unrecognised strings fail loudly rather than silently defaulting."""
+        self.processor.env["bad_value"] = "ture"
+
+        with self.assertRaisesRegex(ProcessorError, "bad_value must be a boolean"):
+            self.processor.env_bool("bad_value")
+
+    def test_env_bool_rejects_non_boolean_values(self):
+        """Unexpected value types fail loudly instead of using Python truthiness."""
+        self.processor.env["bad_value"] = 1
+
+        with self.assertRaisesRegex(ProcessorError, "bad_value must be a boolean"):
+            self.processor.env_bool("bad_value")
+
     def test_get_metadata_returns_empty_on_corrupt_json(self):
         """get_metadata() must return {} and not raise when .info.json is corrupt."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
@@ -219,7 +339,6 @@ class TestURLDownloader(unittest.TestCase):
 
         self.assertEqual(headers["If-None-Match"], '"etag-value-123"')
         self.assertEqual(headers["If-Modified-Since"], "Wed, 03 Jan 2024 00:00:00 GMT")
-        self.assertIsNotNone(self.processor.existing_file_size)
 
     def test_produce_etag_headers_empty_when_no_metadata(self):
         """Test that produce_etag_headers returns empty dict when no metadata exists."""
@@ -259,8 +378,63 @@ class TestURLDownloader(unittest.TestCase):
         )
 
         self.assertEqual(headers, {})
-        self.assertEqual(self.processor.existing_file_size, os.path.getsize(test_file))
         self.assertTrue(changed)
+
+    def test_download_changed_populates_cached_download_info(self):
+        """Cache-hit checks expose previous .info.json metadata in env."""
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as f:
+            f.write(b"test content")
+
+        metadata = {
+            "download_url": "https://cdn.example.com/testfile.dmg",
+            "file_size": 12,
+            "http_headers": {
+                "Content-Length": 12,
+                "ETag": '"cached"',
+                "Last-Modified": "Tue, 02 Jan 2024 00:00:00 GMT",
+            },
+        }
+        with open(test_file + ".info.json", "w", encoding="utf-8") as f:
+            json.dump(metadata, f)
+
+        self.processor.env["pathname"] = test_file
+        self.processor.env["HEADERS_TO_TEST"] = ["ETag"]
+        self.processor.clear_vars()
+
+        changed = self.processor.download_changed(
+            {"http_result_code": "200", "etag": '"cached"'}
+        )
+
+        self.assertFalse(changed)
+        self.assertEqual(self.processor.env["download_info"], metadata)
+        self.assertEqual(self.processor.env["etag"], '"cached"')
+        self.assertEqual(
+            self.processor.env["last_modified"], "Tue, 02 Jan 2024 00:00:00 GMT"
+        )
+        self.assertEqual(
+            self.processor.env["download_url"], "https://cdn.example.com/testfile.dmg"
+        )
+
+    def test_download_changed_is_version_only_ignores_missing_file(self):
+        """download_changed compares versions only. A missing file whose stored
+        metadata matches the remote is NOT 'changed', regardless of
+        download_missing_file (that only affects materialising in main())."""
+        test_file = os.path.join(self.temp_dir, "missing.dmg")
+        with open(test_file + ".info.json", "w", encoding="utf-8") as f:
+            json.dump({"http_headers": {"Content-Length": 10}}, f)
+
+        self.processor.env["pathname"] = test_file
+        self.processor.env["HEADERS_TO_TEST"] = ["Content-Length"]
+        self.processor.clear_vars()
+
+        response = {"http_result_code": "200", "content-length": "10"}
+        for dmf in ("true", "false"):
+            self.processor.env["download_missing_file"] = dmf
+            self.assertFalse(
+                self.processor.download_changed(response),
+                f"download_missing_file={dmf} must not affect the version check",
+            )
 
     @unittest.skipUnless(
         sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
@@ -585,6 +759,107 @@ class TestURLDownloader(unittest.TestCase):
             self.processor.env["file_md5"], md5(cached_content).hexdigest()
         )
 
+    def _run_main_with_mocked_curl(self, content_length):
+        """Run main() with curl mocked to return a 200 of the given size."""
+        temporary_path = os.path.join(self.temp_dir, "download.tmp")
+        with open(temporary_path, "wb") as outfile:
+            outfile.write(b"x" * content_length)
+        with (
+            patch.object(URLDownloader, "download_with_curl") as mock_download,
+            patch.object(URLDownloader, "parse_headers") as mock_parse_headers,
+            patch.object(
+                URLDownloader, "create_temp_file", return_value=temporary_path
+            ),
+        ):
+            mock_download.return_value = ""
+            mock_parse_headers.return_value = {
+                "http_result_code": "200",
+                "http_result_description": "OK",
+                "content-length": str(content_length),
+            }
+            self.processor.main()
+
+    def test_main_materializes_missing_file_without_marking_changed(self):
+        """Missing file + unchanged version + download_missing_file default:
+        re-fetch the file but keep download_changed False (version is the
+        signal, not file presence)."""
+        download_dir = os.path.join(self.temp_dir, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        pathname = os.path.join(download_dir, "file.dmg")
+        # .info.json present, cached file absent.
+        with open(pathname + ".info.json", "w", encoding="utf-8") as f:
+            json.dump({"file_size": 5, "http_headers": {"Content-Length": 5}}, f)
+
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        with patch.object(self.processor, "output") as mock_output:
+            self._run_main_with_mocked_curl(5)
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertTrue(os.path.isfile(pathname))
+        with open(pathname, "rb") as infile:
+            self.assertEqual(infile.read(), b"xxxxx")
+        with open(pathname + ".info.json", encoding="utf-8") as infile:
+            self.assertEqual(json.load(infile)["file_size"], 5)
+        self.assertTrue(
+            any(
+                "Re-downloaded missing file" in call.args[0]
+                for call in mock_output.call_args_list
+            )
+        )
+        self.assertEqual(
+            self.processor.env["url_downloader_summary_result"],
+            {
+                "summary_text": "The following missing items were re-downloaded:",
+                "data": {"download_path": pathname},
+            },
+        )
+
+    def test_main_metadata_only_skip_reuses_stored_hashes(self):
+        """download_missing_file=false + missing file + unchanged + COMPUTE_HASHES:
+        no crash; hashes are reused from .info.json and the file is not fetched."""
+        download_dir = os.path.join(self.temp_dir, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        pathname = os.path.join(download_dir, "file.dmg")
+        with open(pathname + ".info.json", "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "file_size": 5,
+                    "http_headers": {"Content-Length": 5},
+                    "file_sha1": "aaa",
+                    "file_sha256": "bbb",
+                    "file_md5": "ccc",
+                },
+                f,
+            )
+
+        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["COMPUTE_HASHES"] = True
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self._run_main_with_mocked_curl(5)
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertFalse(os.path.isfile(pathname))
+        self.assertEqual(self.processor.env["file_sha1"], "aaa")
+        self.assertEqual(self.processor.env["file_sha256"], "bbb")
+        self.assertEqual(self.processor.env["file_md5"], "ccc")
+
+    def test_main_metadata_only_skip_without_stored_hashes_does_not_crash(self):
+        """Same as above but .info.json has no stored hashes: still no crash,
+        hashes are simply skipped."""
+        download_dir = os.path.join(self.temp_dir, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        pathname = os.path.join(download_dir, "file.dmg")
+        with open(pathname + ".info.json", "w", encoding="utf-8") as f:
+            json.dump({"file_size": 5, "http_headers": {"Content-Length": 5}}, f)
+
+        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["COMPUTE_HASHES"] = True
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self._run_main_with_mocked_curl(5)  # must not raise
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertNotIn("file_sha1", self.processor.env)
+
     # Clear vars test
 
     def test_clear_vars_initializes_variables(self):
@@ -598,8 +873,6 @@ class TestURLDownloader(unittest.TestCase):
 
         self.assertEqual(self.processor.env["last_modified"], "")
         self.assertEqual(self.processor.env["etag"], "")
-
-        self.assertIsNone(self.processor.existing_file_size)
 
     # Platform-specific xattr names
 

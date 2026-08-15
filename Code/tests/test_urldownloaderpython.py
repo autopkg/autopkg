@@ -20,6 +20,7 @@ import os
 import ssl
 import tempfile
 import unittest
+from email.message import Message
 from hashlib import md5, sha1, sha256
 from unittest.mock import patch
 
@@ -30,29 +31,18 @@ from tests import get_processor_module
 URLDOWNLOADERPYTHON_MODULE = get_processor_module("URLDownloaderPython")
 
 
-class CaseInsensitiveHeaders:
-    def __init__(self, headers):
-        self.headers = {
-            str(key).lower(): (str(key), str(value)) for key, value in headers.items()
-        }
-
-    def get(self, key, default=None):
-        return self.headers.get(str(key).lower(), (None, default))[1]
-
-    def __getitem__(self, key):
-        value = self.get(key)
-        if value is None:
-            raise KeyError(key)
-        return value
-
-    def __str__(self):
-        return str({name: value for name, value in self.headers.values()})
+def case_insensitive_headers(headers):
+    message = Message()
+    for name, value in headers.items():
+        message[name] = str(value)
+    return message
 
 
 class FakeHTTPResponse:
-    def __init__(self, body, headers):
+    def __init__(self, body, headers, url=None):
         self.body = io.BytesIO(body)
-        self.headers = CaseInsensitiveHeaders(headers)
+        self.headers = case_insensitive_headers(headers)
+        self.url = url
 
     def info(self):
         return self.headers
@@ -100,7 +90,7 @@ class TestURLDownloaderPython(unittest.TestCase):
         self.processor.env["HEADERS_TO_TEST"] = ["Content-Length"]
 
         changed = self.processor.download_changed(
-            CaseInsensitiveHeaders({"Content-Length": "100"})
+            case_insensitive_headers({"Content-Length": "100"})
         )
 
         self.assertTrue(changed)
@@ -129,6 +119,7 @@ class TestURLDownloaderPython(unittest.TestCase):
         with open(info_path, encoding="utf-8") as infile:
             metadata = json.load(infile)
         self.assertEqual(metadata["file_sha256"], sha256(body).hexdigest())
+        self.assertEqual(self.processor.env["download_info"], metadata)
 
     def test_cache_hit_populates_hash_outputs(self):
         cached_body = b"cached download content"
@@ -163,6 +154,104 @@ class TestURLDownloaderPython(unittest.TestCase):
         with open(cached_path, "rb") as infile:
             self.assertEqual(infile.read(), cached_body)
 
+    def _write_info_json(self, extra=None):
+        """Create downloads/download.bin.info.json with matching size, no file."""
+        download_dir = os.path.join(self.temp_dir.name, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        pathname = os.path.join(download_dir, "download.bin")
+        metadata = {"file_size": 4, "http_headers": {"Content-Length": 4}}
+        if extra:
+            metadata.update(extra)
+        with open(pathname + ".info.json", "w", encoding="utf-8") as outfile:
+            json.dump(metadata, outfile)
+        return pathname
+
+    def test_missing_file_rematerializes_without_marking_changed(self):
+        """Missing file + unchanged version + download_missing_file default:
+        re-fetch the file but keep download_changed False."""
+        pathname = self._write_info_json()
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+
+        with patch.object(self.processor, "output") as mock_output:
+            self.run_download(b"data", {"Content-Length": "4"})
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertTrue(os.path.isfile(pathname))
+        with open(pathname, "rb") as infile:
+            self.assertEqual(infile.read(), b"data")
+        with open(pathname + ".info.json", encoding="utf-8") as infile:
+            metadata = json.load(infile)
+        self.assertEqual(metadata["download_url"], self.processor.env["url"])
+        self.assertIn("url_downloader_summary_result", self.processor.env)
+        self.assertTrue(
+            any(
+                "Re-downloaded missing file" in call.args[0]
+                for call in mock_output.call_args_list
+            )
+        )
+
+    def test_headers_to_test_does_not_leak_from_size_only_check(self):
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self.processor.env["HEADERS_TO_TEST"] = ["ETag"]
+
+        self.run_download(b"data", {"Content-Length": "4"})
+
+        self.assertEqual(self.processor.env["HEADERS_TO_TEST"], ["ETag"])
+
+    def test_custom_header_is_stored_for_next_run(self):
+        self.processor.env["HEADERS_TO_TEST"] = ["X-Release"]
+
+        self.run_download(b"data", {"Content-Length": "4", "X-Release": "2026.08"})
+
+        with open(
+            self.processor.env["pathname"] + ".info.json", encoding="utf-8"
+        ) as infile:
+            metadata = json.load(infile)
+        self.assertEqual(metadata["http_headers"]["X-Release"], "2026.08")
+
+    def test_missing_file_metadata_only_skip_when_dmf_false(self):
+        """Missing file + unchanged + download_missing_file=false: skip; the
+        file stays absent and download_changed is False."""
+        pathname = self._write_info_json()
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self.processor.env["download_missing_file"] = "false"
+
+        self.run_download(b"data", {"Content-Length": "4"})
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertFalse(os.path.isfile(pathname))
+
+    def test_missing_file_skip_reuses_stored_hashes(self):
+        """download_missing_file=false + COMPUTE_HASHES + missing file: no crash;
+        hashes come from .info.json."""
+        pathname = self._write_info_json(
+            {"file_sha1": "aaa", "file_sha256": "bbb", "file_md5": "ccc"}
+        )
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["COMPUTE_HASHES"] = True
+
+        self.run_download(b"data", {"Content-Length": "4"})
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertFalse(os.path.isfile(pathname))
+        self.assertEqual(self.processor.env["file_sha1"], "aaa")
+        self.assertEqual(self.processor.env["file_sha256"], "bbb")
+        self.assertEqual(self.processor.env["file_md5"], "ccc")
+
+    def test_missing_file_skip_without_stored_hashes_does_not_crash(self):
+        """Same but no stored hashes: still no crash, hashes skipped."""
+        pathname = self._write_info_json()
+        self.processor.env["CHECK_FILESIZE_ONLY"] = True
+        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["COMPUTE_HASHES"] = True
+
+        self.run_download(b"data", {"Content-Length": "4"})  # must not raise
+
+        self.assertFalse(self.processor.env["download_changed"])
+        self.assertFalse(os.path.isfile(pathname))
+        self.assertNotIn("file_sha1", self.processor.env)
+
     def test_missing_validator_headers_preserve_download(self):
         body = b"download without validators"
 
@@ -177,6 +266,17 @@ class TestURLDownloaderPython(unittest.TestCase):
             metadata = json.load(infile)
         self.assertEqual(metadata["http_headers"]["ETag"], "")
         self.assertEqual(metadata["http_headers"]["Last-Modified"], "")
+
+    def test_content_length_mismatch_warns(self):
+        with patch.object(self.processor, "output") as mock_output:
+            self.run_download(b"data", {"Content-Length": "5"})
+
+        self.assertTrue(
+            any(
+                "file size != content-length header" in call.args[0]
+                for call in mock_output.call_args_list
+            )
+        )
 
     def test_store_hashes_in_env_sets_env_vars(self):
         self.processor.env = {}
@@ -218,61 +318,13 @@ class TestURLDownloaderPython(unittest.TestCase):
             with self.assertRaisesRegex(ProcessorError, "not readable"):
                 self.processor.ssl_context_certifi()
 
-    def test_store_download_info_json_writes_valid_json(self):
-        download_info = {
-            "download_url": "https://example.com/download.bin",
-            "file_name": "download.bin",
-            "file_size": 12,
-            "http_headers": {"ETag": "test-tag"},
-        }
-        with tempfile.TemporaryDirectory() as temp_dir:
-            pathname = os.path.join(temp_dir, "download.bin")
-            self.processor.env["pathname"] = pathname
-
-            self.processor.store_download_info_json(download_info)
-
-            info_path = pathname + ".info.json"
-            self.assertTrue(os.path.exists(info_path))
-            with open(info_path, encoding="utf-8") as infile:
-                contents = infile.read()
-            self.assertIn("\n    ", contents)
-            self.assertEqual(json.loads(contents), download_info)
-
-    def test_get_download_info_json_returns_parsed_dict(self):
-        expected_info = {
-            "download_url": "https://example.com/download.bin",
-            "file_name": "download.bin",
-            "file_size": 12,
-            "http_headers": {"ETag": "test-tag"},
-        }
-        with tempfile.TemporaryDirectory() as temp_dir:
-            pathname = os.path.join(temp_dir, "download.bin")
-            with open(pathname + ".info.json", "w", encoding="utf-8") as outfile:
-                json.dump(expected_info, outfile)
-            self.processor.env["pathname"] = pathname
-
-            download_info = self.processor.get_download_info_json()
-
-        self.assertEqual(download_info, expected_info)
-
-    def test_get_download_info_json_missing_file_returns_none(self):
-        with tempfile.TemporaryDirectory() as temp_dir:
-            self.processor.env["pathname"] = os.path.join(temp_dir, "download.bin")
-
-            with patch.object(self.processor, "output") as mock_output:
-                download_info = self.processor.get_download_info_json()
-
-        self.assertIsNone(download_info)
-        mock_output.assert_called_once()
-        self.assertIn("WARNING: missing download info", mock_output.call_args.args[0])
-
     def test_download_changed_returns_true_when_file_missing(self):
         self.processor.env["pathname"] = os.path.join(
             self.temp_dir.name, "missing-download.bin"
         )
 
         changed = self.processor.download_changed(
-            CaseInsensitiveHeaders({"Content-Length": "10"})
+            case_insensitive_headers({"Content-Length": "10"})
         )
 
         self.assertTrue(changed)
@@ -285,7 +337,7 @@ class TestURLDownloaderPython(unittest.TestCase):
             self.processor.env["pathname"] = pathname
 
             changed = self.processor.download_changed(
-                CaseInsensitiveHeaders({"Content-Length": "200"})
+                case_insensitive_headers({"Content-Length": "200"})
             )
 
         self.assertTrue(changed)
@@ -301,10 +353,53 @@ class TestURLDownloaderPython(unittest.TestCase):
             self.processor.env["HEADERS_TO_TEST"] = ["ETag"]
 
             changed = self.processor.download_changed(
-                CaseInsensitiveHeaders({"ETag": "response-tag"})
+                case_insensitive_headers({"ETag": "response-tag"})
             )
 
         self.assertTrue(changed)
+
+    def test_download_changed_matches_configured_header_case_insensitively(self):
+        pathname = os.path.join(self.temp_dir.name, "download.bin")
+        with open(pathname, "wb") as outfile:
+            outfile.write(b"test data")
+        with open(pathname + ".info.json", "w", encoding="utf-8") as outfile:
+            json.dump(
+                {
+                    "http_headers": {
+                        "ETag": "cached-tag",
+                        "Last-Modified": "Mon, 01 Jan 2024 00:00:00 GMT",
+                    }
+                },
+                outfile,
+            )
+        self.processor.env["pathname"] = pathname
+
+        for name, value in (
+            ("etag", "cached-tag"),
+            ("last-modified", "Mon, 01 Jan 2024 00:00:00 GMT"),
+        ):
+            with self.subTest(name=name):
+                self.processor.env["HEADERS_TO_TEST"] = [name]
+                self.assertFalse(
+                    self.processor.download_changed(
+                        case_insensitive_headers({name: value})
+                    )
+                )
+
+    def test_download_changed_falls_back_to_cached_file_size(self):
+        pathname = os.path.join(self.temp_dir.name, "download.bin")
+        with open(pathname, "wb") as outfile:
+            outfile.write(b"test data")
+        with open(pathname + ".info.json", "w", encoding="utf-8") as outfile:
+            json.dump({"http_headers": {"ETag": "", "Last-Modified": ""}}, outfile)
+        self.processor.env["pathname"] = pathname
+        self.processor.env["HEADERS_TO_TEST"] = ["ETag", "Last-Modified"]
+
+        changed = self.processor.download_changed(
+            case_insensitive_headers({"Content-Length": str(len(b"test data"))})
+        )
+
+        self.assertFalse(changed)
 
     def test_download_changed_missing_content_length_header_warns(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -315,7 +410,9 @@ class TestURLDownloaderPython(unittest.TestCase):
             self.processor.env["HEADERS_TO_TEST"] = ["Content-Length"]
 
             with patch.object(self.processor, "output") as mock_output:
-                self.processor.download_changed(CaseInsensitiveHeaders({"ETag": "tag"}))
+                self.processor.download_changed(
+                    case_insensitive_headers({"ETag": "tag"})
+                )
 
         self.assertTrue(
             any(

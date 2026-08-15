@@ -105,6 +105,27 @@ class URLDownloader(URLGetter):
                 "the downloaded file."
             ),
         },
+        "HEADERS_TO_TEST": {
+            "required": False,
+            "description": (
+                "List of HTTP headers to compare against the previous download "
+                "to detect changes. Their values are persisted in .info.json. "
+                "If 'CHECK_FILESIZE_ONLY' is enabled, only Content-Length is used."
+            ),
+            "default": ["ETag", "Last-Modified", "Content-Length"],
+        },
+        "download_missing_file": {
+            "required": False,
+            "description": (
+                "If the file is missing but matching metadata is present, "
+                "download the file again. Defaults to True as most current "
+                "recipes expect the files to be present. This re-fetch does "
+                "not mark the item as changed (download_changed stays false); "
+                "download_changed reflects the remote resource only. A missing "
+                "or null value uses the default; a blank string disables it."
+            ),
+            "default": True,
+        },
     }
     output_variables = {
         "pathname": {"description": "Path to the downloaded file."},
@@ -112,12 +133,16 @@ class URLDownloader(URLGetter):
             "description": "last-modified header for the downloaded item."
         },
         "etag": {"description": "etag header for the downloaded item."},
+        "download_url": {
+            "description": "The final URL the file was downloaded from (after redirects)."
+        },
         "download_changed": {
             "description": (
                 "Boolean indicating if the download has changed since the "
                 "last time it was downloaded."
             )
         },
+        "download_info": {"description": "Info from previous or current download."},
         "file_sha1": {"description": "SHA-1 hash of the downloaded file."},
         "file_sha256": {"description": "SHA-256 hash of the downloaded file."},
         "file_md5": {"description": "MD5 hash of the downloaded file."},
@@ -132,6 +157,31 @@ class URLDownloader(URLGetter):
             "getxattr() has been removed from URLDownloader. "
             "Use get_metadata() to read cached download metadata."
         )
+
+    def env_bool(self, key: str, default: bool = False) -> bool:
+        """Return a boolean for AutoPkg env values that may arrive as strings."""
+        if key not in self.env:
+            return default
+
+        value = self.env[key]
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalised = value.strip().lower()
+            if normalised in ("true", "yes", "on", "1"):
+                return True
+            if normalised in ("false", "no", "off", "0", ""):
+                return False
+
+        message = (
+            f"{key} must be a boolean or boolean-like string "
+            f"(true/false, yes/no, on/off, 1/0), not {value!r}"
+        )
+        if key == "prefetch_filename":
+            message += "; use filename to override the downloaded filename"
+        raise ProcessorError(message)
 
     def prepare_base_curl_cmd(self) -> list[str]:
         """Assemble base curl command and return it."""
@@ -175,9 +225,8 @@ class URLDownloader(URLGetter):
         # unchanged content.
         if os.path.exists(self.env["pathname"]):
             metadata = self.get_metadata()
-            self.existing_file_size: int | None = os.path.getsize(self.env["pathname"])
-            if not self.env.get("CHECK_FILESIZE_ONLY"):
-                http_headers: dict[str, str] = metadata.get("http_headers", {})
+            if not self.env_bool("CHECK_FILESIZE_ONLY"):
+                http_headers: dict[str, Any] = metadata.get("http_headers", {})
                 if etag := http_headers.get("ETag"):
                     headers["If-None-Match"] = etag
                 if last_modified := http_headers.get("Last-Modified"):
@@ -201,7 +250,7 @@ class URLDownloader(URLGetter):
         self.env["file_size"] = 0
         self.env["last_modified"] = ""
         self.env["etag"] = ""
-        self.existing_file_size = None
+        self.env["download_url"] = ""
 
     def prefetch_filename(self) -> str | None:
         """Attempt to find filename in HTTP headers."""
@@ -245,7 +294,7 @@ class URLDownloader(URLGetter):
             self.output(f"Given {self.env['pathname']}, no download needed.")
             return None
 
-        if self.env.get("prefetch_filename", False):
+        if self.env_bool("prefetch_filename"):
             filename = self.prefetch_filename()
             if filename:
                 return filename
@@ -313,6 +362,30 @@ class URLDownloader(URLGetter):
         self.env["file_sha256"] = hashes["sha256"]
         self.env["file_md5"] = hashes["md5"]
 
+    def publish_existing_hashes(self) -> None:
+        """Expose hashes on a cache hit without failing on a missing file.
+
+        Computes from the cached file when present; otherwise reuses the hashes
+        stored in ``.info.json``. When neither is available it warns and skips,
+        so a metadata-only cache hit never crashes on an absent file.
+        """
+        if not self.env_bool("COMPUTE_HASHES"):
+            return
+        hash_keys = ("file_sha1", "file_sha256", "file_md5")
+        if os.path.isfile(self.env["pathname"]):
+            self.store_hashes_in_env(self.compute_hashes())
+            return
+        metadata = self.env.get("download_info") or {}
+        if all(metadata.get(key) for key in hash_keys):
+            for key in hash_keys:
+                self.env[key] = metadata[key]
+            self.output("Reusing hashes from .info.json (cached file absent).", 2)
+        else:
+            self.output(
+                "WARNING: COMPUTE_HASHES is set but the cached file is absent "
+                "and no stored hashes were found in .info.json; skipping hashes."
+            )
+
     def create_temp_file(self, download_dir) -> str:
         """Create temporary file and return its path."""
         temporary_file = tempfile.NamedTemporaryFile(dir=download_dir, delete=False)
@@ -325,22 +398,136 @@ class URLDownloader(URLGetter):
         os.chmod(pathname_temporary, 0o644)
         return pathname_temporary
 
+    def publish_download_info(self, metadata: dict[str, Any]) -> None:
+        """Expose cached download metadata for downstream processors."""
+        if not metadata:
+            return
+
+        self.env["download_info"] = metadata
+        previous_http_headers = metadata.get("http_headers", {})
+        self.env["last_modified"] = previous_http_headers.get("Last-Modified", "")
+        self.env["etag"] = previous_http_headers.get("ETag", "")
+        self.env["download_url"] = metadata.get("download_url", "")
+
+    @staticmethod
+    def header_value(headers, header_name: str) -> Any:
+        """Return an HTTP header value without regard to name casing."""
+        return next(
+            (
+                value
+                for name, value in headers.items()
+                if name.lower() == header_name.lower()
+            ),
+            None,
+        )
+
+    def download_headers(self, header, file_size: int) -> dict[str, Any]:
+        """Return the response headers persisted for future change checks."""
+        names = list(self.input_variables["HEADERS_TO_TEST"]["default"])
+        names.extend(self.env.get("HEADERS_TO_TEST") or [])
+        canonical_names = {
+            "content-length": "Content-Length",
+            "etag": "ETag",
+            "last-modified": "Last-Modified",
+        }
+        return {
+            canonical_names.get(name.lower(), name): (
+                file_size
+                if name.lower() == "content-length"
+                else self.header_value(header, name) or ""
+            )
+            for name in names
+        }
+
     def download_changed(self, header) -> bool:
-        """Check if downloaded file changed on server."""
+        """Return True if the remote item differs from the cached metadata.
+
+        This is a pure version check against the stored ``.info.json``: it does
+        not depend on whether the cached file is present on disk, and it does
+        not force a download for a missing file. Re-fetching a file that has
+        gone missing is handled in ``main()`` via ``download_missing_file``.
+        """
+        metadata = self.get_metadata()
+        self.publish_download_info(metadata)
+
+        if self.header_value(header, "http_result_code") == "304":
+            # resource not modified
+            self.output("Item at URL is unchanged.")
+            return False
+
+        headers_to_test = (
+            self.env.get("HEADERS_TO_TEST")
+            or self.input_variables["HEADERS_TO_TEST"]["default"]
+        )
+        if self.env_bool("CHECK_FILESIZE_ONLY"):
+            headers_to_test = ["Content-Length"]
+
+        previous_download_path = self.env.get("pathname")
+        previous_download_exists = bool(
+            previous_download_path and os.path.isfile(previous_download_path)
+        )
+        existing_file_size = (
+            os.path.getsize(previous_download_path)
+            if previous_download_exists
+            else None
+        )
+
+        header_matches = 0
+        for header_name in headers_to_test:
+            previous_header = self.header_value(
+                metadata.get("http_headers", {}), header_name
+            )
+            current_header = self.header_value(header, header_name)
+            if header_name.lower() == "content-length":
+                if existing_file_size is not None:
+                    previous_header = existing_file_size
+                try:
+                    if int(previous_header) != int(current_header):
+                        self.output("Content-Length is different", 2)
+                        return True
+                    header_matches += 1
+                except (TypeError, ValueError) as err:
+                    self.output(
+                        "WARNING: 'Content-Length' missing. "
+                        f"({type(err).__name__}) {err}",
+                        1,
+                    )
+                continue
+
+            if current_header is None and previous_header in ("", None):
+                continue
+            if previous_header is None:
+                self.output(f"WARNING: header missing. (KeyError) {header_name}", 1)
+                continue
+            if previous_header != current_header:
+                self.output(f"{header_name} is different", 2)
+                return True
+            header_matches += 1
+
+        if header_matches:
+            return False
+
         # If Content-Length header is present and we had a cached
         # file, see if it matches the size of the cached file.
         # Useful for webservers that don't provide Last-Modified
         # and ETag headers.
-        if (not header.get("etag") and not header.get("last-modified")) or self.env[
-            "CHECK_FILESIZE_ONLY"
-        ]:
-            size_header = header.get("content-length")
-            if (
-                size_header
-                and self.existing_file_size is not None
-                and int(size_header) == self.existing_file_size
-            ):
-                self.env["download_changed"] = False
+        if not self.header_value(header, "etag") and not self.header_value(
+            header, "last-modified"
+        ):
+            size_header = self.header_value(header, "content-length")
+            try:
+                size_matches = (
+                    size_header is not None
+                    and existing_file_size is not None
+                    and int(size_header) == existing_file_size
+                )
+            except (TypeError, ValueError) as err:
+                self.output(
+                    f"WARNING: 'Content-Length' invalid. ({type(err).__name__}) {err}",
+                    1,
+                )
+                size_matches = False
+            if size_matches:
                 self.output(
                     "File size returned by webserver matches that "
                     f"of the cached file: {size_header} bytes"
@@ -350,15 +537,7 @@ class URLDownloader(URLGetter):
                     "fallback mechanism that does not guarantee "
                     "that a build is unchanged."
                 )
-                self.output(f"Using existing {self.env['pathname']}")
                 return False
-
-        if header["http_result_code"] == "304":
-            # resource not modified
-            self.env["download_changed"] = False
-            self.output("Item at URL is unchanged.")
-            self.output(f"Using existing {self.env['pathname']}")
-            return False
 
         return True
 
@@ -376,7 +555,6 @@ class URLDownloader(URLGetter):
     def store_headers(self, header) -> None:
         """Store last-modified and etag headers in pathname xattr."""
         if header.get("last-modified"):
-            self.env["last_modified"] = header.get("last-modified")
             xattr.setxattr(
                 self.env["pathname"],
                 self.xattr_last_modified,
@@ -385,10 +563,7 @@ class URLDownloader(URLGetter):
             self.output(
                 f"Storing new Last-Modified header: {header.get('last-modified')}"
             )
-
-        self.env["etag"] = ""
         if header.get("etag"):
-            self.env["etag"] = header.get("etag")
             xattr.setxattr(
                 self.env["pathname"], self.xattr_etag, header.get("etag").encode()
             )
@@ -396,23 +571,21 @@ class URLDownloader(URLGetter):
 
     def store_metadata(self, header: dict[str, Any]) -> None:
         """Write download metadata to .info.json and preserve legacy xattr metadata."""
-        pathname_info_json = self.env["pathname"] + ".info.json"
-
-        self.env["etag"] = header.get("etag", "")
         self.env["file_size"] = os.path.getsize(self.env["pathname"])
-        self.env["last_modified"] = header.get("last-modified", "")
+        http_headers = self.download_headers(header, self.env["file_size"])
+        self.env["etag"] = http_headers["ETag"]
+        self.env["last_modified"] = http_headers["Last-Modified"]
+        self.env["download_url"] = (
+            self.header_value(header, "http_redirected") or self.env["url"]
+        )
 
         metadata_dict: dict[str, Any] = {
-            "download_url": self.env["url"],
+            "download_url": self.env["download_url"],
             "file_name": os.path.basename(self.env["pathname"]),
             "file_size": self.env["file_size"],
-            "http_headers": {
-                "Content-Length": self.env["file_size"],
-                "ETag": self.env["etag"],
-                "Last-Modified": self.env["last_modified"],
-            },
+            "http_headers": http_headers,
         }
-        if self.env.get("COMPUTE_HASHES", False):
+        if self.env_bool("COMPUTE_HASHES"):
             self.store_hashes_in_env(self.compute_hashes())
             metadata_dict.update(
                 {
@@ -422,7 +595,16 @@ class URLDownloader(URLGetter):
                 }
             )
 
-        metadata_str = json.dumps(metadata_dict, indent=4, sort_keys=True)
+        self.write_metadata(metadata_dict)
+
+        # Preserve legacy xattr metadata for callers that still read it.
+        self.store_headers(header)
+
+    def write_metadata(self, metadata: dict[str, Any]) -> None:
+        """Write download metadata atomically to the .info.json sidecar."""
+        self.env["download_info"] = metadata
+        pathname_info_json = self.env["pathname"] + ".info.json"
+        metadata_str = json.dumps(metadata, indent=4, sort_keys=True)
 
         # Write metadata atomically to avoid partial-write corruption
         self.output(f"Storing metadata to {pathname_info_json}")
@@ -439,8 +621,19 @@ class URLDownloader(URLGetter):
             os.remove(tmp_path)
             raise
 
-        # Preserve legacy xattr metadata for callers that still read it.
-        self.store_headers(header)
+    def report_download(self, version_changed: bool) -> None:
+        """Report a new download or the replacement of a missing cached file."""
+        if version_changed:
+            message = f"Downloaded {self.env['pathname']}"
+            summary = "The following new items were downloaded:"
+        else:
+            message = f"Re-downloaded missing file: {self.env['pathname']}"
+            summary = "The following missing items were re-downloaded:"
+        self.output(message)
+        self.env["url_downloader_summary_result"] = {
+            "summary_text": summary,
+            "data": {"download_path": self.env["pathname"]},
+        }
 
     def main(self) -> None:
         # Clear and initialize data structures
@@ -461,27 +654,35 @@ class URLDownloader(URLGetter):
         raw_headers = self.download_with_curl(curl_cmd)
         header = self.parse_headers(raw_headers)
 
-        if self.download_changed(header):
-            self.env["download_changed"] = True
-        else:
-            # Discard the temp file
+        # download_changed reflects the remote resource only (remote vs .info.json).
+        version_changed = self.download_changed(header)
+        self.env["download_changed"] = version_changed
+
+        # download_missing_file only decides whether to re-fetch a file that
+        # has gone missing while the remote resource is unchanged; it never changes
+        # download_changed.
+        previous_download_exists = os.path.isfile(self.env["pathname"])
+        materialize_missing = not previous_download_exists and self.env_bool(
+            "download_missing_file", default=True
+        )
+
+        if not version_changed and not materialize_missing:
+            # Unchanged: keep the cached file, or skip entirely when it is
+            # absent and download_missing_file is false.
             os.remove(pathname_temporary)
-            if self.env.get("COMPUTE_HASHES", False):
-                self.store_hashes_in_env(self.compute_hashes())
+            self.publish_existing_hashes()
+            if previous_download_exists:
+                self.output(f"Using existing {self.env['pathname']}")
             return
 
-        # New resource was downloaded. Move the temporary download file to the pathname
+        # Either the remote changed, or the file was missing and we have been
+        # told to re-fetch it. Either way, keep the freshly downloaded bytes.
         self.move_temp_file(pathname_temporary)
 
         # Save .info.json metadata and legacy last-modified/etag xattrs.
         self.store_metadata(header)
 
-        # Generate output messages and variables
-        self.output(f"Downloaded {self.env['pathname']}")
-        self.env["url_downloader_summary_result"] = {
-            "summary_text": "The following new items were downloaded:",
-            "data": {"download_path": self.env["pathname"]},
-        }
+        self.report_download(version_changed)
 
 
 if __name__ == "__main__":
