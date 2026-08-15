@@ -16,6 +16,7 @@
 
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -620,6 +621,47 @@ class TestURLDownloader(unittest.TestCase):
         result_dir = self.processor.get_download_dir()
 
         self.assertEqual(result_dir, custom_dir)
+
+    def test_pkg_outside_cache_is_staged_into_download_dir(self):
+        """A PKG given outside the cache is copied in, so autopkginstalld can reach it."""
+        source_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, source_dir, True)
+        source = os.path.join(source_dir, "Local.pkg")
+        with open(source, "wb") as f:
+            f.write(b"pkg contents")
+
+        self.processor.env["PKG"] = source
+
+        self.assertIsNone(self.processor.get_filename())
+        pathname = self.processor.env["pathname"]
+        self.assertEqual(
+            pathname, os.path.join(self.temp_dir, "downloads", "Local.pkg")
+        )
+        with open(pathname, "rb") as f:
+            self.assertEqual(f.read(), b"pkg contents")
+        self.assertTrue(self.processor.env["download_changed"])
+
+    def test_pkg_already_at_destination_is_not_recopied(self):
+        """A PKG already in the download dir is used in place."""
+        download_dir = os.path.join(self.temp_dir, "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        source = os.path.join(download_dir, "Local.pkg")
+        with open(source, "wb") as f:
+            f.write(b"pkg contents")
+
+        self.processor.env["PKG"] = source
+
+        self.assertIsNone(self.processor.get_filename())
+        self.assertEqual(self.processor.env["pathname"], source)
+        with open(source, "rb") as f:
+            self.assertEqual(f.read(), b"pkg contents")
+
+    def test_missing_pkg_raises_error(self):
+        """A PKG path that doesn't exist fails before staging."""
+        self.processor.env["PKG"] = os.path.join(self.temp_dir, "nope.pkg")
+
+        with self.assertRaises(ProcessorError):
+            self.processor.get_filename()
 
     def test_filename_from_url(self):
         """Test that filename is extracted from URL."""

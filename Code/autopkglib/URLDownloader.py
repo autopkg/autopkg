@@ -20,6 +20,8 @@
 import json
 import os.path
 import platform
+import shutil
+import subprocess
 import tempfile
 from hashlib import md5, sha1, sha256
 from typing import Any, NoReturn
@@ -286,12 +288,58 @@ class URLDownloader(URLGetter):
 
         return filename
 
+    def stage_local_pkg(self, source: str) -> str:
+        """Place a locally-provided PKG into the download dir and return its path.
+
+        autopkginstalld only installs from the recipe cache or a temp mountpoint,
+        so a PKG given elsewhere has to be brought into the cache before an
+        .install recipe can use it. On APFS this is a clone, which costs no
+        additional disk space no matter how large the package is.
+        """
+        destination = os.path.join(
+            self.get_download_dir(), os.path.basename(source.rstrip(os.sep))
+        )
+        if os.path.realpath(source) == os.path.realpath(destination):
+            return destination
+
+        if os.path.isdir(destination) and not os.path.islink(destination):
+            shutil.rmtree(destination)
+        elif os.path.lexists(destination):
+            os.remove(destination)
+        # Any .info.json left by a previous download describes a different file.
+        if os.path.exists(destination + ".info.json"):
+            os.remove(destination + ".info.json")
+
+        try:
+            # cp -c uses clonefile(2), so on APFS no data is actually copied.
+            subprocess.run(
+                ["/bin/cp", "-Rc", source, destination],
+                check=True,
+                capture_output=True,
+            )
+        except (OSError, subprocess.CalledProcessError):
+            # ponytail: not APFS, or not macOS -- pay for a real copy.
+            try:
+                if os.path.isdir(source):
+                    shutil.copytree(source, destination, symlinks=True)
+                else:
+                    shutil.copy2(source, destination)
+            except OSError as err:
+                raise ProcessorError(f"Can't copy {source} to {destination}: {err}")
+
+        return destination
+
     def get_filename(self) -> str | None:
         """Obtain filename from PKG variable or URL."""
         if "PKG" in self.env:
-            self.env["pathname"] = os.path.expanduser(self.env["PKG"])
+            source = os.path.expanduser(self.env["PKG"])
+            if not os.path.exists(source):
+                raise ProcessorError(f"PKG path {source} does not exist")
+            self.env["pathname"] = self.stage_local_pkg(source)
             self.env["download_changed"] = True
-            self.output(f"Given {self.env['pathname']}, no download needed.")
+            self.output(f"Given {source}, no download needed.")
+            if self.env["pathname"] != source:
+                self.output(f"Staged {source} to {self.env['pathname']}")
             return None
 
         if self.env_bool("prefetch_filename"):
