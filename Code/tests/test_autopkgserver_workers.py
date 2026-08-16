@@ -251,6 +251,56 @@ class TestInstallerValidation(unittest.TestCase):
 
 
 @unittest.skipUnless(sys.platform == "darwin", "autopkgserver is macOS-only")
+class TestStagedPackageIsInstallable(unittest.TestCase):
+    """Tests that URLDownloader's PKG staging satisfies the daemon's confinement.
+
+    URLDownloader.stage_local_pkg() exists so that `--pkg <path outside the cache>`
+    keeps working against an autopkginstalld that only accepts packages under the
+    recipe cache or a /private/tmp mount. The two sides are tested separately
+    elsewhere; this checks that the path one produces is one the other accepts.
+    """
+
+    def setUp(self):
+        self.tmp_dir = TemporaryDirectory()
+        self.addCleanup(self.tmp_dir.cleanup)
+        self.recipe_cache = os.path.join(self.tmp_dir.name, "cache", "com.test.pkg")
+        os.makedirs(self.recipe_cache)
+        # An empty stand-in for /private/tmp, so no real mount can satisfy the check.
+        self.private_tmp = os.path.join(self.tmp_dir.name, "private_tmp")
+        os.makedirs(self.private_tmp)
+
+    def _verify(self, package_path):
+        request = {"package": package_path, "recipe_cache_dir": self.recipe_cache}
+        worker = installer.Installer(MagicMock(), MagicMock(), request)
+        worker.verify_request()
+        return worker
+
+    def test_staged_pkg_is_accepted_where_the_original_path_is_not(self):
+        """Staging must move a PKG from a rejected path to an accepted one."""
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from autopkglib.URLDownloader import URLDownloader
+
+        source = os.path.join(self.tmp_dir.name, "Downloads", "Local.pkg")
+        os.makedirs(os.path.dirname(source))
+        Path(source).write_bytes(b"pkg contents")
+
+        processor = URLDownloader(infile=None, outfile=None)
+        processor.env = {"PKG": source, "RECIPE_CACHE_DIR": self.recipe_cache}
+        self.assertIsNone(processor.get_filename())
+        staged = processor.env["pathname"]
+        self.assertNotEqual(os.path.realpath(staged), os.path.realpath(source))
+
+        with patch.object(installer, "PRIVATE_TMP", self.private_tmp):
+            # The path --pkg was given: rejected, which is the regression staging fixes.
+            with self.assertRaises(installer.InstallerError):
+                self._verify(source)
+            # The path staging produced: accepted.
+            worker = self._verify(staged)
+
+        self.assertEqual(worker.package_path, os.path.realpath(staged))
+
+
+@unittest.skipUnless(sys.platform == "darwin", "autopkgserver is macOS-only")
 class TestItemCopierValidation(unittest.TestCase):
     """Test class for ItemCopier request validation."""
 
