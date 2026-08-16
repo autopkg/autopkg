@@ -110,9 +110,12 @@ class URLDownloader(URLGetter):
         "HEADERS_TO_TEST": {
             "required": False,
             "description": (
-                "List of HTTP headers to compare against the previous download "
-                "to detect changes. Their values are persisted in .info.json. "
-                "If 'CHECK_FILESIZE_ONLY' is enabled, only Content-Length is used."
+                "List of HTTP headers compared against the previous download to "
+                "detect changes. Setting this replaces the default list for "
+                "comparison purposes; if 'CHECK_FILESIZE_ONLY' is enabled, only "
+                "Content-Length is compared. The default headers are always "
+                "recorded in .info.json regardless, so narrowing this list does "
+                "not discard cached metadata."
             ),
             "default": ["ETag", "Last-Modified", "Content-Length"],
         },
@@ -123,8 +126,10 @@ class URLDownloader(URLGetter):
                 "download the file again. Defaults to True as most current "
                 "recipes expect the files to be present. This re-fetch does "
                 "not mark the item as changed (download_changed stays false); "
-                "download_changed reflects the remote resource only. A missing "
-                "or null value uses the default; a blank string disables it."
+                "download_changed reflects the remote resource only. Omit the "
+                "key to use the default; a blank string disables it. Note that "
+                "a recipe Input of null resolves to a blank string during "
+                "variable substitution, and so disables it."
             ),
             "default": True,
         },
@@ -253,6 +258,7 @@ class URLDownloader(URLGetter):
         self.env["last_modified"] = ""
         self.env["etag"] = ""
         self.env["download_url"] = ""
+        self.env["download_info"] = {}
 
     def prefetch_filename(self) -> str | None:
         """Attempt to find filename in HTTP headers."""
@@ -470,7 +476,12 @@ class URLDownloader(URLGetter):
         )
 
     def download_headers(self, header, file_size: int) -> dict[str, Any]:
-        """Return the response headers persisted for future change checks."""
+        """Return the response headers persisted for future change checks.
+
+        Always includes the default headers on top of any set in HEADERS_TO_TEST:
+        store_metadata() reads ETag and Last-Modified out of this dict to populate
+        the etag and last_modified output variables.
+        """
         names = list(self.input_variables["HEADERS_TO_TEST"]["default"])
         names.extend(self.env.get("HEADERS_TO_TEST") or [])
         canonical_names = {
@@ -621,8 +632,8 @@ class URLDownloader(URLGetter):
         """Write download metadata to .info.json and preserve legacy xattr metadata."""
         self.env["file_size"] = os.path.getsize(self.env["pathname"])
         http_headers = self.download_headers(header, self.env["file_size"])
-        self.env["etag"] = http_headers["ETag"]
-        self.env["last_modified"] = http_headers["Last-Modified"]
+        self.env["etag"] = http_headers.get("ETag", "")
+        self.env["last_modified"] = http_headers.get("Last-Modified", "")
         self.env["download_url"] = (
             self.header_value(header, "http_redirected") or self.env["url"]
         )
