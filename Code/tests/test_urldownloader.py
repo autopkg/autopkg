@@ -420,7 +420,7 @@ class TestURLDownloader(unittest.TestCase):
     def test_download_changed_is_version_only_ignores_missing_file(self):
         """download_changed compares versions only. A missing file whose stored
         metadata matches the remote is NOT 'changed', regardless of
-        download_missing_file (that only affects materialising in main())."""
+        DOWNLOAD_MISSING_FILE (that only affects materialising in main())."""
         test_file = os.path.join(self.temp_dir, "missing.dmg")
         with open(test_file + ".info.json", "w", encoding="utf-8") as f:
             json.dump({"http_headers": {"Content-Length": 10}}, f)
@@ -431,10 +431,10 @@ class TestURLDownloader(unittest.TestCase):
 
         response = {"http_result_code": "200", "content-length": "10"}
         for dmf in ("true", "false"):
-            self.processor.env["download_missing_file"] = dmf
+            self.processor.env["DOWNLOAD_MISSING_FILE"] = dmf
             self.assertFalse(
                 self.processor.download_changed(response),
-                f"download_missing_file={dmf} must not affect the version check",
+                f"DOWNLOAD_MISSING_FILE={dmf} must not affect the version check",
             )
 
     @unittest.skipUnless(
@@ -822,7 +822,7 @@ class TestURLDownloader(unittest.TestCase):
             self.processor.main()
 
     def test_main_materializes_missing_file_without_marking_changed(self):
-        """Missing file + unchanged version + download_missing_file default:
+        """Missing file + unchanged version + DOWNLOAD_MISSING_FILE default:
         re-fetch the file but keep download_changed False (version is the
         signal, not file presence)."""
         download_dir = os.path.join(self.temp_dir, "downloads")
@@ -857,7 +857,7 @@ class TestURLDownloader(unittest.TestCase):
         )
 
     def test_main_metadata_only_skip_reuses_stored_hashes(self):
-        """download_missing_file=false + missing file + unchanged + COMPUTE_HASHES:
+        """DOWNLOAD_MISSING_FILE=false + missing file + unchanged + COMPUTE_HASHES:
         no crash; hashes are reused from .info.json and the file is not fetched."""
         download_dir = os.path.join(self.temp_dir, "downloads")
         os.makedirs(download_dir, exist_ok=True)
@@ -874,7 +874,7 @@ class TestURLDownloader(unittest.TestCase):
                 f,
             )
 
-        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["DOWNLOAD_MISSING_FILE"] = "false"
         self.processor.env["COMPUTE_HASHES"] = True
         self.processor.env["CHECK_FILESIZE_ONLY"] = True
         self._run_main_with_mocked_curl(5)
@@ -894,7 +894,7 @@ class TestURLDownloader(unittest.TestCase):
         with open(pathname + ".info.json", "w", encoding="utf-8") as f:
             json.dump({"file_size": 5, "http_headers": {"Content-Length": 5}}, f)
 
-        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["DOWNLOAD_MISSING_FILE"] = "false"
         self.processor.env["COMPUTE_HASHES"] = True
         self.processor.env["CHECK_FILESIZE_ONLY"] = True
         self._run_main_with_mocked_curl(5)  # must not raise

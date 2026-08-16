@@ -116,7 +116,7 @@ class URLDownloader(URLGetter):
             ),
             "default": ["ETag", "Last-Modified", "Content-Length"],
         },
-        "download_missing_file": {
+        "DOWNLOAD_MISSING_FILE": {
             "required": False,
             "description": (
                 "If the file is missing but matching metadata is present, "
@@ -493,7 +493,7 @@ class URLDownloader(URLGetter):
         This is a pure version check against the stored ``.info.json``: it does
         not depend on whether the cached file is present on disk, and it does
         not force a download for a missing file. Re-fetching a file that has
-        gone missing is handled in ``main()`` via ``download_missing_file``.
+        gone missing is handled in ``main()`` via ``DOWNLOAD_MISSING_FILE``.
         """
         metadata = self.get_metadata()
         self.publish_download_info(metadata)
@@ -706,17 +706,17 @@ class URLDownloader(URLGetter):
         version_changed = self.download_changed(header)
         self.env["download_changed"] = version_changed
 
-        # download_missing_file only decides whether to re-fetch a file that
+        # DOWNLOAD_MISSING_FILE only decides whether to re-fetch a file that
         # has gone missing while the remote resource is unchanged; it never changes
         # download_changed.
         previous_download_exists = os.path.isfile(self.env["pathname"])
         materialize_missing = not previous_download_exists and self.env_bool(
-            "download_missing_file", default=True
+            "DOWNLOAD_MISSING_FILE", default=True
         )
 
         if not version_changed and not materialize_missing:
             # Unchanged: keep the cached file, or skip entirely when it is
-            # absent and download_missing_file is false.
+            # absent and DOWNLOAD_MISSING_FILE is false.
             os.remove(pathname_temporary)
             self.publish_existing_hashes()
             if previous_download_exists:

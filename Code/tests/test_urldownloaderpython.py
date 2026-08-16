@@ -167,7 +167,7 @@ class TestURLDownloaderPython(unittest.TestCase):
         return pathname
 
     def test_missing_file_rematerializes_without_marking_changed(self):
-        """Missing file + unchanged version + download_missing_file default:
+        """Missing file + unchanged version + DOWNLOAD_MISSING_FILE default:
         re-fetch the file but keep download_changed False."""
         pathname = self._write_info_json()
         self.processor.env["CHECK_FILESIZE_ONLY"] = True
@@ -210,11 +210,11 @@ class TestURLDownloaderPython(unittest.TestCase):
         self.assertEqual(metadata["http_headers"]["X-Release"], "2026.08")
 
     def test_missing_file_metadata_only_skip_when_dmf_false(self):
-        """Missing file + unchanged + download_missing_file=false: skip; the
+        """Missing file + unchanged + DOWNLOAD_MISSING_FILE=false: skip; the
         file stays absent and download_changed is False."""
         pathname = self._write_info_json()
         self.processor.env["CHECK_FILESIZE_ONLY"] = True
-        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["DOWNLOAD_MISSING_FILE"] = "false"
 
         self.run_download(b"data", {"Content-Length": "4"})
 
@@ -222,13 +222,13 @@ class TestURLDownloaderPython(unittest.TestCase):
         self.assertFalse(os.path.isfile(pathname))
 
     def test_missing_file_skip_reuses_stored_hashes(self):
-        """download_missing_file=false + COMPUTE_HASHES + missing file: no crash;
+        """DOWNLOAD_MISSING_FILE=false + COMPUTE_HASHES + missing file: no crash;
         hashes come from .info.json."""
         pathname = self._write_info_json(
             {"file_sha1": "aaa", "file_sha256": "bbb", "file_md5": "ccc"}
         )
         self.processor.env["CHECK_FILESIZE_ONLY"] = True
-        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["DOWNLOAD_MISSING_FILE"] = "false"
         self.processor.env["COMPUTE_HASHES"] = True
 
         self.run_download(b"data", {"Content-Length": "4"})
@@ -243,7 +243,7 @@ class TestURLDownloaderPython(unittest.TestCase):
         """Same but no stored hashes: still no crash, hashes skipped."""
         pathname = self._write_info_json()
         self.processor.env["CHECK_FILESIZE_ONLY"] = True
-        self.processor.env["download_missing_file"] = "false"
+        self.processor.env["DOWNLOAD_MISSING_FILE"] = "false"
         self.processor.env["COMPUTE_HASHES"] = True
 
         self.run_download(b"data", {"Content-Length": "4"})  # must not raise

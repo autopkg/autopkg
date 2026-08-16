@@ -111,7 +111,7 @@ class URLDownloaderPython(URLDownloader):
         version_changed = self.download_changed(response_headers)
         self.env["download_changed"] = version_changed
 
-        # download_missing_file only decides whether to re-fetch a file that
+        # DOWNLOAD_MISSING_FILE only decides whether to re-fetch a file that
         # has gone missing while the remote resource is unchanged; it never changes
         # download_changed.
         previous_download_path = self.env.get("pathname")
@@ -119,7 +119,7 @@ class URLDownloaderPython(URLDownloader):
             previous_download_path and os.path.isfile(previous_download_path)
         )
         materialize_missing = not previous_download_exists and self.env_bool(
-            "download_missing_file", default=True
+            "DOWNLOAD_MISSING_FILE", default=True
         )
 
         # Unchanged and either the cached file is present or we've been told
@@ -183,7 +183,7 @@ class URLDownloaderPython(URLDownloader):
             self.output("WARNING: file size != content-length header")
 
         # We streamed a fresh copy (the remote resource changed, or the file was
-        # missing and download_missing_file is set), so move it into place.
+        # missing and DOWNLOAD_MISSING_FILE is set), so move it into place.
         self.move_temp_file(file_save_path)
 
         # Save last-modified and etag headers to files xattr
