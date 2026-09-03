@@ -334,28 +334,23 @@ class URLDownloaderPython(URLDownloader):
             download_dictionary["file_sha256"] = hashes[1].hexdigest()
             download_dictionary["file_md5"] = hashes[2].hexdigest()
         download_dictionary["download_url"] = url
-        # download_dictionary['http_headers'] = response.info()
-        try:
-            # save http header info to dict
-            download_dictionary["http_headers"] = {}
-            download_dictionary["http_headers"]["Content-Length"] = int(
-                response.headers["content-length"]
+        # Record whichever validators the server actually sent. All three are
+        # optional: Content-Length is absent on chunked responses, and a
+        # missing header must not discard a download that already succeeded.
+        download_dictionary["http_headers"] = {}
+        for header in ("Content-Length", "ETag", "Last-Modified"):
+            value = response.headers.get(header)
+            if value is None:
+                self.output(f"WARNING: '{header}' missing from response headers", 1)
+                continue
+            download_dictionary["http_headers"][header] = (
+                int(value) if header == "Content-Length" else value
             )
-            download_dictionary["http_headers"]["ETag"] = response.headers["ETag"]
-            download_dictionary["http_headers"]["Last-Modified"] = response.headers[
-                "Last-Modified"
-            ]
-            if download_dictionary["http_headers"]["Content-Length"] != size:
-                # should this be a halting error?
-                self.output("WARNING: file size != content-length header")
-        except (KeyError, TypeError) as err:
-            # probably need to handle a missing header better than this
-            self.output(
-                "ERROR: header issue ({err_type})\n{err}\n".format(
-                    err=err, err_type=type(err).__name__
-                )
-            )
-            return None
+
+        content_length = download_dictionary["http_headers"].get("Content-Length")
+        if content_length is not None and content_length != size:
+            # should this be a halting error?
+            self.output("WARNING: file size != content-length header")
 
         if self.env.get("download_changed", None):
             # Move the new temporary download file to the pathname
