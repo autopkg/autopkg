@@ -164,7 +164,7 @@ class DmgMounter(Processor):
         # Call hdiutil.
         try:
             proc = subprocess.Popen(
-                ("/usr/bin/hdiutil", "detach", self.mounts[pathname]),
+                ("/usr/sbin/diskutil", "eject", self.mounts[pathname], "-force"),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -172,7 +172,7 @@ class DmgMounter(Processor):
             _, stderr = proc.communicate()
         except OSError as err:
             raise ProcessorError(
-                f"hdiutil execution failed with error code {err.errno}: {err.strerror}"
+                f"diskutil execution failed with error code {err.errno}: {err.strerror}"
             )
         if proc.returncode != 0:
             raise ProcessorError(f"unmounting {pathname} failed: {stderr}")
