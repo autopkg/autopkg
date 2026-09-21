@@ -131,6 +131,34 @@ class TestURLDownloader(unittest.TestCase):
             "Mon, 01 Jan 2024 00:00:00 GMT",
         )
 
+    def test_publish_download_info_uses_cached_file_size(self):
+        """Cached file size takes precedence over stale sidecar metadata."""
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as f:
+            f.write(b"actual size")
+
+        self.processor.env["pathname"] = test_file
+        self.processor.publish_download_info({"file_size": 100})
+
+        self.assertEqual(self.processor.env["file_size"], len(b"actual size"))
+
+    def test_publish_download_info_uses_cached_file_without_metadata(self):
+        """A cache hit without a sidecar still exposes the cached file size."""
+        test_file = os.path.join(self.temp_dir, "testfile.dmg")
+        with open(test_file, "wb") as f:
+            f.write(b"actual size")
+
+        self.processor.env["pathname"] = test_file
+        self.processor.publish_download_info({})
+
+        self.assertEqual(self.processor.env["file_size"], len(b"actual size"))
+
+    def test_publish_download_info_without_pathname_uses_metadata(self):
+        """Subclasses may publish cached metadata before setting pathname."""
+        self.processor.publish_download_info({"file_size": 100})
+
+        self.assertEqual(self.processor.env["file_size"], 100)
+
     def test_store_metadata_uses_redirected_download_url(self):
         """store_metadata records the final redirected URL when curl reports one."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
@@ -791,6 +819,8 @@ class TestURLDownloader(unittest.TestCase):
             self.processor.main()
 
         self.assertFalse(self.processor.env["download_changed"])
+        self.assertEqual(self.processor.env["file_size"], len(cached_content))
+        self.assertIn("file_size", self.processor.output_variables)
         self.assertEqual(
             self.processor.env["file_sha1"], sha1(cached_content).hexdigest()
         )
@@ -881,6 +911,7 @@ class TestURLDownloader(unittest.TestCase):
 
         self.assertFalse(self.processor.env["download_changed"])
         self.assertFalse(os.path.isfile(pathname))
+        self.assertEqual(self.processor.env["file_size"], 5)
         self.assertEqual(self.processor.env["file_sha1"], "aaa")
         self.assertEqual(self.processor.env["file_sha256"], "bbb")
         self.assertEqual(self.processor.env["file_md5"], "ccc")

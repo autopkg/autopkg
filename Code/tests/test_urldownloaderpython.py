@@ -146,6 +146,7 @@ class TestURLDownloaderPython(unittest.TestCase):
         )
 
         self.assertFalse(self.processor.env["download_changed"])
+        self.assertEqual(self.processor.env["file_size"], len(cached_body))
         self.assertEqual(self.processor.env["file_sha1"], sha1(cached_body).hexdigest())
         self.assertEqual(
             self.processor.env["file_sha256"], sha256(cached_body).hexdigest()

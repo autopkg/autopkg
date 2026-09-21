@@ -150,6 +150,7 @@ class URLDownloader(URLGetter):
             )
         },
         "download_info": {"description": "Info from previous or current download."},
+        "file_size": {"description": "Size of the downloaded file in bytes."},
         "file_sha1": {"description": "SHA-1 hash of the downloaded file."},
         "file_sha256": {"description": "SHA-256 hash of the downloaded file."},
         "file_md5": {"description": "MD5 hash of the downloaded file."},
@@ -454,6 +455,12 @@ class URLDownloader(URLGetter):
 
     def publish_download_info(self, metadata: dict[str, Any]) -> None:
         """Expose cached download metadata for downstream processors."""
+        pathname = self.env.get("pathname", "")
+        if os.path.isfile(pathname):
+            self.env["file_size"] = os.path.getsize(pathname)
+        elif metadata:
+            self.env["file_size"] = metadata.get("file_size", 0)
+
         if not metadata:
             return
 
