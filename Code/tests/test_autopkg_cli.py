@@ -511,6 +511,29 @@ class TestAutoPkgCLI(unittest.TestCase):
             result = autopkg.main(argv)
             self.assertEqual(result, 1)
 
+    def test_main_reports_stale_recipe_map_without_traceback(self):
+        """A stale map from any verb should produce one actionable CLI error."""
+        error = autopkg.StaleRecipeMapError(
+            "Recipe map entry is stale; run `autopkg generate-recipe-map`."
+        )
+        with (
+            patch("autopkg.get_info", side_effect=error),
+            patch("autopkg.log_err") as mock_log_err,
+        ):
+            result = autopkg.main(["autopkg", "info", "Test.recipe"])
+
+        self.assertEqual(result, autopkg.RECIPE_FAILED_CODE)
+        mock_log_err.assert_called_once_with(f"ERROR: {error}")
+
+    def test_main_does_not_catch_other_autopackager_errors(self):
+        """The CLI boundary must not hide unrelated AutoPackagerError tracebacks."""
+        error = autopkg.AutoPackagerError("unexpected failure")
+        with patch("autopkg.get_info", side_effect=error):
+            with self.assertRaises(autopkg.AutoPackagerError) as raised:
+                autopkg.main(["autopkg", "info", "Test.recipe"])
+
+        self.assertIs(raised.exception, error)
+
 
 if __name__ == "__main__":
     unittest.main()

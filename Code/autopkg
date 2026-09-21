@@ -43,6 +43,7 @@ from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict
     AutoPackager,
     AutoPackagerError,
     PreferenceError,
+    StaleRecipeMapError,
     _normalize_dirs,
     _path_under_dirs,
     _recipe_map_path,
@@ -3841,7 +3842,11 @@ def main(argv):
     # Call the command function and pass it the argument list.
     # We leave the verb in the list in case one function can handle
     # multiple verbs.
-    return subcommands[verb]["function"](argv)
+    try:
+        return subcommands[verb]["function"](argv)
+    except StaleRecipeMapError as err:
+        log_err(f"ERROR: {err}")
+        return RECIPE_FAILED_CODE
 
 
 if __name__ == "__main__":
