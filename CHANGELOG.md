@@ -5,9 +5,9 @@ All notable changes to this project will be documented in this file. This projec
 ## [3.0.0](https://github.com/autopkg/autopkg/compare/v2.9.0...HEAD) (Unreleased)
 
 > [!NOTE]
-> **Release candidate lineage:** AutoPkg 3.0.0 RC 4 is based on the 2.x improvements in prior versions while re-implementing some of the features previously included in 3.0.0 RCs 1-3. If a previous RC had a needed feature or fix that RC 4 lacks, please [raise an issue](https://github.com/autopkg/autopkg/issues) to alert us.
+> **Release candidate lineage:** AutoPkg 3.0.0 RC 4 and 5 are based on the 2.x improvements in prior versions while re-implementing some of the features previously included in 3.0.0 RCs 1-3. If a previous RC had a needed feature or fix that RC 4 or 5 lacks, please [raise an issue](https://github.com/autopkg/autopkg/issues) to alert us.
 
-### Changes since 3.0.0 RC 4
+### Changes in 3.0.0 RC 5
 
 - URLDownloader and URLDownloaderPython now decide "has this download changed?" the same way, and share the same cache metadata (#1056, thanks to @smithjw). You should notice fewer needless re-downloads, a new `HEADERS_TO_TEST` input variable for URLDownloader, and some improvements for how `CHECK_FILESIZE_ONLY` input variables and `Content-Length` headers are handled. These processors are now stricter about the values given to boolean input variables, accepting the text `true`/`false`, `yes`/`no`, `on`/`off`, `1`/`0`. An empty string means false. Anything else is now an error that names the variable, where AutoPkg used to accept it silently.
 - Multiple processors now gracefully handle plists that don't start with `<?xml` (such as those produced by the Wails template [here](https://github.com/wailsapp/wails/blob/230a6275ed5fd4aeb294ceae338c409f17de64df/v2/pkg/buildassets/build/darwin/Info.plist))
@@ -33,6 +33,8 @@ All notable changes to this project will be documented in this file. This projec
 - When Munki's Python libraries aren't installed, MunkiImporter now reports that munkilib wasn't found in `MUNKILIB_DIR` and that the `munkitools_pythonlibs` package provides it, instead of reporting that Munki 3.2.0.3462 or later is required. Munki 7's Swift tools no longer need munkilib at runtime, so a Munki install can be newer than the old message implied and still be missing the libraries. When munkilib is present but can't be imported, the message now names munkilib rather than the Munki tools release and gives the supported range as 3.2.0.3462 through 6.7.1 rather than "or later"; munkilib carries its own version, numbered in the 6.x line, and Munki 7 ships it only as an optional component.
 - **Custom processor authors**: `URLDownloaderPython.store_hashes_in_env()` no longer takes three positional hash strings. It now uses the same signature as `URLDownloader.store_hashes_in_env()`, which takes a single dictionary keyed by `sha1`, `sha256`, and `md5` — the shape `compute_hashes()` already returns. The two implementations set the same `file_sha1`, `file_sha256`, and `file_md5` variables, so a subclass that only inherits the method is unaffected; one that calls or overrides it with three arguments needs updating. Previously the incompatible override meant any code holding a `URLDownloader` reference broke if it passed the documented dictionary.
 - `autopkg search` now resolves a relative `CACHE_DIR` preference to an absolute path before using it, as the other cache directory consumers already did. A relative `CACHE_DIR` previously resolved against whatever the working directory happened to be, so the search index could be written to, or read from, a different place than the rest of AutoPkg used.
+
+**The following sections describe changes in RC 4 since 2.9.0:**
 
 ### Recipe map
 
