@@ -163,6 +163,36 @@ def _dirs_equal_prefs(caller_search_dirs, caller_override_dirs) -> bool:
     return caller_search == pref_search and caller_override == pref_override
 
 
+def _cwd_recipe_outranking_map(
+    id_or_name, map_result, map_by_id, search_dirs, override_dirs, skip_overrides
+) -> str | None:
+    """Return the recipe in '.' that an ordered disk scan would pick over
+    map_result, or None. The map never indexes '.', so check it on disk.
+
+    Matches 2.9 order: overrides, then search dirs in order, with an
+    identifier match anywhere beating a name match anywhere."""
+    dirs = list(search_dirs or get_search_dirs())
+    if "." not in dirs:
+        return None
+    cwd = [os.path.abspath(".")]
+    earlier = dirs[: dirs.index(".")]
+    if not skip_overrides:
+        earlier += get_override_dirs() if override_dirs is None else override_dirs
+
+    def outranks_cwd(path):
+        return bool(path and earlier and _path_under_dirs(path, earlier))
+
+    by_id = find_recipe_by_identifier_on_disk(id_or_name, cwd)
+    if by_id and not (map_by_id and outranks_cwd(map_result)):
+        return by_id
+    if map_by_id:
+        return None
+    by_name = find_recipe_by_name_on_disk(id_or_name, cwd)
+    if by_name and not outranks_cwd(map_result):
+        return by_name
+    return None
+
+
 def find_recipe(
     id_or_name,
     search_dirs=None,
@@ -190,11 +220,17 @@ def find_recipe(
         map_safe = _dirs_equal_prefs(search_dirs, override_dirs)
 
     if map_safe:
-        result = find_recipe_by_identifier_in_map(
+        by_id = find_recipe_by_identifier_in_map(
             id_or_name, skip_overrides=skip_overrides
-        ) or find_recipe_by_name_in_map(id_or_name, skip_overrides=skip_overrides)
-        if result:
-            return result
+        )
+        result = by_id or find_recipe_by_name_in_map(
+            id_or_name, skip_overrides=skip_overrides
+        )
+        cwd_result = _cwd_recipe_outranking_map(
+            id_or_name, result, bool(by_id), search_dirs, override_dirs, skip_overrides
+        )
+        if cwd_result or result:
+            return cwd_result or result
 
     # Map disabled, map miss, or divergent caller scope. Walk the effective
     # dirs on disk. Compute them lazily so a map hit doesn't pay the cost.

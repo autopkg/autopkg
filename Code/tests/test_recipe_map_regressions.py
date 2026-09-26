@@ -509,6 +509,87 @@ class TestCallerDirOrderPrecedence(RecipeMapIsolation, unittest.TestCase):
         self.assertNotEqual(result, colliding_override_path)
 
 
+class TestCwdPrecedenceOverMap(RecipeMapIsolation, unittest.TestCase):
+    """The map never indexes '.', so a recipe in the current directory must
+    still win over a later search dir's map entry, as in 2.9."""
+
+    _write_recipe = TestCallerDirOrderPrecedence._write_recipe
+    _seed_stock_map = TestCallerDirOrderPrecedence._seed_stock_map
+
+    def setUp(self):
+        super().setUp()
+        self.pref_a_dir = os.path.join(self.tmpdir, "pref-a")
+        self.dev_dir = os.path.join(self.tmpdir, "dev")
+        self.pref_override_dir = os.path.join(self.tmpdir, "pref-overrides")
+        for directory in (self.pref_a_dir, self.dev_dir, self.pref_override_dir):
+            os.makedirs(directory)
+        self.pref_search_dirs = [".", self.pref_a_dir]
+        self.pref_override_dirs = []
+        for name, attr in (
+            ("get_search_dirs", "pref_search_dirs"),
+            ("get_override_dirs", "pref_override_dirs"),
+        ):
+            patcher = patch.object(
+                autopkg, name, side_effect=lambda a=attr: list(getattr(self, a))
+            )
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        original_cwd = os.getcwd()
+        os.chdir(self.dev_dir)
+        self.addCleanup(os.chdir, original_cwd)
+        self.repo_path = self._write_recipe(
+            self.pref_a_dir, "Foo.recipe", "com.example.foo"
+        )
+        self._seed_stock_map("com.example.foo", self.repo_path, shortname="Foo")
+
+    def _find(self, id_or_name):
+        result = autopkg.find_recipe(id_or_name)
+        return os.path.realpath(result) if result else result
+
+    def test_cwd_identifier_beats_later_map_entry(self):
+        cwd_path = self._write_recipe(self.dev_dir, "Foo.recipe", "com.example.foo")
+        self.assertEqual(self._find("com.example.foo"), os.path.realpath(cwd_path))
+
+    def test_cwd_name_beats_later_map_entry(self):
+        cwd_path = self._write_recipe(self.dev_dir, "Foo.recipe", "com.dev.foo")
+        self.assertEqual(self._find("Foo"), os.path.realpath(cwd_path))
+
+    def test_map_identifier_beats_cwd_name_match(self):
+        self._write_recipe(self.dev_dir, "com.example.foo.recipe", "com.dev.other")
+        self.assertEqual(
+            self._find("com.example.foo"), os.path.realpath(self.repo_path)
+        )
+
+    def test_search_dir_before_cwd_beats_cwd(self):
+        self.pref_search_dirs = [self.pref_a_dir, "."]
+        self._write_recipe(self.dev_dir, "Foo.recipe", "com.example.foo")
+        self.assertEqual(
+            self._find("com.example.foo"), os.path.realpath(self.repo_path)
+        )
+
+    def test_override_beats_cwd(self):
+        self.pref_override_dirs = [self.pref_override_dir]
+        override_path = os.path.join(self.pref_override_dir, "Foo.recipe")
+        _write_plist_recipe(
+            override_path,
+            {
+                **SAMPLE_OVERRIDE,
+                "Identifier": "local.foo",
+                "ParentRecipe": "com.example.foo",
+            },
+        )
+        autopkglib.globalRecipeMap["overrides"]["Foo"] = override_path
+        self._write_recipe(self.dev_dir, "Foo.recipe", "com.dev.foo")
+        self.assertEqual(self._find("Foo"), os.path.realpath(override_path))
+
+    def test_no_cwd_in_search_dirs_uses_map(self):
+        self.pref_search_dirs = [self.pref_a_dir]
+        self._write_recipe(self.dev_dir, "Foo.recipe", "com.example.foo")
+        self.assertEqual(
+            self._find("com.example.foo"), os.path.realpath(self.repo_path)
+        )
+
+
 class TestIssue894ProcessorLookup(RecipeMapIsolation, unittest.TestCase):
     """Issue coverage for issue #894: shared-processor recipes in the
     current working directory weren't being found because
