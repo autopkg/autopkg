@@ -65,6 +65,23 @@ class TestURLDownloaderPython(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
+    def test_get_metadata_ignores_legacy_xattrs(self):
+        """2.9's URLDownloaderPython read only .info.json, and downloaded when
+        it was missing. It must not adopt URLDownloader's xattr fallback."""
+        from autopkglib import xattr
+        from autopkglib.URLDownloader import _legacy_xattr_names
+
+        pathname = os.path.join(self.temp_dir.name, "download.bin")
+        with open(pathname, "wb") as f:
+            f.write(b"cached")
+        for name in _legacy_xattr_names():
+            xattr.setxattr(pathname, name, b"value")
+        if _legacy_xattr_names()[0] not in xattr.listxattr(pathname):
+            self.skipTest("xattrs are not stored on this filesystem")
+        self.processor.env["pathname"] = pathname
+
+        self.assertEqual(self.processor.get_metadata(), {})
+
     def run_download(self, body, headers):
         response = FakeHTTPResponse(body, headers)
         with (

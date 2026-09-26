@@ -32,6 +32,12 @@ from autopkglib.URLGetter import URLGetter
 __all__ = ["URLDownloader"]
 
 
+def _legacy_xattr_names() -> tuple[str, str]:
+    """Return the (ETag, Last-Modified) xattr names for this platform."""
+    prefix = "user." if platform.platform().startswith("Linux") else ""
+    return f"{prefix}{BUNDLE_ID}.etag", f"{prefix}{BUNDLE_ID}.last-modified"
+
+
 class URLDownloader(URLGetter):
     """Downloads a URL to the specified download_dir using curl."""
 
@@ -248,12 +254,7 @@ class URLDownloader(URLGetter):
             del self.env["url_downloader_summary_result"]
 
         # XATTR names for Etag and Last-Modified headers
-        if platform.platform().startswith("Linux"):
-            self.xattr_etag = f"user.{BUNDLE_ID}.etag"
-            self.xattr_last_modified = f"user.{BUNDLE_ID}.last-modified"
-        else:
-            self.xattr_etag = f"{BUNDLE_ID}.etag"
-            self.xattr_last_modified = f"{BUNDLE_ID}.last-modified"
+        self.xattr_etag, self.xattr_last_modified = _legacy_xattr_names()
 
         self.env["file_size"] = 0
         self.env["last_modified"] = ""
@@ -334,6 +335,13 @@ class URLDownloader(URLGetter):
             except OSError as err:
                 raise ProcessorError(f"Can't copy {source} to {destination}: {err}")
 
+        # The copy keeps the source's xattrs. Any legacy ETag/Last-Modified
+        # there describes some other download, like a stale .info.json.
+        stored = xattr.listxattr(destination)
+        for name in _legacy_xattr_names():
+            if name in stored:
+                xattr.removexattr(destination, name)
+
         return destination
 
     def get_filename(self) -> str | None:
@@ -385,13 +393,31 @@ class URLDownloader(URLGetter):
             self.output(f"Info JSON contents: {metadata}", 2)
             return metadata
         except FileNotFoundError:
-            return {}
+            return self.get_legacy_xattr_metadata()
         except (OSError, json.JSONDecodeError) as err:
             self.output(
                 f"WARNING: Could not read {pathname_info_json} "
                 f"({type(err).__name__}): {err}. Continuing with empty metadata."
             )
             return {}
+
+    def get_legacy_xattr_metadata(self) -> dict[str, Any]:
+        """Read the ETag and Last-Modified xattrs that AutoPkg 2.9 and earlier
+        stored instead of .info.json, so an upgraded cache still sends
+        conditional headers. .info.json is written on the next download."""
+        pathname = self.env["pathname"]
+        if not os.path.isfile(pathname):
+            return {}
+        stored = xattr.listxattr(pathname)
+        http_headers = {
+            key: xattr.getxattr(pathname, name).decode()
+            for key, name in zip(("ETag", "Last-Modified"), _legacy_xattr_names())
+            if name in stored
+        }
+        if not http_headers:
+            return {}
+        self.output("Reading metadata from pre-3.0 xattrs.", 2)
+        return {"http_headers": http_headers}
 
     def compute_hashes(self) -> dict[str, str]:
         """Compute and return SHA-1, SHA-256, and MD5 hashes of the downloaded file."""

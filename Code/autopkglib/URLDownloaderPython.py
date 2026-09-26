@@ -47,6 +47,11 @@ class URLDownloaderPython(URLDownloader):
     }
     output_variables = URLDownloader.output_variables.copy()
 
+    def get_legacy_xattr_metadata(self) -> dict:
+        """2.9 read only .info.json here, so a missing sidecar still means a
+        fresh download rather than URLDownloader's xattr fallback."""
+        return {}
+
     def ssl_context_certifi(self) -> ssl.SSLContext:
         """SSL context using certifi CAs or custom CAs if the env SSL_CERT_FILE is set"""
         # this doesn't need to be a class method

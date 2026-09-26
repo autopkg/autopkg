@@ -23,9 +23,15 @@ import unittest
 from hashlib import md5, sha1, sha256
 from unittest.mock import patch
 
-from autopkglib import BUNDLE_ID, ProcessorError
-from autopkglib.URLDownloader import URLDownloader
+from autopkglib import BUNDLE_ID, ProcessorError, xattr
+from autopkglib.URLDownloader import URLDownloader, _legacy_xattr_names
 from autopkglib.URLGetter import URLGetter
+
+
+def _skip_unless_xattrs_stored(testcase, path, name):
+    """Skip when the filesystem (or the non-macOS xattr stub) drops xattrs."""
+    if name not in xattr.listxattr(path):
+        testcase.skipTest("xattrs are not stored on this filesystem")
 
 
 class TestURLDownloader(unittest.TestCase):
@@ -379,6 +385,49 @@ class TestURLDownloader(unittest.TestCase):
 
         self.assertEqual(headers, {})
 
+    def _legacy_xattr_cache(self, content=b"version1"):
+        """A cache written by AutoPkg 2.9: headers in xattrs, no .info.json."""
+        test_file = os.path.join(self.temp_dir, "legacy.dmg")
+        with open(test_file, "wb") as f:
+            f.write(content)
+        self.processor.env["pathname"] = test_file
+        self.processor.clear_vars()
+        xattr.setxattr(test_file, self.processor.xattr_etag, b'"etag-v1"')
+        xattr.setxattr(
+            test_file,
+            self.processor.xattr_last_modified,
+            b"Mon, 01 Jan 2024 00:00:00 GMT",
+        )
+        _skip_unless_xattrs_stored(self, test_file, self.processor.xattr_etag)
+        return test_file
+
+    @unittest.skipUnless(
+        sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
+    )
+    def test_produce_etag_headers_from_legacy_xattrs(self):
+        """Caches from 2.9 must still send conditional headers."""
+        self._legacy_xattr_cache()
+
+        headers = self.processor.produce_etag_headers()
+
+        self.assertEqual(headers["If-None-Match"], '"etag-v1"')
+        self.assertEqual(headers["If-Modified-Since"], "Mon, 01 Jan 2024 00:00:00 GMT")
+
+    @unittest.skipUnless(
+        sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
+    )
+    def test_download_changed_compares_etag_from_legacy_xattrs(self):
+        """A same-size update with a new ETag is a change. Without the stored
+        ETag, only Content-Length was compared and the update was discarded."""
+        self._legacy_xattr_cache(b"version1")
+        header = {
+            "http_result_code": "200",
+            "etag": '"etag-v2"',
+            "content-length": "8",
+        }
+
+        self.assertTrue(self.processor.download_changed(header))
+
     def test_size_only_check_uses_real_file_size_not_stale_metadata(self):
         """A stale .info.json file_size must not make a changed cache look unchanged."""
         test_file = os.path.join(self.temp_dir, "testfile.dmg")
@@ -668,6 +717,31 @@ class TestURLDownloader(unittest.TestCase):
         with open(pathname, "rb") as f:
             self.assertEqual(f.read(), b"pkg contents")
         self.assertTrue(self.processor.env["download_changed"])
+
+    @unittest.skipUnless(
+        sys.platform in ("darwin", "linux"), "xattr not reliable on Windows"
+    )
+    def test_staged_pkg_drops_legacy_download_xattrs(self):
+        """A local PKG may carry ETag xattrs from an earlier download. Once
+        staged without .info.json, those would make a later run send
+        If-None-Match and keep the local bytes on a 304."""
+        source_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, source_dir, True)
+        source = os.path.join(source_dir, "Local.pkg")
+        with open(source, "wb") as f:
+            f.write(b"locally modified pkg")
+        for name in _legacy_xattr_names():
+            xattr.setxattr(source, name, b"old")
+        _skip_unless_xattrs_stored(self, source, _legacy_xattr_names()[0])
+
+        self.processor.env["PKG"] = source
+        self.processor.get_filename()
+
+        staged = self.processor.env["pathname"]
+        stored = xattr.listxattr(staged)
+        for name in _legacy_xattr_names():
+            self.assertNotIn(name, stored)
+        self.assertEqual(self.processor.get_metadata(), {})
 
     def test_pkg_already_at_destination_is_not_recopied(self):
         """A PKG already in the download dir is used in place."""
