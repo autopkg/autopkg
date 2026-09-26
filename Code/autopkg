@@ -44,6 +44,7 @@ from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict
     AutoPackagerError,
     PreferenceError,
     StaleRecipeMapError,
+    _iter_recipe_glob_matches,
     _normalize_dirs,
     _path_under_dirs,
     _recipe_map_path,
@@ -161,6 +162,23 @@ def _dirs_equal_prefs(caller_search_dirs, caller_override_dirs) -> bool:
         else pref_override
     )
     return caller_search == pref_search and caller_override == pref_override
+
+
+def _map_indexed_path(path, dirs) -> str | None:
+    """Return the path a full map rebuild over dirs would record for path,
+    or None if a rebuild wouldn't index it. Asks the rebuild's own glob so
+    the two can't disagree. The map never indexes '.'."""
+    # ponytail: globs every configured dir (~0.75 s over 32 repos). Fine for
+    # make-override and new-recipe; pass name= to the glob if it ever isn't.
+    target = os.path.realpath(path)
+    return next(
+        (
+            match
+            for match in _iter_recipe_glob_matches([d for d in dirs if d != "."])
+            if os.path.realpath(match) == target
+        ),
+        None,
+    )
 
 
 def _cwd_recipe_outranking_map(
@@ -2334,8 +2352,10 @@ def make_override(argv):
             plistlib.dump(plist_serializer(override_dict), f)
     log(f"Override file saved to {override_file}")
     # Add the new override to the map incrementally instead of a full
-    # rebuild — we already know exactly which file changed.
-    add_recipe_to_map(override_file, is_override=True)
+    # rebuild — we already know exactly which file changed. A one-off
+    # --override-dir stays out of the map, as generate-recipe-map does.
+    if indexed_path := _map_indexed_path(override_file, get_override_dirs()):
+        add_recipe_to_map(indexed_path, is_override=True)
     return 0
 
 
@@ -3770,12 +3790,10 @@ def new_recipe(argv):
         return
 
     # Add the new recipe to the map incrementally instead of a full
-    # rebuild. Note: if the caller wrote the recipe outside any
-    # configured RECIPE_SEARCH_DIRS, the entry will persist until the
-    # next full map rebuild (e.g. via `autopkg repo-update`), which
-    # matches the user's "make it findable right now" expectation
-    # without permanently baking a non-pref path into the cache.
-    add_recipe_to_map(os.path.abspath(filename), is_override=False)
+    # rebuild, but only where a rebuild would find it. Anywhere else, the
+    # on-disk scan still finds it through --search-dir or '.'.
+    if indexed_path := _map_indexed_path(filename, get_search_dirs()):
+        add_recipe_to_map(indexed_path, is_override=False)
 
 
 def main(argv):

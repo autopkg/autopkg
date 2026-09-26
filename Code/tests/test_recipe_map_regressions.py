@@ -1110,6 +1110,151 @@ class TestPathScopeSymlinkEscape(RecipeMapIsolation, unittest.TestCase):
         self.assertEqual(processor.marker, "shared")
 
 
+class TestMapUpdatesOnlyForConfiguredDirs(RecipeMapIsolation, unittest.TestCase):
+    """make-override and new-recipe must not write a one-off directory into
+    the persistent map. A later plain run would otherwise resolve to it, and
+    a scratch override outside RECIPE_OVERRIDE_DIRS only warns on trust
+    failures. The map should hold only what a full rebuild would index."""
+
+    def setUp(self):
+        super().setUp()
+        self.search_dir = os.path.join(self.tmpdir, "recipes")
+        self.override_dir = os.path.join(self.tmpdir, "overrides")
+        self.scratch_dir = os.path.join(self.tmpdir, "scratch")
+        for directory in (self.search_dir, self.override_dir, self.scratch_dir):
+            os.makedirs(directory)
+        _write_plist_recipe(
+            os.path.join(self.search_dir, "Foo.recipe"),
+            {**SAMPLE_RECIPE, "Identifier": "com.example.foo"},
+        )
+        for module in (autopkg, autopkglib):
+            for name, value in (
+                ("get_search_dirs", [".", self.search_dir]),
+                ("get_override_dirs", [self.override_dir]),
+            ):
+                patcher = patch.object(
+                    module, name, side_effect=lambda v=value: list(v)
+                )
+                patcher.start()
+                self.addCleanup(patcher.stop)
+        patcher = patch.object(autopkglib, "_recipe_map_disabled", return_value=False)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        original_cwd = os.getcwd()
+        os.chdir(self.scratch_dir)
+        self.addCleanup(os.chdir, original_cwd)
+
+    def _make_override(self, *extra):
+        with patch.object(autopkg, "log"):
+            return autopkg.make_override(["autopkg", "make-override", *extra, "Foo"])
+
+    def _new_recipe(self, path):
+        with patch.object(autopkg, "log"):
+            autopkg.new_recipe(["autopkg", "new-recipe", "-i", "com.example.new", path])
+
+    def test_make_override_in_one_off_dir_leaves_map_unchanged(self):
+        self.assertEqual(self._make_override("--override-dir", self.scratch_dir), 0)
+        self.assertTrue(os.path.exists(os.path.join(self.scratch_dir, "Foo.recipe")))
+        self.assertEqual(autopkglib.globalRecipeMap["overrides"], {})
+        self.assertEqual(autopkglib.globalRecipeMap["overrides-identifiers"], {})
+
+    def test_make_override_in_configured_dir_updates_map(self):
+        self.assertEqual(self._make_override(), 0)
+        self.assertEqual(
+            autopkglib.globalRecipeMap["overrides"]["Foo"],
+            os.path.join(self.override_dir, "Foo.recipe"),
+        )
+
+    def test_new_recipe_outside_search_dirs_leaves_map_unchanged(self):
+        path = os.path.join(self.tmpdir, "elsewhere", "New.recipe")
+        os.makedirs(os.path.dirname(path))
+        self._new_recipe(path)
+        self.assertTrue(os.path.exists(path))
+        self.assertNotIn("New", autopkglib.globalRecipeMap["shortnames"])
+        self.assertNotIn("com.example.new", autopkglib.globalRecipeMap["identifiers"])
+
+    def test_new_recipe_in_cwd_leaves_map_unchanged(self):
+        """'.' is a search dir here, but the map never indexes it."""
+        self._new_recipe("New.recipe")
+        self.assertNotIn("New", autopkglib.globalRecipeMap["shortnames"])
+
+    def test_new_recipe_in_search_dir_subfolder_updates_map(self):
+        path = os.path.join(self.search_dir, "New", "New.recipe")
+        os.makedirs(os.path.dirname(path))
+        self._new_recipe(path)
+        self.assertEqual(autopkglib.globalRecipeMap["shortnames"]["New"], path)
+
+    def _chdir_to_empty_dir(self):
+        """'.' is a search dir and is scanned one level deep, as in 2.9, so
+        look up from a directory with no recipes nearby."""
+        empty = os.path.join(self.tmpdir, "empty")
+        os.makedirs(empty)
+        os.chdir(empty)
+
+    def test_plain_lookup_after_make_override_in_configured_dir(self):
+        self._make_override()
+        self._chdir_to_empty_dir()
+        self.assertEqual(
+            os.path.realpath(autopkg.find_recipe("Foo")),
+            os.path.realpath(os.path.join(self.override_dir, "Foo.recipe")),
+        )
+
+    def test_plain_lookup_after_make_override_in_one_off_dir(self):
+        self._make_override("--override-dir", self.scratch_dir)
+        self._chdir_to_empty_dir()
+        self.assertEqual(
+            os.path.realpath(autopkg.find_recipe("Foo")),
+            os.path.realpath(os.path.join(self.search_dir, "Foo.recipe")),
+        )
+
+    def test_make_override_through_alias_records_the_rebuild_path(self):
+        """An override written through a symlink to the configured dir must be
+        recorded under the path a rebuild would store, so removing the alias
+        doesn't strand the map entry."""
+        alias = os.path.join(self.tmpdir, "alias")
+        os.symlink(self.override_dir, alias)
+        self.assertEqual(self._make_override("--override-dir", alias), 0)
+        os.unlink(alias)
+        self.assertEqual(
+            autopkglib.globalRecipeMap["overrides"]["Foo"],
+            os.path.join(self.override_dir, "Foo.recipe"),
+        )
+        self._chdir_to_empty_dir()
+        self.assertEqual(
+            os.path.realpath(autopkg.find_recipe("Foo")),
+            os.path.realpath(os.path.join(self.override_dir, "Foo.recipe")),
+        )
+
+    def test_new_recipe_map_update_matches_what_a_rebuild_indexes(self):
+        os.makedirs(os.path.join(self.search_dir, "a", "b"))
+        os.makedirs(os.path.join(self.search_dir, "a", "c"))
+        os.symlink(
+            os.path.join(self.search_dir, "a", "b"),
+            os.path.join(self.search_dir, "link"),
+        )
+        cases = (
+            # A symlinked subfolder that stays inside the search dir: indexed.
+            (os.path.join(self.search_dir, "link", "Linked.recipe"), True),
+            # Not a recipe extension: never indexed.
+            (os.path.join(self.search_dir, "Plist.plist"), False),
+            # Hidden files don't match the rebuild's "*" glob.
+            (os.path.join(self.search_dir, ".Hidden.recipe"), False),
+            # Two levels down is deeper than a rebuild looks.
+            (os.path.join(self.search_dir, "a", "c", "Deep.recipe"), False),
+        )
+        for path, indexed in cases:
+            identifier = f"com.example.{os.path.basename(path).lower()}"
+            with self.subTest(path=os.path.relpath(path, self.search_dir)):
+                with patch.object(autopkg, "log"):
+                    autopkg.new_recipe(
+                        ["autopkg", "new-recipe", "-i", identifier, path]
+                    )
+                self.assertTrue(os.path.exists(path))
+                self.assertEqual(
+                    identifier in autopkglib.globalRecipeMap["identifiers"], indexed
+                )
+
+
 class TestRecipeInOverrideDir(RecipeMapIsolation, unittest.TestCase):
     """Override status comes only from caller-configured directories.
 
