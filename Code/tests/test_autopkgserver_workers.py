@@ -532,6 +532,46 @@ class TestItemCopierValidation(unittest.TestCase):
 
         self.assertEqual(Path(dest_path).read_text(), "fresh")
 
+    def test_copy_items_replaces_a_symlinked_destination_not_its_target(self):
+        """An existing destination symlink is replaced by the copy. The
+        directory it points to must be left alone, as in 2.9."""
+        destination_path = os.path.join(self.cache, "installed")
+        os.makedirs(destination_path)
+        elsewhere = os.path.join(self.cache, "elsewhere", "Test.app")
+        os.makedirs(elsewhere)
+        Path(os.path.join(elsewhere, "important")).write_text("keep")
+        dest_path = os.path.join(os.path.realpath(destination_path), "Test.app")
+        os.symlink(elsewhere, dest_path)
+        Path(os.path.join(self.mountpoint, "Test.app")).write_text("fresh")
+
+        with self._patched_copy():
+            worker = self._copier(self._request(destination_path=destination_path))
+            worker.verify_request()
+            self.assertTrue(worker.copy_items())
+
+        self.assertFalse(os.path.islink(dest_path))
+        self.assertEqual(Path(dest_path).read_text(), "fresh")
+        self.assertEqual(Path(os.path.join(elsewhere, "important")).read_text(), "keep")
+
+    def test_copy_items_replaces_a_dangling_symlinked_destination(self):
+        """A destination symlink whose target is gone is replaced by the copy,
+        not written through. 2.9 created the file at the missing target."""
+        destination_path = os.path.join(self.cache, "installed")
+        os.makedirs(destination_path)
+        dest_path = os.path.join(os.path.realpath(destination_path), "Test.app")
+        missing_target = os.path.join(self.cache, "missing")
+        os.symlink(missing_target, dest_path)
+        Path(os.path.join(self.mountpoint, "Test.app")).write_text("fresh")
+
+        with self._patched_copy():
+            worker = self._copier(self._request(destination_path=destination_path))
+            worker.verify_request()
+            self.assertTrue(worker.copy_items())
+
+        self.assertFalse(os.path.islink(dest_path))
+        self.assertEqual(Path(dest_path).read_text(), "fresh")
+        self.assertFalse(os.path.lexists(missing_target))
+
     def test_copy_items_copies_a_directory_and_keeps_symlinks_as_links(self):
         """A bundle is a directory tree, and its internal symlinks have to stay
         symlinks rather than being resolved into copies of their targets."""

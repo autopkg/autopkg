@@ -153,7 +153,7 @@ class ItemCopier:
         if not target_name:
             raise ItemCopierError("Destination item name is required")
 
-        full_destpath = os.path.realpath(os.path.join(destpath, target_name))
+        full_destpath = os.path.join(destpath, target_name)
         return source_itempath, destpath, full_destpath
 
     def verify_request(self) -> None:
