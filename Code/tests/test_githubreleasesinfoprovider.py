@@ -125,13 +125,13 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         "get_releases",
         return_value=_fake_release("vv1.0"),
     )
-    def test_returns_version_stripping_only_one_v_prefix(self, _mock):
-        """The processor should remove only one leading v from a tag."""
+    def test_returns_version_stripping_all_leading_v_and_dots(self, _mock):
+        """The processor should strip every leading v and dot from a v tag."""
         env = self._run()
-        self.assertEqual(env["version"], "v1.0")
+        self.assertEqual(env["version"], "1.0")
 
-    def test_preserves_intentional_extra_leading_dots(self):
-        for tag_name in ("v..1.2", ".1.2"):
+    def test_strips_leading_dots_only_after_v(self):
+        for tag_name, expected in (("v..1.2", "1.2"), (".1.2", ".1.2")):
             with self.subTest(tag_name=tag_name):
                 with patch.object(
                     GitHubReleasesInfoProvider,
@@ -140,7 +140,7 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
                 ):
                     env = self._run()
 
-                self.assertEqual(env["version"], ".1.2")
+                self.assertEqual(env["version"], expected)
 
     @patch.object(
         GitHubReleasesInfoProvider, "get_releases", return_value=_fake_release()
