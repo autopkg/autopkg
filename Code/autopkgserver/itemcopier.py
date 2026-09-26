@@ -152,6 +152,8 @@ class ItemCopier:
             target_name = os.path.basename(source_itemname)
         if not target_name:
             raise ItemCopierError("Destination item name is required")
+        if target_name == ".":
+            raise ItemCopierError('Destination item name may not be "."')
 
         full_destpath = os.path.join(destpath, target_name)
         return source_itempath, destpath, full_destpath

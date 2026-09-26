@@ -422,6 +422,38 @@ class TestItemCopierValidation(unittest.TestCase):
             with self.assertRaises(itemcopier.ItemCopierError):
                 worker.verify_request()
 
+    def test_rejects_dot_as_destination_item_name(self):
+        """An item named "." would make the destination directory itself the
+        item to replace. 2.9's `rm -rf <dest>/.` refused; so must we."""
+        for overrides in (
+            {"source_item": "."},
+            {"source_item": "Test.app/."},
+            {"destination_item": "."},
+            {"destination_item": "sub/."},
+        ):
+            with self.subTest(**overrides):
+                with self._patched_environment():
+                    worker = self._copier(self._request(**overrides))
+                    with self.assertRaises(itemcopier.ItemCopierError):
+                        worker.verify_request()
+
+    def test_copy_items_leaves_destination_intact_for_dot_item_name(self):
+        """copy_items re-validates each item, so even an unverified request
+        must not empty the destination directory."""
+        destination_path = os.path.join(self.cache, "installed")
+        os.makedirs(destination_path)
+        keep = os.path.join(destination_path, "Other.app")
+        Path(keep).write_text("keep")
+
+        with self._patched_copy():
+            worker = self._copier(
+                self._request(destination_path=destination_path, destination_item=".")
+            )
+            with self.assertRaises(itemcopier.ItemCopierError):
+                worker.copy_items()
+
+        self.assertEqual(Path(keep).read_text(), "keep")
+
     def test_rejects_relative_destination(self):
         """Should reject relative destination paths."""
         with self._patched_environment():
