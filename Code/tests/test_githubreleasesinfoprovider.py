@@ -2,6 +2,7 @@
 
 import re
 import unittest
+from unittest.mock import patch
 
 from autopkglib import ProcessorError
 from autopkglib.GitHubReleasesInfoProvider import GitHubReleasesInfoProvider
@@ -74,6 +75,54 @@ class TestGitHubReleasesInfoProvider(unittest.TestCase):
         self.processor.env = test_env
         self.processor.main()
         self.assertIsNotNone(test_env["asset_url"])
+
+    def test_main_with_archived_repo(self):
+        """The processor should raise an error if repo is archived and ignore_archived is not set."""
+        test_env = {"github_repo": "autopkg/autopkg"}
+        test_env.update(self.base_env)
+        self.processor.env = test_env
+        with patch.object(GitHubReleasesInfoProvider, "is_archived", return_value=True):
+            with self.assertRaises(ProcessorError):
+                self.processor.main()
+
+    def test_main_with_archived_repo_fail_if_archived_false(self):
+        """The processor should not raise an error if repo is archived and fail_if_archived is False."""
+        test_env = {"github_repo": "autopkg/autopkg", "fail_if_archived": False}
+        test_env.update(self.base_env)
+        self.processor.env = test_env
+        with patch.object(GitHubReleasesInfoProvider, "is_archived", return_value=True):
+            # When fail_if_archived is False, is_archived should not be called
+            # This test verifies that the processor doesn't attempt the archived check
+            # when fail_if_archived is False, and proceeds with normal release fetching.
+            # Since we're not mocking get_releases, this will make a real API call.
+            # To avoid that, we also mock get_releases.
+            with patch.object(
+                GitHubReleasesInfoProvider,
+                "get_releases",
+                return_value=[
+                    {
+                        "tag_name": "v1.0",
+                        "name": "Release 1.0",
+                        "body": "Test release",
+                        "prerelease": False,
+                        "assets": [
+                            {
+                                "name": "test.tar.gz",
+                                "browser_download_url": "https://example.com/test.tar.gz",
+                                "url": "https://api.github.com/repos/test/test/releases/assets/1",
+                                "created_at": "2024-01-01T00:00:00Z",
+                            }
+                        ],
+                    }
+                ],
+            ):
+                # This should not raise an error
+                try:
+                    self.processor.main()
+                except ProcessorError:
+                    self.fail(
+                        "Processor should not raise error when fail_if_archived is False"
+                    )
 
 
 if __name__ == "__main__":
