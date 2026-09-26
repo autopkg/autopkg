@@ -1094,6 +1094,81 @@ class TestAutoPkgRecipes(unittest.TestCase):
         )
         self.assertIsNone(result)
 
+    def _write_recipe(self, filename, identifier, parent=None):
+        """Write a minimal recipe, optionally with a parent, to tmp_dir."""
+        recipe = {
+            "Description": filename,
+            "Identifier": identifier,
+            "Input": {"NAME": "App"},
+            "Process": [],
+        }
+        if parent:
+            recipe["ParentRecipe"] = parent
+        with open(os.path.join(self.tmp_dir.name, filename), "wb") as f:
+            plistlib.dump(recipe, f)
+
+    def _load_child_stderr(self, repos, added=False):
+        """Load Child with repo lookups answered from repos. Returns
+        (lookup mock, stderr)."""
+        with (
+            patch(
+                "autopkg.get_repository_from_identifier",
+                side_effect=lambda identifier, refresh=True: repos.get(identifier),
+            ) as mock_lookup,
+            patch("autopkg.recipe_repo_is_added", return_value=added),
+            patch("sys.stderr", new_callable=StringIO) as stderr,
+        ):
+            result = autopkg.load_recipe(
+                "Child",
+                [],
+                [self.tmp_dir.name],
+                make_suggestions=False,
+                search_github=False,
+            )
+        self.assertIsNone(result)
+        return mock_lookup, stderr.getvalue()
+
+    def test_load_recipe_missing_parent_suggests_repo_add(self):
+        """A missing parent in an unadded repo gets a repo-add hint from the
+        cached index."""
+        parent = "com.github.example-recipes.pkg.Parent"
+        self._write_recipe("Child.recipe", "com.example.child", parent)
+        mock_lookup, err = self._load_child_stderr({parent: "example-recipes"})
+        self.assertIn(f"Could not find parent recipe {parent} for Child", err)
+        self.assertIn("autopkg repo-add example-recipes", err)
+        mock_lookup.assert_called_once_with(parent, refresh=False)
+
+    def test_load_recipe_missing_parent_no_hint_when_repo_added(self):
+        """No repo-add hint when the repo is already added or unknown."""
+        parent = "com.github.example-recipes.pkg.Parent"
+        self._write_recipe("Child.recipe", "com.example.child", parent)
+        for repos, added in (({parent: "example-recipes"}, True), ({}, False)):
+            with self.subTest(repos=repos):
+                _, err = self._load_child_stderr(repos, added=added)
+                self.assertIn("Could not find parent recipe", err)
+                self.assertNotIn("repo-add", err)
+
+    def test_load_recipe_missing_grandparent_reported_once(self):
+        """Only the missing ancestor is reported; the found parent isn't blamed."""
+        self._write_recipe("Child.recipe", "com.example.child", "com.example.parent")
+        self._write_recipe(
+            "Parent.recipe", "com.example.parent", "com.example.grandparent"
+        )
+        _, err = self._load_child_stderr(
+            {
+                "com.example.parent": "parent-recipes",
+                "com.example.grandparent": "grandparent-recipes",
+            }
+        )
+        self.assertIn(
+            "Could not find parent recipe com.example.grandparent for "
+            "com.example.parent",
+            err,
+        )
+        self.assertIn("autopkg repo-add grandparent-recipes", err)
+        self.assertEqual(err.count("Could not find parent recipe"), 1)
+        self.assertNotIn("repo-add parent-recipes", err)
+
     def test_load_recipe_none_dirs(self):
         """Test load_recipe with None directories."""
 

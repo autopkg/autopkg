@@ -855,6 +855,47 @@ class TestAutoPkgOverrides(unittest.TestCase):
             self.assertEqual(result, 0)
             mock_plist_dump.assert_called_once()
 
+    def test_make_override_pull_uses_updated_search_dirs(self):
+        """Trust info sees repos that --pull added while loading the recipe."""
+        with (
+            patch("autopkg.gen_common_parser"),
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs", return_value=[self.tmp_dir.name]),
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.load_recipe") as mock_load_recipe,
+            patch("autopkg.get_identifier", return_value="com.example.child"),
+            patch("autopkg.get_trust_info", return_value={}) as mock_get_trust_info,
+            patch("autopkg.log"),
+            patch("os.path.isfile", return_value=False),
+            patch("os.path.exists", side_effect=lambda p: p == self.tmp_dir.name),
+            patch("builtins.open", mock_open()),
+            patch("plistlib.dump"),
+        ):
+            mock_options = Mock()
+            mock_options.override_dirs = []
+            mock_options.search_dirs = []
+            mock_options.name = None
+            mock_options.force = False
+            mock_options.pull = True
+            mock_options.ignore_deprecation = False
+            mock_options.format = "plist"
+            mock_common_parse.return_value = (mock_options, ["TestApp"])
+            mock_get_search_dirs.side_effect = [["before"], ["before", "pulled"]]
+            mock_load_recipe.return_value = {
+                "Identifier": "com.example.child",
+                "Input": {"NAME": "TestApp"},
+                "Process": [],
+                "RECIPE_PATH": "TestApp.recipe",
+            }
+
+            result = autopkg.make_override(["autopkg", "make-override", "TestApp"])
+
+            self.assertEqual(result, 0)
+            self.assertEqual(
+                mock_get_trust_info.call_args.kwargs["search_dirs"],
+                ["before", "pulled"],
+            )
+
     def test_make_override_success_yaml_format(self):
         """Test successful override creation in yaml format."""
         with (

@@ -15,11 +15,8 @@
 # limitations under the License.
 
 import os
-import plistlib
 import sys
 import unittest
-from base64 import b64encode
-from io import StringIO
 from unittest.mock import Mock, patch
 
 # Add the Code directory to the Python path to resolve autopkg dependencies
@@ -201,295 +198,79 @@ class TestAutoPkgRepos(unittest.TestCase):
         self.assertEqual(url, "/Users/Shared/foo")
 
     # Tests for get_repository_from_identifier function
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_valid_identifier(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier with valid identifier."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "recipes"},
-                "path": "TestApp/TestApp.recipe",
+    @patch("autopkg.load_search_index")
+    def test_get_repository_from_identifier_strips_autopkg_org(self, mock_index):
+        """Repos in the autopkg org are returned by short name."""
+        mock_index.return_value = {
+            "identifiers": {
+                "com.github.test-recipes.pkg.TestApp": {
+                    "path": "TestApp/TestApp.pkg.recipe.yaml",
+                    "repo": "autopkg/test-recipes",
+                }
             }
-        ]
-
-        # Mock file contents fetch
-        recipe_plist = {
-            "Identifier": "com.test.recipe",
-            "Description": "Test recipe",
-            "Input": {"NAME": "TestApp"},
-            "Process": [],
         }
-        mock_fetch.return_value = plistlib.dumps(recipe_plist)
+        self.assertEqual(
+            autopkg.get_repository_from_identifier(
+                "com.github.test-recipes.pkg.TestApp"
+            ),
+            "test-recipes",
+        )
 
-        # Mock plistlib.loads
-        with (
-            patch("autopkg.plistlib.loads") as mock_loads,
-            patch("sys.stdout", new_callable=StringIO),
-        ):
-            mock_loads.return_value = recipe_plist
-
-            result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-            self.assertEqual(result, "recipes")
-            mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-            mock_fetch.assert_called_once_with("recipes", "TestApp/TestApp.recipe")
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_no_match(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier with no matching identifier."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "recipes"},
-                "path": "TestApp/TestApp.recipe",
-            }
-        ]
-
-        # Mock file contents fetch with different identifier
-        recipe_plist = {
-            "Identifier": "com.different.recipe",
-            "Description": "Different recipe",
-            "Input": {"NAME": "TestApp"},
-            "Process": [],
+    @patch("autopkg.load_search_index")
+    def test_get_repository_from_identifier_keeps_other_owner(self, mock_index):
+        """Repos outside the autopkg org keep their owner prefix."""
+        mock_index.return_value = {
+            "identifiers": {"local.test.TestApp": {"repo": "someone/test-recipes"}}
         }
-        mock_fetch.return_value = plistlib.dumps(recipe_plist)
+        self.assertEqual(
+            autopkg.get_repository_from_identifier("local.test.TestApp"),
+            "someone/test-recipes",
+        )
 
-        # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads:
-            mock_loads.return_value = recipe_plist
+    @patch("autopkg.load_search_index")
+    def test_get_repository_from_identifier_not_found(self, mock_index):
+        """Unknown identifiers, shortnames, and an unloadable index return None."""
+        mock_index.return_value = {"identifiers": {}}
+        self.assertIsNone(autopkg.get_repository_from_identifier("com.test.recipe"))
+        self.assertIsNone(autopkg.get_repository_from_identifier("TestApp"))
+        mock_index.return_value = {}
+        self.assertIsNone(autopkg.get_repository_from_identifier("com.test.recipe"))
+        mock_index.return_value = {"identifiers": {"com.test.recipe": {}}}
+        self.assertIsNone(autopkg.get_repository_from_identifier("com.test.recipe"))
 
-            result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-            self.assertIsNone(result)
-            mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_invalid_identifier(
-        self, mock_github_session
-    ):
-        """Test get_repository_from_identifier with invalid identifier format."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = []
-
-        # Test with identifier that doesn't start with 'com'
-        result = autopkg.get_repository_from_identifier("invalid.identifier")
-        self.assertIsNone(result)
-
-        # GitHubSession is called first, but then the identifier check happens
-        mock_github_session.assert_called_once()
-        mock_session.search_for_name.assert_called_once_with("invalid.identifier")
-
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_non_identifier_format(
-        self, mock_github_session
-    ):
-        """Test get_repository_from_identifier with non-identifier format."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = []
-
-        # Test with simple name that's not an identifier
-        result = autopkg.get_repository_from_identifier("TestApp")
-        self.assertIsNone(result)
-
-        # GitHubSession is called first, but then the identifier check happens
-        mock_github_session.assert_called_once()
-        mock_session.search_for_name.assert_called_once_with("TestApp")
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_multiple_repos_first_match(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier with multiple repos, first match wins."""
-        # Mock GitHubSession and search results with multiple repos
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "recipes"},
-                "path": "TestApp/TestApp.recipe",
-            },
-            {
-                "repository": {"name": "other-recipes"},
-                "path": "TestApp/TestApp.recipe",
-            },
-        ]
-
-        # Mock file contents fetch - first repo has matching identifier
-        matching_plist = {
-            "Identifier": "com.test.recipe",
-            "Description": "Test recipe",
-            "Input": {"NAME": "TestApp"},
-            "Process": [],
+    def test_recipe_repo_is_added_url_spellings(self):
+        """Equivalent GitHub URL spellings count as added; others don't."""
+        cases = {
+            "https://github.com/autopkg/example-recipes": True,
+            "https://github.com/autopkg/example-recipes.git": True,
+            "https://github.com/autopkg/Example-Recipes/": True,
+            "ssh://git@github.com/autopkg/example-recipes": True,
+            "git@github.com:autopkg/example-recipes.git": True,
+            "https://github.com/notautopkg/example-recipes": False,
+            "https://github.com/autopkg/other-example-recipes": False,
         }
-
-        def mock_fetch_side_effect(repo_name, _path):
-            if repo_name == "recipes":
-                return plistlib.dumps(matching_plist)
-            else:
-                # Other repos don't match
-                return plistlib.dumps(
-                    {
-                        "Identifier": "com.other.recipe",
-                        "Description": "Other recipe",
-                    }
+        for url, expected in cases.items():
+            with (
+                self.subTest(url=url),
+                patch(
+                    "autopkg.get_pref",
+                    return_value={"/path/repo": {"URL": url}},
+                ),
+            ):
+                self.assertEqual(
+                    autopkg.recipe_repo_is_added("example-recipes"), expected
                 )
 
-        mock_fetch.side_effect = mock_fetch_side_effect
-
-        # Mock plistlib.loads
-        with (
-            patch("autopkg.plistlib.loads") as mock_loads,
-            patch("sys.stdout", new_callable=StringIO),
+    def test_recipe_repo_is_added_owner_repo(self):
+        """Repos outside the autopkg org match by owner/repo."""
+        with patch(
+            "autopkg.get_pref",
+            return_value={"/p": {"URL": "https://github.com/someone/x-recipes.git"}},
         ):
-            mock_loads.side_effect = [matching_plist]
-
-            result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-            self.assertEqual(result, "recipes")
-            mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-            # Should only fetch from first repo since it matched
-            mock_fetch.assert_called_once_with("recipes", "TestApp/TestApp.recipe")
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_empty_search_results(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier with empty search results."""
-        # Mock GitHubSession with empty search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = []
-
-        result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-        self.assertIsNone(result)
-        mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-        mock_fetch.assert_not_called()
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_plistlib_error(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier when plistlib fails to parse."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "recipes"},
-                "path": "TestApp/TestApp.recipe",
-            }
-        ]
-
-        # Mock file contents fetch returns invalid plist data
-        mock_fetch.return_value = b"invalid plist data"
-
-        # Mock plistlib.loads to raise an exception
-        with patch("autopkg.plistlib.loads") as mock_loads:
-            mock_loads.side_effect = plistlib.InvalidFileException("Invalid plist")
-
-            # The function doesn't handle the exception, so it should propagate
-            with self.assertRaises(plistlib.InvalidFileException):
-                autopkg.get_repository_from_identifier("com.test.recipe")
-
-            mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-            mock_fetch.assert_called_once_with("recipes", "TestApp/TestApp.recipe")
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_with_print_output(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier prints found repository."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "test-recipes"},
-                "path": "TestApp/TestApp.recipe",
-            }
-        ]
-
-        # Mock file contents fetch
-        recipe_plist = {
-            "Identifier": "com.test.recipe",
-            "Description": "Test recipe",
-            "Input": {"NAME": "TestApp"},
-            "Process": [],
-        }
-        mock_fetch.return_value = plistlib.dumps(recipe_plist)
-
-        # Mock plistlib.loads and print
-        with (
-            patch("autopkg.plistlib.loads") as mock_loads,
-            patch("builtins.print") as mock_print,
-        ):
-            mock_loads.return_value = recipe_plist
-
-            result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-            self.assertEqual(result, "test-recipes")
-            mock_print.assert_called_once_with(
-                "Found this recipe in repository: test-recipes"
-            )
-
-    @patch("autopkg.GitHubSession")
-    def test_do_gh_repo_contents_fetch_returns_none_on_api_error(
-        self, mock_github_session
-    ):
-        """GitHub API error bodies should not be treated as content responses."""
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.call_api.return_value = ({"message": "Not Found"}, 404)
-
-        with patch("sys.stderr", new_callable=StringIO) as stderr:
-            result = autopkg.do_gh_repo_contents_fetch(
-                "recipes", "Missing/Missing.recipe"
-            )
-
-        self.assertIsNone(result)
-        self.assertIn("A GitHub API error occurred", stderr.getvalue())
-
-    @patch("autopkg.GitHubSession")
-    def test_do_gh_repo_contents_fetch_decode_options(self, mock_github_session):
-        """decode/use_token compatibility options behave as documented."""
-        encoded = b64encode(b"contents").decode()
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.call_api.return_value = ({"content": encoded}, 200)
-
-        self.assertEqual(
-            autopkg.do_gh_repo_contents_fetch("recipes", "A/A.recipe"), b"contents"
-        )
-        self.assertEqual(
-            autopkg.do_gh_repo_contents_fetch("recipes", "A/A.recipe", decode=False),
-            encoded,
-        )
-        mock_session.get_or_setup_token.assert_not_called()
-
-        self.assertEqual(
-            autopkg.do_gh_repo_contents_fetch("recipes", "A/A.recipe", use_token=True),
-            b"contents",
-        )
-        mock_session.get_or_setup_token.assert_called_once_with()
+            self.assertTrue(autopkg.recipe_repo_is_added("someone/x-recipes"))
+            self.assertFalse(autopkg.recipe_repo_is_added("x-recipes"))
+        with patch("autopkg.get_pref", return_value=None):
+            self.assertFalse(autopkg.recipe_repo_is_added("x-recipes"))
 
     # Tests for get_recipe_repo function
     @patch("autopkg.run_git")

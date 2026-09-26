@@ -178,10 +178,22 @@ def normalize_keyword(keyword: str) -> str:
     return keyword
 
 
-def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
-    """Return an array of recipe search results."""
-    # Update and load local search index cache
+def load_search_index(refresh: bool = True) -> dict:
+    """Update and load the local search index. Returns {} if it can't be
+    loaded. With refresh=False, reads the cached copy only and never contacts
+    GitHub or raises."""
     cache_dir = get_cache_dir()
+    if not refresh:
+        try:
+            with open(os.path.join(cache_dir, "search_index.json"), "rb") as f:
+                index = json.load(f)
+        except (OSError, ValueError):
+            return {}
+        if not isinstance(index, dict) or not isinstance(
+            index.get("identifiers", {}), dict
+        ):
+            return {}
+        return index
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0o755)
     cache_path = os.path.join(cache_dir, "search_index.json")
@@ -203,7 +215,15 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
             with open(cache_path, "rb") as retryfile:
                 search_index = json.load(retryfile)
         except Exception:
-            return []
+            return {}
+    return search_index
+
+
+def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
+    """Return an array of recipe search results."""
+    search_index = load_search_index()
+    if not search_index:
+        return []
 
     # Perform the search against shortnames
     result_ids = []

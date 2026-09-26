@@ -115,6 +115,7 @@ Multiple processors now confine paths to their intended directories, so a malici
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp).
 - Prevented KeyError during search when a GitHub error response omits the `status` field (e.g. some credential errors return only a `message` field).
 - Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039).
+- `make-override --pull` and the "Search GitHub AutoPkg repos" prompt now find and add the repo for a missing parent recipe (#1070).
 - GitHubReleasesInfoProvider now honors `GITHUB_RELEASES_PER_PAGE`.
 - GitHubReleasesInfoProvider no longer loops indefinitely, until the GitHub API rate limit is exhausted, when `latest_only` is set and no release asset matches `asset_regex`. It now reports that no matching asset was found (#1061, thanks to @sboissez).
 
@@ -161,6 +162,7 @@ Multiple processors now confine paths to their intended directories, so a malici
 - A failure to execute git at all (for example, a permissions problem) states the underlying reason.
 - PkgCopier raises a `ProcessorError` when a source glob matches nothing, and PkgInfoCreator distinguishes unreadable templates from malformed content.
 - Underlying errors are now chained in PlistReader, AppDmgVersioner, and PkgCreator, so `-vv` tracebacks show the original cause.
+- When a parent recipe is missing, AutoPkg now shows the `autopkg repo-add` command to add it (#1070).
 
 ### Other AutoPkg improvements and fixes
 

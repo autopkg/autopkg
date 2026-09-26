@@ -26,6 +26,7 @@ from autopkgcmd.searchcmd import (
     check_search_cache,
     get_search_results,
     handle_cache_error,
+    load_search_index,
     normalize_keyword,
 )
 from autopkglib import ProcessorError
@@ -727,6 +728,23 @@ class TestSearchCmd(unittest.TestCase):
         self.assertIn("Unable to download updated search index", call_args[1])
 
     # Test normalize_keyword function
+
+    def test_load_search_index_without_refresh_reads_cache_only(self):
+        """refresh=False reads the cached index and never contacts GitHub."""
+        with (
+            tempfile.TemporaryDirectory() as cache_dir,
+            patch("autopkgcmd.searchcmd.get_cache_dir", return_value=cache_dir),
+            patch("autopkgcmd.searchcmd.check_search_cache") as mock_check,
+        ):
+            self.assertEqual(load_search_index(refresh=False), {})
+            for bad in ("not json", "[]", '{"identifiers": []}'):
+                with open(os.path.join(cache_dir, "search_index.json"), "w") as f:
+                    f.write(bad)
+                self.assertEqual(load_search_index(refresh=False), {})
+            with open(os.path.join(cache_dir, "search_index.json"), "w") as f:
+                json.dump(self.mock_search_index, f)
+            self.assertEqual(load_search_index(refresh=False), self.mock_search_index)
+            mock_check.assert_not_called()
 
     def test_normalize_keyword(self):
         """Test that normalize_keyword lowercases, strips one recipe

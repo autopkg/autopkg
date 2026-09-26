@@ -30,13 +30,12 @@ import subprocess
 import sys
 import time
 import traceback
-from base64 import b64decode
 from typing import Any
-from urllib.parse import quote, urlparse
+from urllib.parse import urlparse
 
 import yaml
 from autopkgcmd import common_parse, gen_common_parser, search_recipes
-from autopkgcmd.searchcmd import get_search_results
+from autopkgcmd.searchcmd import get_search_results, load_search_index
 from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict_with_keys re-exported for tests)
     RE_KEYREF,
     RECIPE_EXTS,
@@ -87,7 +86,7 @@ from autopkglib import (  # noqa: F401  (valid_override_file + valid_recipe_dict
     version_equal_or_greater,
 )
 from autopkglib.autopkgyaml import autopkg_str_representer
-from autopkglib.github import GitHubSession, print_gh_search_results
+from autopkglib.github import print_gh_search_results
 
 # Catch Python 2 wrappers with an early f-string. Message must be on a single line.
 _ = f"""{sys.version_info.major} It looks like you're running the autopkg tool with an incompatible version of Python. Please update your script to use autopkg's included Python (/usr/local/autopkg/python). AutoPkgr users please note that AutoPkgr 1.5.1 and earlier is NOT compatible with autopkg 2. """  # noqa
@@ -307,37 +306,25 @@ def get_identifier_from_override(override) -> str:
     return name
 
 
-def get_repository_from_identifier(identifier: str) -> str | None:
-    """Get a repository name from a recipe identifier."""
-    results = GitHubSession().search_for_name(identifier)
-    # so now we have a list of items containing file names and URLs
-    # we want to fetch these so we can look inside the contents for a matching
-    # identifier
-    # We just want to fetch the repos that contain these
-    # Is the name an identifier?
-    identifier_fragments = identifier.split(".")
-    if identifier_fragments[0] != "com":
-        # This is not an identifier
+def get_repository_from_identifier(identifier: str, refresh: bool = True) -> str | None:
+    """Get a repository name from a recipe identifier using the search index."""
+    info = load_search_index(refresh=refresh).get("identifiers", {}).get(identifier)
+    if not isinstance(info, dict) or not isinstance(info.get("repo"), str):
         return None
-    correct_item = None
-    for item in results:
-        item_path = item.get("path")
-        if not isinstance(item_path, str):
-            continue
-        file_contents_raw = do_gh_repo_contents_fetch(
-            item["repository"]["name"], item_path
-        )
-        if file_contents_raw is None:
-            continue
-        file_contents_data = plistlib.loads(file_contents_raw)
-        if file_contents_data.get("Identifier") == identifier:
-            correct_item = item
-            break
-    # Did we get correct item?
-    if not correct_item:
-        return None
-    print(f"Found this recipe in repository: {correct_item['repository']['name']}")
-    return correct_item["repository"]["name"]
+    return info["repo"].removeprefix("autopkg/")
+
+
+def recipe_repo_is_added(repo: str) -> bool:
+    """Returns True if a repo ('owner/repo' or an autopkg org short name) is in
+    RECIPE_REPOS. Ignores URL scheme, case, and a trailing '.git' or '/'."""
+    if "/" not in repo:
+        repo = f"autopkg/{repo}"
+    suffix = f"/{repo.lower()}"
+    for info in (get_pref("RECIPE_REPOS") or {}).values():
+        url = info.get("URL", "").lower().rstrip("/").removesuffix(".git")
+        if url.replace(":", "/").endswith(suffix):
+            return True
+    return False
 
 
 def locate_recipe(
@@ -403,12 +390,11 @@ def locate_recipe(
         else:
             answer = "y"
         if answer.lower().startswith("y"):
-            identifier_fragments = name.split(".")
             repo_names = []
-            if identifier_fragments[0] == "com":
-                # Filter out "None" results if we don't find a matching recipe
-                parent_repo = get_repository_from_identifier(name)
-                repo_names = [parent_repo] if parent_repo else []
+            parent_repo = get_repository_from_identifier(name)
+            if parent_repo:
+                print(f"Found this recipe in repository: {parent_repo}")
+                repo_names = [parent_repo]
 
             if not repo_names:
                 results_items = get_search_results(name)
@@ -456,6 +442,7 @@ def load_recipe(
     auto_pull=False,
     _map_safe_scope=None,
     skip_overrides=False,
+    _child_name=None,
 ):
     """Loads a recipe, first locating it by name.
     If we find one, we load it and return the dictionary object. If an
@@ -498,6 +485,16 @@ def load_recipe(
             )
             recipe_file = None
 
+    if not recipe_file and _child_name:
+        # Report missing parents only at the deepest level, not for each ancestor.
+        log_err(f"Could not find parent recipe {name} for {_child_name}")
+        parent_repo = get_repository_from_identifier(name, refresh=False)
+        if parent_repo and not recipe_repo_is_added(parent_repo):
+            log_err(
+                f"{name} is in the {parent_repo} repo, which hasn't been "
+                f"added. To add it, run: autopkg repo-add {parent_repo}"
+            )
+
     if recipe_file:
         # store parent trust info, but only if this is an override
         if recipe_in_override_dir(recipe_file, override_dirs):
@@ -525,6 +522,7 @@ def load_recipe(
                 auto_pull=auto_pull,
                 _map_safe_scope=_map_safe_scope,
                 skip_overrides=True,
+                _child_name=name,
             )
             if recipe:
                 # merge child_recipe
@@ -552,9 +550,6 @@ def load_recipe(
                         "PARENT_RECIPES"
                     ]
                 recipe["RECIPE_PATH"] = recipe_file
-            else:
-                # no parent recipe, so the current recipe is invalid
-                log_err(f"Could not find parent recipe for {name}")
         else:
             recipe["RECIPE_PATH"] = recipe_file
 
@@ -1090,39 +1085,6 @@ def repo_update(argv):
     # something on disk.
     if any_repo_changed:
         calculate_recipe_map()
-
-
-def do_gh_repo_contents_fetch(
-    repo: str, path: str, use_token: bool = False, decode: bool = True
-) -> bytes | str | None:
-    """Fetch file contents from GitHub.
-
-    Returns decoded bytes when `decode` is true, otherwise the API's raw
-    base64 content string.
-    """
-    gh_session = GitHubSession()
-    if use_token:
-        gh_session.get_or_setup_token()
-    # Do the search, including text match metadata
-    results, code = gh_session.call_api(f"/repos/autopkg/{repo}/contents/{quote(path)}")
-
-    if code == 403:
-        log_err(
-            "You've probably hit the GitHub's search rate limit, officially 5 "
-            "requests per minute.\n"
-        )
-        if results:
-            log_err("Server response follows:\n")
-            log_err(results.get("message", None))
-            log_err(results.get("documentation_url", None))
-
-        return None
-    if code is None or code != 200 or results is None:
-        log_err("A GitHub API error occurred!")
-        return None
-    if not decode:
-        return results["content"]
-    return b64decode(results["content"])
 
 
 def display_help(argv, subcommands):
@@ -2274,6 +2236,9 @@ def make_override(argv):
         log_err(f"No valid recipe found for {recipe_name}")
         log_err("Dir(s) searched:\n\t{}".format("\n\t".join(search_dirs)))
         return 1
+    if options.pull:
+        # --pull may have added repos, so trust info needs the updated path
+        search_dirs = list(dict.fromkeys(search_dirs + get_search_dirs()))
 
     # stop or warn if DeprecationWarning processor is detected
     proc_names = {x.get("Processor") for x in recipe.get("Process", [{}])}
