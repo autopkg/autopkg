@@ -502,6 +502,34 @@ class TestAutoPackagerGithubToken(unittest.TestCase):
             packager.env["request_headers"]["Authorization"], "token disk-token"
         )
 
+    def _process_minimal_recipe(self, env):
+        with tempfile.TemporaryDirectory() as cache_dir:
+            packager = self._packager({"CACHE_DIR": cache_dir, **env})
+            packager.process(
+                {
+                    "Identifier": "com.example.github-token",
+                    "Input": {},
+                    "Process": [{"Processor": "EndOfCheckPhase"}],
+                }
+            )
+        return packager
+
+    @patch("autopkglib.github.get_github_token", return_value="disk-token")
+    def test_recipe_input_omits_token_file_github_token(self, _mock_get_token):
+        """Receipts and autopkg_results.plist are written from results, so the token
+        read from ~/.autopkg_gh_token must not appear there."""
+        packager = self._process_minimal_recipe({})
+        self.assertNotIn("GITHUB_TOKEN", packager.results[0]["Recipe input"])
+        self.assertNotIn("disk-token", repr(packager.results))
+        self.assertEqual(packager.env["GITHUB_TOKEN"], "disk-token")
+
+    @patch("autopkglib.github.get_github_token", return_value=None)
+    def test_recipe_input_omits_preference_github_token(self, _mock_get_token):
+        packager = self._process_minimal_recipe({"GITHUB_TOKEN": "prefs-token"})
+        self.assertNotIn("GITHUB_TOKEN", packager.results[0]["Recipe input"])
+        self.assertNotIn("prefs-token", repr(packager.results))
+        self.assertEqual(packager.env["GITHUB_TOKEN"], "prefs-token")
+
 
 class TestUpdateData(unittest.TestCase):
     """Tests for update_data / getdata variable substitution."""

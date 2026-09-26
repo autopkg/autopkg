@@ -111,7 +111,7 @@ Multiple processors now confine paths to their intended directories, so a malici
 ### GitHub and search
 
 - GitHub token handling is now more resilient: malformed or whitespace-only tokens are rejected before use and logged as a warning, and GET requests that receive a 401 automatically retry without authentication while alerting the user to regenerate their token (#1052).
-- `GITHUB_TOKEN` is now available for recipe variable substitution when the token comes from `~/.autopkg_gh_token`, matching tokens stored in preferences (#923).
+- `GITHUB_TOKEN` is now available for recipe variable substitution when the token comes from `~/.autopkg_gh_token`, matching tokens stored in preferences (#923). The token, from either source, is no longer recorded in the recipe input saved to receipts and `autopkg_results.plist`.
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp).
 - Prevented KeyError during search when a GitHub error response omits the `status` field (e.g. some credential errors return only a `message` field).
 - Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039).

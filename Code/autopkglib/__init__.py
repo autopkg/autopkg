@@ -1757,9 +1757,12 @@ class AutoPackager:
         self.env["CACHE_DIR"] = cache_dir
         self.env["RECIPE_CACHE_DIR"] = recipe_cache_dir
 
+        # Results are written to receipts and autopkg_results.plist, so keep the
+        # GitHub token out of them. It stays in self.env for substitution.
         recipe_input_dict = {}
         for key in list(self.env.keys()):
-            recipe_input_dict[key] = self.env[key]
+            if key != "GITHUB_TOKEN":
+                recipe_input_dict[key] = self.env[key]
         self.results.append({"Recipe input": recipe_input_dict})
 
         # make sure the RECIPE_CACHE_DIR exists, creating it if needed
