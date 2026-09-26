@@ -164,6 +164,9 @@ Multiple processors now confine paths to their intended directories, so a malici
 - Underlying errors are now chained in PlistReader, AppDmgVersioner, and PkgCreator, so `-vv` tracebacks show the original cause.
 - When a parent recipe is missing, AutoPkg now shows the `autopkg repo-add` command to add it (#1070).
 
+> [!NOTE]
+> When running AutoPkg on macOS Golden Gate, you may see warnings in the output such as `WARNING: 'hdiutil imageinfo ...' is deprecated`. You can disregard these warnings. A future version of AutoPkg will switch to `diskutil`, but `hdiutil` is still fully functional for now.
+
 ### Other AutoPkg improvements and fixes
 
 - `repo-update` now migrates a recipe repo's local clone from `master` to `main` when the default branch was renamed upstream, so the repo keeps updating instead of silently stalling on a deleted remote branch.
