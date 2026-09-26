@@ -304,7 +304,7 @@ class ItemCopier:
 
         os.lchown, not os.chown: `chown -R` without -h retargets a symlink's
         destination, which for a copied tree can be a file outside the tree
-        entirely. packager.py already uses lchown for the same reason."""
+        entirely."""
         try:
             os.lchown(path, uid, gid)
             for dirpath, dirnames, filenames in os.walk(path):

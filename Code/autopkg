@@ -140,17 +140,10 @@ def builds_a_package(recipe) -> bool:
 
 
 def _dirs_equal_prefs(caller_search_dirs, caller_override_dirs) -> bool:
-    """Return True when the caller's effective dirs are omitted or match
-    the pref baseline in normalized order.
-
-    The persisted recipe map bakes one winner per identifier and shortname
-    under pref order. If an external caller adds, removes, or reorders dirs,
-    the map is no longer authoritative for that lookup; use an ordered disk
-    scan instead. Recursive parent resolution passes an explicit map-safety
-    signal because it appends a lower-priority child dir after the base
-    scope has already been classified.
-
-    This is the guard for GitHub issues #886, #894, #908 and #918."""
+    """Return True when the caller's dirs are omitted or match prefs in
+    normalized order, so the pref-built recipe map is authoritative for the
+    lookup. Otherwise use an ordered disk scan (issues #886, #894, #908,
+    #918). Recursive parent lookups pass map_safe explicitly instead."""
     pref_search = _normalize_dirs(get_search_dirs())
     pref_override = _normalize_dirs(get_override_dirs())
     caller_search = (
@@ -243,22 +236,17 @@ def find_recipe(
     skip_overrides=False,
     map_safe=None,
 ) -> str | None:
-    """Find a recipe based on a string that might be an identifier or a name.
+    """Find a recipe by identifier or name.
 
-    Resolution order:
-    1. If ``map_safe`` is True, consult the recipe map (O(1)).
-       External callers derive this from normalized-order equality with
-       prefs. Recursive parent lookups pass it explicitly.
-    2. If ``map_safe`` is False, scan only the effective dirs on disk in
-       caller order. The pref-scoped map might bake a lower-priority winner.
-    3. On a map miss, fall back to an on-disk scan of ``search_dirs`` (or
-       the pref-configured dirs) so recipes that have not been indexed
-       yet are still found.
+    When ``map_safe`` (derived from prefs unless given), consult the recipe
+    map; a recipe in '.' can still outrank a map hit, as in 2.9's ordered
+    scan. On a map miss, or when the caller's dirs differ from prefs, scan
+    override dirs and then search dirs on disk. An identifier match anywhere
+    beats a name match anywhere.
 
-    Empty-list and ``None`` semantics: for ``search_dirs``, both are treated
-    as "not supplied" and the pref baseline is used. For ``override_dirs``,
-    ``None`` means "not supplied", but an explicit empty list means no
-    override directories."""
+    For ``search_dirs``, ``None`` and ``[]`` both mean the pref baseline. For
+    ``override_dirs``, ``None`` means the pref baseline and ``[]`` means
+    none."""
     if map_safe is None:
         map_safe = _dirs_equal_prefs(search_dirs, override_dirs)
 
@@ -482,11 +470,7 @@ def load_recipe(
         recipe_dirs = []
     if _map_safe_scope is None:
         _map_safe_scope = _dirs_equal_prefs(recipe_dirs, override_dirs)
-    # Populate globalRecipeMap before resolution, but only if it hasn't
-    # already been loaded in this process. Without this guard, every
-    # recursive load_recipe for a parent recipe would re-read the
-    # recipe_map.json from disk and re-validate it, costing 4+ disk
-    # reads on a 3-parent chain for no benefit.
+    # Read the map once per process; recursive parent loads reuse it.
     if not globalRecipeMap.get("identifiers"):
         read_recipe_map()
     recipe = None
@@ -505,11 +489,8 @@ def load_recipe(
         # read it
         recipe = recipe_from_file(recipe_file)
         if recipe is None:
-            # Map entry pointed at a file that exists but isn't a
-            # readable recipe (stale entry, truncated mid-write by a
-            # concurrent generate-recipe-map, or tampered). Fall
-            # through to the make_suggestions / search_github path as
-            # if we never found it.
+            # The file exists but isn't a readable recipe (a stale, truncated, or
+            # tampered map entry). Treat it as not found.
             log_err(
                 f"WARNING: {recipe_file} from recipe map is not a "
                 "readable recipe; the map may be stale. Run "
@@ -1087,10 +1068,8 @@ def repo_update(argv):
         except GitError as err:
             log_err(err)
             continue
-        # Capture HEAD before and after so we only rebuild the map when
-        # the on-disk contents actually changed. Avoids paying a full
-        # scan cost for `autopkg repo-update all` on a fully-up-to-date
-        # tree (common in CI pipelines that run on every commit).
+        # Rebuild the map only if HEAD moved, so an up-to-date
+        # `repo-update all` skips the full scan.
         pre_hash = _head_hash(repo_dir)
         try:
             log(run_git(["pull"], git_directory=repo_dir))
@@ -1652,12 +1631,8 @@ def find_processor_path(processor_name, recipe, env=None):
 def find_scripts_dir_path(scripts_dir, recipe):
     """Returns the pathname to a PkgCreator scripts directory.
 
-    NOTE: If multiple parent recipes each contain a subdirectory matching
-    scripts_dir, only the first one found is returned.  This means two
-    PkgCreator steps that specify the same relative scripts directory but
-    originate from different parent recipes will silently resolve to the
-    same path.  Fixing this would require associating each Process step
-    with the recipe it came from during recipe flattening.
+    NOTE: when several parent recipe dirs contain scripts_dir, the first
+    match wins, even for PkgCreator steps that came from different parents.
     """
     if not scripts_dir:
         return None
@@ -1850,14 +1825,9 @@ def recipe_from_external_repo(recipe_path):
 
 
 def recipe_in_override_dir(recipe_path, override_dirs):
-    """Return True if ``recipe_path`` is in one of ``override_dirs``.
-
-    Security: the recipe map is a user-writable on-disk file.
-    Trusting map entries for override classification would let an attacker
-    who can write to ``recipe_map.json`` insert arbitrary paths into
-    ``overrides`` and have them treated as overrides for trust-info purposes.
-    Override-ness is therefore determined only by on-disk location. The map
-    is consulted only to warn about stale or tampered entries."""
+    """Return True if ``recipe_path`` is in one of ``override_dirs``, judged
+    by on-disk location only. The recipe map is user-writable, so its
+    entries never grant override status; they only trigger a warning."""
     normalized_recipe_path = os.path.realpath(os.path.expanduser(recipe_path))
     normalized_override_dirs = [
         os.path.realpath(os.path.expanduser(directory)) for directory in override_dirs
@@ -1877,9 +1847,7 @@ def recipe_in_override_dir(recipe_path, override_dirs):
     ):
         return True
 
-    # Diagnostic only: this cannot change the result. A path listed in the
-    # map's overrides tables but not under a configured override dir indicates
-    # a stale or tampered map entry. Warn, then still refuse override status.
+    # Diagnostic only: warn about a map entry outside the override dirs.
     for key in ("overrides", "overrides-identifiers"):
         for path in globalRecipeMap.get(key, {}).values():
             resolved = os.path.realpath(os.path.expanduser(path))
@@ -3040,10 +3008,8 @@ def find_http_urls_in_recipe(recipe):
     return recipe_urls
 
 
-# Audit check vocabulary, mapping each public check name to the internal
-# audit_results key it accumulates into and its severity. Check names are the
-# contract for --json; the audit_results keys are the --plist output schema.
-# Keep them decoupled: renaming one must not force renaming the other.
+# Maps each public check name (the --json contract) to its audit_results
+# key (the --plist schema) and severity. Rename neither to match the other.
 AUDIT_CHECKS = {
     "missing_codesig": ("MissingCodeSignatureVerifier", "warning"),
     "sensitive_input": ("sensitive_inputs", "error"),

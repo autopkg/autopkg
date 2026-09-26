@@ -189,17 +189,9 @@ DEFAULT_SEARCH_DIRS = [
 
 
 def autopkg_user_folder() -> str:
-    """Return the absolute path to the user's AutoPkg folder.
-
-    The folder is created on demand when possible, but we fail soft on
-    permission or read-only errors so callers running in sandboxed or
-    mocked environments (notably the test suite, which routinely patches
-    ``os.path.expanduser`` to point at ``/``) are not crashed by a
-    housekeeping operation.
-
-    Note: any ``OSError`` raised during directory creation is swallowed
-    here and surfaces later at the actual write site — see
-    ``write_recipe_map_to_disk`` which handles real write failures."""
+    """Return the absolute path to the user's AutoPkg folder, creating it if
+    possible. A creation ``OSError`` is ignored here and surfaces at the
+    real write site instead."""
     folder = os.path.abspath(os.path.expanduser(DEFAULT_USER_LIBRARY_DIR))
     try:
         os.makedirs(folder, exist_ok=True)
@@ -439,13 +431,10 @@ def remove_recipe_extension(name) -> str:
 def recipe_from_file(filename) -> VarDict | None:
     """Create a recipe dictionary from a file. Handle exceptions and log.
 
-    YAML recipes are parsed with ``AutoPkgYAMLLoader`` (based on
-    ``SafeLoader``). This prevents arbitrary-code-execution via crafted YAML
-    tags (CVE-2020-14343-class issues) — doubly important because recipe-map
-    builds parse YAML recipes discovered in configured recipe and override
-    dirs, not just recipes explicitly invoked by the user. Float-looking
-    scalars (e.g. ``VERSION: 1.0``) are loaded as strings to match plist
-    recipe behavior."""
+    YAML is parsed with ``AutoPkgYAMLLoader`` (a ``SafeLoader``), so crafted
+    tags can't execute code; map builds parse every recipe they find, not
+    just the one being run. Float-looking scalars (``VERSION: 1.0``) load as
+    strings, matching plist recipes."""
     if not os.path.isfile(filename):
         return None
 
@@ -672,18 +661,11 @@ def find_recipe_by_identifier_in_map(
 ) -> str | None:
     """Resolve an identifier to a recipe path via the global recipe map.
 
-    Returns None if no entry exists or the cached path has disappeared from
-    disk (stale map). For stock recipes (``identifiers`` bucket) we only stat
-    the file — parsing to confirm it's still valid would be prohibitively
-    expensive on the hot path (every shared-processor lookup calls this). For
-    overrides we do a cheap identifier cross-check: users routinely edit
-    override files (e.g. when copying for multi-arch setups), and a stale
-    entry would cause a split-identifier run (map resolves via old id, recipe
-    loads with new id, RECIPE_CACHE_DIR disagrees) rather than a clean miss.
-
-    A stale override entry raises StaleRecipeMapError rather than falling
-    through: if a stock recipe shares the identifier, falling through would
-    quietly swap override behavior for stock behavior."""
+    Returns None if no entry exists or the file is gone. Stock entries are
+    only stat'ed, since this is on the hot path. Override entries are also
+    checked against the file's current identifier, because users edit
+    overrides; a mismatch raises StaleRecipeMapError rather than silently
+    falling through to a stock recipe with the same identifier."""
     if not skip_overrides and identifier in globalRecipeMap.get(
         "overrides-identifiers", {}
     ):
@@ -772,7 +754,7 @@ def map_keys_to_paths(
 
 
 def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
-    """Build one recipe-map bucket while preserving the public helper API."""
+    """Build one recipe-map bucket; a single-key map_keys_to_paths()."""
     return map_keys_to_paths((keyname,), repo_dir)[keyname]
 
 
@@ -831,19 +813,10 @@ def calculate_recipe_map(
     any module that imported the symbol with ``from autopkglib import
     globalRecipeMap`` continues to see the fresh contents.
 
-    ``persist`` controls whether the new map is written to disk:
-
-    ===============  =======================================================
-    Value            Behaviour
-    ===============  =======================================================
-    ``None``         Default. Persist **iff** no ``extra_*`` dirs were
-                     supplied. Callers that pass transient extras don't
-                     want their view leaking into the on-disk cache.
-    ``True``         Always persist. Used by ``generate-recipe-map``.
-    ``False``        Never persist. Used by ``locate_recipe``'s on-miss
-                     rebuild, which is only expanding the in-memory view
-                     for the current process.
-    ===============  ====================================================="""
+    By default the map is written to disk only when no ``extra_*`` dirs are
+    given, so transient dirs don't leak into the cache. ``persist=False``
+    keeps the rebuild in memory (the one-shot cwd rebuild); ``True`` always
+    writes."""
     # Honour the disable escape hatch here too — otherwise users who've
     # set AUTOPKG_DISABLE_RECIPE_MAP still pay the full scan cost on
     # repo-add / repo-update / make-override etc.
@@ -946,7 +919,7 @@ def _recipe_map_path() -> str:
     1. ``AUTOPKG_RECIPE_MAP_PATH`` environment variable (CI/CD friendly;
        ignored when running as root).
     2. ``RECIPE_MAP_PATH`` preference key (per-user override).
-    3. The default location under ``autopkg_user_folder()``.
+    3. ``DEFAULT_RECIPE_MAP`` (``~/Library/AutoPkg/recipe_map.json``).
 
     Security notes:
     * Environment variables are ignored when running as root so an
@@ -1052,12 +1025,8 @@ def write_recipe_map_to_disk() -> None:
         **globalRecipeMap,
     }
 
-    # Create the tempfile via tempfile.mkstemp so we get O_EXCL semantics
-    # and explicit mode bits. This prevents a classic symlink-TOCTOU
-    # attack (CWE-59/CWE-377): if another principal can pre-create a
-    # symlink at ``<target>.tmp`` pointing at an attacker-chosen file,
-    # a plain ``open(tmp, "w")`` would follow the symlink and truncate
-    # the target. mkstemp refuses to follow existing symlinks.
+    # mkstemp opens with O_EXCL and won't follow a symlink planted at the
+    # temp path (CWE-59/CWE-377), unlike a plain open().
     tmp_dir = target_dir or "."
     tmp_basename = f".{os.path.basename(target)}.tmp"
     tmp_fd = -1
@@ -1224,7 +1193,8 @@ def update_data(a_dict, key, value) -> None:
     by wrapping the key in %percent% signs."""
 
     def getdata(match) -> str:
-        """Returns data from a match object, coerced to str for substitution."""
+        """Returns data from a match object, coerced to str for substitution.
+        None and False become ""; anything else, including True, uses str()."""
         val = a_dict[match.group("key")]
         return "" if val is None or val is False else str(val)
 
@@ -2122,13 +2092,8 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             shared_processor_recipe_path = resolve_shared_processor_recipe_path(
                 processor_recipe_id, search_dirs
             )
-            # Re-validate the map-returned path is actually a recipe before
-            # adding its directory to the Python import path below. The map
-            # lookup only stat's the file (for speed); this call site feeds
-            # `spec.loader.exec_module`, so we want a structural check here
-            # even when it costs a parse. An attacker who can write to
-            # recipe_map.json cannot point us at an arbitrary directory
-            # just by having a file there — the file must parse as a recipe.
+            # The map only stats files, but this directory goes on the import
+            # path, so confirm it holds a real recipe before trusting it.
             if shared_processor_recipe_path and not valid_recipe_file(
                 shared_processor_recipe_path
             ):

@@ -444,12 +444,8 @@ class URLDownloader(URLGetter):
         self.env["file_md5"] = hashes["md5"]
 
     def publish_existing_hashes(self) -> None:
-        """Expose hashes on a cache hit without failing on a missing file.
-
-        Computes from the cached file when present; otherwise reuses the hashes
-        stored in ``.info.json``. When neither is available it warns and skips,
-        so a metadata-only cache hit never crashes on an absent file.
-        """
+        """Expose hashes on a cache hit: computed from the cached file, else
+        from ``.info.json``. Warns and skips when neither is available."""
         if not self.env_bool("COMPUTE_HASHES"):
             return
         hash_keys = ("file_sha1", "file_sha256", "file_md5")

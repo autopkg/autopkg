@@ -75,14 +75,9 @@ jobs:
         run: python Scripts/run_tests.py
 
       - name: Run e2e tests
-        # A deliberate cross-platform subset of Code/tests/e2e_tests.sh, which
-        # is macOS-only and can't run here. Verbs intentionally NOT run:
-        #   install                   - needs root
-        #   search                    - GitHub API rate limits
-        #   run, clear-cache          - need network and a populated cache
-        #   help, generate-recipe-map - covered by the unit tests
-        # Adding a verb to e2e_tests.sh does not add it here. If it works
-        # cross-platform without root or network, add it below as well.
+        # A cross-platform subset of Code/tests/e2e_tests.sh (macOS-only). Not run:
+        # install (root), search (API limits), run and clear-cache (network,
+        # cache), help and generate-recipe-map (unit tests). Sync by hand.
         # e2e tests that hit the github apis will not work due to api limits unless it properly uses ".autopkg_gh_token"
         shell: bash
         run: |

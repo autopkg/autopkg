@@ -101,8 +101,7 @@ class Versioner(DmgMounter):
         Archive extensions in `ZIP_EXTENSIONS` include a leading `.` i.e., `.zip`,
         and are considered case-insensitively.
 
-        The optional `deserializer` hook defaults to `load_plist_from_file`; subclasses
-        may pass a custom callable to interpret the opened member differently.
+        `deserializer` defaults to `load_plist_from_file`.
         """
         if deserializer is None:
             deserializer = self.load_plist_from_file
@@ -157,8 +156,7 @@ class Versioner(DmgMounter):
         Example:
             path/to/disk.dmg/path/in/dmg/to/version.plist
 
-        The optional `deserializer` hook defaults to `load_plist_from_file`; subclasses
-        may pass a custom callable to interpret the mounted file differently.
+        `deserializer` defaults to `load_plist_from_file`.
         """
         if deserializer is None:
             deserializer = self.load_plist_from_file
@@ -191,8 +189,8 @@ class Versioner(DmgMounter):
         Returns `None` if the provided `path` could not be found. Exceptions are raised
         in the event that the file is corrupt or unaccessible.
 
-        The optional `deserializer` hook defaults to `load_plist_from_file`; subclasses
-        may pass a custom callable (e.g. an asar reader) to interpret the file.
+        `deserializer` defaults to `load_plist_from_file`; subclasses can pass
+        another reader (e.g. for asar archives).
         """
         if deserializer is None:
             deserializer = self.load_plist_from_file

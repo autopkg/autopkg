@@ -19,9 +19,7 @@
 from autopkglib import _AUTOPKGINSTALLD_SOCKET, _AutopkginstalldClient
 from autopkglib.DmgMounter import DmgMounter
 
-# Compatibility re-export for third-party code that imported this name before
-# the socket client moved to autopkglib._AutopkginstalldClient. Reading it still
-# works; rebinding it does not change the socket connect() uses.
+# Kept for third-party code that imported it; rebinding it has no effect.
 AUTOPKGINSTALLD_SOCKET = _AUTOPKGINSTALLD_SOCKET
 
 __all__ = ["InstallFromDMG"]
