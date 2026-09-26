@@ -164,17 +164,34 @@ def _dirs_equal_prefs(caller_search_dirs, caller_override_dirs) -> bool:
     return caller_search == pref_search and caller_override == pref_override
 
 
-def _map_indexed_path(path, dirs) -> str | None:
+def _lexically_under_dirs(path, dirs) -> bool:
+    """Return True if path sits in one of dirs without resolving symlinks,
+    so a symlink placed in an override dir counts as being there."""
+    path = os.path.abspath(os.path.expanduser(path))
+    for directory in dirs:
+        base = os.path.abspath(os.path.expanduser(directory))
+        try:
+            if os.path.commonpath([base, path]) == base:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def _map_indexed_path(path, dirs, follow_symlinks=False) -> str | None:
     """Return the path a full map rebuild over dirs would record for path,
     or None if a rebuild wouldn't index it. Asks the rebuild's own glob so
-    the two can't disagree. The map never indexes '.'."""
+    the two can't disagree. The map never indexes '.'. Pass follow_symlinks
+    for override dirs, as the rebuild does."""
     # ponytail: globs every configured dir (~0.75 s over 32 repos). Fine for
     # make-override and new-recipe; pass name= to the glob if it ever isn't.
     target = os.path.realpath(path)
     return next(
         (
             match
-            for match in _iter_recipe_glob_matches([d for d in dirs if d != "."])
+            for match in _iter_recipe_glob_matches(
+                [d for d in dirs if d != "."], follow_symlinks=follow_symlinks
+            )
             if os.path.realpath(match) == target
         ),
         None,
@@ -194,11 +211,19 @@ def _cwd_recipe_outranking_map(
         return None
     cwd = [os.path.abspath(".")]
     earlier = dirs[: dirs.index(".")]
+    overrides = []
     if not skip_overrides:
-        earlier += get_override_dirs() if override_dirs is None else override_dirs
+        overrides = get_override_dirs() if override_dirs is None else override_dirs
 
     def outranks_cwd(path):
-        return bool(path and earlier and _path_under_dirs(path, earlier))
+        if not path:
+            return False
+        if earlier and _path_under_dirs(path, earlier):
+            return True
+        # A symlinked override resolves outside its dir but still outranks '.'.
+        return bool(overrides) and (
+            _path_under_dirs(path, overrides) or _lexically_under_dirs(path, overrides)
+        )
 
     by_id = find_recipe_by_identifier_on_disk(id_or_name, cwd)
     if by_id and not (map_by_id and outranks_cwd(map_result)):
@@ -244,25 +269,32 @@ def find_recipe(
         result = by_id or find_recipe_by_name_in_map(
             id_or_name, skip_overrides=skip_overrides
         )
-        cwd_result = _cwd_recipe_outranking_map(
-            id_or_name, result, bool(by_id), search_dirs, override_dirs, skip_overrides
-        )
-        if cwd_result or result:
+        # On a map miss, the disk scan below already walks '.' in order.
+        if result:
+            cwd_result = _cwd_recipe_outranking_map(
+                id_or_name,
+                result,
+                bool(by_id),
+                search_dirs,
+                override_dirs,
+                skip_overrides,
+            )
             return cwd_result or result
 
     # Map disabled, map miss, or divergent caller scope. Walk the effective
     # dirs on disk. Compute them lazily so a map hit doesn't pay the cost.
-    scan_dirs: list[str] = []
+    # Override dirs follow symlinks, as in 2.9; search dirs don't. An
+    # identifier match anywhere still beats a name match anywhere.
+    overrides: list[str] = []
     if not skip_overrides:
-        scan_dirs.extend(
-            get_override_dirs() if override_dirs is None else override_dirs
-        )
-    scan_dirs.extend(search_dirs or get_search_dirs())
-    if not scan_dirs:
-        return None
-    return find_recipe_by_identifier_on_disk(
-        id_or_name, scan_dirs
-    ) or find_recipe_by_name_on_disk(id_or_name, scan_dirs)
+        overrides = get_override_dirs() if override_dirs is None else override_dirs
+    searches = search_dirs or get_search_dirs()
+    return (
+        find_recipe_by_identifier_on_disk(id_or_name, overrides, follow_symlinks=True)
+        or find_recipe_by_identifier_on_disk(id_or_name, searches)
+        or find_recipe_by_name_on_disk(id_or_name, overrides, follow_symlinks=True)
+        or find_recipe_by_name_on_disk(id_or_name, searches)
+    )
 
 
 def get_identifier_from_override(override) -> str:
@@ -1837,8 +1869,12 @@ def recipe_in_override_dir(recipe_path, override_dirs):
                 return True
         return False
 
-    # The on-disk location is the only thing that grants override status.
-    if _under_configured_override_dir(normalized_recipe_path):
+    # The on-disk location is the only thing that grants override status. A
+    # symlink placed in an override dir counts, as in 2.9: override status
+    # means stricter trust checks, never looser.
+    if _under_configured_override_dir(normalized_recipe_path) or _lexically_under_dirs(
+        recipe_path, override_dirs
+    ):
         return True
 
     # Diagnostic only: this cannot change the result. A path listed in the
@@ -2354,7 +2390,9 @@ def make_override(argv):
     # Add the new override to the map incrementally instead of a full
     # rebuild — we already know exactly which file changed. A one-off
     # --override-dir stays out of the map, as generate-recipe-map does.
-    if indexed_path := _map_indexed_path(override_file, get_override_dirs()):
+    if indexed_path := _map_indexed_path(
+        override_file, get_override_dirs(), follow_symlinks=True
+    ):
         add_recipe_to_map(indexed_path, is_override=True)
     return 0
 

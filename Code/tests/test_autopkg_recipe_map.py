@@ -304,7 +304,7 @@ class TestMapKeyToPaths(RecipeMapIsolation, unittest.TestCase):
                 ("identifiers", "shortnames"), self.tmpdir
             )
 
-        mock_iter.assert_called_once_with([self.tmpdir])
+        mock_iter.assert_called_once_with([self.tmpdir], follow_symlinks=False)
         self.assertEqual(result["identifiers"]["com.example.a"], self.recipe_a)
         self.assertEqual(result["shortnames"]["RecipeA"], self.recipe_a)
 
@@ -459,7 +459,7 @@ class TestCalculateRecipeMap(RecipeMapIsolation, unittest.TestCase):
             with patch.object(
                 autopkglib,
                 "map_keys_to_paths",
-                side_effect=lambda keynames, _: {keyname: {} for keyname in keynames},
+                side_effect=lambda keynames, _, **kwargs: {k: {} for k in keynames},
             ) as mk_mock:
                 autopkglib.calculate_recipe_map(skip_cwd=False)
 

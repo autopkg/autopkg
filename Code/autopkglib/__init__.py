@@ -561,31 +561,38 @@ def _recipe_glob_patterns(directory, name=None):
             yield os.path.join(directory, "*", f"{name}{ext}")
 
 
-def _iter_recipe_glob_matches(search_dirs, name=None):
-    """Yield recipe glob matches that resolve inside each search directory."""
+def _iter_recipe_glob_matches(search_dirs, name=None, follow_symlinks=False):
+    """Yield recipe glob matches that resolve inside each search directory.
+
+    follow_symlinks keeps matches that are symlinks resolving elsewhere. Use
+    it only for user-written override dirs, never for recipe repo clones."""
     if isinstance(search_dirs, str):
         search_dirs = [search_dirs]
     for directory in search_dirs:
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
         for pattern in _recipe_glob_patterns(normalized_dir, name=name):
             for match in glob.glob(pattern):
-                if is_path_under(match, normalized_dir):
+                if follow_symlinks or is_path_under(match, normalized_dir):
                     yield match
 
 
-def find_recipe_by_identifier_on_disk(identifier, search_dirs) -> str | None:
+def find_recipe_by_identifier_on_disk(
+    identifier, search_dirs, follow_symlinks=False
+) -> str | None:
     """Search search_dirs on disk for a recipe with the given identifier.
 
     This is the legacy on-disk scan used as a fallback when the recipe map
     cannot resolve a recipe."""
-    for match in _iter_recipe_glob_matches(search_dirs):
+    for match in _iter_recipe_glob_matches(
+        search_dirs, follow_symlinks=follow_symlinks
+    ):
         if get_identifier_from_recipe_file(match) == identifier:
             return match
 
     return None
 
 
-def find_recipe_by_name_on_disk(name, search_dirs) -> str | None:
+def find_recipe_by_name_on_disk(name, search_dirs, follow_symlinks=False) -> str | None:
     """Search search_dirs on disk for a recipe by file/directory naming rules.
 
     This is the legacy on-disk scan used as a fallback when the recipe map
@@ -594,7 +601,9 @@ def find_recipe_by_name_on_disk(name, search_dirs) -> str | None:
     # going to add it back on...
     name = remove_recipe_extension(name)
     # search by "Name", using file/directory hierarchy rules
-    for match in _iter_recipe_glob_matches(search_dirs, name=name):
+    for match in _iter_recipe_glob_matches(
+        search_dirs, name=name, follow_symlinks=follow_symlinks
+    ):
         if valid_recipe_file(match):
             return match
 
@@ -729,7 +738,7 @@ _IDENTIFIER_KEYS = frozenset({"identifiers", "overrides-identifiers"})
 
 
 def map_keys_to_paths(
-    keynames: Iterable[str], repo_dir: str
+    keynames: Iterable[str], repo_dir: str, follow_symlinks: bool = False
 ) -> dict[str, dict[str, str]]:
     """Build multiple recipe-map buckets in one walk of ``repo_dir``.
 
@@ -743,7 +752,7 @@ def map_keys_to_paths(
     keynames = tuple(keynames)
     recipe_maps: dict[str, dict[str, str]] = {keyname: {} for keyname in keynames}
     needs_identifier = any(keyname in _IDENTIFIER_KEYS for keyname in keynames)
-    for match in _iter_recipe_glob_matches([repo_dir]):
+    for match in _iter_recipe_glob_matches([repo_dir], follow_symlinks=follow_symlinks):
         identifier = (
             get_identifier_from_recipe_file(match) if needs_identifier else None
         )
@@ -875,8 +884,10 @@ def calculate_recipe_map(
             if skip_cwd:
                 continue
             override = os.path.abspath(".")
+        # Override dirs are user-written, so symlinked overrides count, as in
+        # 2.9. Search dirs (recipe repo clones) keep rejecting them.
         recipe_maps = map_keys_to_paths(
-            ("overrides", "overrides-identifiers"), override
+            ("overrides", "overrides-identifiers"), override, follow_symlinks=True
         )
         for keyname, recipe_map in recipe_maps.items():
             globalRecipeMap[keyname].update(recipe_map)

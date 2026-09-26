@@ -582,6 +582,24 @@ class TestCwdPrecedenceOverMap(RecipeMapIsolation, unittest.TestCase):
         self._write_recipe(self.dev_dir, "Foo.recipe", "com.dev.foo")
         self.assertEqual(self._find("Foo"), os.path.realpath(override_path))
 
+    def test_override_beats_cwd_on_map_miss(self):
+        """With the map empty (a miss, or DISABLE_RECIPE_MAP), the disk scan
+        decides, and it checks overrides before '.'."""
+        self.pref_override_dirs = [self.pref_override_dir]
+        override_path = os.path.join(self.pref_override_dir, "Foo.recipe")
+        _write_plist_recipe(
+            override_path,
+            {
+                **SAMPLE_OVERRIDE,
+                "Identifier": "local.foo",
+                "ParentRecipe": "com.example.foo",
+            },
+        )
+        for sub in ("identifiers", "shortnames", "overrides", "overrides-identifiers"):
+            autopkglib.globalRecipeMap[sub].clear()
+        self._write_recipe(self.dev_dir, "Foo.recipe", "com.dev.foo")
+        self.assertEqual(self._find("Foo"), os.path.realpath(override_path))
+
     def test_no_cwd_in_search_dirs_uses_map(self):
         self.pref_search_dirs = [self.pref_a_dir]
         self._write_recipe(self.dev_dir, "Foo.recipe", "com.example.foo")
@@ -1255,6 +1273,188 @@ class TestMapUpdatesOnlyForConfiguredDirs(RecipeMapIsolation, unittest.TestCase)
                 )
 
 
+class TestSymlinkedOverrides(RecipeMapIsolation, unittest.TestCase):
+    """Overrides kept in a separate repo and symlinked into
+    RECIPE_OVERRIDE_DIRS worked in 2.9. Override dirs are user-written, so
+    they follow symlinks; search dirs keep rejecting escaping symlinks."""
+
+    def setUp(self):
+        super().setUp()
+        self.search_dir = os.path.join(self.tmpdir, "search")
+        self.override_dir = os.path.join(self.tmpdir, "overrides")
+        self.external = os.path.join(self.tmpdir, "external")
+        self.outside = os.path.join(self.tmpdir, "outside")
+        for directory in (
+            self.search_dir,
+            self.override_dir,
+            os.path.join(self.external, "Team"),
+            self.outside,
+        ):
+            os.makedirs(directory)
+        for name in ("Foo", "Bar"):
+            _write_plist_recipe(
+                os.path.join(self.search_dir, f"{name}.recipe"),
+                {**SAMPLE_RECIPE, "Identifier": f"com.example.{name.lower()}"},
+            )
+            parent = os.path.join(self.external, "Team" if name == "Bar" else "")
+            _write_plist_recipe(
+                os.path.join(parent, f"{name}.recipe"),
+                {
+                    **SAMPLE_OVERRIDE,
+                    "Identifier": f"local.{name.lower()}",
+                    "Input": {"NAME": f"{name}Override"},
+                    "ParentRecipe": f"com.example.{name.lower()}",
+                },
+            )
+        self.foo_link = os.path.join(self.override_dir, "Foo.recipe")
+        self.team_link = os.path.join(self.override_dir, "Team")
+        try:
+            os.symlink(os.path.join(self.external, "Foo.recipe"), self.foo_link)
+            os.symlink(os.path.join(self.external, "Team"), self.team_link)
+        except (AttributeError, NotImplementedError, OSError) as err:
+            self.skipTest(f"symlink creation is unavailable: {err}")
+        for module in (autopkg, autopkglib):
+            for name, value in (
+                ("get_search_dirs", [".", self.search_dir]),
+                ("get_override_dirs", [self.override_dir]),
+            ):
+                patcher = patch.object(
+                    module, name, side_effect=lambda v=value: list(v)
+                )
+                patcher.start()
+                self.addCleanup(patcher.stop)
+        empty = os.path.join(self.tmpdir, "empty")
+        os.makedirs(empty)
+        original_cwd = os.getcwd()
+        os.chdir(empty)
+        self.addCleanup(os.chdir, original_cwd)
+
+    def _in_each_map_mode(self, check):
+        """Run check once with a freshly built map and once with an empty
+        one, which forces the on-disk scan."""
+        for mode in ("map", "disk"):
+            for sub in (
+                "identifiers",
+                "shortnames",
+                "overrides",
+                "overrides-identifiers",
+            ):
+                autopkglib.globalRecipeMap[sub].clear()
+            if mode == "map":
+                autopkglib.calculate_recipe_map(persist=False)
+            with self.subTest(mode=mode):
+                check()
+
+    def _assert_resolves_to(self, id_or_name, expected):
+        result = autopkg.find_recipe(id_or_name)
+        self.assertIsNotNone(result)
+        self.assertEqual(os.path.realpath(result), os.path.realpath(expected))
+
+    def test_symlinked_override_file_is_used(self):
+        def check():
+            self._assert_resolves_to("Foo", self.foo_link)
+            self._assert_resolves_to("local.foo", self.foo_link)
+
+        self._in_each_map_mode(check)
+
+    def test_override_in_symlinked_subfolder_is_used(self):
+        bar = os.path.join(self.team_link, "Bar.recipe")
+
+        def check():
+            self._assert_resolves_to("Bar", bar)
+            self._assert_resolves_to("local.bar", bar)
+
+        self._in_each_map_mode(check)
+
+    def test_symlinked_override_beats_cwd_recipe(self):
+        _write_plist_recipe(
+            os.path.join(os.getcwd(), "Foo.recipe"),
+            {**SAMPLE_RECIPE, "Identifier": "com.dev.foo"},
+        )
+        self._in_each_map_mode(lambda: self._assert_resolves_to("Foo", self.foo_link))
+
+    def test_load_recipe_keeps_symlinked_override_path_input_and_trust(self):
+        """End to end: the loaded recipe must carry the override's own path
+        (not its resolved target), its Input, and its trust info."""
+        linked_override_dir = os.path.join(self.tmpdir, "linked-overrides")
+        os.symlink(os.path.join(self.external, "Team"), linked_override_dir)
+        cases = (
+            ("Foo", [self.override_dir], self.foo_link),
+            ("Bar", [self.override_dir], os.path.join(self.team_link, "Bar.recipe")),
+            # The override dir itself is a symlink.
+            (
+                "Bar",
+                [linked_override_dir],
+                os.path.join(linked_override_dir, "Bar.recipe"),
+            ),
+        )
+        for name, override_dirs, expected_path in cases:
+            for mode in ("map", "disabled"):
+                with self.subTest(
+                    name=name,
+                    override_dir=os.path.basename(override_dirs[0]),
+                    mode=mode,
+                ):
+                    for sub in autopkglib.globalRecipeMap.values():
+                        sub.clear()
+                    env = (
+                        {"AUTOPKG_DISABLE_RECIPE_MAP": "1"}
+                        if mode == "disabled"
+                        else {}
+                    )
+                    with (
+                        patch.object(
+                            autopkg, "get_override_dirs", return_value=override_dirs
+                        ),
+                        patch.object(
+                            autopkglib, "get_override_dirs", return_value=override_dirs
+                        ),
+                        patch.dict(os.environ, env),
+                    ):
+                        if mode == "map":
+                            autopkglib.calculate_recipe_map(persist=False)
+                        recipe = autopkg.load_recipe(
+                            name,
+                            override_dirs,
+                            [".", self.search_dir],
+                            make_suggestions=False,
+                            search_github=False,
+                        )
+                    self.assertEqual(recipe["RECIPE_PATH"], expected_path)
+                    self.assertEqual(recipe["Input"]["NAME"], f"{name}Override")
+                    self.assertIn("ParentRecipeTrustInfo", recipe)
+
+    def test_symlinked_override_counts_as_override_for_trust(self):
+        for path in (self.foo_link, os.path.join(self.team_link, "Bar.recipe")):
+            with self.subTest(path=os.path.relpath(path, self.override_dir)):
+                self.assertTrue(
+                    autopkg.recipe_in_override_dir(path, [self.override_dir])
+                )
+
+    def test_make_override_map_update_follows_override_symlinks(self):
+        bar = os.path.join(self.team_link, "Bar.recipe")
+        self.assertEqual(
+            autopkg._map_indexed_path(bar, [self.override_dir], follow_symlinks=True),
+            bar,
+        )
+
+    def test_escaping_symlink_in_search_dir_is_still_skipped(self):
+        _write_plist_recipe(
+            os.path.join(self.outside, "Escaped.recipe"),
+            {**SAMPLE_RECIPE, "Identifier": "com.example.escaped"},
+        )
+        os.symlink(
+            os.path.join(self.outside, "Escaped.recipe"),
+            os.path.join(self.search_dir, "Escaped.recipe"),
+        )
+
+        def check():
+            self.assertIsNone(autopkg.find_recipe("Escaped"))
+            self.assertIsNone(autopkg.find_recipe("com.example.escaped"))
+
+        self._in_each_map_mode(check)
+
+
 class TestRecipeInOverrideDir(RecipeMapIsolation, unittest.TestCase):
     """Override status comes only from caller-configured directories.
 
@@ -1328,9 +1528,10 @@ class TestRecipeInOverrideDir(RecipeMapIsolation, unittest.TestCase):
             autopkg.recipe_in_override_dir("/a/AutoPkg2/file.recipe", ["/a/AutoPkg"])
         )
 
-    def test_recipe_in_override_dir_symlink_escape_not_matched(self):
-        """A symlink inside RECIPE_OVERRIDE_DIRS pointing outside must not
-        make the outside target classify as an override."""
+    def test_recipe_in_override_dir_symlink_inside_override_dir_matches(self):
+        """A symlink placed inside RECIPE_OVERRIDE_DIRS counts as an override,
+        as in 2.9, even when it points outside. Override status only makes
+        trust checks stricter."""
         override_dir = os.path.join(self.tmpdir, "overrides")
         outside_dir = os.path.join(self.tmpdir, "outside")
         os.makedirs(override_dir)
@@ -1340,19 +1541,17 @@ class TestRecipeInOverrideDir(RecipeMapIsolation, unittest.TestCase):
 
         escaped_path = os.path.join(link_dir, "Escaped.recipe")
 
-        self.assertFalse(autopkg.recipe_in_override_dir(escaped_path, [override_dir]))
+        self.assertTrue(autopkg.recipe_in_override_dir(escaped_path, [override_dir]))
 
-    def test_recipe_in_override_dir_map_symlink_escape_not_matched(self):
-        """A map entry whose target resolves outside the configured override
-        dir is refused and warned about, not honoured."""
+    def test_recipe_in_override_dir_map_entry_outside_not_matched(self):
+        """A map entry for a path outside the configured override dir is
+        refused and warned about, not honoured."""
         override_dir = os.path.join(self.tmpdir, "overrides")
         outside_dir = os.path.join(self.tmpdir, "outside")
         os.makedirs(override_dir)
         os.makedirs(outside_dir)
-        link_dir = os.path.join(override_dir, "linked")
-        self._symlink_or_skip(outside_dir, link_dir)
 
-        escaped_path = os.path.join(link_dir, "Mapped.recipe")
+        escaped_path = os.path.join(outside_dir, "Mapped.recipe")
         autopkglib.globalRecipeMap["overrides"]["Mapped"] = escaped_path
 
         with patch.object(autopkg, "log_err") as mock_log_err:

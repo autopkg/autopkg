@@ -663,7 +663,7 @@ class TestAutoPkgRecipes(unittest.TestCase):
         # that canonical name rather than the deprecated alias.
         with patch(
             "autopkg.find_recipe_by_identifier_on_disk",
-            side_effect=lambda id_name, dirs: (
+            side_effect=lambda id_name, dirs, **kwargs: (
                 recipe_file if id_name == "com.example.testapp.download" else None
             ),
         ):
