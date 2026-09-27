@@ -292,7 +292,7 @@ class CodeSignatureVerifier(DmgMounter):
             )
             self.output(
                 "See https://github.com/autopkg/autopkg/wiki/Using-"
-                "CodeSignatureVerification for more information."
+                "CodeSignatureVerifier for more information."
             )
             raise ProcessorError(
                 "Using 'expected_authority_names' to verify an application "
