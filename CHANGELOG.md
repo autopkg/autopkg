@@ -87,14 +87,14 @@ CodeSignatureVerifier now closes gaps that let verification be skipped or weaken
 - `audit` now flags insecure `ftp:` URLs alongside `http:` URLs, and flags `ChocolateyPackager` recipes that explicitly use weak installer checksum algorithms (`md5` or `sha1`).
 - `audit` now flags a recipe's top-level `Input` values that look like hard-coded credentials, based on the input's key name (`password`, `secret`, `api_key`, `token`, `client_secret`, `access_key`, `private_key`, `credential`, `bearer`, and variants). A value that is a variable reference such as `%CLIENT_SECRET%`, or that is empty, is not flagged. Only the key name and the reason are reported; the value is never echoed.
 - `audit --json` writes a JSON array with one object per audited recipe, each finding tagged with a check name and a severity of `error`, `warning`, or `info`. Findings are ordered most-severe first. `--json` and `--plist` are mutually exclusive.
-- `audit --plist` now writes a valid plist to stderr, with no informational output mixed in (#922).
+- `audit --plist` now writes only a valid plist to stdout; informational messages go to stderr (#922).
 - `audit` can now be gated in CI. `--fail-on error|warning|info` returns exit code 1 if any finding is at or above that severity and 0 otherwise; without it, `audit`'s exit code is unchanged. `--only-check` and `--skip-check` take comma-separated check names and are honored identically by the human-readable, `--plist`, and `--json` output. `--list-checks` prints the available check names with their severities.
 
 #### Path traversal protection
 
 Multiple processors now confine paths to their intended directories, so a malicious or misconfigured recipe can't read or write outside them:
 
-- `RECIPE_CACHE_DIR` is now confined to `CACHE_DIR`; a recipe `Identifier` containing `..` or an absolute path is rejected.
+- `RECIPE_CACHE_DIR` is now confined to `CACHE_DIR`; a recipe `Identifier` that would place it outside `CACHE_DIR` (an absolute path, or `..` components that climb out of `CACHE_DIR`) is rejected.
 - AutoPkg now expands `CACHE_DIR` to an absolute path, so `~` or relative `CACHE_DIR` preferences no longer create literal or working-directory-relative cache folders.
 - URLDownloader: a filename supplied via a server's `Content-Disposition` header is now reduced to its base name, preventing a malicious server from using `..` or path separators to write the downloaded file outside `download_dir`.
 - Paths that refer to files inside a DMG are now confined to the mounted image. DMG-relative paths containing `..` or starting with `/`, and glob matches or symlinks that resolve outside the mount point, are now rejected.
@@ -111,7 +111,7 @@ Multiple processors now confine paths to their intended directories, so a malici
 ### GitHub and search
 
 - GitHub token handling is now more resilient: malformed or whitespace-only tokens are rejected before use and logged as a warning, and GET requests that receive a 401 automatically retry without authentication while alerting the user to regenerate their token (#1052).
-- `GITHUB_TOKEN` is now available for recipe variable substitution when the token comes from `~/.autopkg_gh_token`, matching tokens stored in preferences (#923). The token, from either source, is no longer recorded in the recipe input saved to receipts and `autopkg_results.plist`.
+- `GITHUB_TOKEN` is now available for recipe variable substitution when the token comes from `~/.autopkg_gh_token`, matching tokens stored in preferences (#923). The token, from either source, is no longer recorded in the "Recipe input" section of receipts and `autopkg_results.plist`. If a recipe substitutes `%GITHUB_TOKEN%` into a processor argument, the resolved value still appears in that processor's recorded input and in `-vv` output.
 - Improved search error in case of bad GitHub credentials (#1021, thanks to @MagerValp).
 - Prevented KeyError during search when a GitHub error response omits the `status` field (e.g. some credential errors return only a `message` field).
 - Fixed `autopkg search` crash when a search cache entry is missing the `size` field (#1039).
