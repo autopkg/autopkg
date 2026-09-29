@@ -387,10 +387,13 @@ class URLDownloader(URLGetter):
         pathname_info_json = self.env["pathname"] + ".info.json"
 
         try:
+            self.output("Reading metadata from Info JSON.", 2)
             with open(pathname_info_json, "r", encoding="utf-8") as infile:
                 metadata = json.load(infile)
-            self.output("Reading metadata from Info JSON.", 2)
             self.output(f"Info JSON contents: {metadata}", 2)
+            if not isinstance(metadata, dict):
+                self.output(f"Invalid Info JSON contents, skipping.", 2)
+                return {}
             return metadata
         except FileNotFoundError:
             return self.get_legacy_xattr_metadata()
