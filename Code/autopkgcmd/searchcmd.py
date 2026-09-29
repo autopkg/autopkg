@@ -18,7 +18,7 @@ import re
 from urllib.parse import quote_plus
 
 from autopkgcmd.opts import common_parse, gen_common_parser
-from autopkglib import RECIPE_EXTS, ProcessorError, log, log_err
+from autopkglib import RECIPE_EXTS, ProcessorError, get_cache_dir, log, log_err
 from autopkglib.github import (
     DEFAULT_SEARCH_USER,
     GitHubSession,
@@ -47,7 +47,7 @@ def handle_cache_error(cache_path: str, reason: str) -> None:
 
     # Try raw URL only if we don't have etag (never got metadata from API)
     if not os.path.isfile(cache_path + ".etag"):
-        log("GitHub API unavailable, attempting download from raw URL...")
+        log("GitHub API call failed, attempting download from raw URL...")
         raw_url = (
             f"https://raw.githubusercontent.com/autopkg/index/"
             f"{SEARCH_INDEX_BRANCH}/{SEARCH_INDEX_PATH}"
@@ -74,7 +74,7 @@ def check_search_cache(cache_path: str) -> None:
     # Use URLGetter to interact with GitHub API
     api = URLGetter()
 
-    # Use GitHub token if one exists
+    # GitHubSession filters malformed tokens; this path has its own fallback.
     token = GitHubSession().token
     headers = {"Authorization": f"Bearer {token}"} if token else {}
 
@@ -88,21 +88,27 @@ def check_search_cache(cache_path: str) -> None:
     curl_cmd.extend(["--url", f"https://api.github.com/{cache_endpoint}"])
 
     try:
-        stdout, _, returncode = api.execute_curl(curl_cmd)
+        stdout, _, _ = api.execute_curl(curl_cmd)
     except ProcessorError:
         handle_cache_error(cache_path, "Unable to check for search index updates")
-        return
-
-    if returncode != 0:
-        handle_cache_error(
-            cache_path, "Unable to retrieve search index metadata from GitHub API"
-        )
         return
 
     try:
         cache_meta = json.loads(stdout)
     except json.JSONDecodeError:
         handle_cache_error(cache_path, "Invalid response from GitHub API")
+        return
+
+    status = int(cache_meta.get("status", "0"))
+    if status >= 400:
+        handle_cache_error(cache_path, cache_meta.get("message", f"Error {status}"))
+        return
+
+    cache_sha = cache_meta.get("sha")
+    if not cache_sha:
+        handle_cache_error(
+            cache_path, cache_meta.get("message", "Invalid response from GitHub API")
+        )
         return
 
     # Warn if search index file is approaching 100 MB
@@ -112,23 +118,24 @@ def check_search_cache(cache_path: str) -> None:
         "retrieval (100 MB). Please open an issue here if one was not already "
         "created: https://github.com/autopkg/autopkg/issues"
     )
-    if cache_meta["size"] > (90 * 1024 * 1024):
-        log_err(search_index_size_msg % "nearing")
-    elif cache_meta["size"] > (100 * 1024 * 1024):
+    cache_size = cache_meta.get("size", 0)
+    if cache_size > (100 * 1024 * 1024):
         log_err(search_index_size_msg % "greater than")
+    elif cache_size > (90 * 1024 * 1024):
+        log_err(search_index_size_msg % "nearing")
 
     # If cache exists locally, check whether it's current
     if os.path.isfile(cache_path) and os.path.isfile(cache_path + ".etag"):
         with open(cache_path + ".etag", "r", encoding="utf-8") as openfile:
             local_etag = openfile.read().strip('"')
-        if local_etag == cache_meta["sha"]:
+        if local_etag == cache_sha:
             # Local cache is already current
             return
 
     # Write etag file
     try:
         with open(cache_path + ".etag", "w", encoding="utf-8") as openfile:
-            openfile.write(cache_meta["sha"])
+            openfile.write(cache_sha)
     except PermissionError:
         log_err(
             "ERROR: Unable to save search index cache. "
@@ -145,15 +152,9 @@ def check_search_cache(cache_path: str) -> None:
     )
 
     try:
-        stdout, _, returncode = api.execute_curl(curl_cmd)
+        api.execute_curl(curl_cmd)
     except ProcessorError:
         handle_cache_error(cache_path, "Unable to download updated search index")
-        return
-
-    if returncode != 0:
-        handle_cache_error(
-            cache_path, "Unable to retrieve search index contents from GitHub API"
-        )
         return
 
 
@@ -177,13 +178,22 @@ def normalize_keyword(keyword: str) -> str:
     return keyword
 
 
-def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
-    """Return an array of recipe search results."""
-    from autopkglib import get_pref
-
-    # Update and load local search index cache
-    cache_dir = get_pref("CACHE_DIR") or "~/Library/AutoPkg/Cache"
-    cache_dir = os.path.expanduser(cache_dir)
+def load_search_index(refresh: bool = True) -> dict:
+    """Update and load the local search index. Returns {} if it can't be
+    loaded. With refresh=False, reads the cached copy only and never contacts
+    GitHub or raises."""
+    cache_dir = get_cache_dir()
+    if not refresh:
+        try:
+            with open(os.path.join(cache_dir, "search_index.json"), "rb") as f:
+                index = json.load(f)
+        except (OSError, ValueError):
+            return {}
+        if not isinstance(index, dict) or not isinstance(
+            index.get("identifiers", {}), dict
+        ):
+            return {}
+        return index
     if not os.path.exists(cache_dir):
         os.makedirs(cache_dir, 0o755)
     cache_path = os.path.join(cache_dir, "search_index.json")
@@ -205,7 +215,15 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
             with open(cache_path, "rb") as retryfile:
                 search_index = json.load(retryfile)
         except Exception:
-            return []
+            return {}
+    return search_index
+
+
+def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
+    """Return an array of recipe search results."""
+    search_index = load_search_index()
+    if not search_index:
+        return []
 
     # Perform the search against shortnames
     result_ids = []
@@ -214,10 +232,11 @@ def get_search_results(keyword: str, path_only: bool = False) -> list[dict]:
             result_ids.extend(identifiers)
 
     # Perform the search against other recipe info
+    searchable_keys: tuple[str, ...]
     if path_only:
-        searchable_keys: tuple[str, ...] = ("path",)
+        searchable_keys = ("path",)
     else:
-        searchable_keys: tuple[str, ...] = (
+        searchable_keys = (
             "name",
             "app_display_name",
         )
@@ -301,7 +320,8 @@ def search_recipes(argv: list[str]) -> int:
         # https://docs.github.com/en/enterprise-cloud@latest/admin/identity-and-access-management/managing-iam-for-your-enterprise/username-considerations-for-external-authentication#about-username-normalization
         if not re.match(r"^[A-Za-z0-9\-]+$", options.user):
             log_err(
-                "WARNING: GitHub user/org names contain only alphanumeric characters and dashes."
+                "WARNING: GitHub user/org names contain only alphanumeric "
+                "characters and dashes."
             )
         options.user = re.sub(r"[^A-Za-z0-9\-]", "", options.user)
         keyword = quote_plus(arguments[0]).lower()

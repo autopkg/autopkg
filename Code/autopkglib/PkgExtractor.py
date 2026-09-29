@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for PkgExtractor class"""
 
 import os
@@ -20,7 +21,7 @@ import plistlib
 import shutil
 import subprocess
 
-from autopkglib import ProcessorError
+from autopkglib import ProcessorError, is_path_under
 from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["PkgExtractor"]
@@ -51,20 +52,27 @@ class PkgExtractor(DmgMounter):
         if not os.path.exists(archive_path):
             raise ProcessorError("Archive.pax.gz not found in pkg")
 
-        if os.path.exists(extract_root):
-            try:
-                shutil.rmtree(extract_root)
-            except OSError as err:
-                raise ProcessorError(f"Failed to remove extract_root: {err}")
-
         try:
             with open(info_plist, "rb") as f:
                 info = plistlib.load(f)
         except Exception as err:
             raise ProcessorError(f"Failed to read Info.plist: {err}")
 
-        install_target = info.get("IFPkgFlagDefaultLocation", "/").lstrip("/")
-        extract_path = os.path.join(extract_root, install_target)
+        default_location = info.get("IFPkgFlagDefaultLocation", "/")
+        install_target = default_location.lstrip("/")
+        extract_path = os.path.normpath(os.path.join(extract_root, install_target))
+        if not is_path_under(extract_path, extract_root):
+            raise ProcessorError(
+                f"IFPkgFlagDefaultLocation {default_location!r} resolves outside "
+                f"extract_root {extract_root!r}"
+            )
+
+        if os.path.exists(extract_root):
+            try:
+                shutil.rmtree(extract_root)
+            except OSError as err:
+                raise ProcessorError(f"Failed to remove extract_root: {err}")
+
         try:
             os.makedirs(extract_path, 0o755)
         except OSError as err:
@@ -93,15 +101,14 @@ class PkgExtractor(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                pkg_path = os.path.join(mount_point, dmg_source_path)
+                pkg_path = self.path_in_mount(mount_point, dmg_source_path)
             else:
                 # just use the given path
                 pkg_path = self.env["pkg_path"]
             self.extract_payload(pkg_path, self.env["extract_root"])
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

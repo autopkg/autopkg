@@ -1,6 +1,23 @@
+#!/usr/local/autopkg/python
+#
+# Copyright 2020 Taylor Boyko
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import plistlib
 import shutil
+from typing import Any
 
 from autopkglib import ProcessorError
 
@@ -17,7 +34,7 @@ class AutoPkgLib:
         all_items_path = os.path.join(self.munki_repo, "catalogs", "all")
         if not os.path.exists(all_items_path):
             # might be an error, or might be a brand-new empty repo
-            catalogitems = []
+            catalogitems: list[dict[str, Any]] = []
         else:
             try:
                 with open(all_items_path, "rb") as f:
@@ -27,12 +44,12 @@ class AutoPkgLib:
                     f"Error reading 'all' catalog from Munki repo: {err}"
                 )
 
-        pkgid_table = {}
-        app_table = {}
-        installer_item_table = {}
-        hash_table = {}
-        checksum_table = {}
-        files_table = {}
+        pkgid_table: dict[str, Any] = {}
+        app_table: dict[str, Any] = {}
+        installer_item_table: dict[str, Any] = {}
+        hash_table: dict[str, Any] = {}
+        checksum_table: dict[str, Any] = {}
+        files_table: dict[str, Any] = {}
 
         itemindex = -1
         for item in catalogitems:
@@ -46,7 +63,7 @@ class AutoPkgLib:
 
             # add to hash table
             if "installer_item_hash" in item:
-                if not item["installer_item_hash"] in hash_table:
+                if item["installer_item_hash"] not in hash_table:
                     hash_table[item["installer_item_hash"]] = []
                 hash_table[item["installer_item_hash"]].append(itemindex)
 
@@ -85,7 +102,7 @@ class AutoPkgLib:
                                 app_version = install["CFBundleShortVersionString"]
                             if install["path"] not in app_table:
                                 app_table[install["path"]] = {}
-                            if vers not in app_table[install["path"]]:
+                            if app_version not in app_table[install["path"]]:
                                 app_table[install["path"]][app_version] = []
                             app_table[install["path"]][app_version].append(itemindex)
                     if install.get("type") == "file":
@@ -113,7 +130,7 @@ class AutoPkgLib:
                     # skip this item
                     continue
 
-        pkgdb = {}
+        pkgdb: dict[str, Any] = {}
         pkgdb["hashes"] = hash_table
         pkgdb["receipts"] = pkgid_table
         pkgdb["applications"] = app_table
@@ -128,8 +145,7 @@ class AutoPkgLib:
         """Copies an item to the appropriate place in the repo.
         If pkg_path is a path within the repo/pkgs directory, copies nothing.
         Renames the item if an item already exists with that name.
-        Returns the relative path to the item.
-        uninstaller_pkg should be True if the item is an uninstaller (Adobe).
+        Returns the full path to the item.
         """
 
         item_version = pkginfo.get("version")
@@ -151,8 +167,8 @@ class AutoPkgLib:
 
         if pkg_path == destination_pathname:
             # we've been asked to 'import' an item already in the repo.
-            # just return the relative path
-            return os.path.join(self.repo_subdirectory, item_name)
+            # just return the existing path
+            return destination_pathname
 
         if item_version:
             name, ext = os.path.splitext(item_name)
@@ -174,7 +190,7 @@ class AutoPkgLib:
             shutil.copy(pkg_path, destination_pathname)
         except OSError as err:
             raise ProcessorError(
-                f"Can't copy {pkg_path} to {destination_pathname}: " f"{err.strerror}"
+                f"Can't copy {pkg_path} to {destination_pathname}: {err.strerror}"
             )
 
         return os.path.join(self.munki_repo, "pkgs", self.repo_subdirectory, item_name)
@@ -197,13 +213,14 @@ class AutoPkgLib:
 
         if len(file_extension) > 0:
             file_extension = "." + file_extension.strip(".")
-        pkginfo_name = f"{pkginfo['name']}-{pkginfo['version'].strip()}{file_extension}"
+        pkginfo_version = pkginfo["version"].strip()
+        pkginfo_name = f"{pkginfo['name']}-{pkginfo_version}{file_extension}"
         pkginfo_path = os.path.join(destination_path, pkginfo_name)
         index = 0
         while os.path.exists(pkginfo_path):
             index += 1
             pkginfo_name = (
-                f"{pkginfo['name']}-{pkginfo['version']}__{index}{file_extension}"
+                f"{pkginfo['name']}-{pkginfo_version}__{index}{file_extension}"
             )
             pkginfo_path = os.path.join(destination_path, pkginfo_name)
 
@@ -215,3 +232,13 @@ class AutoPkgLib:
                 f"Could not write pkginfo {pkginfo_path}: {err.strerror}"
             )
         return pkginfo_path
+
+    def put_pkginfo_to_repo(self, pkginfo, pkginfo_path) -> None:
+        """Updates an existing pkginfo file in the repo."""
+        try:
+            with open(pkginfo_path, "wb") as f:
+                plistlib.dump(pkginfo, f)
+        except OSError as err:
+            raise ProcessorError(
+                f"Could not write pkginfo {pkginfo_path}: {err.strerror}"
+            )

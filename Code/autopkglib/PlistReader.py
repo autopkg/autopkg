@@ -15,11 +15,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for PlistReader class"""
 
 import glob
 import os.path
-import plistlib
 
 from autopkglib import ProcessorError
 from autopkglib.DmgMounter import DmgMounter
@@ -100,11 +100,10 @@ class PlistReader(DmgMounter):
         otherwise None."""
         bundle_info_path = None
         if os.path.isdir(path):
-            test_info_path = os.path.join(path, "Contents/Info.plist")
+            test_info_path = os.path.join(path, "Contents", "Info.plist")
             if os.path.exists(test_info_path):
                 try:
-                    with open(test_info_path, "rb") as f:
-                        plist = plistlib.load(f)
+                    plist = self.load_plist_from_file(test_info_path)
                 except Exception:
                     raise ProcessorError(
                         f"File {path} looks like a bundle, but its "
@@ -128,7 +127,7 @@ class PlistReader(DmgMounter):
             dmg_path, dmg, dmg_source_path = self.parsePathForDMG(path)
             if dmg:
                 mount_point = self.mount(dmg_path)
-                path = os.path.join(mount_point, dmg_source_path.lstrip("/"))
+                path = self.path_in_mount(mount_point, dmg_source_path)
 
             # Finally check whether this is at least a valid path
             if not os.path.exists(path):
@@ -152,10 +151,9 @@ class PlistReader(DmgMounter):
             # Try to read the plist
             self.output(f"Reading: {path}")
             try:
-                with open(path, "rb") as f:
-                    info = plistlib.load(f)
+                info = self.load_plist_from_file(path)
             except Exception as err:
-                raise ProcessorError(err)
+                raise ProcessorError(str(err)) from err
 
             # Copy each plist_keys' values and assign to new env variables
             self.env["plist_reader_output_variables"] = {}
@@ -174,8 +172,7 @@ class PlistReader(DmgMounter):
                     )
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

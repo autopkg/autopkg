@@ -1,5 +1,7 @@
 #!/usr/local/autopkg/python
 #
+# Copyright 2025 Elliot Jordan
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,6 +23,8 @@ from autopkglib import ProcessorError
 from autopkglib.MunkiInstallsItemsCreator import MunkiInstallsItemsCreator
 
 try:
+    from Foundation import NSDictionary  # noqa: F401
+
     HAS_FOUNDATION = True
 except ImportError:
     HAS_FOUNDATION = False
@@ -68,12 +72,18 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
         return plistlib.dumps(pkginfo)
 
     # Test main functionality
-    def test_main_calls_create_installs_items(self):
-        """Test that main() calls create_installs_items."""
-        with patch.object(self.processor, "create_installs_items") as mock_create:
-            self.processor.main()
+    def test_main_creates_installs_items(self):
+        """Test that main() creates installs items."""
+        mock_output = self._create_sample_makepkginfo_output()
+        mock_proc = self._create_mock_process(returncode=0, stdout=mock_output)
 
-        mock_create.assert_called_once()
+        with patch("subprocess.Popen", return_value=mock_proc):
+            with patch.object(self.processor, "output"):
+                self.processor.main()
+
+        installs = self.processor.env["additional_pkginfo"]["installs"]
+        self.assertEqual(len(installs), 1)
+        self.assertEqual(installs[0]["path"], "/Applications/TestApp.app")
 
     # Test create_installs_items basic functionality
     def test_create_installs_items_basic(self):
@@ -260,6 +270,36 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
             "Minimum os version: 10.13, is lower than prior value of: 10.15... skipping..."
         )
 
+    def test_derive_minimum_os_version_multiple_items_equal(self):
+        """Test equal minosversion does not emit a contradictory 'lower' message."""
+        self.processor.env["derive_minimum_os_version"] = True
+        self.processor.env["minimum_os_version"] = "10.15"
+        self.processor.env["faux_root"] = "/tmp/root"
+
+        # Create installs output with an equal minosversion
+        installs_item = {
+            "path": "/tmp/root/Applications/TestApp.app",
+            "type": "application",
+            "minosversion": "10.15",
+        }
+        pkginfo = {"installs": [installs_item]}
+        mock_output = plistlib.dumps(pkginfo)
+        mock_proc = self._create_mock_process(returncode=0, stdout=mock_output)
+
+        with patch("subprocess.Popen", return_value=mock_proc):
+            with patch.object(self.processor, "output") as mock_log:
+                self.processor.create_installs_items()
+
+        # Value unchanged, and neither the "greater" nor the contradictory
+        # "lower ... skipping" message is emitted on equality
+        self.assertEqual(self.processor.env["minimum_os_version"], "10.15")
+        skip_calls = [c for c in mock_log.call_args_list if "skipping" in str(c)]
+        self.assertEqual(skip_calls, [])
+        greater_calls = [
+            c for c in mock_log.call_args_list if "as greater than" in str(c)
+        ]
+        self.assertEqual(greater_calls, [])
+
     def test_derive_minimum_os_version_disabled(self):
         """Test that minimum OS version is not derived when disabled."""
         # Don't set derive_minimum_os_version
@@ -284,7 +324,7 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
         self.assertNotIn("minimum_os_version", self.processor.env["additional_pkginfo"])
 
     def test_derive_minimum_os_version_no_faux_root(self):
-        """Test that minimum OS version is not derived without faux_root."""
+        """Test that minimum OS version is derived even without faux_root."""
         self.processor.env["derive_minimum_os_version"] = True
         # Don't set faux_root
 
@@ -295,9 +335,11 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
             with patch.object(self.processor, "output"):
                 self.processor.create_installs_items()
 
-        # Should not set minimum_os_version without faux_root
-        self.assertNotIn("minimum_os_version", self.processor.env)
-        self.assertNotIn("minimum_os_version", self.processor.env["additional_pkginfo"])
+        # Derivation must not depend on faux_root
+        self.assertEqual(self.processor.env["minimum_os_version"], "10.15")
+        self.assertEqual(
+            self.processor.env["additional_pkginfo"]["minimum_os_version"], "10.15"
+        )
 
     # Test version comparison key
     def test_version_comparison_key_string(self):
@@ -318,8 +360,6 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
     @unittest.skipUnless(HAS_FOUNDATION, "Foundation not available")
     def test_version_comparison_key_dict(self):
         """Test setting version_comparison_key as dictionary for specific paths."""
-        from Foundation import NSDictionary
-
         version_keys = NSDictionary.dictionaryWithDictionary_(
             {"/Applications/TestApp.app": "CFBundleShortVersionString"}
         )
@@ -357,8 +397,6 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
     @unittest.skipUnless(HAS_FOUNDATION, "Foundation not available")
     def test_version_comparison_key_dict_no_match(self):
         """Test version_comparison_key dictionary with no matching path."""
-        from Foundation import NSDictionary
-
         version_keys = NSDictionary.dictionaryWithDictionary_(
             {"/Applications/OtherApp.app": "CFBundleVersion"}
         )
@@ -468,7 +506,7 @@ class TestMunkiInstallsItemsCreator(unittest.TestCase):
         mock_proc = self._create_mock_process(returncode=0, stdout=invalid_plist)
 
         with patch("subprocess.Popen", return_value=mock_proc):
-            with self.assertRaises(Exception):  # plistlib will raise an exception
+            with self.assertRaises(plistlib.InvalidFileException):
                 self.processor.create_installs_items()
 
     # Test edge cases

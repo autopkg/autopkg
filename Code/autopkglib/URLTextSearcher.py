@@ -15,6 +15,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for URLTextSearcher class"""
 
 import re
@@ -55,15 +56,13 @@ class URLTextSearcher(URLGetter):
         "request_headers": {
             "required": False,
             "description": (
-                "Optional dictionary of headers to include with "
-                "the download request."
+                "Optional dictionary of headers to include with the download request."
             ),
         },
         "curl_opts": {
             "required": False,
             "description": (
-                "Optional array of curl options to include with "
-                "the download request."
+                "Optional array of curl options to include with the download request."
             ),
         },
         "re_flags": {
@@ -100,7 +99,7 @@ class URLTextSearcher(URLGetter):
                 flag_accumulator += re.__dict__[flag]
         return flag_accumulator
 
-    def re_search(self, content) -> tuple[str, dict[str, str]] | None:
+    def re_search(self, content) -> tuple[str, dict[str, str]]:
         """Search for re_pattern in content"""
 
         re_pattern = re.compile(self.env["re_pattern"], flags=self.prepare_re_flags())

@@ -1,6 +1,6 @@
 #!/usr/local/autopkg/python
 #
-# Copyright 2014-2015 Timothy Sutton
+# Copyright 2014 Timothy Sutton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for GitHubReleasesInfoProvider class"""
 
 import re
@@ -73,8 +74,7 @@ class GitHubReleasesInfoProvider(Processor):
         "curl_opts": {
             "required": False,
             "description": (
-                "Optional array of curl options to include with "
-                "the download request."
+                "Optional array of curl options to include with the download request."
             ),
         },
         "CURL_PATH": {
@@ -209,15 +209,16 @@ class GitHubReleasesInfoProvider(Processor):
         )
 
     def main(self) -> None:
+        latest_only = self.env.get("latest_only")
         # Iterate through our list of releases
         page = 1
         while True:
             self.output(f"Fetching page {page} of GitHub releases")
             releases = self.get_releases(
                 self.env["github_repo"],
-                latest_only=self.env.get("latest_only"),
+                latest_only=latest_only,
                 page=page,
-                per_page=self.env.get("per_page", 30),
+                per_page=self.env.get("GITHUB_RELEASES_PER_PAGE", 30),
             )
             if self.env.get("sort_by_highest_tag_names"):
                 releases = sorted(
@@ -228,6 +229,8 @@ class GitHubReleasesInfoProvider(Processor):
                 self.select_asset(releases, self.env.get("asset_regex"))
                 break
             except NoMatchingReleaseError:
+                if latest_only:
+                    raise
                 self.output(f"No releases found on page {page}")
             page += 1
 

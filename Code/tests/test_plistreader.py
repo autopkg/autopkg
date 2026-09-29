@@ -1,5 +1,7 @@
 #!/usr/local/autopkg/python
 #
+# Copyright 2025 Elliot Jordan
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +16,7 @@
 
 import os
 import plistlib
+import sys
 import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -173,36 +176,59 @@ class TestPlistReader(unittest.TestCase):
     def test_parse_path_for_dmg_detects_dmg_path(self):
         """Test parsePathForDMG correctly identifies DMG paths."""
         dmg_path = "/path/to/test.dmg/TestApp.app"
-        self.processor.env = {"info_path": dmg_path}
 
-        with patch.object(self.processor, "parsePathForDMG") as mock_parse:
-            mock_parse.return_value = ("/path/to/test.dmg", True, "TestApp.app")
+        result = self.processor.parsePathForDMG(dmg_path)
 
-            result = self.processor.parsePathForDMG(dmg_path)
+        self.assertEqual(result, ("/path/to/test.dmg", ".dmg/", "TestApp.app"))
 
-            mock_parse.assert_called_once_with(dmg_path)
-            self.assertEqual(result, ("/path/to/test.dmg", True, "TestApp.app"))
+    def test_main_reads_plist_inside_dmg(self):
+        """Test that main() mounts a DMG path and reads the plist inside."""
+        dmg_path = os.path.join(self.tmp_dir.name, "test.dmg")
+        mount_point = os.path.join(self.tmp_dir.name, "mount")
+        bundle_path = os.path.join(mount_point, "TestApp.app")
+        contents_path = os.path.join(bundle_path, "Contents")
+        os.makedirs(contents_path)
+        info_plist_path = os.path.join(contents_path, "Info.plist")
+        with open(info_plist_path, "wb") as f:
+            plistlib.dump({"CFBundleShortVersionString": "4.5.6"}, f)
 
-    def test_dmg_mount_calls_mount_method(self):
-        """Test that DMG mounting calls the mount method correctly."""
-        dmg_path = "/path/to/test.dmg"
-        expected_mount_point = "/tmp/dmg_mount"
+        self.processor.env = {
+            "info_path": f"{dmg_path}/TestApp.app",
+            "plist_keys": {"CFBundleShortVersionString": "version"},
+        }
 
-        with patch.object(self.processor, "mount") as mock_mount:
-            mock_mount.return_value = expected_mount_point
+        with (
+            patch.object(
+                self.processor, "mount", return_value=mount_point
+            ) as mock_mount,
+            patch.object(self.processor, "unmount_if_mounted") as mock_unmount,
+            patch.object(self.processor, "output"),
+        ):
+            self.processor.main()
 
-            result = self.processor.mount(dmg_path)
+        self.assertEqual(self.processor.env["version"], "4.5.6")
+        mock_mount.assert_called_once_with(dmg_path)
+        mock_unmount.assert_called_once_with(dmg_path)
 
-            mock_mount.assert_called_once_with(dmg_path)
-            self.assertEqual(result, expected_mount_point)
+    def test_main_unmounts_dmg_after_success(self):
+        """Test that main() unmounts a DMG after successfully reading a plist."""
+        dmg_path = os.path.join(self.tmp_dir.name, "test.dmg")
+        plist_path = self._create_plist_file()
+        self.processor.env = {
+            "info_path": f"{dmg_path}/test.plist",
+            "plist_keys": {"CFBundleShortVersionString": "version"},
+        }
 
-    def test_dmg_unmount_calls_unmount_method(self):
-        """Test that DMG unmounting calls the unmount method correctly."""
-        dmg_path = "/path/to/test.dmg"
+        with (
+            patch.object(self.processor, "mount", return_value=self.tmp_dir.name),
+            patch.object(self.processor, "unmount_if_mounted") as mock_unmount,
+            patch.object(self.processor, "output"),
+        ):
+            self.processor.main()
 
-        with patch.object(self.processor, "unmount") as mock_unmount:
-            self.processor.unmount(dmg_path)
-            mock_unmount.assert_called_once_with(dmg_path)
+        self.assertEqual(self.processor.env["version"], "1.2.3")
+        self.assertEqual(plist_path, os.path.join(self.tmp_dir.name, "test.plist"))
+        mock_unmount.assert_called_once_with(dmg_path)
 
     def test_main_unmounts_dmg_on_exception(self):
         """Test that DMG is unmounted even when an exception occurs."""
@@ -217,9 +243,8 @@ class TestPlistReader(unittest.TestCase):
 
         with patch.object(self.processor, "parsePathForDMG") as mock_parse:
             with patch.object(self.processor, "mount") as mock_mount:
-                with patch.object(self.processor, "unmount") as mock_unmount:
+                with patch.object(self.processor, "unmount_if_mounted") as mock_unmount:
                     with patch("os.path.exists") as mock_exists:
-
                         # Setup mocks to trigger an exception
                         mock_parse.return_value = (dmg_path, True, internal_path)
                         mock_mount.return_value = mount_point
@@ -230,7 +255,7 @@ class TestPlistReader(unittest.TestCase):
                         with self.assertRaises(ProcessorError):
                             self.processor.main()
 
-        # Verify unmount was still called despite the exception
+        # Verify unmount_if_mounted was still called despite the exception
         mock_unmount.assert_called_once_with(dmg_path)
 
     # Test error handling
@@ -290,6 +315,7 @@ class TestPlistReader(unittest.TestCase):
         self.assertIn("No bundle found in dmg", str(context.exception))
 
     # Test bundle detection methods
+    @unittest.skipUnless(sys.platform == "darwin", "App bundles are macOS-only")
     def test_get_bundle_info_path_valid_bundle(self):
         """Test get_bundle_info_path with valid bundle."""
         bundle_path, info_plist_path = self._create_bundle()
@@ -328,6 +354,7 @@ class TestPlistReader(unittest.TestCase):
 
         self.assertIn("cannot be parsed", str(context.exception))
 
+    @unittest.skipUnless(sys.platform == "darwin", "App bundles are macOS-only")
     def test_find_bundle_single_bundle(self):
         """Test find_bundle with a single bundle in directory."""
         search_dir = os.path.join(self.tmp_dir.name, "search")
@@ -361,8 +388,9 @@ class TestPlistReader(unittest.TestCase):
         result = self.processor.find_bundle(search_dir)
         # Should return one of the bundles (order may vary based on glob)
         self.assertIsNotNone(result)
-        self.assertTrue(result.endswith("Contents/Info.plist"))
+        self.assertTrue(result.endswith(os.path.join("Contents", "Info.plist")))
 
+    @unittest.skipUnless(sys.platform == "darwin", "App bundles are macOS-only")
     def test_find_bundle_ignores_symlinks_without_extensions(self):
         """Test find_bundle ignores symlinks without extensions."""
         search_dir = os.path.join(self.tmp_dir.name, "search")
@@ -386,6 +414,7 @@ class TestPlistReader(unittest.TestCase):
         result = self.processor.find_bundle(search_dir)
         self.assertEqual(result, info_plist_path)
 
+    @unittest.skipUnless(sys.platform == "darwin", "App bundles are macOS-only")
     def test_find_bundle_allows_symlinks_with_extensions(self):
         """Test find_bundle allows symlinks with extensions."""
         search_dir = os.path.join(self.tmp_dir.name, "search")

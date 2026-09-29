@@ -1,6 +1,6 @@
 #!/usr/local/autopkg/python
 #
-# Copyright 2016-2025 Elliot Jordan
+# Copyright 2016 Elliot Jordan
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for FindAndReplace class"""
 
 from autopkglib import Processor  # noqa: F401
@@ -69,11 +70,13 @@ class FindAndReplace(Processor):
         # get name of variable to store output
         output_var_name = self.env.get("result_output_var_name", "output_string")
         if output_var_name != "output_string":
-            # set custom variable name in output_variables so it shows up in verbose output
+            # add the custom variable name to output_variables so it shows up in
+            # verbose output, without dropping the declared output_string entry
             self.output_variables = {
+                **self.output_variables,
                 output_var_name: {
                     "description": "The result of find/replace on the input string.",
-                }
+                },
             }
 
         # perform find/replace on input string

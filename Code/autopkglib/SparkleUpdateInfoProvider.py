@@ -1,7 +1,7 @@
 #!/usr/local/autopkg/python
 #
 # Refactoring 2018 Michal Moravec
-# Copyright 2013-2016 Timothy Sutton
+# Copyright 2013 Timothy Sutton
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,8 +18,9 @@
 """See docstring for SparkleUpdateInfoProvider class"""
 
 import os
+from ipaddress import ip_address
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
-from xml.etree import ElementTree
+from xml.etree import ElementTree  # nosec B405
 
 from autopkglib import APLooseVersion, ProcessorError
 from autopkglib.URLGetter import URLGetter
@@ -150,6 +151,38 @@ class SparkleUpdateInfoProvider(URLGetter):
         content = self.download_with_curl(curl_cmd)
         return content
 
+    def validate_description_url(self, url):
+        """Validate a Sparkle feed description URL before fetching it."""
+
+        try:
+            url_bits = urlsplit(url)
+        except ValueError as err:
+            raise ProcessorError(
+                "Sparkle feed description URL must be an http(s) URL "
+                "with a non-loopback hostname."
+            ) from err
+
+        hostname = url_bits.hostname
+        if url_bits.scheme.lower() not in ("http", "https") or not hostname:
+            raise ProcessorError(
+                "Sparkle feed description URL must be an http(s) URL "
+                "with a non-loopback hostname."
+            )
+
+        normalized_hostname = hostname.rstrip(".").lower()
+        if normalized_hostname == "localhost":
+            raise ProcessorError("Sparkle feed description URL cannot use localhost.")
+
+        try:
+            if ip_address(normalized_hostname).is_loopback:
+                raise ProcessorError(
+                    "Sparkle feed description URL cannot use a loopback address."
+                )
+        except ValueError:
+            pass
+
+        return url
+
     def get_feed_data(self, url):
         """Downloads raw feed XML"""
 
@@ -220,7 +253,9 @@ class SparkleUpdateInfoProvider(URLGetter):
         by whoever calls this function."""
 
         try:
-            xmldata = ElementTree.fromstring(data)
+            xmldata = ElementTree.fromstring(
+                data
+            )  # nosec B314 - stdlib XXE n/a; appcast DoS accepted
         except Exception:
             raise ProcessorError("Error parsing XML from appcast feed.")
 
@@ -299,22 +334,25 @@ class SparkleUpdateInfoProvider(URLGetter):
             # Format description
             if "description" in sparkle_pkginfo_keys:
                 if "description_url" in latest.keys():
-                    description = self.fetch_content(latest["description_url"])
+                    description = self.fetch_content(
+                        self.validate_description_url(latest["description_url"])
+                    )
                 elif "description_data" in latest.keys():
                     description = (
-                        "<html><body>" + latest["description_data"] + "</html></body>"
-                    )
+                        "<html><body>" + latest["description_data"] + "</body></html>"
+                    ).encode("UTF-8")
                 else:
-                    description = ""
-                pkginfo["description"] = description.decode("UTF-8")
+                    description = b""
+                if isinstance(description, bytes):
+                    description = description.decode("UTF-8")
+                pkginfo["description"] = description
 
             if "minimum_os_version" in sparkle_pkginfo_keys:
                 if latest.get("minimum_os_version") is not None:
                     pkginfo["minimum_os_version"] = latest.get("minimum_os_version")
             for copied_key in pkginfo.keys():
                 self.output(
-                    f"Copied key {copied_key} from Sparkle feed to additional "
-                    "pkginfo."
+                    f"Copied key {copied_key} from Sparkle feed to additional pkginfo."
                 )
         return pkginfo
 

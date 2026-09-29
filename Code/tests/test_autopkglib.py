@@ -1,18 +1,32 @@
 #!/usr/local/autopkg/python
+#
+# Copyright 2019 Nick McSpadden
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-import imp
 import json
 import os
 import plistlib
+import tempfile
 import unittest
 from textwrap import dedent
+from types import SimpleNamespace
 from unittest.mock import mock_open, patch
 
 import autopkglib
+from tests import load_autopkg_module
 
-autopkg = imp.load_source(
-    "autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg")
-)
+autopkg = load_autopkg_module()
 
 
 class TestAutoPkg(unittest.TestCase):
@@ -128,12 +142,11 @@ class TestAutoPkg(unittest.TestCase):
     munki_struct = plistlib.loads(munki_recipe.encode("utf-8"))
 
     def setUp(self):
-        # This forces autopkglib to accept our patching of memoize
-        imp.reload(autopkglib)
-        autopkglib.globalPreferences
-
-    def tearDown(self):
-        pass
+        # Reset the cached preferences between tests without reloading
+        # autopkglib: a reload rebinds module-level objects such as
+        # globalRecipeMap, which the autopkg CLI module imported by name,
+        # and silently breaks every test module discovered after this one.
+        autopkglib.globalPreferences = autopkglib.Preferences()
 
     @patch("autopkglib.sys.platform", "Darwin-20.6.0")
     def test_is_mac_returns_true_on_mac(self):
@@ -234,18 +247,340 @@ class TestAutoPkg(unittest.TestCase):
         id = autopkglib.get_identifier_from_recipe_file("fake")
         self.assertEqual(id, "com.github.autopkg.download.googlechrome")
 
-    @patch(
-        "builtins.open",
-        new_callable=mock_open,
-        read_data=download_recipe.encode("utf-8"),
-    )
-    @patch("autopkg.plistlib.load")
-    def test_get_identifier_from_recipe_file_returns_none(self, mock_load, mock_read):
+    def test_get_identifier_from_recipe_file_returns_none(self):
         """get_identifier_from_recipe_file should return None if no identifier."""
-        mock_read.return_value = self.download_struct
-        del mock_read.return_value["Identifier"]
-        id = autopkglib.get_identifier_from_recipe_file("fake")
+        recipe = dict(self.download_struct)
+        del recipe["Identifier"]
+        recipe["Input"] = dict(recipe["Input"])
+        recipe["Input"].pop("IDENTIFIER", None)
+        with tempfile.NamedTemporaryFile(suffix=".recipe") as recipe_file:
+            plistlib.dump(recipe, recipe_file)
+            recipe_file.flush()
+
+            id = autopkglib.get_identifier_from_recipe_file(recipe_file.name)
+
         self.assertIsNone(id)
+
+
+class TestPathContainment(unittest.TestCase):
+    """Tests for filesystem path containment helpers."""
+
+    def test_is_path_under_accepts_base_and_child(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            child = os.path.join(tmp_dir, "child")
+
+            self.assertTrue(autopkglib.is_path_under(tmp_dir, tmp_dir))
+            self.assertTrue(autopkglib.is_path_under(child, tmp_dir))
+
+    def test_is_path_under_rejects_sibling_prefix(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base = os.path.join(tmp_dir, "cache")
+            sibling = os.path.join(tmp_dir, "cache-evil")
+
+            self.assertFalse(autopkglib.is_path_under(sibling, base))
+
+    def test_path_under_dirs_checks_each_declared_scope(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base = os.path.join(tmp_dir, "recipes")
+            child = os.path.join(base, "Shared.recipe")
+            sibling = os.path.join(tmp_dir, "recipes-other", "Shared.recipe")
+
+            self.assertTrue(autopkglib._path_under_dirs(child, [base]))
+            self.assertFalse(autopkglib._path_under_dirs(sibling, [base]))
+
+    def test_path_under_dirs_accepts_missing_scope(self):
+        self.assertTrue(autopkglib._path_under_dirs("/outside/Shared.recipe", []))
+
+
+class TestGetCacheDir(unittest.TestCase):
+    """Tests for normalized cache-directory resolution."""
+
+    def test_override_is_normalized_without_reading_preferences(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            original_cwd = os.getcwd()
+            os.chdir(tmp_dir)
+            try:
+                expected = os.path.abspath("relative-cache")
+                with patch.object(autopkglib, "get_pref") as mock_get_pref:
+                    result = autopkglib.get_cache_dir("relative-cache")
+            finally:
+                os.chdir(original_cwd)
+
+        self.assertEqual(result, expected)
+        mock_get_pref.assert_not_called()
+
+    def test_preference_is_normalized(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_dir = os.path.join(tmp_dir, "cache")
+            with patch.object(autopkglib, "get_pref", return_value=cache_dir):
+                self.assertEqual(autopkglib.get_cache_dir(), cache_dir)
+
+    def test_default_is_expanded_and_made_absolute(self):
+        # A drive-less path isn't absolute on Windows, so abspath() would
+        # prepend the current drive. Start from an already-absolute path.
+        expanded_default = os.path.abspath(
+            os.path.join(os.sep, "users", "test", "AutoPkg", "Cache")
+        )
+        with (
+            patch.object(autopkglib, "get_pref", return_value=None),
+            patch.object(
+                autopkglib.os.path,
+                "expanduser",
+                return_value=expanded_default,
+            ) as mock_expanduser,
+        ):
+            self.assertEqual(autopkglib.get_cache_dir(), expanded_default)
+
+        mock_expanduser.assert_called_once_with(autopkglib.DEFAULT_USER_CACHE_DIR)
+
+
+class TestAutoPackagerRecipeCacheDir(unittest.TestCase):
+    """Tests for AutoPackager RECIPE_CACHE_DIR creation."""
+
+    def _packager(self, cache_dir):
+        options = SimpleNamespace(verbose=0)
+        return autopkglib.AutoPackager(options, {"CACHE_DIR": cache_dir})
+
+    def _recipe(self, identifier):
+        return {"Identifier": identifier, "Input": {}, "Process": []}
+
+    def test_process_sets_recipe_cache_dir_under_cache_dir(self):
+        with tempfile.TemporaryDirectory() as cache_dir:
+            packager = self._packager(cache_dir)
+
+            packager.process(self._recipe("com.example.safe"))
+
+            expected = os.path.join(cache_dir, "com.example.safe")
+            self.assertEqual(packager.env["CACHE_DIR"], cache_dir)
+            self.assertEqual(packager.env["RECIPE_CACHE_DIR"], expected)
+            self.assertTrue(os.path.isdir(expected))
+
+    def test_process_expands_tilde_cache_dir(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            home_dir = os.path.join(tmp_dir, "home")
+            expected_cache_dir = os.path.join(home_dir, "Library", "AutoPkg", "Cache")
+            original_expanduser = os.path.expanduser
+
+            def expanduser(path):
+                if path.startswith("~"):
+                    return path.replace("~", home_dir, 1)
+                return original_expanduser(path)
+
+            original_cwd = os.getcwd()
+            os.chdir(tmp_dir)
+            try:
+                packager = self._packager("~/Library/AutoPkg/Cache")
+                with patch.object(
+                    autopkglib.os.path, "expanduser", side_effect=expanduser
+                ):
+                    packager.process(self._recipe("com.example.safe"))
+            finally:
+                os.chdir(original_cwd)
+
+            expected = os.path.join(expected_cache_dir, "com.example.safe")
+            self.assertEqual(packager.env["CACHE_DIR"], expected_cache_dir)
+            self.assertEqual(packager.env["RECIPE_CACHE_DIR"], expected)
+            self.assertTrue(os.path.isdir(expected))
+
+    def test_process_makes_relative_cache_dir_absolute(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            original_cwd = os.getcwd()
+            os.chdir(tmp_dir)
+            try:
+                cwd_cache_dir = os.path.join(os.getcwd(), "relative-cache")
+                packager = self._packager("relative-cache")
+                packager.process(self._recipe("com.example.safe"))
+            finally:
+                os.chdir(original_cwd)
+
+            expected = os.path.join(cwd_cache_dir, "com.example.safe")
+            self.assertEqual(packager.env["CACHE_DIR"], cwd_cache_dir)
+            self.assertEqual(packager.env["RECIPE_CACHE_DIR"], expected)
+            self.assertTrue(os.path.isdir(expected))
+
+    def test_process_warns_when_pkgcreator_scripts_reference_input(self):
+        class NoOpProcessor(autopkglib.Processor):
+            input_variables = {}
+            output_variables = {}
+
+            def main(self):
+                pass
+
+        with tempfile.TemporaryDirectory() as cache_dir:
+            packager = self._packager(cache_dir)
+            packager.env["scripts"] = "/tmp/Scripts"
+            recipe = {
+                "Identifier": "com.example.pkg",
+                "Input": {},
+                "Process": [
+                    {
+                        "Processor": "PkgCreator",
+                        "Arguments": {
+                            "pkg_request": {
+                                "pkgroot": "/tmp/root",
+                                "scripts": "%scripts%",
+                            }
+                        },
+                    }
+                ],
+            }
+
+            with (
+                patch.object(autopkglib, "get_processor", return_value=NoOpProcessor),
+                patch.object(autopkglib, "log_err") as mock_log_err,
+            ):
+                packager.process(recipe)
+
+        mock_log_err.assert_called_once()
+        self.assertIn("reference the recipe", mock_log_err.call_args[0][0])
+
+    def test_process_rejects_parent_directory_identifier_escape(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_dir = os.path.join(tmp_dir, "cache")
+            packager = self._packager(cache_dir)
+
+            with self.assertRaisesRegex(
+                autopkglib.AutoPackagerError, "resolves outside CACHE_DIR"
+            ):
+                packager.process(self._recipe("../escape"))
+
+            self.assertFalse(os.path.exists(os.path.join(tmp_dir, "escape")))
+
+    def test_process_rejects_absolute_identifier_escape(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_dir = os.path.join(tmp_dir, "cache")
+            outside_dir = os.path.join(tmp_dir, "outside")
+            packager = self._packager(cache_dir)
+
+            with self.assertRaisesRegex(
+                autopkglib.AutoPackagerError, "resolves outside CACHE_DIR"
+            ):
+                packager.process(self._recipe(outside_dir))
+
+            self.assertFalse(os.path.exists(outside_dir))
+
+
+class TestAutoPackagerGithubToken(unittest.TestCase):
+    def _packager(self, env):
+        return autopkglib.AutoPackager(SimpleNamespace(verbose=0), env)
+
+    @patch("autopkglib.github.get_github_token", return_value="disk-token")
+    def test_init_adds_github_token_without_overriding_existing(self, mock_get_token):
+        env = {}
+        self._packager(env)
+        self.assertEqual(env["GITHUB_TOKEN"], "disk-token")
+
+        env = {"GITHUB_TOKEN": "prefs-token"}
+        self._packager(env)
+        self.assertEqual(env["GITHUB_TOKEN"], "prefs-token")
+        mock_get_token.assert_called_once_with()
+
+    @patch("autopkglib.github.get_github_token", return_value="disk-token")
+    def test_github_token_is_available_for_processor_argument_substitution(
+        self, _mock_get_token
+    ):
+        with tempfile.TemporaryDirectory() as cache_dir:
+            packager = self._packager({"CACHE_DIR": cache_dir})
+            recipe = {
+                "Identifier": "com.example.github-token",
+                "Input": {},
+                "Process": [
+                    {
+                        "Processor": "EndOfCheckPhase",
+                        "Arguments": {
+                            "request_headers": {
+                                "Authorization": "token %GITHUB_TOKEN%",
+                            },
+                        },
+                    }
+                ],
+            }
+
+            packager.process(recipe)
+
+        self.assertEqual(
+            packager.env["request_headers"]["Authorization"], "token disk-token"
+        )
+
+    def _process_minimal_recipe(self, env):
+        with tempfile.TemporaryDirectory() as cache_dir:
+            packager = self._packager({"CACHE_DIR": cache_dir, **env})
+            packager.process(
+                {
+                    "Identifier": "com.example.github-token",
+                    "Input": {},
+                    "Process": [{"Processor": "EndOfCheckPhase"}],
+                }
+            )
+        return packager
+
+    @patch("autopkglib.github.get_github_token", return_value="disk-token")
+    def test_recipe_input_omits_token_file_github_token(self, _mock_get_token):
+        """Receipts and autopkg_results.plist are written from results, so the token
+        read from ~/.autopkg_gh_token must not appear there."""
+        packager = self._process_minimal_recipe({})
+        self.assertNotIn("GITHUB_TOKEN", packager.results[0]["Recipe input"])
+        self.assertNotIn("disk-token", repr(packager.results))
+        self.assertEqual(packager.env["GITHUB_TOKEN"], "disk-token")
+
+    @patch("autopkglib.github.get_github_token", return_value=None)
+    def test_recipe_input_omits_preference_github_token(self, _mock_get_token):
+        packager = self._process_minimal_recipe({"GITHUB_TOKEN": "prefs-token"})
+        self.assertNotIn("GITHUB_TOKEN", packager.results[0]["Recipe input"])
+        self.assertNotIn("prefs-token", repr(packager.results))
+        self.assertEqual(packager.env["GITHUB_TOKEN"], "prefs-token")
+
+
+class TestUpdateData(unittest.TestCase):
+    """Tests for update_data / getdata variable substitution."""
+
+    def test_value_substitution_by_type(self):
+        """Non-string values referenced via %KEY% must be coerced to str so
+        RE_KEYREF.sub doesn't raise TypeError (regression fixed in #1038).
+        None and False expand to empty string; everything else to str()."""
+        cases = [
+            # (referenced value, template key, template, expected)
+            (42, "NAME", "MyApp-%BUILD%", "MyApp-42", "BUILD"),
+            (1.5, "NAME", "App-%VERSION%", "App-1.5", "VERSION"),
+            (0, "NAME", "MyApp-%BUILD%", "MyApp-0", "BUILD"),
+            (None, "ARG", "%FLAG%", "", "FLAG"),
+            (False, "ARG", "%FLAG%", "", "FLAG"),
+            (True, "ARG", "%FLAG%", "True", "FLAG"),
+            ("False", "ARG", "%FLAG%", "False", "FLAG"),
+            ("Firefox", "PATH", "%NAME%.pkg", "Firefox.pkg", "NAME"),
+        ]
+        for value, key, template, expected, ref in cases:
+            with self.subTest(value=value, template=template):
+                env = {ref: value, key: template}
+                autopkglib.update_data(env, key, template)
+                self.assertEqual(env[key], expected)
+
+    def test_missing_key_does_not_raise(self):
+        """Reference to an undefined key is logged and left as-is, not raised."""
+        env = {"PATH": "%UNDEFINED%.pkg"}
+        autopkglib.update_data(env, "PATH", env["PATH"])
+        self.assertIn("%UNDEFINED%", env["PATH"])
+
+
+class TestPlistSerializer(unittest.TestCase):
+    """Tests for plist_serializer None-to-empty-string conversion."""
+
+    def test_none_in_dict_becomes_empty_string(self):
+        self.assertEqual(autopkglib.plist_serializer({"a": None}), {"a": ""})
+
+    def test_none_in_list_becomes_empty_string(self):
+        """plistlib can't dump None, so list members must be converted too."""
+        self.assertEqual(autopkglib.plist_serializer([1, None]), [1, ""])
+
+    def test_none_nested_in_list_of_dicts_becomes_empty_string(self):
+        self.assertEqual(
+            autopkglib.plist_serializer({"items": [{"a": None}, None]}),
+            {"items": [{"a": ""}, ""]},
+        )
+
+    def test_serialized_output_is_plist_dumpable(self):
+        serialized = autopkglib.plist_serializer({"items": [None, {"a": None}]})
+        self.assertIn(b"<string></string>", plistlib.dumps(serialized))
 
 
 if __name__ == "__main__":

@@ -100,7 +100,9 @@ VERSION = "0.3"
 
 SOCKET = f"/var/run/{APPNAME}"
 
-request_structure = {
+SchemaValue = type[Any] | tuple[type[Any], ...]
+
+request_structure: dict[str, SchemaValue] = {
     "pkgroot": str,
     "pkgdir": str,
     "pkgname": str,
@@ -111,7 +113,12 @@ request_structure = {
     "chown": list,
     "scripts": str,
 }
-chown_structure = {"path": str, "user": (str, int), "group": (str, int), "mode": str}
+chown_structure: dict[str, SchemaValue] = {
+    "path": str,
+    "user": (str, int),
+    "group": (str, int),
+    "mode": str,
+}
 
 
 #################
@@ -127,6 +134,9 @@ class AutoPkgServerError(Exception):
 
 class PkgHandler(socketserver.StreamRequestHandler):
     """Handler for packaging requests."""
+
+    server: "AutoPkgServer"
+    log: logging.Logger
 
     re_uid_gid = re.compile(r"^AUTH:AUTHENTICATE (?P<uid>\d{1,10}):(?P<gid>\d{1,10})$")
 
@@ -156,7 +166,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
 
         if syntax_ok:
             # Check package type.
-            if plist["pkgtype"] not in "flat":
+            if plist["pkgtype"] != "flat":
                 errors.append("pkgtype must be flat")
                 syntax_ok = False
 
@@ -175,6 +185,17 @@ class PkgHandler(socketserver.StreamRequestHandler):
                                 f"Request key chown.{key} is not of type {str(keytype)}"
                             )
                             syntax_ok = False
+
+            # Default pkgbuild_args to empty list if absent.
+            plist.setdefault("pkgbuild_args", [])
+            if not isinstance(plist["pkgbuild_args"], list):
+                errors.append(f"Request key pkgbuild_args is not of type {str(list)}")
+                syntax_ok = False
+            else:
+                for arg in plist["pkgbuild_args"]:
+                    if not isinstance(arg, str):
+                        errors.append(f"pkgbuild_args entry is not a string: {arg!r}")
+                        syntax_ok = False
 
         return (syntax_ok, errors)
 
@@ -231,7 +252,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
             # Try to parse it.
             try:
                 plist = plistlib.loads(plist_string)
-            except BaseException:
+            except Exception:
                 self.log.error("Malformed request")
                 self.request.send(b"ERROR:Malformed request\n")
                 return
@@ -262,7 +283,7 @@ class PkgHandler(socketserver.StreamRequestHandler):
                 self.log.error("Packaging failed: %s", err)
                 self.request.send(f"{err}\n".encode())
 
-        except BaseException as err:
+        except Exception as err:
             self.log.error("Caught exception: %s", err)
             self.request.send(f"ERROR:Caught exception: {err}".encode())
             return
@@ -271,6 +292,8 @@ class PkgHandler(socketserver.StreamRequestHandler):
 class AutoPkgServer(socketserver.UnixStreamServer):
     """Daemon that runs as root, receiving requests to create installer
     packages."""
+
+    log: logging.Logger
 
     allow_reuse_address = True
     request_queue_size = 10

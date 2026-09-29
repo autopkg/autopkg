@@ -1,7 +1,22 @@
 #!/usr/local/autopkg/python
+#
+# Copyright 2025 Elliot Jordan
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import os
 import plistlib
+import sys
 import unittest
 from copy import deepcopy
 from tempfile import TemporaryDirectory
@@ -9,8 +24,12 @@ from unittest.mock import MagicMock, patch
 
 from autopkglib import ProcessorError
 from autopkglib.MunkiImporter import MunkiImporter
+from autopkglib.munkirepolibs import fetch_repo_library
+
+_munki_importer_mod = sys.modules["autopkglib.MunkiImporter"]
 
 
+@unittest.skipUnless(sys.platform == "darwin", "Munki is macOS-only")
 class TestMunkiImporter(unittest.TestCase):
     """Test class for MunkiImporter Processor."""
 
@@ -67,51 +86,44 @@ class TestMunkiImporter(unittest.TestCase):
             ],
         }
 
-    # Test _fetch_repo_library method
+    # Test fetch_repo_library shared function
     def test_fetch_repo_library_returns_autopkglib_by_default(self):
-        """Test that _fetch_repo_library returns AutoPkgLib by default."""
-        library = self.processor._fetch_repo_library(
+        """Test that fetch_repo_library returns AutoPkgLib by default."""
+        library = fetch_repo_library(
             self.munki_repo, "FileRepo", "/usr/local/munki", None, False
         )
 
-        # Should return AutoPkgLib for FileRepo without force_munki_lib
         self.assertEqual(library.__class__.__name__, "AutoPkgLib")
 
-    def test_fetch_repo_library_returns_munkilib_when_forced(self):
-        """Test that _fetch_repo_library returns MunkiLib when forced."""
-        # Mock the entire method since we're testing logic, not actual instantiation
-        with patch.object(self.processor, "_fetch_repo_library") as mock_method:
-            mock_library = MagicMock()
-            mock_method.return_value = mock_library
+    @patch("autopkglib.munkirepolibs.MunkiLib")
+    def test_fetch_repo_library_returns_munkilib_when_forced(self, mock_munkilib_cls):
+        """Test that fetch_repo_library returns MunkiLib when forced."""
+        mock_library = MagicMock()
+        mock_munkilib_cls.return_value = mock_library
 
-            # Call the mocked method
-            result = self.processor._fetch_repo_library(
-                self.munki_repo, "FileRepo", "/usr/local/munki", None, True
-            )
+        result = fetch_repo_library(
+            self.munki_repo, "FileRepo", "/usr/local/munki", None, True
+        )
 
-            # Verify it was called and returned correctly
-            mock_method.assert_called_once_with(
-                self.munki_repo, "FileRepo", "/usr/local/munki", None, True
-            )
-            self.assertEqual(result, mock_library)
+        mock_munkilib_cls.assert_called_once_with(
+            self.munki_repo, "FileRepo", "/usr/local/munki", None
+        )
+        self.assertEqual(result, mock_library)
 
-    def test_fetch_repo_library_uses_munkilib_for_non_filerepo(self):
-        """Test that _fetch_repo_library uses MunkiLib for non-FileRepo plugins."""
-        # Mock the entire method since we're testing logic, not actual instantiation
-        with patch.object(self.processor, "_fetch_repo_library") as mock_method:
-            mock_library = MagicMock()
-            mock_method.return_value = mock_library
+    @patch("autopkglib.munkirepolibs.MunkiLib")
+    def test_fetch_repo_library_uses_munkilib_for_non_filerepo(self, mock_munkilib_cls):
+        """Test that fetch_repo_library uses MunkiLib for non-FileRepo plugins."""
+        mock_library = MagicMock()
+        mock_munkilib_cls.return_value = mock_library
 
-            # Call the mocked method
-            result = self.processor._fetch_repo_library(
-                self.munki_repo, "Git", "/usr/local/munki", "subdir", False
-            )
+        result = fetch_repo_library(
+            self.munki_repo, "Git", "/usr/local/munki", "subdir", False
+        )
 
-            # Verify it was called and returned correctly
-            mock_method.assert_called_once_with(
-                self.munki_repo, "Git", "/usr/local/munki", "subdir", False
-            )
-            self.assertEqual(result, mock_library)
+        mock_munkilib_cls.assert_called_once_with(
+            self.munki_repo, "Git", "/usr/local/munki", "subdir"
+        )
+        self.assertEqual(result, mock_library)
 
     # Test _find_matching_pkginfo method
     def test_find_matching_pkginfo_returns_none_without_hash(self):
@@ -159,7 +171,7 @@ class TestMunkiImporter(unittest.TestCase):
         mock_popen.return_value = mock_process
 
         # Mock library methods
-        with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+        with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
             mock_library = MagicMock()
             mock_library.copy_pkg_to_repo.return_value = self.pkg_path
             mock_library.copy_pkginfo_to_repo.return_value = "/path/to/pkginfo"
@@ -199,7 +211,7 @@ class TestMunkiImporter(unittest.TestCase):
         mock_popen.return_value = mock_process
 
         # Mock library methods
-        with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+        with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
             mock_library = MagicMock()
             mock_library.copy_pkg_to_repo.return_value = self.pkg_path
             mock_library.copy_pkginfo_to_repo.return_value = "/path/to/pkginfo"
@@ -259,7 +271,7 @@ class TestMunkiImporter(unittest.TestCase):
         mock_popen.return_value = mock_process
 
         # Mock library methods
-        with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+        with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
             mock_library = MagicMock()
             mock_library.copy_pkg_to_repo.return_value = self.pkg_path
             mock_library.copy_pkginfo_to_repo.return_value = "/path/to/pkginfo"
@@ -293,7 +305,7 @@ class TestMunkiImporter(unittest.TestCase):
         mock_popen.return_value = mock_process
 
         # Mock library methods
-        with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+        with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
             mock_library = MagicMock()
             mock_library.copy_pkg_to_repo.return_value = self.pkg_path
             mock_library.copy_pkginfo_to_repo.return_value = "/path/to/pkginfo"
@@ -324,7 +336,7 @@ class TestMunkiImporter(unittest.TestCase):
         mock_popen.return_value = mock_process
 
         # Mock library methods
-        with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+        with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
             mock_library = MagicMock()
             mock_library.copy_pkg_to_repo.return_value = self.pkg_path
             mock_library.copy_pkginfo_to_repo.return_value = "/path/to/pkginfo"
@@ -354,7 +366,7 @@ class TestMunkiImporter(unittest.TestCase):
         mock_process.returncode = 0
         mock_popen.return_value = mock_process
 
-        with patch.object(self.processor, "_fetch_repo_library"):
+        with patch.object(_munki_importer_mod, "fetch_repo_library"):
             with self.assertRaisesRegex(
                 ProcessorError, "version_comparison_key.*could not be found"
             ):
@@ -378,7 +390,7 @@ class TestMunkiImporter(unittest.TestCase):
             }
         ]
 
-        with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+        with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
             mock_library = MagicMock()
             mock_library.munki_repo = self.munki_repo
             mock_fetch.return_value = mock_library
@@ -408,7 +420,7 @@ class TestMunkiImporter(unittest.TestCase):
         mock_popen.return_value = mock_process
 
         # Mock library methods
-        with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+        with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
             mock_library = MagicMock()
             mock_library.copy_pkg_to_repo.return_value = self.pkg_path
             mock_library.copy_pkginfo_to_repo.return_value = "/path/to/pkginfo"
@@ -438,7 +450,7 @@ class TestMunkiImporter(unittest.TestCase):
         mock_popen.return_value = mock_process
 
         # Mock library methods
-        with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+        with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
             mock_library = MagicMock()
             mock_library.copy_pkg_to_repo.side_effect = [
                 self.pkg_path,  # main package
@@ -470,7 +482,7 @@ class TestMunkiImporter(unittest.TestCase):
         mock_popen.return_value = mock_process
 
         # Mock library methods
-        with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+        with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
             mock_library = MagicMock()
             mock_library.copy_pkg_to_repo.return_value = os.path.join(
                 self.munki_repo, "pkgs", "TestApp-1.0.0.pkg"
@@ -510,7 +522,7 @@ class TestMunkiImporter(unittest.TestCase):
             mock_popen.return_value = mock_process
 
             # Mock library methods
-            with patch.object(self.processor, "_fetch_repo_library") as mock_fetch:
+            with patch.object(_munki_importer_mod, "fetch_repo_library") as mock_fetch:
                 mock_library = MagicMock()
                 mock_library.copy_pkg_to_repo.return_value = self.pkg_path
                 mock_library.copy_pkginfo_to_repo.return_value = "/path/to/pkginfo"

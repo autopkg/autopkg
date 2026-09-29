@@ -1,6 +1,4 @@
-#!/usr/local/autopkg/python
-#
-# Copyright 2010-2012 Per Olofsson
+# Copyright 2010 Per Olofsson
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +14,7 @@
 
 
 import grp
+import logging
 import os
 import plistlib
 import pwd
@@ -24,6 +23,7 @@ import shutil
 import stat
 import subprocess
 import tempfile
+from typing import Any
 from xml.parsers.expat import ExpatError
 
 __all__ = ["Packager", "PackagerError"]
@@ -42,7 +42,14 @@ class Packager:
     re_id = re.compile(r"^[a-z0-9]([a-z0-9 \-]*[a-z0-9])?$", re.I)
     re_version = re.compile(r"^[a-z0-9_ ]*[0-9][a-z0-9_ -]*$", re.I)
 
-    def __init__(self, log, request, name, uid, gid):
+    def __init__(
+        self,
+        log: logging.Logger,
+        request: dict[str, Any],
+        name: str,
+        uid: int,
+        gid: int,
+    ) -> None:
         """Arguments:
 
         log     A logger instance.
@@ -59,7 +66,7 @@ class Packager:
         self.gid = gid
         self.tmproot = None
 
-    def package(self):
+    def package(self) -> str:
         """Main method."""
 
         try:
@@ -87,11 +94,11 @@ class Packager:
                 raise PackagerError(f"{path} is not a directory")
 
         def cmd_output(cmd) -> tuple[bytes, bytes]:
-            """Outputs a stdout, stderr tuple from command output using a Popen"""
-            p = subprocess.Popen(
+            """Return a stdout, stderr tuple from command output."""
+            result = subprocess.run(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
             )
-            out, err = p.communicate()
+            out, err = result.stdout, result.stderr
             if err:
                 self.log.debug("WARNING: errors from command '%s':", ", ".join(cmd))
                 self.log.debug(err.decode())
@@ -226,7 +233,7 @@ class Packager:
             raise PackagerError("Version too long")
         components = self.request["version"].split(".")
         if len(components) < 1:
-            raise PackagerError(f"Invalid version \"{self.request['version']}\"")
+            raise PackagerError(f'Invalid version "{self.request["version"]}"')
         for comp in components:
             if not self.re_version.search(comp):
                 raise PackagerError(f'Invalid version component "{comp}"')
@@ -273,21 +280,21 @@ class Packager:
         os.chmod(self.tmp_pkgroot, 0o1775)
         os.chown(self.tmp_pkgroot, 0, 80)
         try:
-            p = subprocess.Popen(
+            subprocess.run(
                 ("/usr/bin/ditto", self.request["pkgroot"], self.tmp_pkgroot),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                check=True,
             )
-            _, err = p.communicate()
+        except subprocess.CalledProcessError as e:
+            raise PackagerError(
+                f"Couldn't copy pkgroot from {self.request['pkgroot']} to "
+                f"{self.tmp_pkgroot}: {' '.join(str(e.stderr).split())}"
+            ) from e
         except OSError as e:
             raise PackagerError(
                 f"ditto execution failed with error code {e.errno}: {e.strerror}"
-            )
-        if p.returncode != 0:
-            raise PackagerError(
-                f"Couldn't copy pkgroot from {self.request['pkgroot']} to "
-                f"{self.tmp_pkgroot}: {' '.join(str(err).split())}"
             )
 
         self.log.info("Package root copied to %s", self.tmp_pkgroot)
@@ -388,7 +395,7 @@ class Packager:
         turn off package relocation"""
         self.component_plist = os.path.join(self.tmproot, "component.plist")
         try:
-            p = subprocess.Popen(
+            result = subprocess.run(
                 (
                     "/usr/bin/pkgbuild",
                     "--analyze",
@@ -400,32 +407,32 @@ class Packager:
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            _, err = p.communicate()
         except OSError as e:
             raise PackagerError(
                 f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
             )
-        if p.returncode != 0:
+        if result.returncode != 0:
             raise PackagerError(
-                f"pkgbuild failed with exit code {p.returncode}: "
-                f"{' '.join(str(err).split())}"
+                f"pkgbuild failed with exit code {result.returncode}: "
+                f"{' '.join(str(result.stderr).split())}"
             )
         try:
             with open(self.component_plist, "rb") as f:
                 plist = plistlib.load(f)
-        except BaseException:
-            raise PackagerError(f"Couldn't read {self.component_plist}")
+        # ValueError covers plistlib.InvalidFileException, which subclasses it.
+        except (OSError, ValueError, ExpatError) as err:
+            raise PackagerError(f"Couldn't read {self.component_plist}: {err}")
         # plist is an array of dicts, iterate through
         for bundle in plist:
             if bundle.get("BundleIsRelocatable"):
                 bundle["BundleIsRelocatable"] = False
         try:
             with open(self.component_plist, "wb") as f:
-                plist = plistlib.dump(plist, f)
-        except BaseException:
-            raise PackagerError(f"Couldn't write {self.component_plist}")
+                plistlib.dump(plist, f)
+        except (OSError, TypeError) as err:
+            raise PackagerError(f"Couldn't write {self.component_plist}: {err}")
 
-    def create_pkg(self) -> None:
+    def create_pkg(self) -> str:
         self.log.info("Creating package")
         if self.request["pkgtype"] != "flat":
             raise PackagerError(f"Unsupported pkgtype {self.request['pkgtype']}")
@@ -477,23 +484,24 @@ class Packager:
                 cmd.extend(["--info", self.request["infofile"]])
             if self.request["scripts"]:
                 cmd.extend(["--scripts", self.request["scripts"]])
+            if self.request.get("pkgbuild_args"):
+                cmd.extend(self.request["pkgbuild_args"])
             cmd.append(temppkgpath)
 
             # Execute pkgbuild.
             self.log.info("Sending package build command")
             try:
-                p = subprocess.Popen(
+                result = subprocess.run(
                     cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
                 )
-                _, err = p.communicate()
             except OSError as e:
                 raise PackagerError(
                     f"pkgbuild execution failed with error code {e.errno}: {e.strerror}"
                 )
-            if p.returncode != 0:
+            if result.returncode != 0:
                 raise PackagerError(
-                    f"pkgbuild failed with exit code {p.returncode}: "
-                    f"{' '.join(str(err).split())}"
+                    f"pkgbuild failed with exit code {result.returncode}: "
+                    f"{' '.join(str(result.stderr).split())}"
                 )
             self.log.info("Changing name and owner")
             # Change to final name and owner.

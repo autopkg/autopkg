@@ -13,11 +13,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for FlatPkgPacker class"""
 
 import subprocess
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, is_mac
 
 __all__ = ["FlatPkgPacker"]
 
@@ -41,9 +42,19 @@ class FlatPkgPacker(Processor):
 
     def flatten(self, source_dir, dest_pkg):
         """Flattens a previously expanded flat package"""
+        if not is_mac():
+            raise ProcessorError(
+                "Flat package packing is only supported on macOS. "
+                "The 'pkgutil' utility is not available on this platform."
+            )
+
         try:
             subprocess.check_call(
                 ["/usr/sbin/pkgutil", "--flatten", source_dir, dest_pkg]
+            )
+        except OSError as err:
+            raise ProcessorError(
+                f"pkgutil execution failed with error code {err.errno}: {err.strerror}"
             )
         except subprocess.CalledProcessError as err:
             raise ProcessorError(f"{err} flattening {source_dir}")

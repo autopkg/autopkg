@@ -2,8 +2,9 @@ name: Update processor docs
 
 on:
   push:
-    tags: # Triggers when new version tags are pushed
-      - 'v*'
+    tags: # Final version tags only (e.g. v3.0.0); excludes prereleases (RC, alpha, beta)
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+      - '!v*[A-Za-z]*'
 
 jobs:
   build:
@@ -24,7 +25,7 @@ jobs:
 
       - name: Install Python requirements
         working-directory: main
-        run: python3 -m pip install appdirs
+        run: python3 -m pip install -r .github/workflows/requirements.txt
         continue-on-error: true
 
       - name: Configure Git

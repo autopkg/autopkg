@@ -6,6 +6,7 @@ on:
     # https://github.community/t/how-to-trigger-an-action-on-push-or-pull-request-but-not-both/16662
     branches:
       - master
+      - dev
     paths:
       - "**.py"
       - ".github/workflows/requirements.txt"
@@ -28,6 +29,7 @@ jobs:
         # https://ncorti.com/blog/howto-github-actions-build-matrix
         # ubuntu-latest, macos-latest, windows-latest
         os: [macos-latest, windows-latest, ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     steps:
       # only needed on self hosted windows runners:
@@ -43,7 +45,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: 3.10.11
+          python-version: ${{ matrix.python-version }}
 
       - name: Set token
         # required for githubreleaseinfoprovider in github actions
@@ -73,38 +75,40 @@ jobs:
         run: python Scripts/run_tests.py
 
       - name: Run e2e tests
-        # cross platform options from: https://github.com/autopkg/autopkg/blob/master/Code/tests/e2e_tests.sh
+        # A cross-platform subset of Code/tests/e2e_tests.sh (macOS-only). Not run:
+        # install (root), search (API limits), run and clear-cache (network,
+        # cache), help and generate-recipe-map (unit tests). Sync by hand.
         # e2e tests that hit the github apis will not work due to api limits unless it properly uses ".autopkg_gh_token"
         shell: bash
         run: |
           echo "**List-processors:"
-          python Code/autopkg list-processors --prefs tests/preferences.plist
+          python Code/autopkg list-processors
           echo "**Processor-info:"
-          python Code/autopkg processor-info URLDownloader --prefs tests/preferences.plist
+          python Code/autopkg processor-info URLDownloader
           echo "**Repo-add:"
-          python Code/autopkg repo-add recipes --prefs tests/preferences.plist
+          python Code/autopkg repo-add recipes
           echo "**Repo-list:"
-          python Code/autopkg repo-list --prefs tests/preferences.plist
+          python Code/autopkg repo-list
           echo "**Repo-update:"
-          python Code/autopkg repo-update all --prefs tests/preferences.plist
+          python Code/autopkg repo-update all
           echo "**Audit:"
-          python Code/autopkg audit Firefox.munki --prefs tests/preferences.plist
+          python Code/autopkg audit Firefox.munki
           echo "**Info:"
-          python Code/autopkg info Firefox.munki --prefs tests/preferences.plist
+          python Code/autopkg info Firefox.munki
           echo "**List-recipes:"
-          python Code/autopkg list-recipes --prefs tests/preferences.plist
+          python Code/autopkg list-recipes
           echo "**Make-override:"
-          python Code/autopkg make-override Firefox.munki --force --prefs tests/preferences.plist
+          python Code/autopkg make-override Firefox.munki --force
           echo "**New-recipe:"
-          python Code/autopkg new-recipe TestRecipe.check --prefs tests/preferences.plist
+          python Code/autopkg new-recipe TestRecipe.check
           echo "**Verify-trust-info:"
-          python Code/autopkg verify-trust-info Firefox.munki --prefs tests/preferences.plist
+          python Code/autopkg verify-trust-info Firefox.munki
           echo "**Update-trust-info:"
-          python Code/autopkg update-trust-info Firefox.munki --prefs tests/preferences.plist
+          python Code/autopkg update-trust-info Firefox.munki
           echo "**Version:"
           python Code/autopkg version
           echo "**Repo-delete:"
-          python Code/autopkg repo-delete recipes --prefs tests/preferences.plist
+          python Code/autopkg repo-delete recipes
 
       - name: Run integration recipe
         # using recipe path to NOT rely on prefs or current working directory

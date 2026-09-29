@@ -13,13 +13,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """A utility to export info from autopkg processors and upload it as processor
 documentation for the GitHub autopkg wiki"""
 
-import imp
+import importlib.util
 import optparse
 import os
 import sys
+from importlib.machinery import SourceFileLoader
 from tempfile import mkdtemp
 from textwrap import dedent
 
@@ -37,7 +39,17 @@ except ImportError as err:
 # Don't make an "autopkgc" file
 try:
     sys.dont_write_bytecode = True
-    imp.load_source("autopkg", os.path.join(CODE_DIR, "autopkg"))
+    # Extensionless file needs an explicit SourceFileLoader; register in
+    # sys.modules so `from autopkg import run_git` resolves.
+    AUTOPKG_PATH = os.path.join(CODE_DIR, "autopkg")
+    spec = importlib.util.spec_from_file_location(
+        "autopkg", AUTOPKG_PATH, loader=SourceFileLoader("autopkg", AUTOPKG_PATH)
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load module spec for {AUTOPKG_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["autopkg"] = module
+    spec.loader.exec_module(module)
     from autopkg import run_git
 except ImportError:
     print("Unable to import code from autopkg!", file=sys.stderr)
@@ -57,8 +69,8 @@ def writefile(stringdata, path):
     try:
         with open(path, mode="w", buffering=1) as fileobject:
             print(stringdata, file=fileobject)
-    except OSError:
-        print(f"Couldn't write to {path}", file=fileobject)
+    except OSError as err:
+        print(f"Couldn't write to {path}: {err}", file=sys.stderr)
 
 
 def escape(thing):
@@ -110,8 +122,9 @@ def generate_sidebar(sidebar_path):
     for processor_name in sorted(processor_names(), key=lambda s: s.lower()):
         if processor_name in EXPERIMENTAL_PROCS:
             continue
+        # Processor names are importable Python identifiers, so they never
+        # contain spaces that would need escaping in a wiki link.
         page_name = f"Processor-{processor_name}"
-        page_name.replace(" ", "-")
         toc_string += f"    * [[{processor_name}|{page_name}]]\n"
 
     with open(sidebar_path) as fdesc:
@@ -155,7 +168,7 @@ def generate_sidebar(sidebar_path):
     return new_sidebar
 
 
-def main(_):
+def main():
     """Do it all"""
     usage = dedent("""%prog VERSION
 
@@ -304,4 +317,4 @@ def main(_):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())

@@ -11,15 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for ChocolateyPackager class"""
 
 import os
 import subprocess
+from collections.abc import Sequence
 from shutil import copy2, rmtree
 from tempfile import mkdtemp
 from typing import Any
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, is_path_under
 from nuget import (
     CHOCO_CHECKSUM_TYPES,
     CHOCO_FILE_TYPES,
@@ -111,8 +113,7 @@ class ChocolateyPackager(Processor):
         "icon": {
             "required": False,
             "description": (
-                "Not sure, but probably something to do with the icon of the "
-                "package."
+                "Not sure, but probably something to do with the icon of the package."
             ),
         },
         "license": {"required": False, "description": ("Licensing information.")},
@@ -165,7 +166,7 @@ class ChocolateyPackager(Processor):
         "installer_checksum_type": {
             "required": False,
             "description": (
-                "One of the valid checksum types: " f"{', '.join(CHOCO_CHECKSUM_TYPES)}"
+                f"One of the valid checksum types: {', '.join(CHOCO_CHECKSUM_TYPES)}"
             ),
             "default": "sha512",
         },
@@ -236,7 +237,7 @@ class ChocolateyPackager(Processor):
         "chocolatey_packager_summary_result": {"description": "Summary of packaging."},
     }
 
-    def _check_enum_var(self, varname: str, enum_values: list[str]) -> None:
+    def _check_enum_var(self, varname: str, enum_values: Sequence[str]) -> None:
         value = self.env.get(varname)
         if value not in enum_values:
             raise ValueError(
@@ -263,25 +264,49 @@ class ChocolateyPackager(Processor):
             self.env[varname] = path
         return path
 
-    def _build_path(self, build_dir: str, *additional_parts: str) -> str:
-        r"""Return absolute path of `build_dir` and any additional path parts.
-        Example:
-        ```
-        self._build_path(build_dir, "tools/chocolateyInstall.ps1")`
-        # C:\choco_builds\build_xy2820.44\tools\chocolateyInstall.ps1
-        ```
+    def _safe_path_component(self, varname: str) -> str:
+        value = self.env[varname]
+        if not isinstance(value, str) or not value:
+            raise ProcessorError(
+                f"Variable `{varname}` must be a non-empty string path component."
+            )
+        normalized = value.replace("\\", "/")
+        if (
+            "/" in normalized
+            or os.path.isabs(value)
+            or value in (".", "..")
+            or ".." in [part for part in normalized.split("/") if part]
+        ):
+            raise ProcessorError(
+                f"Variable `{varname}` may not contain path separators, absolute "
+                f"paths, or parent-directory references: {value!r}"
+            )
+        return value
+
+    def _validate_package_path_components(self) -> None:
+        self._safe_path_component("id")
+        self._safe_path_component("version")
+
+    def _path_under_dir(self, base_dir: str, *parts: str) -> str:
+        r"""Return an absolute path under base_dir.
+
+        Example: ``self._path_under_dir(build_dir, "tools/chocolateyInstall.ps1")``
+        returns ``<build_dir>/tools/chocolateyInstall.ps1``.
         """
-        return os.path.abspath(os.path.join(build_dir, *additional_parts))
+        path = os.path.abspath(os.path.join(base_dir, *parts))
+        if not is_path_under(path, base_dir):
+            raise ProcessorError(f"Path resolves outside {base_dir}: {path}")
+        return path
 
     @property
     def idver(self) -> str:
         return f"{self.env['id']}.{self.env['version']}"
 
     def _nuspec_path(self, build_dir: str) -> str:
-        return self._build_path(build_dir, f"{self.env['id']}.nuspec")
+        return self._path_under_dir(build_dir, f"{self.env['id']}.nuspec")
 
     def _chocolateyinstall_path(self, build_dir: str) -> str:
-        return self._build_path(build_dir, "tools", "chocolateyInstall.ps1")
+        return self._path_under_dir(build_dir, "tools", "chocolateyInstall.ps1")
 
     def nuspec_definition(self) -> NuspecGenerator:
         def_args: dict[str, Any] = {}
@@ -305,7 +330,11 @@ class ChocolateyPackager(Processor):
             elif isinstance(installer_args, str):
                 computed_args = [installer_args]
             else:
-                raise
+                # process() validates this first; this guards direct callers.
+                raise ProcessorError(
+                    "Variable `installer_args` must have type list or string, "
+                    f"got {installer_args.__class__.__name__}"
+                )
         elif self.env["installer_type"] == "msi":
             computed_args = [
                 "/qn",  # No UI
@@ -319,10 +348,8 @@ class ChocolateyPackager(Processor):
         installer_kwargs = {}
         if "installer_url" in self.env:
             installer_kwargs["url"] = self.env["installer_url"]
-            installer_kwargs["installer_checksum"] = self.env["installer_checksum"]
-            installer_kwargs["installer_checksum_type"] = self.env[
-                "installer_checksum_type"
-            ]
+            installer_kwargs["checksum"] = self.env["installer_checksum"]
+            installer_kwargs["checksumType"] = self.env["installer_checksum_type"]
         else:
             installer_kwargs["file"] = self.env["installer_path"]
 
@@ -343,7 +370,7 @@ class ChocolateyPackager(Processor):
 
     def write_build_configs(self, build_dir: str) -> None:
         """Given a directory, writes the necessary files to run `choco.exe pack`"""
-        tools_dir = self._build_path(build_dir, "tools")
+        tools_dir = self._path_under_dir(build_dir, "tools")
         os.mkdir(tools_dir)
         nuspec_gen = self.nuspec_definition()
 
@@ -370,7 +397,7 @@ class ChocolateyPackager(Processor):
             "pack",
             nuspec_filename,
             f"--output-directory={output_dir}",
-            f"--log-file={os.path.join(output_dir, f'{self.idver}.log')}",
+            f"--log-file={self._path_under_dir(output_dir, f'{self.idver}.log')}",
         ]
         self.log(f"Running: {' '.join(command)}", 1)
         proc = subprocess.Popen(
@@ -383,13 +410,11 @@ class ChocolateyPackager(Processor):
         output, _ = proc.communicate()
         self.log(output.splitlines(), 1)
         if proc.returncode != 0:
-            raise ProcessorError(
-                f"Command: ``{' '.join(command)}`` returned: {proc.returncode}",
-                proc.returncode,
-            )
-        expected_nupkg_path = os.path.abspath(
-            os.path.join(output_dir, f"{self.idver}.nupkg")
-        )
+            msg = f"Command: ``{' '.join(command)}`` returned: {proc.returncode}"
+            if output:
+                msg = f"{msg}\nOutput:\n{output}"
+            raise ProcessorError(msg)
+        expected_nupkg_path = self._path_under_dir(output_dir, f"{self.idver}.nupkg")
         os.stat(expected_nupkg_path)  # Test for package existence, or raise.
         return expected_nupkg_path
 
@@ -402,6 +427,7 @@ class ChocolateyPackager(Processor):
 
     def main(self) -> None:
         # Validate arguments, apply dynamic defaults as needed.
+        self._validate_package_path_components()
         self._ensure_path_var("chocoexe_path")
         if (
             self.env.get("installer_url") is not None
@@ -421,6 +447,14 @@ class ChocolateyPackager(Processor):
             # Set the path from `pathname`, an output variable from `URLDownloader`.
             self._ensure_path_var("installer_path", "pathname")
 
+        if self.env.get("installer_url") is not None and not self.env.get(
+            "installer_checksum"
+        ):
+            raise ProcessorError(
+                "Variable `installer_checksum` is required when "
+                "`installer_url` is provided."
+            )
+
         self._check_enum_var("installer_type", CHOCO_FILE_TYPES)
         self._check_enum_var("installer_checksum_type", CHOCO_CHECKSUM_TYPES)
 
@@ -431,12 +465,14 @@ class ChocolateyPackager(Processor):
         ):
             raise ProcessorError(
                 "Variable `installer_args` must have type list or string, "
-                f"got {self.env['installer_args'].__class_.__name__}"
+                f"got {self.env['installer_args'].__class__.__name__}"
             )
 
-        output_dir = self.env.get(
-            "output_directory",
-            os.path.abspath(os.path.join(self.env["RECIPE_CACHE_DIR"], "nupkgs")),
+        output_dir = os.path.abspath(
+            self.env.get(
+                "output_directory",
+                os.path.join(self.env["RECIPE_CACHE_DIR"], "nupkgs"),
+            )
         )
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -468,8 +504,12 @@ class ChocolateyPackager(Processor):
                     "pkg_path": self.env["nuget_package_path"],
                 },
             }
-        except Exception:
-            raise ProcessorError("Chocolatey packaging failed unexpectedly.")
+        except ProcessorError:
+            raise
+        except Exception as err:
+            raise ProcessorError(
+                f"Chocolatey packaging failed unexpectedly: {err}"
+            ) from err
         finally:
             if not keep_build_directory and build_dir is not None:
                 rmtree(build_dir)

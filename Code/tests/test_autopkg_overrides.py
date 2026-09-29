@@ -1,5 +1,7 @@
 #!/usr/local/autopkg/python
 #
+# Copyright 2025 Elliot Jordan
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import imp
 import os
 import sys
 import unittest
@@ -22,9 +23,9 @@ from unittest.mock import Mock, mock_open, patch
 # Add the Code directory to the Python path to resolve autopkg dependencies
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-autopkg = imp.load_source(
-    "autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg")
-)
+from tests import load_autopkg_module
+
+autopkg = load_autopkg_module()
 
 
 class TestAutoPkgOverrides(unittest.TestCase):
@@ -33,10 +34,45 @@ class TestAutoPkgOverrides(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures with a temporary directory."""
         self.tmp_dir = TemporaryDirectory()
+        # Silence recipe-map side effects (see test_autopkg_recipes for
+        # rationale).
+        self._recipe_map_patches = [
+            patch("autopkg.calculate_recipe_map"),
+            patch("autopkg.read_recipe_map"),
+        ]
+        for patcher in self._recipe_map_patches:
+            patcher.start()
 
     def tearDown(self):
         """Clean up test fixtures."""
         self.tmp_dir.cleanup()
+        for patcher in self._recipe_map_patches:
+            patcher.stop()
+
+    def test_get_git_commit_hash_caches_toplevel_by_directory(self):
+        def fake_run_git(arguments, git_directory=None):
+            if arguments == ["rev-parse", "--show-toplevel"]:
+                return "/repo\n"
+            if arguments[:2] == ["rev-list", "-1"]:
+                return "abc123\n"
+            if arguments[0] == "diff":
+                return ""
+            self.fail(f"Unexpected git arguments: {arguments}")
+
+        cache = {}
+        with patch.object(autopkg, "run_git", side_effect=fake_run_git) as mock_run_git:
+            first = autopkg.get_git_commit_hash("/repo/Scripts/preinstall", cache)
+            second = autopkg.get_git_commit_hash("/repo/Scripts/postinstall", cache)
+
+        self.assertEqual(first, "abc123")
+        self.assertEqual(second, "abc123")
+        self.assertEqual(cache, {"/repo/Scripts": "/repo"})
+        rev_parse_calls = [
+            call
+            for call in mock_run_git.call_args_list
+            if call.args[0] == ["rev-parse", "--show-toplevel"]
+        ]
+        self.assertEqual(len(rev_parse_calls), 1)
 
     def test_get_trust_info_basic_recipe(self):
         """Test get_trust_info with a basic recipe."""
@@ -49,20 +85,15 @@ class TestAutoPkgOverrides(unittest.TestCase):
             ],
         }
 
-        with patch.object(autopkg, "getsha256hash") as mock_hash, patch.object(
-            autopkg, "get_git_commit_hash"
-        ) as mock_git_hash, patch.object(
-            autopkg, "load_recipe"
-        ) as mock_load_recipe, patch.object(
-            autopkg, "get_identifier"
-        ) as mock_get_identifier, patch.object(
-            autopkg, "core_processor_names"
-        ) as mock_core_processors, patch.object(
-            autopkg, "find_processor_path"
-        ) as mock_find_processor, patch.object(
-            autopkg, "os_path_compressuser"
-        ) as mock_compress:
-
+        with (
+            patch.object(autopkg, "getsha256hash") as mock_hash,
+            patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_identifier") as mock_get_identifier,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch.object(autopkg, "find_processor_path") as mock_find_processor,
+            patch.object(autopkg, "os_path_compressuser") as mock_compress,
+        ):
             mock_hash.side_effect = ["recipe_hash", "parent_hash", "processor_hash"]
             mock_git_hash.side_effect = ["recipe_git", "parent_git", "processor_git"]
             mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
@@ -98,22 +129,16 @@ class TestAutoPkgOverrides(unittest.TestCase):
             "Process": [{"Processor": "MissingProcessor"}],
         }
 
-        with patch.object(autopkg, "getsha256hash") as mock_hash, patch.object(
-            autopkg, "get_git_commit_hash"
-        ) as mock_git_hash, patch.object(
-            autopkg, "load_recipe"
-        ) as mock_load_recipe, patch.object(
-            autopkg, "get_identifier"
-        ) as mock_get_identifier, patch.object(
-            autopkg, "core_processor_names"
-        ) as mock_core_processors, patch.object(
-            autopkg, "find_processor_path"
-        ) as mock_find_processor, patch.object(
-            autopkg, "os_path_compressuser"
-        ) as mock_compress, patch.object(
-            autopkg, "log_err"
-        ) as mock_log_err:
-
+        with (
+            patch.object(autopkg, "getsha256hash") as mock_hash,
+            patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_identifier") as mock_get_identifier,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch.object(autopkg, "find_processor_path") as mock_find_processor,
+            patch.object(autopkg, "os_path_compressuser") as mock_compress,
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
             mock_hash.return_value = "recipe_hash"
             mock_git_hash.return_value = "recipe_git"
             mock_load_recipe.return_value = {"Identifier": "com.test.recipe"}
@@ -134,6 +159,220 @@ class TestAutoPkgOverrides(unittest.TestCase):
 
             # Should log a warning
             mock_log_err.assert_called_once()
+
+    def test_find_scripts_dir_path_none_input(self):
+        """find_scripts_dir_path returns None for None or empty scripts_dir."""
+        self.assertIsNone(autopkg.find_scripts_dir_path(None, {}))
+        self.assertIsNone(autopkg.find_scripts_dir_path("", {}))
+
+    def test_find_scripts_dir_path_absolute(self):
+        """find_scripts_dir_path returns normalized path for existing absolute dir."""
+        scripts_dir = os.path.join(self.tmp_dir.name, "Scripts")
+        os.makedirs(scripts_dir)
+        result = autopkg.find_scripts_dir_path(scripts_dir, {})
+        self.assertEqual(result, os.path.normpath(scripts_dir))
+
+    def test_find_scripts_dir_path_absolute_missing(self):
+        """find_scripts_dir_path returns None for non-existent absolute dir."""
+        result = autopkg.find_scripts_dir_path("/no/such/dir", {})
+        self.assertIsNone(result)
+
+    def test_find_scripts_dir_path_relative_in_recipe_dir(self):
+        """find_scripts_dir_path finds scripts dir relative to recipe dir."""
+        recipe_dir = os.path.join(self.tmp_dir.name, "repo")
+        scripts_dir = os.path.join(recipe_dir, "Scripts")
+        os.makedirs(scripts_dir)
+        recipe = {"RECIPE_PATH": os.path.join(recipe_dir, "Test.recipe")}
+        result = autopkg.find_scripts_dir_path("Scripts", recipe)
+        self.assertEqual(result, os.path.normpath(scripts_dir))
+
+    def test_find_scripts_dir_path_relative_in_parent_recipe_dir(self):
+        """find_scripts_dir_path finds scripts dir relative to parent recipe dir."""
+        recipe_dir = os.path.join(self.tmp_dir.name, "override")
+        parent_dir = os.path.join(self.tmp_dir.name, "parent")
+        scripts_dir = os.path.join(parent_dir, "Scripts")
+        os.makedirs(recipe_dir)
+        os.makedirs(scripts_dir)
+        recipe = {
+            "RECIPE_PATH": os.path.join(recipe_dir, "Test.recipe"),
+            "PARENT_RECIPES": [os.path.join(parent_dir, "Parent.recipe")],
+        }
+        result = autopkg.find_scripts_dir_path("Scripts", recipe)
+        self.assertEqual(result, os.path.normpath(scripts_dir))
+
+    def test_find_scripts_dir_path_relative_not_found(self):
+        """find_scripts_dir_path returns None when relative dir not found."""
+        recipe_dir = os.path.join(self.tmp_dir.name, "repo")
+        os.makedirs(recipe_dir)
+        recipe = {"RECIPE_PATH": os.path.join(recipe_dir, "Test.recipe")}
+        result = autopkg.find_scripts_dir_path("NoSuchDir", recipe)
+        self.assertIsNone(result)
+
+    def test_find_scripts_dir_path_no_recipe(self):
+        """find_scripts_dir_path returns None when recipe is None."""
+        self.assertIsNone(autopkg.find_scripts_dir_path("Scripts", None))
+
+    def test_get_trust_info_pkgcreator_scripts(self):
+        """Test get_trust_info captures all files in the scripts directory."""
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/test.recipe",
+            "PARENT_RECIPES": [],
+            "Process": [
+                {"Processor": "URLDownloader"},
+                {
+                    "Processor": "PkgCreator",
+                    "Arguments": {"pkg_request": {"scripts": "Scripts"}},
+                },
+            ],
+        }
+
+        with (
+            patch.object(autopkg, "getsha256hash") as mock_hash,
+            patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "get_git_tracked_files") as mock_tracked,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_identifier") as mock_get_identifier,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch.object(autopkg, "find_scripts_dir_path") as mock_find_scripts_dir,
+            patch.object(autopkg, "os_path_compressuser") as mock_compress,
+            patch("autopkg.os.walk") as mock_walk,
+        ):
+            mock_walk.return_value = [
+                ("/path/to/Scripts", [], ["helper.sh", "postinstall", "preinstall"]),
+            ]
+            mock_tracked.return_value = None
+            mock_hash.side_effect = [
+                "recipe_hash",
+                "helper_hash",
+                "post_hash",
+                "pre_hash",
+            ]
+            mock_git_hash.side_effect = [
+                "recipe_git",
+                "helper_git",
+                "post_git",
+                "pre_git",
+            ]
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_identifier.return_value = "com.test.recipe"
+            mock_core_processors.return_value = ["URLDownloader", "PkgCreator"]
+            mock_find_scripts_dir.return_value = "/path/to/Scripts"
+            mock_compress.side_effect = lambda x: x
+
+            result = autopkg.get_trust_info(mock_recipe)
+
+            self.assertIn("scripts", result)
+            self.assertEqual(len(result["scripts"]), 3)
+            self.assertIn("Scripts/preinstall", result["scripts"])
+            self.assertIn("Scripts/postinstall", result["scripts"])
+            self.assertIn("Scripts/helper.sh", result["scripts"])
+            self.assertEqual(
+                result["scripts"]["Scripts/helper.sh"]["sha256_hash"],
+                "helper_hash",
+            )
+            self.assertEqual(
+                result["scripts"]["Scripts/preinstall"]["sha256_hash"],
+                "pre_hash",
+            )
+            cache_ids = {id(call.args[1]) for call in mock_git_hash.call_args_list}
+            self.assertEqual(len(cache_ids), 1)
+
+    def test_get_trust_info_pkgcreator_scripts_dedupes_same_path(self):
+        """Test get_trust_info dedupes scripts used by multiple PkgCreator steps."""
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/test.recipe",
+            "PARENT_RECIPES": [],
+            "Process": [
+                {
+                    "Processor": "PkgCreator",
+                    "Arguments": {"pkg_request": {"scripts": "Scripts"}},
+                },
+                {
+                    "Processor": "PkgCreator",
+                    "Arguments": {"pkg_request": {"scripts": "Scripts"}},
+                },
+            ],
+        }
+
+        with (
+            patch.object(autopkg, "getsha256hash") as mock_hash,
+            patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "get_git_tracked_files") as mock_tracked,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_identifier") as mock_get_identifier,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch.object(autopkg, "find_scripts_dir_path") as mock_find_scripts_dir,
+            patch.object(autopkg, "os_path_compressuser") as mock_compress,
+            patch("autopkg.os.walk") as mock_walk,
+        ):
+            mock_walk.return_value = [
+                ("/path/to/Scripts", [], ["preinstall"]),
+            ]
+            mock_tracked.return_value = None
+            mock_hash.return_value = "hash"
+            mock_git_hash.return_value = "git_hash"
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_identifier.return_value = "com.test.recipe"
+            mock_core_processors.return_value = []
+            mock_find_scripts_dir.return_value = "/path/to/Scripts"
+            mock_compress.side_effect = lambda x: x
+
+            result = autopkg.get_trust_info(mock_recipe)
+
+            self.assertEqual(len(result["scripts"]), 1)
+            self.assertIn("Scripts/preinstall", result["scripts"])
+
+    def test_get_trust_info_skips_untracked_scripts_in_git_repo(self):
+        """Test get_trust_info skips untracked files when scripts dir is in a git repo."""
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/test.recipe",
+            "PARENT_RECIPES": [],
+            "Process": [
+                {
+                    "Processor": "PkgCreator",
+                    "Arguments": {"pkg_request": {"scripts": "Scripts"}},
+                },
+            ],
+        }
+
+        with (
+            patch.object(autopkg, "getsha256hash") as mock_hash,
+            patch.object(autopkg, "get_git_commit_hash") as mock_git_hash,
+            patch.object(autopkg, "get_git_tracked_files") as mock_tracked,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_identifier") as mock_get_identifier,
+            patch.object(autopkg, "core_processor_names") as mock_core_processors,
+            patch.object(autopkg, "find_scripts_dir_path") as mock_find_scripts_dir,
+            patch.object(autopkg, "os_path_compressuser") as mock_compress,
+            patch("autopkg.os.walk") as mock_walk,
+        ):
+            mock_walk.return_value = [
+                (
+                    "/path/to/Scripts",
+                    [],
+                    [".DS_Store", "postinstall", "preinstall"],
+                ),
+            ]
+            # get_trust_info compares os.path.normpath()'d walk paths against
+            # this set, so normalize here too or nothing matches on Windows.
+            mock_tracked.return_value = {
+                os.path.normpath("/path/to/Scripts/preinstall"),
+                os.path.normpath("/path/to/Scripts/postinstall"),
+            }
+            mock_hash.side_effect = ["recipe_hash", "post_hash", "pre_hash"]
+            mock_git_hash.side_effect = ["recipe_git", "post_git", "pre_git"]
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_identifier.return_value = "com.test.recipe"
+            mock_core_processors.return_value = []
+            mock_find_scripts_dir.return_value = "/path/to/Scripts"
+            mock_compress.side_effect = lambda x: x
+
+            result = autopkg.get_trust_info(mock_recipe)
+
+            self.assertEqual(len(result["scripts"]), 2)
+            self.assertIn("Scripts/preinstall", result["scripts"])
+            self.assertIn("Scripts/postinstall", result["scripts"])
+            self.assertNotIn("Scripts/.DS_Store", result["scripts"])
 
     def test_verify_parent_trust_no_trust_info_override(self):
         """Test verify_parent_trust with no trust info in override recipe."""
@@ -175,14 +414,11 @@ class TestAutoPkgOverrides(unittest.TestCase):
             "ParentRecipeTrustInfo": {"test": "info"},
         }
 
-        with patch.object(
-            autopkg, "recipe_in_override_dir"
-        ) as mock_in_override, patch.object(
-            autopkg, "recipe_from_external_repo"
-        ) as mock_external, patch.object(
-            autopkg, "get_pref"
-        ) as mock_get_pref:
-
+        with (
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "recipe_from_external_repo") as mock_external,
+            patch.object(autopkg, "get_pref") as mock_get_pref,
+        ):
             mock_in_override.return_value = True
             mock_external.return_value = True
             mock_get_pref.return_value = "~/Library/AutoPkg/RecipeRepos"
@@ -200,26 +436,30 @@ class TestAutoPkgOverrides(unittest.TestCase):
             "ParentRecipeTrustInfo": {"test": "info"},
         }
 
-        with patch.object(
-            autopkg, "recipe_in_override_dir"
-        ) as mock_in_override, patch.object(
-            autopkg, "recipe_from_external_repo"
-        ) as mock_external, patch.object(
-            autopkg, "get_pref"
-        ) as mock_get_pref, patch.object(
-            autopkg, "load_recipe"
-        ) as mock_load_recipe, patch.object(
-            autopkg, "get_trust_info"
-        ) as mock_get_trust_info:
-
+        with (
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "recipe_from_external_repo") as mock_external,
+            patch.object(autopkg, "get_pref") as mock_get_pref,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_trust_info") as mock_get_trust_info,
+        ):
             mock_in_override.return_value = True
             mock_external.return_value = False
             mock_get_pref.return_value = "~/Library/AutoPkg/RecipeRepos"
             mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
             mock_get_trust_info.return_value = {"test": "info"}  # Matching info
 
-            # Should not raise any exception
             autopkg.verify_parent_trust(mock_recipe, ["/overrides"], ["/recipes"])
+            mock_load_recipe.assert_called_once_with(
+                "com.test.parent",
+                ["/overrides"],
+                ["/recipes"],
+                make_suggestions=False,
+                search_github=False,
+            )
+            mock_get_trust_info.assert_called_once_with(
+                mock_load_recipe.return_value, ["/recipes"]
+            )
 
     def test_verify_parent_trust_mismatched_processor_hash(self):
         """Test verify_parent_trust with mismatched processor hash."""
@@ -232,20 +472,14 @@ class TestAutoPkgOverrides(unittest.TestCase):
             },
         }
 
-        with patch.object(
-            autopkg, "recipe_in_override_dir"
-        ) as mock_in_override, patch.object(
-            autopkg, "recipe_from_external_repo"
-        ) as mock_external, patch.object(
-            autopkg, "get_pref"
-        ) as mock_get_pref, patch.object(
-            autopkg, "load_recipe"
-        ) as mock_load_recipe, patch.object(
-            autopkg, "get_trust_info"
-        ) as mock_get_trust_info, patch.object(
-            autopkg, "find_processor_path"
-        ) as mock_find_processor:
-
+        with (
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "recipe_from_external_repo") as mock_external,
+            patch.object(autopkg, "get_pref") as mock_get_pref,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_trust_info") as mock_get_trust_info,
+            patch.object(autopkg, "find_processor_path") as mock_find_processor,
+        ):
             mock_in_override.return_value = True
             mock_external.return_value = False
             mock_get_pref.return_value = "~/Library/AutoPkg/RecipeRepos"
@@ -261,6 +495,94 @@ class TestAutoPkgOverrides(unittest.TestCase):
 
             self.assertIn("TestProcessor contents differ", str(context.exception))
 
+    def test_verify_parent_trust_mismatched_script_hash(self):
+        """Test verify_parent_trust with mismatched script hash."""
+        mock_recipe = {
+            "RECIPE_PATH": "/overrides/test.recipe",
+            "ParentRecipe": "com.test.parent",
+            "ParentRecipeTrustInfo": {
+                "non_core_processors": {},
+                "scripts": {
+                    "Scripts/preinstall": {
+                        "path": "/path/to/Scripts/preinstall",
+                        "sha256_hash": "old_hash",
+                    }
+                },
+                "parent_recipes": {},
+            },
+        }
+
+        with (
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "recipe_from_external_repo") as mock_external,
+            patch.object(autopkg, "get_pref") as mock_get_pref,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_trust_info") as mock_get_trust_info,
+        ):
+            mock_in_override.return_value = True
+            mock_external.return_value = False
+            mock_get_pref.return_value = "~/Library/AutoPkg/RecipeRepos"
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_trust_info.return_value = {
+                "non_core_processors": {},
+                "scripts": {
+                    "Scripts/preinstall": {
+                        "path": "/path/to/Scripts/preinstall",
+                        "sha256_hash": "new_hash",
+                    }
+                },
+                "parent_recipes": {},
+            }
+
+            with self.assertRaises(autopkg.TrustVerificationError) as context:
+                autopkg.verify_parent_trust(mock_recipe, ["/overrides"], ["/recipes"])
+
+            self.assertIn(
+                "Script Scripts/preinstall contents differ",
+                str(context.exception),
+            )
+
+    def test_verify_parent_trust_legacy_trust_info_warns_for_scripts(self):
+        """Test older trust info warns (not errors) when scripts now exist."""
+        mock_recipe = {
+            "RECIPE_PATH": "/overrides/test.recipe",
+            "ParentRecipe": "com.test.parent",
+            "ParentRecipeTrustInfo": {
+                "non_core_processors": {},
+                "parent_recipes": {},
+            },
+        }
+
+        with (
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "recipe_from_external_repo") as mock_external,
+            patch.object(autopkg, "get_pref") as mock_get_pref,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_trust_info") as mock_get_trust_info,
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
+            mock_in_override.return_value = True
+            mock_external.return_value = False
+            mock_get_pref.return_value = "~/Library/AutoPkg/RecipeRepos"
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            mock_get_trust_info.return_value = {
+                "non_core_processors": {},
+                "scripts": {
+                    "Scripts/preinstall": {
+                        "path": "/path/to/Scripts/preinstall",
+                        "sha256_hash": "new_hash",
+                    }
+                },
+                "parent_recipes": {},
+            }
+
+            autopkg.verify_parent_trust(mock_recipe, ["/overrides"], ["/recipes"])
+
+            mock_log_err.assert_called_once()
+            warning_msg = mock_log_err.call_args[0][0]
+            self.assertIn("Scripts/preinstall", warning_msg)
+            self.assertIn("3.1.0", warning_msg)
+
     @patch("sys.argv", ["autopkg", "update-trust-info", "test.recipe"])
     def test_update_trust_info_success(self):
         """Test update_trust_info command with successful execution."""
@@ -268,32 +590,20 @@ class TestAutoPkgOverrides(unittest.TestCase):
         mock_parent_recipe = {"Identifier": "com.test.parent"}
         mock_trust_info = {"test": "info"}
 
-        with patch.object(
-            autopkg, "gen_common_parser"
-        ) as mock_parser_gen, patch.object(
-            autopkg, "add_search_and_override_dir_options"
-        ), patch.object(
-            autopkg, "common_parse"
-        ) as mock_parse, patch.object(
-            autopkg, "get_override_dirs"
-        ) as mock_get_override_dirs, patch.object(
-            autopkg, "get_search_dirs"
-        ) as mock_get_search_dirs, patch.object(
-            autopkg, "locate_recipe"
-        ) as mock_locate_recipe, patch.object(
-            autopkg, "recipe_from_file"
-        ) as mock_recipe_from_file, patch.object(
-            autopkg, "recipe_in_override_dir"
-        ) as mock_in_override, patch.object(
-            autopkg, "load_recipe"
-        ) as mock_load_recipe, patch.object(
-            autopkg, "get_trust_info"
-        ) as mock_get_trust_info, patch.object(
-            autopkg, "plist_serializer"
-        ) as mock_plist_serializer, patch(
-            "builtins.open", mock_open()
-        ) as _:
-
+        with (
+            patch.object(autopkg, "gen_common_parser") as mock_parser_gen,
+            patch.object(autopkg, "add_search_and_override_dir_options"),
+            patch.object(autopkg, "common_parse") as mock_parse,
+            patch.object(autopkg, "get_override_dirs") as mock_get_override_dirs,
+            patch.object(autopkg, "get_search_dirs") as mock_get_search_dirs,
+            patch.object(autopkg, "locate_recipe") as mock_locate_recipe,
+            patch.object(autopkg, "recipe_from_file") as mock_recipe_from_file,
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_trust_info") as mock_get_trust_info,
+            patch.object(autopkg, "plist_serializer") as mock_plist_serializer,
+            patch("builtins.open", mock_open()) as _,
+        ):
             mock_parser = Mock()
             mock_parser_gen.return_value = mock_parser
             mock_options = Mock()
@@ -313,22 +623,22 @@ class TestAutoPkgOverrides(unittest.TestCase):
                 ["autopkg", "update-trust-info", "test.recipe"]
             )
 
-            # Should complete without error
             self.assertIsNone(result)
+            self.assertEqual(mock_recipe["ParentRecipeTrustInfo"], mock_trust_info)
+            mock_get_trust_info.assert_called_once_with(
+                mock_parent_recipe, search_dirs=["/recipes"]
+            )
+            mock_plist_serializer.assert_called_once_with(mock_recipe)
 
     @patch("sys.argv", ["autopkg", "update-trust-info"])
     def test_update_trust_info_no_recipes(self):
         """Test update_trust_info command with no recipe names provided."""
-        with patch.object(
-            autopkg, "gen_common_parser"
-        ) as mock_parser_gen, patch.object(
-            autopkg, "add_search_and_override_dir_options"
-        ), patch.object(
-            autopkg, "common_parse"
-        ) as mock_parse, patch.object(
-            autopkg, "log_err"
-        ) as mock_log_err:
-
+        with (
+            patch.object(autopkg, "gen_common_parser") as mock_parser_gen,
+            patch.object(autopkg, "add_search_and_override_dir_options"),
+            patch.object(autopkg, "common_parse") as mock_parse,
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
             mock_parser = Mock()
             mock_parser_gen.return_value = mock_parser
             mock_options = Mock()
@@ -348,24 +658,16 @@ class TestAutoPkgOverrides(unittest.TestCase):
             "ParentRecipeTrustInfo": {"test": "info"},
         }
 
-        with patch.object(
-            autopkg, "gen_common_parser"
-        ) as mock_parser_gen, patch.object(
-            autopkg, "add_search_and_override_dir_options"
-        ), patch.object(
-            autopkg, "common_parse"
-        ) as mock_parse, patch.object(
-            autopkg, "get_override_dirs"
-        ) as mock_get_override_dirs, patch.object(
-            autopkg, "get_search_dirs"
-        ) as mock_get_search_dirs, patch.object(
-            autopkg, "load_recipe"
-        ) as mock_load_recipe, patch.object(
-            autopkg, "verify_parent_trust"
-        ) as mock_verify_trust, patch.object(
-            autopkg, "log"
-        ) as mock_log:
-
+        with (
+            patch.object(autopkg, "gen_common_parser") as mock_parser_gen,
+            patch.object(autopkg, "add_search_and_override_dir_options"),
+            patch.object(autopkg, "common_parse") as mock_parse,
+            patch.object(autopkg, "get_override_dirs") as mock_get_override_dirs,
+            patch.object(autopkg, "get_search_dirs") as mock_get_search_dirs,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "verify_parent_trust") as mock_verify_trust,
+            patch.object(autopkg, "log") as mock_log,
+        ):
             mock_parser = Mock()
             mock_parser.add_option = Mock()
             mock_parser_gen.return_value = mock_parser
@@ -395,24 +697,16 @@ class TestAutoPkgOverrides(unittest.TestCase):
             "ParentRecipe": "com.test.parent",
         }
 
-        with patch.object(
-            autopkg, "gen_common_parser"
-        ) as mock_parser_gen, patch.object(
-            autopkg, "add_search_and_override_dir_options"
-        ), patch.object(
-            autopkg, "common_parse"
-        ) as mock_parse, patch.object(
-            autopkg, "get_override_dirs"
-        ) as mock_get_override_dirs, patch.object(
-            autopkg, "get_search_dirs"
-        ) as mock_get_search_dirs, patch.object(
-            autopkg, "load_recipe"
-        ) as mock_load_recipe, patch.object(
-            autopkg, "verify_parent_trust"
-        ) as mock_verify_trust, patch.object(
-            autopkg, "log_err"
-        ) as mock_log_err:
-
+        with (
+            patch.object(autopkg, "gen_common_parser") as mock_parser_gen,
+            patch.object(autopkg, "add_search_and_override_dir_options"),
+            patch.object(autopkg, "common_parse") as mock_parse,
+            patch.object(autopkg, "get_override_dirs") as mock_get_override_dirs,
+            patch.object(autopkg, "get_search_dirs") as mock_get_search_dirs,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "verify_parent_trust") as mock_verify_trust,
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
             mock_parser = Mock()
             mock_parser.add_option = Mock()
             mock_parser_gen.return_value = mock_parser
@@ -446,36 +740,79 @@ class TestAutoPkgOverrides(unittest.TestCase):
         with self.assertRaises(autopkg.TrustVerificationError):
             raise autopkg.TrustVerificationError("Test error")
 
+    def test_verify_parent_trust_parent_recipes_list_differs(self):
+        """Trust error should report both expected and actual parent recipe lists."""
+        mock_recipe = {
+            "RECIPE_PATH": "/overrides/test.recipe",
+            "ParentRecipe": "com.test.parent",
+            "ParentRecipeTrustInfo": {
+                "non_core_processors": {},
+                "scripts": {},
+                "parent_recipes": {
+                    "com.test.parent1": {
+                        "sha256_hash": "abc123",
+                        "path": "/path/parent1.recipe",
+                    },
+                },
+            },
+        }
+
+        with (
+            patch.object(autopkg, "recipe_in_override_dir") as mock_in_override,
+            patch.object(autopkg, "recipe_from_external_repo") as mock_external,
+            patch.object(autopkg, "get_pref") as mock_get_pref,
+            patch.object(autopkg, "load_recipe") as mock_load_recipe,
+            patch.object(autopkg, "get_trust_info") as mock_get_trust_info,
+        ):
+            mock_in_override.return_value = True
+            mock_external.return_value = False
+            mock_get_pref.return_value = "~/Library/AutoPkg/RecipeRepos"
+            mock_load_recipe.return_value = {"Identifier": "com.test.parent"}
+            # Expected has parent1, actual has parent2 - they differ
+            mock_get_trust_info.return_value = {
+                "non_core_processors": {},
+                "scripts": {},
+                "parent_recipes": {
+                    "com.test.parent2": {
+                        "sha256_hash": "def456",
+                        "path": "/path/parent2.recipe",
+                    },
+                },
+            }
+
+            with self.assertRaises(autopkg.TrustVerificationError) as context:
+                autopkg.verify_parent_trust(mock_recipe, ["/overrides"], ["/recipes"])
+
+            error_msg = str(context.exception)
+            # The error must show each list with its real value. The original bug
+            # printed the expected list on both lines, hiding what actually changed.
+            self.assertIn(
+                "Expected parent recipe list: ['com.test.parent1']", error_msg
+            )
+            self.assertIn("Actual parent recipe list: ['com.test.parent2']", error_msg)
+            # Regression guard: the actual-list line must not echo the expected list.
+            self.assertNotIn(
+                "Actual parent recipe list: ['com.test.parent1']", error_msg
+            )
+
     def test_make_override_success_plist_format(self):
         """Test successful override creation in plist format."""
-        with patch("autopkg.gen_common_parser") as mock_parser, patch(
-            "autopkg.common_parse"
-        ) as mock_common_parse, patch(
-            "autopkg.get_override_dirs"
-        ) as mock_get_override_dirs, patch(
-            "autopkg.get_search_dirs"
-        ) as mock_get_search_dirs, patch(
-            "autopkg.load_recipe"
-        ) as mock_load_recipe, patch(
-            "autopkg.get_identifier"
-        ) as mock_get_identifier, patch(
-            "autopkg.get_trust_info"
-        ) as mock_get_trust_info, patch(
-            "autopkg.remove_recipe_extension"
-        ) as mock_remove_recipe_ext, patch(
-            "autopkg.log"
-        ), patch(
-            "os.path.isfile"
-        ) as mock_isfile, patch(
-            "os.path.exists"
-        ) as mock_exists, patch(
-            "builtins.open", mock_open()
-        ), patch(
-            "plistlib.dump"
-        ) as mock_plist_dump, patch(
-            "autopkg.plist_serializer"
-        ) as mock_plist_serializer:
-
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser,
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.load_recipe") as mock_load_recipe,
+            patch("autopkg.get_identifier") as mock_get_identifier,
+            patch("autopkg.get_trust_info") as mock_get_trust_info,
+            patch("autopkg.remove_recipe_extension") as mock_remove_recipe_ext,
+            patch("autopkg.log"),
+            patch("os.path.isfile") as mock_isfile,
+            patch("os.path.exists") as mock_exists,
+            patch("builtins.open", mock_open()),
+            patch("plistlib.dump") as mock_plist_dump,
+            patch("autopkg.plist_serializer") as mock_plist_serializer,
+        ):
             mock_parser_instance = Mock()
             mock_parser.return_value = mock_parser_instance
 
@@ -518,36 +855,65 @@ class TestAutoPkgOverrides(unittest.TestCase):
             self.assertEqual(result, 0)
             mock_plist_dump.assert_called_once()
 
+    def test_make_override_pull_uses_updated_search_dirs(self):
+        """Trust info sees repos that --pull added while loading the recipe."""
+        with (
+            patch("autopkg.gen_common_parser"),
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs", return_value=[self.tmp_dir.name]),
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.load_recipe") as mock_load_recipe,
+            patch("autopkg.get_identifier", return_value="com.example.child"),
+            patch("autopkg.get_trust_info", return_value={}) as mock_get_trust_info,
+            patch("autopkg.log"),
+            patch("os.path.isfile", return_value=False),
+            patch("os.path.exists", side_effect=lambda p: p == self.tmp_dir.name),
+            patch("builtins.open", mock_open()),
+            patch("plistlib.dump"),
+        ):
+            mock_options = Mock()
+            mock_options.override_dirs = []
+            mock_options.search_dirs = []
+            mock_options.name = None
+            mock_options.force = False
+            mock_options.pull = True
+            mock_options.ignore_deprecation = False
+            mock_options.format = "plist"
+            mock_common_parse.return_value = (mock_options, ["TestApp"])
+            mock_get_search_dirs.side_effect = [["before"], ["before", "pulled"]]
+            mock_load_recipe.return_value = {
+                "Identifier": "com.example.child",
+                "Input": {"NAME": "TestApp"},
+                "Process": [],
+                "RECIPE_PATH": "TestApp.recipe",
+            }
+
+            result = autopkg.make_override(["autopkg", "make-override", "TestApp"])
+
+            self.assertEqual(result, 0)
+            self.assertEqual(
+                mock_get_trust_info.call_args.kwargs["search_dirs"],
+                ["before", "pulled"],
+            )
+
     def test_make_override_success_yaml_format(self):
         """Test successful override creation in yaml format."""
-        with patch("autopkg.gen_common_parser") as mock_parser, patch(
-            "autopkg.common_parse"
-        ) as mock_common_parse, patch(
-            "autopkg.get_override_dirs"
-        ) as mock_get_override_dirs, patch(
-            "autopkg.get_search_dirs"
-        ) as mock_get_search_dirs, patch(
-            "autopkg.load_recipe"
-        ) as mock_load_recipe, patch(
-            "autopkg.get_identifier"
-        ) as mock_get_identifier, patch(
-            "autopkg.get_trust_info"
-        ) as mock_get_trust_info, patch(
-            "autopkg.remove_recipe_extension"
-        ) as mock_remove_recipe_ext, patch(
-            "autopkg.log"
-        ), patch(
-            "os.path.isfile"
-        ) as mock_isfile, patch(
-            "os.path.exists"
-        ) as mock_exists, patch(
-            "builtins.open", mock_open()
-        ), patch(
-            "yaml.dump"
-        ) as mock_yaml_dump, patch(
-            "autopkg.plist_serializer"
-        ) as mock_plist_serializer:
-
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser,
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.load_recipe") as mock_load_recipe,
+            patch("autopkg.get_identifier") as mock_get_identifier,
+            patch("autopkg.get_trust_info") as mock_get_trust_info,
+            patch("autopkg.remove_recipe_extension") as mock_remove_recipe_ext,
+            patch("autopkg.log"),
+            patch("os.path.isfile") as mock_isfile,
+            patch("os.path.exists") as mock_exists,
+            patch("builtins.open", mock_open()),
+            patch("yaml.dump") as mock_yaml_dump,
+            patch("autopkg.plist_serializer") as mock_plist_serializer,
+        ):
             mock_parser_instance = Mock()
             mock_parser.return_value = mock_parser_instance
 
@@ -592,10 +958,10 @@ class TestAutoPkgOverrides(unittest.TestCase):
 
     def test_make_override_no_arguments(self):
         """Test make_override with no recipe arguments."""
-        with patch("autopkg.gen_common_parser") as mock_parser, patch(
-            "autopkg.common_parse"
-        ) as mock_common_parse:
-
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser,
+            patch("autopkg.common_parse") as mock_common_parse,
+        ):
             mock_parser_instance = Mock()
             mock_parser.return_value = mock_parser_instance
 
@@ -608,10 +974,10 @@ class TestAutoPkgOverrides(unittest.TestCase):
 
     def test_make_override_multiple_arguments(self):
         """Test make_override with multiple recipe arguments."""
-        with patch("autopkg.gen_common_parser") as mock_parser, patch(
-            "autopkg.common_parse"
-        ) as mock_common_parse:
-
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser,
+            patch("autopkg.common_parse") as mock_common_parse,
+        ):
             mock_parser_instance = Mock()
             mock_parser.return_value = mock_parser_instance
 
@@ -626,10 +992,11 @@ class TestAutoPkgOverrides(unittest.TestCase):
 
     def test_make_override_absolute_path_error(self):
         """Test make_override with absolute path recipe name."""
-        with patch("autopkg.gen_common_parser") as mock_parser, patch(
-            "autopkg.common_parse"
-        ) as mock_common_parse, patch("os.path.isfile") as mock_isfile:
-
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser,
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("os.path.isfile") as mock_isfile,
+        ):
             mock_parser_instance = Mock()
             mock_parser.return_value = mock_parser_instance
 
@@ -645,20 +1012,15 @@ class TestAutoPkgOverrides(unittest.TestCase):
 
     def test_make_override_recipe_not_found(self):
         """Test make_override when recipe cannot be found."""
-        with patch("autopkg.gen_common_parser") as mock_parser, patch(
-            "autopkg.common_parse"
-        ) as mock_common_parse, patch(
-            "autopkg.get_override_dirs"
-        ) as mock_get_override_dirs, patch(
-            "autopkg.get_search_dirs"
-        ) as mock_get_search_dirs, patch(
-            "autopkg.load_recipe"
-        ) as mock_load_recipe, patch(
-            "os.path.isfile"
-        ) as mock_isfile, patch(
-            "autopkg.log"
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser,
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.load_recipe") as mock_load_recipe,
+            patch("os.path.isfile") as mock_isfile,
+            patch("autopkg.log"),
         ):
-
             mock_parser_instance = Mock()
             mock_parser.return_value = mock_parser_instance
 
@@ -681,22 +1043,16 @@ class TestAutoPkgOverrides(unittest.TestCase):
 
     def test_make_override_deprecated_recipe_without_ignore(self):
         """Test make_override with deprecated recipe without ignore flag."""
-        with patch("autopkg.gen_common_parser") as mock_parser, patch(
-            "autopkg.common_parse"
-        ) as mock_common_parse, patch(
-            "autopkg.get_override_dirs"
-        ) as mock_get_override_dirs, patch(
-            "autopkg.get_search_dirs"
-        ) as mock_get_search_dirs, patch(
-            "autopkg.load_recipe"
-        ) as mock_load_recipe, patch(
-            "autopkg.get_identifier"
-        ) as mock_get_identifier, patch(
-            "os.path.isfile"
-        ) as mock_isfile, patch(
-            "autopkg.log"
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser,
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.load_recipe") as mock_load_recipe,
+            patch("autopkg.get_identifier") as mock_get_identifier,
+            patch("os.path.isfile") as mock_isfile,
+            patch("autopkg.log"),
         ):
-
             mock_parser_instance = Mock()
             mock_parser.return_value = mock_parser_instance
 
@@ -735,22 +1091,16 @@ class TestAutoPkgOverrides(unittest.TestCase):
 
     def test_make_override_no_identifier(self):
         """Test make_override when recipe has no identifier."""
-        with patch("autopkg.gen_common_parser") as mock_parser, patch(
-            "autopkg.common_parse"
-        ) as mock_common_parse, patch(
-            "autopkg.get_override_dirs"
-        ) as mock_get_override_dirs, patch(
-            "autopkg.get_search_dirs"
-        ) as mock_get_search_dirs, patch(
-            "autopkg.load_recipe"
-        ) as mock_load_recipe, patch(
-            "autopkg.get_identifier"
-        ) as mock_get_identifier, patch(
-            "os.path.isfile"
-        ) as mock_isfile, patch(
-            "autopkg.log"
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser,
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.load_recipe") as mock_load_recipe,
+            patch("autopkg.get_identifier") as mock_get_identifier,
+            patch("os.path.isfile") as mock_isfile,
+            patch("autopkg.log"),
         ):
-
             mock_parser_instance = Mock()
             mock_parser.return_value = mock_parser_instance
 
@@ -779,34 +1129,22 @@ class TestAutoPkgOverrides(unittest.TestCase):
 
     def test_make_override_force_overwrite(self):
         """Test make_override with force overwrite option."""
-        with patch("autopkg.gen_common_parser") as mock_parser, patch(
-            "autopkg.common_parse"
-        ) as mock_common_parse, patch(
-            "autopkg.get_override_dirs"
-        ) as mock_get_override_dirs, patch(
-            "autopkg.get_search_dirs"
-        ) as mock_get_search_dirs, patch(
-            "autopkg.load_recipe"
-        ) as mock_load_recipe, patch(
-            "autopkg.get_identifier"
-        ) as mock_get_identifier, patch(
-            "autopkg.get_trust_info"
-        ) as mock_get_trust_info, patch(
-            "autopkg.remove_recipe_extension"
-        ) as mock_remove_recipe_ext, patch(
-            "autopkg.log"
-        ), patch(
-            "os.path.isfile"
-        ) as mock_isfile, patch(
-            "os.path.exists"
-        ) as mock_exists, patch(
-            "builtins.open", mock_open()
-        ), patch(
-            "plistlib.dump"
-        ) as mock_plist_dump, patch(
-            "autopkg.plist_serializer"
-        ) as mock_plist_serializer:
-
+        with (
+            patch("autopkg.gen_common_parser") as mock_parser,
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.get_override_dirs") as mock_get_override_dirs,
+            patch("autopkg.get_search_dirs") as mock_get_search_dirs,
+            patch("autopkg.load_recipe") as mock_load_recipe,
+            patch("autopkg.get_identifier") as mock_get_identifier,
+            patch("autopkg.get_trust_info") as mock_get_trust_info,
+            patch("autopkg.remove_recipe_extension") as mock_remove_recipe_ext,
+            patch("autopkg.log"),
+            patch("os.path.isfile") as mock_isfile,
+            patch("os.path.exists") as mock_exists,
+            patch("builtins.open", mock_open()),
+            patch("plistlib.dump") as mock_plist_dump,
+            patch("autopkg.plist_serializer") as mock_plist_serializer,
+        ):
             mock_parser_instance = Mock()
             mock_parser.return_value = mock_parser_instance
 

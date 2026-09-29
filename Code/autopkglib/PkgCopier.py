@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for PkgCopier class"""
 
 import glob
@@ -65,13 +66,18 @@ class PkgCopier(Copier):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                source_pkg = os.path.join(mount_point, dmg_source_path)
+                source_pkg, matches = self.glob_paths_in_mount(
+                    mount_point, dmg_source_path
+                )
             else:
                 # Straight copy from file system.
                 source_pkg = self.env["source_pkg"]
-
-            # Process the path for globs
-            matches = glob.glob(source_pkg)
+                # Process the path for globs
+                matches = glob.glob(source_pkg)
+            if len(matches) == 0:
+                raise ProcessorError(
+                    f"Error processing path '{source_pkg}' with glob. "
+                )
             matched_source_path = matches[0]
             if len(matches) > 1:
                 self.output(
@@ -106,8 +112,7 @@ class PkgCopier(Copier):
             }
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

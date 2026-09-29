@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for MunkiImporter class"""
 
 import os
@@ -21,7 +22,7 @@ import subprocess
 from datetime import datetime
 
 from autopkglib import Processor, ProcessorError
-from autopkglib.munkirepolibs.AutoPkgLib import AutoPkgLib
+from autopkglib.munkirepolibs import fetch_repo_library
 from autopkglib.munkirepolibs.MunkiLib import MunkiLib
 
 __all__ = ["MunkiImporter"]
@@ -116,8 +117,7 @@ class MunkiImporter(Processor):
         "uninstaller_pkg_path": {
             "required": False,
             "description": (
-                "Path to an uninstaller pkg, supported for Adobe "
-                "installer_type items."
+                "Path to an uninstaller pkg, supported for Adobe installer_type items."
             ),
         },
         "MUNKI_PKGINFO_FILE_EXTENSION": {
@@ -143,8 +143,7 @@ class MunkiImporter(Processor):
         },
         "pkg_repo_path": {
             "description": (
-                "The repo path where the pkg was written. "
-                "Empty if item not imported."
+                "The repo path where the pkg was written. Empty if item not imported."
             )
         },
         "munki_info": {
@@ -155,21 +154,6 @@ class MunkiImporter(Processor):
             "description": "Description of interesting results."
         },
     }
-
-    def _fetch_repo_library(
-        self,
-        munki_repo,
-        munki_repo_plugin,
-        munkilib_dir,
-        repo_subdirectory,
-        force_munki_lib,
-    ):
-        if munki_repo_plugin == "FileRepo" and not force_munki_lib:
-            return AutoPkgLib(munki_repo, repo_subdirectory)
-        else:
-            return MunkiLib(
-                munki_repo, munki_repo_plugin, munkilib_dir, repo_subdirectory
-            )
 
     def _find_matching_pkginfo(self, repo_library, pkginfo):
         """Looks through all catalog for items matching the one
@@ -296,7 +280,7 @@ class MunkiImporter(Processor):
         return None
 
     def main(self) -> None:
-        library = self._fetch_repo_library(
+        library = fetch_repo_library(
             self.env["MUNKI_REPO"],
             self.env["MUNKI_REPO_PLUGIN"],
             self.env["MUNKILIB_DIR"],
@@ -305,8 +289,8 @@ class MunkiImporter(Processor):
         )
 
         self.output(f"Using repo lib: {library.__class__.__name__}")
-        self.output(f'        plugin: {self.env["MUNKI_REPO_PLUGIN"]}')
-        self.output(f'          repo: {self.env["MUNKI_REPO"]}')
+        self.output(f"        plugin: {self.env['MUNKI_REPO_PLUGIN']}")
+        self.output(f"          repo: {self.env['MUNKI_REPO']}")
 
         # clear any pre-existing summary result
         if "munki_importer_summary_result" in self.env:
@@ -377,7 +361,7 @@ class MunkiImporter(Processor):
         # if pkginfo has an installs item
         if "installs" in pkginfo and self.env.get("version_comparison_key"):
             for item in pkginfo["installs"]:
-                if not self.env["version_comparison_key"] in item:
+                if self.env["version_comparison_key"] not in item:
                     raise ProcessorError(
                         "version_comparison_key "
                         f"'{self.env['version_comparison_key']}' could not be "
@@ -504,10 +488,10 @@ class MunkiImporter(Processor):
             },
         }
 
-        self.output(f'Copied pkginfo to: {self.env["pkginfo_repo_path"]}')
-        self.output(f'           pkg to: {self.env["pkg_repo_path"]}')
+        self.output(f"Copied pkginfo to: {self.env['pkginfo_repo_path']}")
+        self.output(f"           pkg to: {self.env['pkg_repo_path']}")
         if self.env.get("extract_icon"):
-            self.output(f'          icon to: {self.env["icon_repo_path"]}')
+            self.output(f"          icon to: {self.env['icon_repo_path']}")
 
 
 if __name__ == "__main__":

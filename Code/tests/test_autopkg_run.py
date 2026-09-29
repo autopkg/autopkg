@@ -1,5 +1,7 @@
 #!/usr/local/autopkg/python
 #
+# Copyright 2025 Elliot Jordan
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import imp
 import os
 import plistlib
 import sys
@@ -23,21 +24,39 @@ from unittest.mock import Mock, mock_open, patch
 # Add the Code directory to the Python path to resolve autopkg dependencies
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-autopkg = imp.load_source(
-    "autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg")
-)
+import autopkglib
+from tests import load_autopkg_module
+
+autopkg = load_autopkg_module()
 
 
 class TestAutoPkgRun(unittest.TestCase):
     """Test cases for recipe run related functions of AutoPkg."""
 
+    def _cache_dir_pref(self, key):
+        """Answer only CACHE_DIR so other preference reads stay untouched."""
+        return self.tmp_dir.name if key == "CACHE_DIR" else None
+
     def setUp(self):
         """Set up test fixtures."""
         self.tmp_dir = TemporaryDirectory()
+        # Silence recipe-map side effects (see test_autopkg_recipes for
+        # rationale).
+        self._recipe_map_patches = [
+            patch("autopkg.calculate_recipe_map"),
+            patch("autopkg.read_recipe_map"),
+            # Keep CACHE_DIR inside the temp dir. Patched where get_cache_dir
+            # reads it, so callers still run the real normalization.
+            patch("autopkglib.get_pref", side_effect=self._cache_dir_pref),
+        ]
+        for patcher in self._recipe_map_patches:
+            patcher.start()
 
     def tearDown(self):
         """Clean up after tests."""
         self.tmp_dir.cleanup()
+        for patcher in self._recipe_map_patches:
+            patcher.stop()
 
     def test_run_recipes_no_arguments(self):
         """Test run_recipes with no recipe arguments."""
@@ -59,26 +78,18 @@ class TestAutoPkgRun(unittest.TestCase):
 
         argv = ["autopkg", "install", "TestApp"]
 
-        with patch.object(autopkg, "get_override_dirs", return_value=[]), patch.object(
-            autopkg, "get_search_dirs", return_value=[]
-        ), patch.object(
-            autopkg, "get_pref", return_value=self.tmp_dir.name
-        ), patch.object(
-            autopkg, "load_recipe", return_value=None
-        ) as mock_load_recipe, patch(
-            "os.path.exists", return_value=True
-        ), patch(
-            "os.makedirs"
-        ), patch.object(
-            autopkg, "plist_serializer", return_value={}
-        ), patch.object(
-            autopkg.plistlib, "dump"
-        ), patch.object(
-            autopkg, "log_err"
-        ), patch.object(
-            autopkg, "log"
+        with (
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_search_dirs", return_value=[]),
+            patch.object(autopkg, "get_pref", return_value=self.tmp_dir.name),
+            patch.object(autopkg, "load_recipe", return_value=None) as mock_load_recipe,
+            patch("os.path.exists", return_value=True),
+            patch("os.makedirs"),
+            patch.object(autopkg, "plist_serializer", return_value={}),
+            patch.object(autopkg.plistlib, "dump"),
+            patch.object(autopkg, "log_err"),
+            patch.object(autopkg, "log"),
         ):
-
             # Run recipes - with mocked plistlib.dump, this should complete successfully
             # The test focuses on verifying the recipe name transformation logic
             autopkg.run_recipes(argv)
@@ -92,24 +103,17 @@ class TestAutoPkgRun(unittest.TestCase):
         """Test run_recipes with install verb rejects non-.install extensions."""
         argv = ["autopkg", "install", "TestApp.recipe"]
 
-        with patch.object(autopkg, "get_override_dirs", return_value=[]), patch.object(
-            autopkg, "get_search_dirs", return_value=[]
-        ), patch.object(
-            autopkg, "get_pref", return_value=self.tmp_dir.name
-        ), patch.object(
-            autopkg, "load_recipe", return_value=None
-        ), patch(
-            "os.path.exists", return_value=True
-        ), patch(
-            "os.makedirs"
-        ), patch.object(
-            autopkg, "plist_serializer", return_value={}
-        ), patch.object(
-            autopkg.plistlib, "dump"
-        ), patch.object(
-            autopkg, "log_err"
-        ) as mock_log_err:
-
+        with (
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_search_dirs", return_value=[]),
+            patch.object(autopkg, "get_pref", return_value=self.tmp_dir.name),
+            patch.object(autopkg, "load_recipe", return_value=None),
+            patch("os.path.exists", return_value=True),
+            patch("os.makedirs"),
+            patch.object(autopkg, "plist_serializer", return_value={}),
+            patch.object(autopkg.plistlib, "dump"),
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
             try:
                 autopkg.run_recipes(argv)
             except OSError as e:
@@ -139,10 +143,11 @@ class TestAutoPkgRun(unittest.TestCase):
             "TestApp2.recipe",
         ]
 
-        with patch.object(autopkg, "get_override_dirs", return_value=[]), patch.object(
-            autopkg, "get_search_dirs", return_value=[]
-        ), patch.object(autopkg, "log_err"):
-
+        with (
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_search_dirs", return_value=[]),
+            patch.object(autopkg, "log_err"),
+        ):
             result = autopkg.run_recipes(argv)
             self.assertEqual(result, -1)
 
@@ -150,49 +155,142 @@ class TestAutoPkgRun(unittest.TestCase):
         """Test run_recipes with invalid key=value format."""
         argv = ["autopkg", "run", "-k", "INVALID_FORMAT", "TestApp.recipe"]
 
-        with patch.object(autopkg, "get_override_dirs", return_value=[]), patch.object(
-            autopkg, "get_search_dirs", return_value=[]
-        ), patch.object(autopkg, "log_err"):
-
+        with (
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_search_dirs", return_value=[]),
+            patch.object(autopkg, "log_err"),
+        ):
             result = autopkg.run_recipes(argv)
             self.assertEqual(result, 1)
+
+    def test_run_recipes_warns_for_global_codesign_disable_env(self):
+        """Global env disable should warn once before recipe processing."""
+        argv = ["autopkg", "run", "TestApp1.recipe", "TestApp2.recipe"]
+
+        with (
+            patch.dict(
+                os.environ,
+                {"AUTOPKG_DISABLE_CODE_SIGNATURE_VERIFICATION": "1"},
+                clear=True,
+            ),
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_search_dirs", return_value=[]),
+            patch.object(autopkg, "get_pref", return_value=self.tmp_dir.name),
+            patch.object(autopkg, "load_recipe", return_value=None),
+            patch.object(autopkg, "plist_serializer", return_value={}),
+            patch.object(autopkg.plistlib, "dump"),
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
+            autopkg.run_recipes(argv)
+
+        messages = [call.args[0] for call in mock_log_err.call_args_list]
+        self.assertTrue(
+            any(
+                "AUTOPKG_DISABLE_CODE_SIGNATURE_VERIFICATION environment variable"
+                in message
+                and "all 2 recipes" in message
+                for message in messages
+            )
+        )
+
+    def test_run_recipes_warns_for_global_codesign_disable_cli_key(self):
+        """Global CLI disable should identify -k/--key as the source."""
+        argv = [
+            "autopkg",
+            "run",
+            "-k",
+            "DISABLE_CODE_SIGNATURE_VERIFICATION=1",
+            "TestApp.recipe",
+        ]
+
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_search_dirs", return_value=[]),
+            patch.object(autopkg, "get_pref", return_value=self.tmp_dir.name),
+            patch.object(autopkg, "load_recipe", return_value=None),
+            patch.object(autopkg, "plist_serializer", return_value={}),
+            patch.object(autopkg.plistlib, "dump"),
+            patch.object(autopkg, "log_err") as mock_log_err,
+        ):
+            autopkg.run_recipes(argv)
+
+        messages = [call.args[0] for call in mock_log_err.call_args_list]
+        self.assertTrue(
+            any(
+                "-k/--key" in message and "this recipe run" in message
+                for message in messages
+            )
+        )
 
     def test_run_recipes_recipe_not_found(self):
         """Test run_recipes when recipe is not found."""
         argv = ["autopkg", "run", "NonExistentRecipe.recipe"]
 
-        with patch.object(autopkg, "get_override_dirs", return_value=[]), patch.object(
-            autopkg, "get_search_dirs", return_value=[]
-        ), patch.object(
-            autopkg, "get_pref", return_value=self.tmp_dir.name
-        ), patch.object(
-            autopkg, "load_recipe", return_value=None
-        ), patch(
-            "os.path.exists", return_value=True
-        ), patch(
-            "os.makedirs"
-        ), patch.object(
-            autopkg, "plist_serializer", return_value={}
-        ), patch.object(
-            autopkg.plistlib, "dump"
-        ), patch.object(
-            autopkg, "log_err"
+        with (
+            patch.object(autopkg, "get_override_dirs", return_value=[]),
+            patch.object(autopkg, "get_search_dirs", return_value=[]),
+            patch.object(autopkg, "get_pref", return_value=self.tmp_dir.name),
+            patch.object(autopkg, "load_recipe", return_value=None),
+            patch("os.path.exists", return_value=True),
+            patch("os.makedirs"),
+            patch.object(autopkg, "plist_serializer", return_value={}),
+            patch.object(autopkg.plistlib, "dump"),
+            patch.object(autopkg, "log_err"),
         ):
+            result = autopkg.run_recipes(argv)
 
-            result = None
-            try:
+        self.assertEqual(result, 70)  # RECIPE_FAILED_CODE
+
+    def test_run_recipes_load_error_is_reported_and_batch_continues(self):
+        """A recipe load failure must not prevent later recipes from loading."""
+        with NamedTemporaryFile(suffix=".plist") as report_file:
+            argv = [
+                "autopkg",
+                "run",
+                "--report-plist",
+                report_file.name,
+                "Stale.recipe",
+                "Next.recipe",
+            ]
+            load_error = autopkglib.StaleRecipeMapError(
+                "Recipe map entry is stale; run `autopkg generate-recipe-map`."
+            )
+            next_recipe = {
+                "RECIPE_PATH": "/path/to/Next.recipe",
+                "Identifier": "com.example.next",
+                "Input": {},
+                "Process": [],
+            }
+            mock_autopackager = Mock()
+            mock_autopackager.results = []
+            mock_autopackager.env = {"RECIPE_CACHE_DIR": self.tmp_dir.name}
+
+            with (
+                patch.object(autopkg, "get_override_dirs", return_value=[]),
+                patch.object(autopkg, "get_search_dirs", return_value=[]),
+                patch.object(
+                    autopkg, "load_recipe", side_effect=[load_error, next_recipe]
+                ) as mock_load_recipe,
+                patch.object(autopkg, "get_all_prefs", return_value={}),
+                patch.object(autopkg, "AutoPackager", return_value=mock_autopackager),
+                patch.object(autopkg, "plist_serializer", return_value={}),
+                patch.object(autopkg.plistlib, "dump"),
+                patch.object(autopkg, "log"),
+                patch.object(autopkg, "log_err"),
+                patch.object(autopkg, "write_plist_exit_on_fail") as mock_write_plist,
+            ):
                 result = autopkg.run_recipes(argv)
-            except OSError as e:
-                # Only accept specific file operation errors, not all OSErrors
-                # Common file-related errno values: ENOENT=2, EACCES=13, ENOTDIR=20, EISDIR=21
-                if e.errno not in [2, 13, 20, 21]:
-                    raise  # Re-raise unexpected OSErrors
-                # For expected file errors, we'll check that recipe loading was attempted
-                # which indicates the recipe-not-found logic was reached
 
-            # Verify the expected outcome: either proper return code or evidence of recipe loading attempt
-            if result is not None:
-                self.assertEqual(result, 70)  # RECIPE_FAILED_CODE
+        self.assertEqual(result, 70)
+        self.assertEqual(mock_load_recipe.call_count, 2)
+        mock_autopackager.process.assert_called_once_with(next_recipe)
+        report = mock_write_plist.call_args_list[-1].args[0]
+        self.assertEqual(len(report["failures"]), 1)
+        failure = report["failures"][0]
+        self.assertEqual(failure["recipe"], "Stale.recipe")
+        self.assertEqual(failure["message"], str(load_error))
+        self.assertIn("StaleRecipeMapError", failure["traceback"])
 
     def test_parse_recipe_list_plist_format(self):
         """Test parse_recipe_list with plist format."""
@@ -289,32 +387,21 @@ TestApp2.recipe
             )
 
             # Create a temporary directory for cache
-            with patch.object(
-                autopkg, "get_override_dirs", return_value=[]
-            ), patch.object(autopkg, "get_search_dirs", return_value=[]), patch.object(
-                autopkg, "get_pref", return_value=self.tmp_dir.name
-            ), patch.object(
-                autopkg, "load_recipe", return_value=mock_recipe
-            ), patch.object(
-                autopkg, "AutoPackager", return_value=mock_autopackager
-            ), patch.object(
-                autopkg, "verify_parent_trust"
-            ), patch(
-                "os.path.exists", return_value=True
-            ), patch(
-                "os.makedirs"
-            ), patch.object(
-                autopkg, "plist_serializer", return_value={}
-            ), patch.object(
-                autopkg.plistlib, "dump"
-            ), patch.object(
-                autopkg, "log"
-            ), patch.object(
-                autopkg, "log_err"
-            ), patch.object(
-                autopkg, "write_plist_exit_on_fail"
-            ) as mock_write_plist:
-
+            with (
+                patch.object(autopkg, "get_override_dirs", return_value=[]),
+                patch.object(autopkg, "get_search_dirs", return_value=[]),
+                patch.object(autopkg, "get_pref", return_value=self.tmp_dir.name),
+                patch.object(autopkg, "load_recipe", return_value=mock_recipe),
+                patch.object(autopkg, "AutoPackager", return_value=mock_autopackager),
+                patch.object(autopkg, "verify_parent_trust"),
+                patch("os.path.exists", return_value=True),
+                patch("os.makedirs"),
+                patch.object(autopkg, "plist_serializer", return_value={}),
+                patch.object(autopkg.plistlib, "dump"),
+                patch.object(autopkg, "log"),
+                patch.object(autopkg, "log_err"),
+                patch.object(autopkg, "write_plist_exit_on_fail") as mock_write_plist,
+            ):
                 # Run the function
                 result = autopkg.run_recipes(argv)
 
@@ -342,3 +429,74 @@ TestApp2.recipe
                 self.assertIn("message", failure)
                 self.assertEqual(failure["message"], "Test error")
                 self.assertIn("traceback", failure)
+
+    def test_run_recipes_passes_normalized_cache_dir_to_packager(self):
+        """run_recipes should keep shared prefs untouched but pass an absolute cache path."""
+        argv = ["autopkg", "run", "TestApp.recipe"]
+        cache_pref = "~/Library/AutoPkg/Cache"
+        mock_recipe = {
+            "RECIPE_PATH": "/path/to/TestApp.recipe",
+            "Identifier": "com.test.TestApp",
+            "Input": {},
+            "Process": [],
+        }
+
+        with TemporaryDirectory() as tmp_dir:
+            cwd_dir = os.path.join(tmp_dir, "cwd")
+            home_dir = os.path.join(tmp_dir, "home")
+            os.makedirs(cwd_dir)
+            expected_cache_dir = os.path.join(home_dir, "Library", "AutoPkg", "Cache")
+            original_expanduser = os.path.expanduser
+            original_cwd = os.getcwd()
+            captured_prefs = {}
+
+            def expanduser(path):
+                if path.startswith("~"):
+                    return path.replace("~", home_dir, 1)
+                return original_expanduser(path)
+
+            def make_packager(_options, prefs):
+                captured_prefs.update(prefs)
+                packager = Mock()
+                packager.results = []
+                packager.env = {
+                    "CACHE_DIR": prefs["CACHE_DIR"],
+                    "RECIPE_CACHE_DIR": os.path.join(
+                        prefs["CACHE_DIR"], "com.test.TestApp"
+                    ),
+                }
+                return packager
+
+            with (
+                patch.object(autopkg, "get_override_dirs", return_value=[]),
+                patch.object(autopkg, "get_search_dirs", return_value=[]),
+                patch.object(autopkg, "get_pref", return_value=cache_pref),
+                # get_cache_dir is deliberately NOT patched: normalizing
+                # cache_pref into expected_cache_dir is what this test checks.
+                patch.object(autopkglib, "get_pref", return_value=cache_pref),
+                patch.object(
+                    autopkg,
+                    "get_all_prefs",
+                    return_value={"CACHE_DIR": cache_pref},
+                ),
+                patch.object(autopkg, "load_recipe", return_value=mock_recipe),
+                patch.object(autopkg, "AutoPackager", side_effect=make_packager),
+                patch.object(autopkg.os.path, "expanduser", side_effect=expanduser),
+                patch.object(autopkg, "plist_serializer", return_value={}),
+                patch.object(autopkg.plistlib, "dump"),
+                patch.object(autopkg, "log"),
+                patch.object(autopkg, "log_err"),
+                patch.object(autopkg, "set_pref") as mock_set_pref,
+            ):
+                try:
+                    os.chdir(cwd_dir)
+                    result = autopkg.run_recipes(argv)
+                finally:
+                    os.chdir(original_cwd)
+
+            self.assertFalse(os.path.exists(os.path.join(cwd_dir, "~")))
+
+        self.assertIsNone(result)
+        self.assertEqual(captured_prefs["CACHE_DIR"], expected_cache_dir)
+        self.assertTrue(os.path.isabs(captured_prefs["CACHE_DIR"]))
+        mock_set_pref.assert_not_called()
