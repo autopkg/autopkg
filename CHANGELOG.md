@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [3.0.0](https://github.com/autopkg/autopkg/compare/v2.9.0...HEAD) (Unreleased)
+## [3.0.0](https://github.com/autopkg/autopkg/compare/v2.9.0...v3.0.0) (September 28, 2026)
 
 ### Recipe map
 
