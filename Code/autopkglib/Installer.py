@@ -13,23 +13,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for Installer class"""
 
-import os.path
-import plistlib
-import socket
 from glob import glob
 
-from autopkglib import ProcessorError
+from autopkglib import _AUTOPKGINSTALLD_SOCKET, ProcessorError, _AutopkginstalldClient
 from autopkglib.DmgMounter import DmgMounter
 
-AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
-
+# Kept for third-party code that imported it; rebinding it has no effect.
+AUTOPKGINSTALLD_SOCKET = _AUTOPKGINSTALLD_SOCKET
 
 __all__ = ["Installer"]
 
 
-class Installer(DmgMounter):
+class Installer(_AutopkginstalldClient, DmgMounter):
     """Calls autopkginstalld to install a package."""
 
     description = __doc__
@@ -94,9 +92,10 @@ class Installer(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                pkg_path = os.path.join(mount_point, dmg_pkg_path)
-            # process path with glob.glob
-            matches = glob(pkg_path)
+                pkg_path, matches = self.glob_paths_in_mount(mount_point, dmg_pkg_path)
+            else:
+                # process path with glob.glob
+                matches = glob(pkg_path)
             if len(matches) == 0:
                 raise ProcessorError(f"Error processing path '{pkg_path}' with glob. ")
             matched_pkg_path = matches[0]
@@ -113,7 +112,10 @@ class Installer(DmgMounter):
                     f"'{pkg_path}'."
                 )
 
-            request = {"package": matched_pkg_path}
+            request = {
+                "package": matched_pkg_path,
+                "recipe_cache_dir": self.env["RECIPE_CACHE_DIR"],
+            }
             result = None
             # Send install request.
             try:
@@ -139,41 +141,7 @@ class Installer(DmgMounter):
                 }
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
-
-    def connect(self) -> None:
-        """Connect to autopkginstalld"""
-        try:
-            self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self.socket.connect(AUTOPKGINSTALLD_SOCKET)
-        except OSError as err:
-            raise ProcessorError(f"Couldn't connect to autopkginstalld: {err.strerror}")
-
-    def send_request(self, request) -> None:
-        """Send an install request to autopkginstalld"""
-        self.socket.send(plistlib.dumps(request))
-        with os.fdopen(self.socket.fileno()) as fileref:
-            while True:
-                data = fileref.readline()
-                if data:
-                    if data.startswith("OK:"):
-                        return data.replace("OK:", "").rstrip()
-                    elif data.startswith("ERROR:"):
-                        break
-                    else:
-                        self.output(data.rstrip())
-                else:
-                    break
-
-        errors = data.rstrip().split("\n")
-        if not errors:
-            errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
-        raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
-
-    def disconnect(self) -> None:
-        """Disconnect from autopkginstalld"""
-        self.socket.close()
+            self.unmount_if_mounted(dmg_path)
 
     def main(self) -> None:
         """Install something!"""

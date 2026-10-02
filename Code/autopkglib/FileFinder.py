@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for FileFinder class"""
 
 import os.path
@@ -81,9 +82,16 @@ class FileFinder(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                source_path = os.path.join(mount_point, dmg_source_path)
-            # process path with globbing
-            match = self.globfind(source_path)
+                source_path, matches = self.glob_paths_in_mount(
+                    mount_point, dmg_source_path, recursive=True
+                )
+                if len(matches) < 1:
+                    raise ProcessorError("No matching filename found")
+                matches.sort()
+                match = matches[-1]
+            else:
+                # process path with globbing
+                match = self.globfind(source_path)
             self.env["found_filename"] = match
             self.output(
                 f"Found file match: '{self.env['found_filename']}' from globbed '{source_path}'"
@@ -102,8 +110,7 @@ class FileFinder(DmgMounter):
             self.output(f"Basename match: '{self.env['found_basename']}'")
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

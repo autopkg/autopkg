@@ -13,15 +13,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for PkgCreator class"""
 
 import os.path
 import plistlib
 import socket
 import subprocess
-from xml.etree import ElementTree as ET
+from xml.etree import ElementTree as ET  # nosec B405
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, is_mac, log_err
 
 AUTO_PKG_SOCKET = "/var/run/autopkgserver"
 
@@ -49,6 +50,24 @@ class PkgCreator(Processor):
                 "the same identifier and version number. Defaults to False"
             ),
             "default": False,
+        },
+        "pkgbuild_args": {
+            "required": False,
+            "description": (
+                "A list of additional arguments to pass to the pkgbuild "
+                "tool. For example, ['--large-payload'] for packages "
+                "over 8GB. You can also override pkgbuild's "
+                "default file exclusion filters. By default, pkgbuild "
+                "excludes .svn, CVS, .DS_Store, and .git from the "
+                "payload. Specifying even one --filter replaces ALL "
+                "default filters, so to keep .git files in your "
+                "package while still filtering out .DS_Store, use: "
+                "['--filter', '\\.DS_Store$']. Each --filter value is "
+                "a regular expression (use backslash escapes for "
+                "literal dots, etc.) matched against paths in the "
+                "package root."
+            ),
+            "default": None,
         },
     }
     output_variables = {
@@ -90,6 +109,12 @@ class PkgCreator(Processor):
 
     def xar_expand(self, source_path) -> None:
         """Uses xar to expand an archive"""
+        if not is_mac():
+            raise ProcessorError(
+                "Package inspection is only supported on macOS. "
+                "The 'xar' utility is not available on this platform."
+            )
+
         try:
             xarcmd = [
                 "/usr/bin/xar",
@@ -128,7 +153,7 @@ class PkgCreator(Processor):
                 try:
                     os.unlink(pkg_path)
                 except OSError as err:
-                    raise ProcessorError(f"Could not remove {pkg_path}: {err}")
+                    raise ProcessorError(f"Could not remove {pkg_path}: {err}") from err
                 return False
             packageinfo_file = os.path.join(self.env["RECIPE_CACHE_DIR"], "PackageInfo")
             if not os.path.exists(packageinfo_file):
@@ -141,10 +166,10 @@ class PkgCreator(Processor):
                 try:
                     os.unlink(pkg_path)
                 except OSError as err:
-                    raise ProcessorError(f"Could not remove {pkg_path}: {err}")
+                    raise ProcessorError(f"Could not remove {pkg_path}: {err}") from err
                 return False
             # parse the PackageInfo file for version and identifier
-            tree = ET.parse(packageinfo_file)
+            tree = ET.parse(packageinfo_file)  # nosec B314 - parses self-generated pkg
             root = tree.getroot()
             local_version = root.attrib["version"]
             local_id = root.attrib["identifier"]
@@ -168,6 +193,16 @@ class PkgCreator(Processor):
         request = self.env["pkg_request"]
         if "pkgdir" not in request:
             request["pkgdir"] = self.env["RECIPE_CACHE_DIR"]
+
+        if "scripts" not in request and self.env.get("scripts"):
+            log_err(
+                "WARNING: PkgCreator package scripts are being supplied from "
+                "the recipe input/runtime variable 'scripts' because "
+                "pkg_request.scripts is not set. Package scripts supplied this "
+                "way are not represented in parent recipe trust information. "
+                "Confirm this scripts path is expected for this run. Processing "
+                "will continue."
+            )
 
         # Set variables, and check that all keys are in request.
         for key in (
@@ -194,6 +229,10 @@ class PkgCreator(Processor):
         # Make sure chown array is present.
         if "chown" not in request:
             request["chown"] = []
+
+        # Include extra pkgbuild arguments if provided.
+        if "pkgbuild_args" not in request:
+            request["pkgbuild_args"] = self.env.get("pkgbuild_args") or []
 
         # Convert relative paths to absolute.
         for key, value in list(request.items()):
@@ -238,6 +277,12 @@ class PkgCreator(Processor):
 
     def connect(self) -> None:
         """Connect to autopkgserver"""
+        if not is_mac():
+            raise ProcessorError(
+                "Package creation is only supported on macOS. "
+                "The 'pkgbuild' utility is not available on this platform."
+            )
+
         try:
             self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.socket.connect(AUTO_PKG_SOCKET)
@@ -247,18 +292,19 @@ class PkgCreator(Processor):
                 "The launchd com.github.autopkg.autopkgserver is most likely not "
                 "loaded or running."
                 f"\nError message: {err.strerror}"
-            )
+            ) from err
 
     def send_request(self, request) -> str:
         """Send a packaging request to the autopkgserver"""
-        self.socket.send(plistlib.dumps(request))
+        self.socket.sendall(plistlib.dumps(request))
         with self.socket.makefile(mode="r") as fileref:
             reply = fileref.read()
         if reply.startswith("OK:"):
             return reply.replace("OK:", "").rstrip()
-        errors = reply.rstrip().split("\n")
-        if not errors:
+        if not reply.strip():
             errors = ["ERROR:No reply from server (crash?), check system logs"]
+        else:
+            errors = reply.rstrip().split("\n")
         raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
 
     def disconnect(self) -> None:

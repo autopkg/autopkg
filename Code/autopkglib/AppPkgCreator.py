@@ -13,10 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for AppPkgCreator class"""
 
 import os.path
-import plistlib
 import shutil
 from glob import glob
 
@@ -73,6 +73,24 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             ),
             "default": False,
         },
+        "pkgbuild_args": {
+            "required": False,
+            "description": (
+                "A list of additional arguments to pass to the pkgbuild "
+                "tool. For example, ['--large-payload'] for packages "
+                "over 8GB. You can also override pkgbuild's "
+                "default file exclusion filters. By default, pkgbuild "
+                "excludes .svn, CVS, .DS_Store, and .git from the "
+                "payload. Specifying even one --filter replaces ALL "
+                "default filters, so to keep .git files in your "
+                "package while still filtering out .DS_Store, use: "
+                "['--filter', '\\.DS_Store$']. Each --filter value is "
+                "a regular expression (use backslash escapes for "
+                "literal dots, etc.) matched against paths in the "
+                "package root."
+            ),
+            "default": None,
+        },
     }
     output_variables = {
         "new_package_request": {
@@ -91,11 +109,9 @@ class AppPkgCreator(DmgMounter, PkgCreator):
         """Read Contents/Info.plist from the app."""
         plistpath = os.path.join(app_path, "Contents", "Info.plist")
         try:
-            with open(plistpath, "rb") as f:
-                plist = plistlib.load(f)
-        except Exception as err:
-            raise ProcessorError(f"Can't read {plistpath}: {err}")
-        return plist
+            return self.load_plist_from_file(plistpath)
+        except Exception as error:
+            raise ProcessorError(f"Can't read {plistpath}: {error}")
 
     def package_app(self, app_path):
         """Build a packaging request, send it to the autopkgserver and get the
@@ -121,13 +137,13 @@ class AppPkgCreator(DmgMounter, PkgCreator):
                     f"Please check the recipe and try again."
                 )
             # Trap all other errors.
-            except BaseException as err:
+            except Exception as err:
                 raise ProcessorError(err)
         if not self.env.get("bundleid"):
             try:
                 self.env["bundleid"] = infoplist["CFBundleIdentifier"]
                 self.output(f"BundleID: {self.env['bundleid']}")
-            except BaseException as err:
+            except Exception as err:
                 raise ProcessorError(err)
 
         # get pkgdir and pkgname
@@ -196,6 +212,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             "infofile": "",
             "chown": [{"path": "Applications", "user": "root", "group": "admin"}],
             "scripts": "",
+            "pkgbuild_args": self.env.get("pkgbuild_args") or [],
         }
 
         # Send packaging request.
@@ -238,9 +255,10 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             if dmg:
                 # Mount dmg and return path inside.
                 mount_point = self.mount(dmg_path)
-                app_path = os.path.join(mount_point, dmg_app_path)
-            # process path with glob.glob
-            matches = glob(app_path)
+                app_path, matches = self.glob_paths_in_mount(mount_point, dmg_app_path)
+            else:
+                # process path with glob.glob
+                matches = glob(app_path)
             if len(matches) == 0:
                 raise ProcessorError(f"Error processing path '{app_path}' with glob. ")
             matched_app_path = matches[0]
@@ -261,8 +279,7 @@ class AppPkgCreator(DmgMounter, PkgCreator):
             self.package_app(matched_app_path)
 
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

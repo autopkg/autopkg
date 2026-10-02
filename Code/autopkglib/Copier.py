@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for Copier class"""
 
 import glob
@@ -73,7 +74,7 @@ class Copier(DmgMounter):
             else:
                 shutil.copy(source_item, dest_item)
             self.output(f"Copied {source_item} to {dest_item}")
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(f"Can't copy {source_item} to {dest_item}: {err}")
 
     def main(self) -> None:
@@ -89,9 +90,12 @@ class Copier(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                source_path = os.path.join(mount_point, dmg_source_path)
-            # process path with glob.glob
-            matches = glob.glob(source_path, recursive=True)
+                source_path, matches = self.glob_paths_in_mount(
+                    mount_point, dmg_source_path, recursive=True
+                )
+            else:
+                # process path with glob.glob
+                matches = glob.glob(source_path, recursive=True)
             if len(matches) == 0:
                 raise ProcessorError(
                     f"Error processing path '{source_path}' with glob. "
@@ -117,8 +121,7 @@ class Copier(DmgMounter):
                 overwrite=self.env.get("overwrite"),
             )
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":

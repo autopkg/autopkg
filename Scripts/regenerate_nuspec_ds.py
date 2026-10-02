@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
 Regenerates the NuSpec XML schema Python wrapper module from upstream source.
 
@@ -48,16 +49,15 @@ SCHEMA_XMLNS: bytes = b"http://schemas.microsoft.com/packaging/2015/06/nuspec.xs
 
 def get_schema_source(url: str, xmlns: bytes = SCHEMA_XMLNS) -> bytes:
     """Fetch the latest XML schema and replace `{0}` with the given XML namespace."""
-    context = ssl.SSLContext()
-    context.verify_mode = ssl.CERT_REQUIRED
-    context.check_hostname = True
-    context.load_default_certs()
+    context = ssl.create_default_context()
 
-    with urlopen(SCHEMA_SOURCE_URL, context=context) as res:
+    with urlopen(url, context=context) as res:
         return res.read().replace(b"{0}", xmlns)
 
 
-def run_generateds(generateds_binary: str, output_path: str, schema_source: bytes):
+def run_generateds(
+    generateds_binary: str, output_path: str, schema_source: bytes
+) -> int:
     """Generate python wrapper library around the provided XML schema."""
     call_res = subprocess.run(
         [

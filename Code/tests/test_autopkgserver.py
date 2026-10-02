@@ -1,5 +1,7 @@
 #!/usr/local/autopkg/python
 #
+# Copyright 2025 Elliot Jordan
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -16,39 +18,60 @@ import sys
 import types
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-# Mock the imports before importing the module
-sys.modules["packager"] = MagicMock()
-sys.modules["launch2"] = MagicMock()
+from tests import DaemonHandlerContractTests, DaemonServerContractTests
 
-# Load autopkgserver as a module by reading and executing it
-autopkgserver_path = Path(__file__).parent.parent / "autopkgserver" / "autopkgserver"
-with open(autopkgserver_path, "r", encoding="utf-8") as f:
-    autopkgserver_code = f.read()
+# Only load the module on Darwin, otherwise create empty module
+if sys.platform == "darwin":
+    # Mock the imports before importing the module
+    sys.modules["packager"] = MagicMock()
+    sys.modules["launch2"] = MagicMock()
 
-# Create a module
-autopkgserver = types.ModuleType("autopkgserver")
-autopkgserver.__file__ = str(autopkgserver_path)
-sys.modules["autopkgserver"] = autopkgserver
+    # Load autopkgserver as a module by reading and executing it
+    autopkgserver_path = (
+        Path(__file__).parent.parent / "autopkgserver" / "autopkgserver"
+    )
+    with open(autopkgserver_path, "r", encoding="utf-8") as f:
+        autopkgserver_code = f.read()
 
-# Execute the code in the module's namespace
-exec(autopkgserver_code, autopkgserver.__dict__)
+    # Create a module
+    autopkgserver = types.ModuleType("autopkgserver")
+    autopkgserver.__file__ = str(autopkgserver_path)
+    sys.modules["autopkgserver"] = autopkgserver
 
-# Import what we need
-APPNAME = autopkgserver.APPNAME
-SOCKET = autopkgserver.SOCKET
-VERSION = autopkgserver.VERSION
-AutoPkgServer = autopkgserver.AutoPkgServer
-AutoPkgServerError = autopkgserver.AutoPkgServerError
-PkgHandler = autopkgserver.PkgHandler
-chown_structure = autopkgserver.chown_structure
-main = autopkgserver.main
-request_structure = autopkgserver.request_structure
+    # Execute the code in the module's namespace
+    exec(autopkgserver_code, autopkgserver.__dict__)
+
+    # Import what we need
+    APPNAME = autopkgserver.APPNAME
+    SOCKET = autopkgserver.SOCKET
+    VERSION = autopkgserver.VERSION
+    AutoPkgServer = autopkgserver.AutoPkgServer
+    AutoPkgServerError = autopkgserver.AutoPkgServerError
+    PkgHandler = autopkgserver.PkgHandler
+    chown_structure = autopkgserver.chown_structure
+    main = autopkgserver.main
+    request_structure = autopkgserver.request_structure
+else:
+    # Create dummy objects for non-Darwin platforms
+    APPNAME = "autopkgserver"
+    SOCKET = "/tmp/autopkgserver"
+    VERSION = "0.0.0"
+    AutoPkgServer = MagicMock
+    AutoPkgServerError = Exception
+    PkgHandler = MagicMock
+    chown_structure = {}
+    main = MagicMock
+    request_structure = {}
 
 
-class TestPkgHandler(unittest.TestCase):
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
+class TestPkgHandler(DaemonHandlerContractTests, unittest.TestCase):
     """Test class for PkgHandler."""
+
+    daemon_module = "autopkgserver"
+    outer_error_message = b"ERROR:Caught exception: boom"
 
     def setUp(self):
         """Set up test fixtures."""
@@ -69,20 +92,12 @@ class TestPkgHandler(unittest.TestCase):
             "infofile": "",
             "chown": [],
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
         self.assertTrue(syntax_ok)
         self.assertEqual(errors, [])
-
-    def test_verify_request_syntax_not_a_dict(self):
-        """Should return False and error when plist is not a dictionary."""
-        plist = ["not", "a", "dict"]
-        syntax_ok, errors = self.handler.verify_request_syntax(plist)
-
-        self.assertFalse(syntax_ok)
-        self.assertEqual(len(errors), 1)
-        self.assertIn("Request root is not a dictionary", errors[0])
 
     def test_verify_request_syntax_missing_required_key(self):
         """Should return False and error when required key is missing."""
@@ -112,6 +127,7 @@ class TestPkgHandler(unittest.TestCase):
             "infofile": "",
             "chown": "not_a_list",  # Should be a list
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -124,17 +140,25 @@ class TestPkgHandler(unittest.TestCase):
             "pkgroot": "/tmp/pkgroot",
             "pkgdir": "/tmp/output",
             "pkgname": "TestPackage",
-            "pkgtype": "bundle",  # Not supported
+            "pkgtype": "flat",
             "id": "com.example.test",
             "version": "1.0.0",
             "infofile": "",
             "chown": [],
             "scripts": "",
+            "pkgbuild_args": [],
         }
-        syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
-        self.assertFalse(syntax_ok)
-        self.assertTrue(any("pkgtype must be flat" in error for error in errors))
+        for pkgtype in ("bundle", "f", "la", "t"):
+            with self.subTest(pkgtype=pkgtype):
+                syntax_ok, errors = self.handler.verify_request_syntax(
+                    dict(plist, pkgtype=pkgtype)
+                )
+
+                self.assertFalse(syntax_ok)
+                self.assertTrue(
+                    any("pkgtype must be flat" in error for error in errors)
+                )
 
     def test_verify_request_syntax_invalid_chown_entry(self):
         """Should return False and error when chown entry is invalid."""
@@ -148,6 +172,7 @@ class TestPkgHandler(unittest.TestCase):
             "infofile": "",
             "chown": ["not_a_dict"],  # Should be list of dicts
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -173,6 +198,7 @@ class TestPkgHandler(unittest.TestCase):
                 }
             ],
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -180,7 +206,7 @@ class TestPkgHandler(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_verify_request_syntax_chown_missing_key(self):
-        """Should return False when chown entry is missing required key."""
+        """Should report errors when chown entry is missing required keys."""
         plist = {
             "pkgroot": "/tmp/pkgroot",
             "pkgdir": "/tmp/output",
@@ -193,6 +219,7 @@ class TestPkgHandler(unittest.TestCase):
                 {"path": "Applications", "user": "root"}  # Missing group and mode
             ],
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
@@ -211,105 +238,90 @@ class TestPkgHandler(unittest.TestCase):
             "infofile": "",
             "chown": [{"path": "Applications", "user": 0, "group": 0, "mode": "0755"}],
             "scripts": "",
+            "pkgbuild_args": [],
         }
         syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
         self.assertTrue(syntax_ok)
         self.assertEqual(errors, [])
 
+    def test_verify_request_syntax_valid_pkgbuild_args(self):
+        """Should return True for valid pkgbuild_args."""
+        plist = {
+            "pkgroot": "/tmp/pkgroot",
+            "pkgdir": "/tmp/output",
+            "pkgname": "TestPackage",
+            "pkgtype": "flat",
+            "id": "com.example.test",
+            "version": "1.0.0",
+            "infofile": "",
+            "chown": [],
+            "scripts": "",
+            "pkgbuild_args": ["--filter", ".git", "--large-payload"],
+        }
+        syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
-class TestAutoPkgServer(unittest.TestCase):
-    """Test class for AutoPkgServer."""
+        self.assertTrue(syntax_ok)
+        self.assertEqual(errors, [])
 
-    @patch("autopkgserver.socket.fromfd")
-    def test_init_creates_socket(self, mock_fromfd):
-        """Should create socket from file descriptor."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
+    def test_verify_request_syntax_invalid_pkgbuild_args_entry(self):
+        """Should return False when pkgbuild_args contains non-string."""
+        plist = {
+            "pkgroot": "/tmp/pkgroot",
+            "pkgdir": "/tmp/output",
+            "pkgname": "TestPackage",
+            "pkgtype": "flat",
+            "id": "com.example.test",
+            "version": "1.0.0",
+            "infofile": "",
+            "chown": [],
+            "scripts": "",
+            "pkgbuild_args": ["--filter", 123],
+        }
+        syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
-        server = AutoPkgServer(socket_fd=3, RequestHandlerClass=PkgHandler)
+        self.assertFalse(syntax_ok)
+        self.assertTrue(any("pkgbuild_args" in error for error in errors))
 
-        mock_fromfd.assert_called_once()
-        mock_socket.listen.assert_called_once_with(server.request_queue_size)
-        self.assertFalse(server.timed_out)
+    def test_verify_request_syntax_missing_pkgbuild_args_defaults(self):
+        """Should default pkgbuild_args to empty list when absent."""
+        plist = {
+            "pkgroot": "/tmp/pkgroot",
+            "pkgdir": "/tmp/output",
+            "pkgname": "TestPackage",
+            "pkgtype": "flat",
+            "id": "com.example.test",
+            "version": "1.0.0",
+            "infofile": "",
+            "chown": [],
+            "scripts": "",
+        }
+        syntax_ok, errors = self.handler.verify_request_syntax(plist)
 
-    @patch("autopkgserver.socket.fromfd")
-    def test_handle_timeout_sets_flag(self, mock_fromfd):
-        """Should set timed_out flag when handle_timeout is called."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
+        self.assertTrue(syntax_ok)
+        self.assertEqual(errors, [])
+        self.assertEqual(plist["pkgbuild_args"], [])
 
-        server = AutoPkgServer(socket_fd=3, RequestHandlerClass=PkgHandler)
-        self.assertFalse(server.timed_out)
-
-        server.handle_timeout()
-        self.assertTrue(server.timed_out)
-
-    @patch("autopkgserver.socket.fromfd")
-    @patch("autopkgserver.logging.getLogger")
-    @patch("autopkgserver.logging.StreamHandler")
-    @patch("autopkgserver.logging.handlers.RotatingFileHandler")
-    def test_setup_logging_success(
-        self, mock_file_handler, mock_stream_handler, mock_get_logger, mock_fromfd
-    ):
-        """Should set up logging handlers successfully."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
-
-        server = AutoPkgServer(socket_fd=3, RequestHandlerClass=PkgHandler)
-        server.setup_logging()
-
-        mock_get_logger.assert_called_once_with(APPNAME)
-        mock_logger.setLevel.assert_called_once()
-        self.assertEqual(mock_logger.addHandler.call_count, 2)
-
-    @patch("autopkgserver.socket.fromfd")
-    @patch("autopkgserver.logging.getLogger")
-    @patch("autopkgserver.logging.handlers.RotatingFileHandler")
-    def test_setup_logging_raises_on_file_error(
-        self, mock_file_handler, mock_get_logger, mock_fromfd
-    ):
-        """Should raise AutoPkgServerError when file logging fails."""
-        mock_socket = MagicMock()
-        mock_fromfd.return_value = mock_socket
-        mock_get_logger.return_value = MagicMock()
-        mock_file_handler.side_effect = OSError(13, "Permission denied")
-
-        server = AutoPkgServer(socket_fd=3, RequestHandlerClass=PkgHandler)
-
-        with self.assertRaises(AutoPkgServerError) as ctx:
-            server.setup_logging()
-
-        self.assertIn("Can't open log", str(ctx.exception))
+    def _make_handler(self, request_bytes=b""):
+        handler = PkgHandler.__new__(PkgHandler)
+        handler.server = types.SimpleNamespace(log=MagicMock())
+        handler.request = MagicMock()
+        handler.request.recv.return_value = request_bytes
+        handler.getpeerid = MagicMock(return_value=(501, (20,)))
+        return handler
 
 
-class TestMain(unittest.TestCase):
-    """Test class for main function."""
+@unittest.skipUnless(sys.platform == "darwin", "Unix sockets are Unix-only")
+class TestConstants(DaemonServerContractTests, unittest.TestCase):
+    """Socket, logging, main() and constants for the autopkgserver daemon."""
 
-    @patch("autopkgserver.os.geteuid")
-    def test_main_requires_root(self, mock_geteuid):
-        """Should return 1 if not running as root."""
-        mock_geteuid.return_value = 501  # Not root
-
-        with patch("autopkgserver.time.sleep"):
-            result = main([])
-
-        self.assertEqual(result, 1)
-
-
-class TestConstants(unittest.TestCase):
-    """Test class for module constants."""
-
-    def test_appname_constant(self):
-        """APPNAME should be set correctly."""
-        self.assertEqual(APPNAME, "autopkgserver")
-
-    def test_version_constant(self):
-        """VERSION should be set and be a valid version string."""
-        self.assertIsInstance(VERSION, str)
-        self.assertRegex(VERSION, r"^\d+\.\d+")
+    daemon_module = "autopkgserver"
+    daemon_cls = AutoPkgServer
+    handler_cls = PkgHandler
+    daemon_error_cls = AutoPkgServerError
+    appname = APPNAME
+    version = VERSION
+    main_func = staticmethod(main)
 
     def test_socket_constant(self):
         """SOCKET should be set correctly."""

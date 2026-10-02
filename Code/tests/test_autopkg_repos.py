@@ -1,5 +1,7 @@
 #!/usr/local/autopkg/python
 #
+# Copyright 2021 Elliot Jordan
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,24 +14,125 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import imp
 import os
-import plistlib
 import sys
 import unittest
-from io import StringIO
 from unittest.mock import Mock, patch
 
 # Add the Code directory to the Python path to resolve autopkg dependencies
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-autopkg = imp.load_source(
-    "autopkg", os.path.join(os.path.dirname(__file__), "..", "autopkg")
-)
+from tests import load_autopkg_module
+
+autopkg = load_autopkg_module()
 
 
 class TestAutoPkgRepos(unittest.TestCase):
     """Test cases for repository-related functions of AutoPkg."""
+
+    def setUp(self):
+        """Silence recipe-map side effects triggered by repo-add/repo-delete/
+        repo-update. Tests that care about the map patch it explicitly."""
+        self._recipe_map_patches = [
+            patch("autopkg.calculate_recipe_map"),
+            patch("autopkg.read_recipe_map"),
+        ]
+        (
+            self.mock_calculate_recipe_map,
+            self.mock_read_recipe_map,
+        ) = [patcher.start() for patcher in self._recipe_map_patches]
+
+    def tearDown(self):
+        for patcher in self._recipe_map_patches:
+            patcher.stop()
+
+    def _run_repo_update_with_git(
+        self,
+        arguments,
+        run_git_side_effect,
+        repo_path="/repo/path",
+        recipe_repos=None,
+    ):
+        """Run repo_update with common parser/path/log mocks."""
+        with (
+            patch("autopkg.common_parse") as mock_common_parse,
+            patch("autopkg.gen_common_parser") as mock_gen_parser,
+            patch("autopkg.get_pref") as mock_get_pref,
+            patch("autopkg.get_repo_info") as mock_get_repo_info,
+            patch("autopkg.expand_repo_url") as mock_expand_repo_url,
+            patch("autopkg.run_git") as mock_run_git,
+            patch("autopkg.log") as mock_log,
+            patch("autopkg.log_err") as mock_log_err,
+            patch("os.path.abspath") as mock_abspath,
+            patch("os.path.expanduser") as mock_expanduser,
+        ):
+            mock_gen_parser.return_value = Mock()
+            mock_common_parse.return_value = (Mock(), arguments)
+            mock_get_pref.return_value = recipe_repos or {
+                repo_path: {"URL": "https://github.com/autopkg/recipes"}
+            }
+            mock_get_repo_info.return_value = {"path": repo_path}
+            mock_expand_repo_url.side_effect = lambda x: x
+            mock_expanduser.side_effect = lambda x: x
+            mock_abspath.side_effect = lambda x: x
+            mock_run_git.side_effect = run_git_side_effect
+
+            autopkg.repo_update([None, "repo-update", *arguments])
+
+        return mock_run_git, mock_log, mock_log_err
+
+    def _stable_repo_update_git(
+        self,
+        branch="main",
+        origin_main=False,
+        origin_master=False,
+        migration_error=None,
+    ):
+        """Return a run_git side effect for an unchanged repo_update."""
+
+        def run_git_side_effect(args, git_directory=None):
+            if args == ["rev-parse", "--abbrev-ref", "HEAD"]:
+                return f"{branch}\n"
+            if args == ["fetch", "origin", "--prune"]:
+                return "Fetched"
+            if args == [
+                "show-ref",
+                "--verify",
+                "--quiet",
+                "refs/remotes/origin/main",
+            ]:
+                if origin_main:
+                    return ""
+                raise autopkg.GitError("not found")
+            if args == [
+                "show-ref",
+                "--verify",
+                "--quiet",
+                "refs/remotes/origin/master",
+            ]:
+                if origin_master:
+                    return ""
+                raise autopkg.GitError("not found")
+            if args == ["branch", "-m", "master", "main"]:
+                if migration_error:
+                    raise migration_error
+                return ""
+            if args in (
+                ["branch", "--set-upstream-to=origin/main", "main"],
+                [
+                    "symbolic-ref",
+                    "refs/remotes/origin/HEAD",
+                    "refs/remotes/origin/main",
+                ],
+            ):
+                return ""
+            if args == ["rev-parse", "HEAD"]:
+                return "samehash\n"
+            if args == ["pull"]:
+                return "Already up to date."
+            self.fail(f"Unexpected git command: {args!r} in {git_directory!r}")
+
+        return run_git_side_effect
 
     def test_expand_single_autopkg_org_urls(self):
         """Expand single part short repo URLs in the AutoPkg org on GitHub"""
@@ -95,252 +198,79 @@ class TestAutoPkgRepos(unittest.TestCase):
         self.assertEqual(url, "/Users/Shared/foo")
 
     # Tests for get_repository_from_identifier function
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_valid_identifier(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier with valid identifier."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "recipes"},
-                "path": "TestApp/TestApp.recipe",
+    @patch("autopkg.load_search_index")
+    def test_get_repository_from_identifier_strips_autopkg_org(self, mock_index):
+        """Repos in the autopkg org are returned by short name."""
+        mock_index.return_value = {
+            "identifiers": {
+                "com.github.test-recipes.pkg.TestApp": {
+                    "path": "TestApp/TestApp.pkg.recipe.yaml",
+                    "repo": "autopkg/test-recipes",
+                }
             }
-        ]
-
-        # Mock file contents fetch
-        recipe_plist = {
-            "Identifier": "com.test.recipe",
-            "Description": "Test recipe",
-            "Input": {"NAME": "TestApp"},
-            "Process": [],
         }
-        mock_fetch.return_value = plistlib.dumps(recipe_plist)
+        self.assertEqual(
+            autopkg.get_repository_from_identifier(
+                "com.github.test-recipes.pkg.TestApp"
+            ),
+            "test-recipes",
+        )
 
-        # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads, patch(
-            "sys.stdout", new_callable=StringIO
-        ):
-            mock_loads.return_value = recipe_plist
-
-            result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-            self.assertEqual(result, "recipes")
-            mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-            mock_fetch.assert_called_once_with("recipes", "TestApp/TestApp.recipe")
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_no_match(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier with no matching identifier."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "recipes"},
-                "path": "TestApp/TestApp.recipe",
-            }
-        ]
-
-        # Mock file contents fetch with different identifier
-        recipe_plist = {
-            "Identifier": "com.different.recipe",
-            "Description": "Different recipe",
-            "Input": {"NAME": "TestApp"},
-            "Process": [],
+    @patch("autopkg.load_search_index")
+    def test_get_repository_from_identifier_keeps_other_owner(self, mock_index):
+        """Repos outside the autopkg org keep their owner prefix."""
+        mock_index.return_value = {
+            "identifiers": {"local.test.TestApp": {"repo": "someone/test-recipes"}}
         }
-        mock_fetch.return_value = plistlib.dumps(recipe_plist)
+        self.assertEqual(
+            autopkg.get_repository_from_identifier("local.test.TestApp"),
+            "someone/test-recipes",
+        )
 
-        # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads:
-            mock_loads.return_value = recipe_plist
+    @patch("autopkg.load_search_index")
+    def test_get_repository_from_identifier_not_found(self, mock_index):
+        """Unknown identifiers, shortnames, and an unloadable index return None."""
+        mock_index.return_value = {"identifiers": {}}
+        self.assertIsNone(autopkg.get_repository_from_identifier("com.test.recipe"))
+        self.assertIsNone(autopkg.get_repository_from_identifier("TestApp"))
+        mock_index.return_value = {}
+        self.assertIsNone(autopkg.get_repository_from_identifier("com.test.recipe"))
+        mock_index.return_value = {"identifiers": {"com.test.recipe": {}}}
+        self.assertIsNone(autopkg.get_repository_from_identifier("com.test.recipe"))
 
-            result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-            self.assertIsNone(result)
-            mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_invalid_identifier(
-        self, mock_github_session
-    ):
-        """Test get_repository_from_identifier with invalid identifier format."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = []
-
-        # Test with identifier that doesn't start with 'com'
-        result = autopkg.get_repository_from_identifier("invalid.identifier")
-        self.assertIsNone(result)
-
-        # GitHubSession is called first, but then the identifier check happens
-        mock_github_session.assert_called_once()
-        mock_session.search_for_name.assert_called_once_with("invalid.identifier")
-
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_non_identifier_format(
-        self, mock_github_session
-    ):
-        """Test get_repository_from_identifier with non-identifier format."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = []
-
-        # Test with simple name that's not an identifier
-        result = autopkg.get_repository_from_identifier("TestApp")
-        self.assertIsNone(result)
-
-        # GitHubSession is called first, but then the identifier check happens
-        mock_github_session.assert_called_once()
-        mock_session.search_for_name.assert_called_once_with("TestApp")
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_multiple_repos_first_match(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier with multiple repos, first match wins."""
-        # Mock GitHubSession and search results with multiple repos
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "recipes"},
-                "path": "TestApp/TestApp.recipe",
-            },
-            {
-                "repository": {"name": "other-recipes"},
-                "path": "TestApp/TestApp.recipe",
-            },
-        ]
-
-        # Mock file contents fetch - first repo has matching identifier
-        matching_plist = {
-            "Identifier": "com.test.recipe",
-            "Description": "Test recipe",
-            "Input": {"NAME": "TestApp"},
-            "Process": [],
+    def test_recipe_repo_is_added_url_spellings(self):
+        """Equivalent GitHub URL spellings count as added; others don't."""
+        cases = {
+            "https://github.com/autopkg/example-recipes": True,
+            "https://github.com/autopkg/example-recipes.git": True,
+            "https://github.com/autopkg/Example-Recipes/": True,
+            "ssh://git@github.com/autopkg/example-recipes": True,
+            "git@github.com:autopkg/example-recipes.git": True,
+            "https://github.com/notautopkg/example-recipes": False,
+            "https://github.com/autopkg/other-example-recipes": False,
         }
-
-        def mock_fetch_side_effect(repo_name, _path):
-            if repo_name == "recipes":
-                return plistlib.dumps(matching_plist)
-            else:
-                # Other repos don't match
-                return plistlib.dumps(
-                    {
-                        "Identifier": "com.other.recipe",
-                        "Description": "Other recipe",
-                    }
+        for url, expected in cases.items():
+            with (
+                self.subTest(url=url),
+                patch(
+                    "autopkg.get_pref",
+                    return_value={"/path/repo": {"URL": url}},
+                ),
+            ):
+                self.assertEqual(
+                    autopkg.recipe_repo_is_added("example-recipes"), expected
                 )
 
-        mock_fetch.side_effect = mock_fetch_side_effect
-
-        # Mock plistlib.loads
-        with patch("autopkg.plistlib.loads") as mock_loads, patch(
-            "sys.stdout", new_callable=StringIO
+    def test_recipe_repo_is_added_owner_repo(self):
+        """Repos outside the autopkg org match by owner/repo."""
+        with patch(
+            "autopkg.get_pref",
+            return_value={"/p": {"URL": "https://github.com/someone/x-recipes.git"}},
         ):
-            mock_loads.side_effect = [matching_plist]
-
-            result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-            self.assertEqual(result, "recipes")
-            mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-            # Should only fetch from first repo since it matched
-            mock_fetch.assert_called_once_with("recipes", "TestApp/TestApp.recipe")
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_empty_search_results(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier with empty search results."""
-        # Mock GitHubSession with empty search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = []
-
-        result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-        self.assertIsNone(result)
-        mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-        mock_fetch.assert_not_called()
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_plistlib_error(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier when plistlib fails to parse."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "recipes"},
-                "path": "TestApp/TestApp.recipe",
-            }
-        ]
-
-        # Mock file contents fetch returns invalid plist data
-        mock_fetch.return_value = b"invalid plist data"
-
-        # Mock plistlib.loads to raise an exception
-        with patch("autopkg.plistlib.loads") as mock_loads:
-            mock_loads.side_effect = plistlib.InvalidFileException("Invalid plist")
-
-            # The function doesn't handle the exception, so it should propagate
-            with self.assertRaises(plistlib.InvalidFileException):
-                autopkg.get_repository_from_identifier("com.test.recipe")
-
-            mock_session.search_for_name.assert_called_once_with("com.test.recipe")
-            mock_fetch.assert_called_once_with("recipes", "TestApp/TestApp.recipe")
-
-    @patch("autopkg.do_gh_repo_contents_fetch")
-    @patch("autopkg.GitHubSession")
-    def test_get_repository_from_identifier_with_print_output(
-        self, mock_github_session, mock_fetch
-    ):
-        """Test get_repository_from_identifier prints found repository."""
-        # Mock GitHubSession and search results
-        mock_session = Mock()
-        mock_github_session.return_value = mock_session
-        mock_session.search_for_name.return_value = [
-            {
-                "repository": {"name": "test-recipes"},
-                "path": "TestApp/TestApp.recipe",
-            }
-        ]
-
-        # Mock file contents fetch
-        recipe_plist = {
-            "Identifier": "com.test.recipe",
-            "Description": "Test recipe",
-            "Input": {"NAME": "TestApp"},
-            "Process": [],
-        }
-        mock_fetch.return_value = plistlib.dumps(recipe_plist)
-
-        # Mock plistlib.loads and print
-        with patch("autopkg.plistlib.loads") as mock_loads, patch(
-            "builtins.print"
-        ) as mock_print:
-            mock_loads.return_value = recipe_plist
-
-            result = autopkg.get_repository_from_identifier("com.test.recipe")
-
-            self.assertEqual(result, "test-recipes")
-            mock_print.assert_called_once_with(
-                "Found this recipe in repository: test-recipes"
-            )
+            self.assertTrue(autopkg.recipe_repo_is_added("someone/x-recipes"))
+            self.assertFalse(autopkg.recipe_repo_is_added("x-recipes"))
+        with patch("autopkg.get_pref", return_value=None):
+            self.assertFalse(autopkg.recipe_repo_is_added("x-recipes"))
 
     # Tests for get_recipe_repo function
     @patch("autopkg.run_git")
@@ -821,9 +751,10 @@ class TestAutoPkgRepos(unittest.TestCase):
         }
         mock_get_pref.return_value = mock_recipe_repos
 
-        with patch("os.path.abspath") as mock_abspath, patch(
-            "os.path.expanduser"
-        ) as mock_expanduser:
+        with (
+            patch("os.path.abspath") as mock_abspath,
+            patch("os.path.expanduser") as mock_expanduser,
+        ):
             mock_expanduser.return_value = "/Users/test/Repos/recipes"
             mock_abspath.return_value = "/Users/test/Repos/recipes"
 
@@ -1083,8 +1014,13 @@ class TestAutoPkgRepos(unittest.TestCase):
 
         autopkg.repo_delete([None, "repo-delete", "recipes"])
 
-        mock_log_err.assert_called_with(
-            "ERROR: Could not remove /repo/path: Permission denied"
+        # Error message includes additional context about manual cleanup
+        # but must still start with the expected ERROR: prefix.
+        error_call = mock_log_err.call_args
+        assert error_call is not None
+        self.assertIn(
+            "ERROR: Could not remove /repo/path: Permission denied",
+            error_call.args[0],
         )
         # Verify preferences were still saved even though rmtree failed
         mock_save_pref.assert_called()
@@ -1161,13 +1097,17 @@ class TestAutoPkgRepos(unittest.TestCase):
         mock_get_repo_info.return_value = {"path": "/repo/path"}
         mock_expanduser.return_value = "/repo/path"
         mock_abspath.return_value = "/repo/path"
+        # repo_update now calls rev-parse before and after pull so it can
+        # decide whether to rebuild the recipe map. Return stable hashes
+        # that indicate no change so the test asserts behaviour in the
+        # "Already up to date" path.
         mock_run_git.return_value = "Already up to date."
 
         autopkg.repo_update([None, "repo-update", "recipes"])
 
         mock_expand_repo_url.assert_called_once_with("recipes")
         mock_get_repo_info.assert_called_once_with("https://github.com/autopkg/recipes")
-        mock_run_git.assert_called_once_with(["pull"], git_directory="/repo/path")
+        mock_run_git.assert_any_call(["pull"], git_directory="/repo/path")
         mock_log.assert_any_call("Attempting git pull for /repo/path...")
         mock_log.assert_any_call("Already up to date.")
 
@@ -1203,7 +1143,11 @@ class TestAutoPkgRepos(unittest.TestCase):
 
         autopkg.repo_update([None, "repo-update", "all"])
 
-        self.assertEqual(mock_run_git.call_count, 2)
+        # repo_update performs up to 3 git operations per repo (rev-parse
+        # before, pull, rev-parse after) so we assert on the pull calls
+        # specifically rather than the total call count.
+        pull_calls = [c for c in mock_run_git.call_args_list if c.args[0] == ["pull"]]
+        self.assertEqual(len(pull_calls), 2)
         mock_run_git.assert_any_call(["pull"], git_directory="/repo/path1")
         mock_run_git.assert_any_call(["pull"], git_directory="/repo/path2")
 
@@ -1251,6 +1195,20 @@ class TestAutoPkgRepos(unittest.TestCase):
             "ERROR: Can't find an installed repo for https://github.com/autopkg/nonexistent"
         )
 
+    @patch("autopkg.run_git", return_value="abc123\n")
+    def test_head_hash_returns_stripped_revision(self, mock_run_git):
+        self.assertEqual(autopkg._head_hash("/repo/path"), "abc123")
+        mock_run_git.assert_called_once_with(
+            ["rev-parse", "HEAD"], git_directory="/repo/path"
+        )
+
+    @patch("autopkg.run_git", side_effect=autopkg.GitError("not a repository"))
+    def test_head_hash_returns_none_on_git_error(self, mock_run_git):
+        self.assertIsNone(autopkg._head_hash("/repo/path"))
+        mock_run_git.assert_called_once_with(
+            ["rev-parse", "HEAD"], git_directory="/repo/path"
+        )
+
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")
     @patch("autopkg.get_repo_info")
@@ -1286,6 +1244,138 @@ class TestAutoPkgRepos(unittest.TestCase):
         autopkg.repo_update([None, "repo-update", "recipes"])
 
         mock_log_err.assert_called_with(git_error)
+
+    def test_repo_update_migrates_master_to_main_when_origin_main_replaces_master(
+        self,
+    ):
+        """Test repo_update migrates local master when origin/main replaced it."""
+        mock_run_git, mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(branch="master", origin_main=True),
+        )
+
+        self.assertEqual(
+            [c.args[0] for c in mock_run_git.call_args_list],
+            [
+                ["rev-parse", "--abbrev-ref", "HEAD"],
+                ["fetch", "origin", "--prune"],
+                [
+                    "show-ref",
+                    "--verify",
+                    "--quiet",
+                    "refs/remotes/origin/main",
+                ],
+                [
+                    "show-ref",
+                    "--verify",
+                    "--quiet",
+                    "refs/remotes/origin/master",
+                ],
+                ["branch", "-m", "master", "main"],
+                ["branch", "--set-upstream-to=origin/main", "main"],
+                [
+                    "symbolic-ref",
+                    "refs/remotes/origin/HEAD",
+                    "refs/remotes/origin/main",
+                ],
+                ["rev-parse", "HEAD"],
+                ["pull"],
+                ["rev-parse", "HEAD"],
+            ],
+        )
+        self.mock_calculate_recipe_map.assert_called_once()
+        mock_log.assert_any_call(
+            "Repo /repo/path switched its default branch from master to main "
+            "upstream; migrating local clone."
+        )
+
+    def test_repo_update_does_not_migrate_when_origin_master_still_exists(self):
+        """Test local master is left alone when origin/master still exists."""
+        mock_run_git, _mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(
+                branch="master",
+                origin_main=False,
+                origin_master=True,
+            ),
+        )
+
+        git_commands = [c.args[0] for c in mock_run_git.call_args_list]
+        self.assertNotIn(["branch", "-m", "master", "main"], git_commands)
+        self.mock_calculate_recipe_map.assert_not_called()
+
+    def test_repo_update_does_not_migrate_when_origin_master_and_main_exist(self):
+        """Test local master is left alone when the remote state is ambiguous."""
+        mock_run_git, _mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(
+                branch="master",
+                origin_main=True,
+                origin_master=True,
+            ),
+        )
+
+        git_commands = [c.args[0] for c in mock_run_git.call_args_list]
+        self.assertNotIn(["branch", "-m", "master", "main"], git_commands)
+        self.mock_calculate_recipe_map.assert_not_called()
+
+    def test_repo_update_does_not_migrate_when_already_on_main(self):
+        """Test repos already on main do not fetch before the existing pull."""
+        mock_run_git, _mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(branch="main"),
+        )
+
+        git_commands = [c.args[0] for c in mock_run_git.call_args_list]
+        self.assertNotIn(["fetch", "origin", "--prune"], git_commands)
+        self.mock_calculate_recipe_map.assert_not_called()
+
+    def test_repo_update_does_not_migrate_detached_head(self):
+        """Test detached HEAD repos do not enter the master-to-main migration."""
+        mock_run_git, _mock_log, _mock_log_err = self._run_repo_update_with_git(
+            ["recipes"],
+            self._stable_repo_update_git(branch="HEAD"),
+        )
+
+        git_commands = [c.args[0] for c in mock_run_git.call_args_list]
+        self.assertNotIn(["fetch", "origin", "--prune"], git_commands)
+        self.mock_calculate_recipe_map.assert_not_called()
+
+    def test_repo_update_logs_migration_error_and_continues_to_next_repo(self):
+        """Test a failed migration skips that repo and continues updating others."""
+        git_error = autopkg.GitError("rename failed")
+
+        def run_git_side_effect(args, git_directory=None):
+            if git_directory == "/repo/one":
+                return self._stable_repo_update_git(
+                    branch="master",
+                    origin_main=True,
+                    migration_error=git_error,
+                )(args, git_directory)
+            if git_directory == "/repo/two":
+                return self._stable_repo_update_git(branch="main")(
+                    args,
+                    git_directory,
+                )
+            self.fail(f"Unexpected git directory: {git_directory!r}")
+
+        mock_run_git, _mock_log, mock_log_err = self._run_repo_update_with_git(
+            ["all"],
+            run_git_side_effect,
+            recipe_repos={
+                "/repo/one": {"URL": "https://github.com/example/one"},
+                "/repo/two": {"URL": "https://github.com/example/two"},
+            },
+        )
+
+        mock_log_err.assert_called_with(git_error)
+        pull_dirs = [
+            c.kwargs["git_directory"]
+            for c in mock_run_git.call_args_list
+            if c.args[0] == ["pull"]
+        ]
+        self.assertEqual(pull_dirs, ["/repo/two"])
+        self.mock_calculate_recipe_map.assert_not_called()
 
     @patch("autopkg.common_parse")
     @patch("autopkg.gen_common_parser")
@@ -1361,6 +1451,20 @@ class TestAutoPkgRepos(unittest.TestCase):
         # Should still save preferences with empty repos dict
         mock_save_pref.assert_any_call("RECIPE_REPOS", {})
         mock_save_pref.assert_any_call("RECIPE_SEARCH_DIRS", [])
+
+    @patch("autopkg.git_cmd")
+    def test_run_git_reports_exec_failure_details(self, mock_git_cmd):
+        """The GitError itself should describe a failure to execute git."""
+        mock_git_cmd.return_value = "/usr/bin/git"
+        exec_error = OSError(13, "Permission denied")
+
+        with patch("subprocess.Popen", side_effect=exec_error):
+            with self.assertRaises(autopkg.GitError) as ctx:
+                autopkg.run_git(["status"])
+
+        self.assertIn("error code 13", str(ctx.exception))
+        self.assertIn("Permission denied", str(ctx.exception))
+        self.assertIs(ctx.exception.__cause__, exec_error)
 
 
 if __name__ == "__main__":

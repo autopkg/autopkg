@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
 Wrapper module that provides a consistent xattr interface
 regardless of platform support.
@@ -79,10 +80,6 @@ except ImportError:
             return None
 
     _xattr = __xattr_wrapper(__xattr_stub)
-
-assert (
-    _xattr._impl is not None
-), "Failed to initialize xattr library, or stub. This is a bug."
 
 
 def getxattr(path: str, attr: str, symlink: bool = False) -> str | None:

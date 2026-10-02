@@ -1,6 +1,6 @@
 #!/usr/local/autopkg/python
 #
-# Copyright 2016 Greg Neagle
+# Copyright 2026 Elliot Jordan
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,24 +13,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Stub that allows URLTextSearcher to be called as 'CURLTextSearcher' during
-the deprecation period."""
 
-from autopkglib.URLTextSearcher import URLTextSearcher
+import unittest
 
-__all__ = ["CURLTextSearcher"]
+from autopkglib.VariableSetter import VariableSetter
 
 
-class CURLTextSearcher(URLTextSearcher):
-    """DEPRECATED. Use URLTextSearcher instead.
+class TestVariableSetter(unittest.TestCase):
+    """Test class for VariableSetter Processor."""
 
-    This processor is a compatibility wrapper that forwards all functionality
-    to URLTextSearcher. It will be removed in a future AutoPkg release.
-    """
+    def test_main_returns_none(self):
+        processor = VariableSetter(env={})
 
-    lifecycle = {"introduced": "0.5.1", "deprecated": "0.6.0"}
+        result = processor.main()
+
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":
-    PROCESSOR = CURLTextSearcher()
-    PROCESSOR.execute_shell()
+    unittest.main()

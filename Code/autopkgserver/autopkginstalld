@@ -33,11 +33,14 @@ from installer import Installer, InstallerError
 from itemcopier import ItemCopier, ItemCopierError
 
 APPNAME = "autopkginstalld"
-VERSION = "0.3"
+VERSION = "0.4"
 
 
 class RunHandler(socketserver.StreamRequestHandler):
     """Handler for autopkginstalld run requests"""
+
+    server: "AutoPkgInstallDaemon"
+    log: logging.Logger
 
     def verify_request_syntax(self, plist: dict[str, Any]) -> tuple[bool, list[str]]:
         """Verify the basic syntax of an installation request plist."""
@@ -52,7 +55,7 @@ class RunHandler(socketserver.StreamRequestHandler):
             return False, errors
 
         syntax_ok = True
-        for key in ["package"]:
+        for key in ["package", "recipe_cache_dir"]:
             if key not in plist:
                 syntax_ok = False
                 errors.append(f"Request does not contain {key}")
@@ -112,7 +115,7 @@ class RunHandler(socketserver.StreamRequestHandler):
             # Try to parse it.
             try:
                 plist = plistlib.loads(plist_string)
-            except BaseException:
+            except Exception:
                 self.log.error("Malformed request")
                 self.request.send(b"ERROR:Malformed request\n")
                 return
@@ -146,7 +149,7 @@ class RunHandler(socketserver.StreamRequestHandler):
                 self.log.error("Unsupported request format")
                 self.request.send(b"ERROR:Unsupported request format")
 
-        except BaseException as err:
+        except Exception as err:
             self.log.error("Caught exception: %r", err)
             self.request.send(f"ERROR:Caught exception: {repr(err)}".encode())
 
@@ -160,6 +163,8 @@ class AutoPkgInstallDaemonError(Exception):
 class AutoPkgInstallDaemon(socketserver.UnixStreamServer):
     """Daemon that runs as root,
     receiving requests to install packages."""
+
+    log: logging.Logger
 
     allow_reuse_address = True
     request_queue_size = 10

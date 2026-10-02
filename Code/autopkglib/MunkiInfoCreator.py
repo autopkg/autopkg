@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for MunkiInfoCreator class"""
 
 import os.path
@@ -50,6 +51,7 @@ class MunkiInfoCreator(Processor):
         temp_path = None
         try:
             # Check munki version.
+            munkiopts: tuple[str, ...]
             if os.path.exists("/usr/local/munki/munkilib/version.plist"):
                 # Assume 0.7.0 or higher.
                 munkiopts = ("displayname", "description", "catalog")
@@ -90,8 +92,10 @@ class MunkiInfoCreator(Processor):
                     f"{err.strerror}"
                 )
             if proc.returncode != 0:
+                decoded_stderr = stderr.decode("utf-8", errors="replace")
                 raise ProcessorError(
-                    f"creating pkginfo for {self.env['pkg_path']} failed: {stderr.decode()}"
+                    f"creating pkginfo for {self.env['pkg_path']} failed: "
+                    f"{decoded_stderr}"
                 )
 
         # makepkginfo cleanup.
@@ -100,7 +104,13 @@ class MunkiInfoCreator(Processor):
                 shutil.rmtree(temp_path)
 
         # Read output plist.
-        output = plistlib.loads(stdout)
+        try:
+            output = plistlib.loads(stdout)
+        except Exception as err:
+            raise ProcessorError(
+                f"makepkginfo output for {self.env['pkg_path']} could not be "
+                f"parsed as a plist: {err}"
+            ) from err
 
         # Set version and name.
         if "version" in self.env:

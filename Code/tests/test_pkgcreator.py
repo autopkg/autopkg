@@ -1,5 +1,7 @@
 #!/usr/local/autopkg/python
 #
+# Copyright 2025 Elliot Jordan
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -14,6 +16,7 @@
 
 import os.path
 import socket
+import sys
 import unittest
 from copy import deepcopy
 from tempfile import TemporaryDirectory
@@ -41,6 +44,7 @@ class TestPkgCreator(unittest.TestCase):
                 "infofile": "",
                 "scripts": "",
                 "chown": [],
+                "pkgbuild_args": [],
             },
             "RECIPE_CACHE_DIR": self.tmp_dir.name,
             "RECIPE_DIR": self.tmp_dir.name,
@@ -82,10 +86,10 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "Request key pkgroot missing"):
             self.processor.main()
 
-    @patch("autopkglib.PkgCreator.disconnect")
-    @patch("autopkglib.PkgCreator.send_request")
-    @patch("autopkglib.PkgCreator.connect")
-    @patch("autopkglib.PkgCreator.pkg_already_exists")
+    @patch.object(PkgCreator, "disconnect")
+    @patch.object(PkgCreator, "send_request")
+    @patch.object(PkgCreator, "connect")
+    @patch.object(PkgCreator, "pkg_already_exists")
     def test_builds_package_successfully(
         self, mock_exists, mock_connect, mock_send, mock_disconnect
     ):
@@ -102,7 +106,7 @@ class TestPkgCreator(unittest.TestCase):
         mock_send.assert_called_once()
         mock_disconnect.assert_called_once()
 
-    @patch("autopkglib.PkgCreator.pkg_already_exists")
+    @patch.object(PkgCreator, "pkg_already_exists")
     def test_skips_build_if_package_exists(self, mock_exists):
         """The processor should skip building if package already exists."""
         mock_exists.return_value = True
@@ -117,7 +121,7 @@ class TestPkgCreator(unittest.TestCase):
         """The processor should fill in default values for optional keys."""
         self.processor.env = deepcopy(self.minimal_env)
 
-        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
             self.processor.main()
 
         request = self.processor.env["pkg_request"]
@@ -125,6 +129,20 @@ class TestPkgCreator(unittest.TestCase):
         self.assertEqual(request["infofile"], "")
         self.assertEqual(request["scripts"], "")
         self.assertEqual(request["chown"], [])
+
+    def test_warns_when_scripts_are_filled_from_input(self):
+        """Runtime scripts input should warn when pkg_request.scripts is absent."""
+        self.processor.env = deepcopy(self.minimal_env)
+        self.processor.env["scripts"] = self.tmp_dir.name
+
+        with (
+            patch.object(PkgCreator, "pkg_already_exists", return_value=True),
+            patch.object(sys.modules[PkgCreator.__module__], "log_err") as mock_log_err,
+        ):
+            self.processor.main()
+
+        mock_log_err.assert_called_once()
+        self.assertIn("pkg_request.scripts is not set", mock_log_err.call_args[0][0])
 
     def test_find_path_for_relpath_cache_dir(self):
         """Test finding relative paths in RECIPE_CACHE_DIR."""
@@ -156,6 +174,7 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "Can't find nonexistent_file.txt"):
             self.processor.find_path_for_relpath("nonexistent_file.txt")
 
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
     @patch("subprocess.Popen")
     def test_xar_expand_success(self, mock_popen):
         """Test successful xar expansion."""
@@ -172,6 +191,7 @@ class TestPkgCreator(unittest.TestCase):
         self.assertIn("/usr/bin/xar", args)
         self.assertIn(test_pkg, args)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
     @patch("subprocess.Popen")
     def test_xar_expand_failure(self, mock_popen):
         """Test xar expansion failure."""
@@ -184,6 +204,7 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "extraction.*failed"):
             self.processor.xar_expand(test_pkg)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Requires macOS")
     @patch("subprocess.Popen", side_effect=OSError(2, "No such file"))
     def test_xar_expand_oserror(self, mock_popen):
         """Test xar expansion OSError."""
@@ -191,7 +212,7 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "xar execution failed"):
             self.processor.xar_expand(test_pkg)
 
-    @patch("autopkglib.PkgCreator.xar_expand")
+    @patch.object(PkgCreator, "xar_expand")
     def test_pkg_already_exists_true(self, mock_xar):
         """Test pkg_already_exists returns True for matching package."""
         # Create test package file
@@ -213,7 +234,7 @@ class TestPkgCreator(unittest.TestCase):
         result = self.processor.pkg_already_exists(pkg_path, "com.test", "1.0.0")
         self.assertTrue(result)
 
-    @patch("autopkglib.PkgCreator.xar_expand")
+    @patch.object(PkgCreator, "xar_expand")
     def test_pkg_already_exists_false_different_version(self, mock_xar):
         """Test pkg_already_exists returns False for different version."""
         # Create test package file
@@ -240,7 +261,7 @@ class TestPkgCreator(unittest.TestCase):
         result = self.processor.pkg_already_exists(pkg_path, "com.test", "1.0.0")
         self.assertFalse(result)
 
-    @patch("autopkglib.PkgCreator.xar_expand", side_effect=ProcessorError("xar failed"))
+    @patch.object(PkgCreator, "xar_expand", side_effect=ProcessorError("xar failed"))
     @patch("os.unlink")
     def test_pkg_already_exists_xar_failure_removes_pkg(self, mock_unlink, mock_xar):
         """Test that package is removed if xar expansion fails."""
@@ -252,6 +273,7 @@ class TestPkgCreator(unittest.TestCase):
         self.assertFalse(result)
         mock_unlink.assert_called_with(pkg_path)
 
+    @unittest.skipUnless(sys.platform == "darwin", "Uses AF_UNIX sockets")
     @patch("socket.socket")
     def test_connect_success(self, mock_socket):
         """Test successful connection to autopkgserver."""
@@ -263,6 +285,7 @@ class TestPkgCreator(unittest.TestCase):
         mock_socket.assert_called_with(socket.AF_UNIX, socket.SOCK_STREAM)
         mock_sock.connect.assert_called_once()
 
+    @unittest.skipUnless(sys.platform == "darwin", "Uses AF_UNIX sockets")
     @patch("socket.socket")
     def test_connect_failure(self, mock_socket):
         """Test connection failure to autopkgserver."""
@@ -297,6 +320,17 @@ class TestPkgCreator(unittest.TestCase):
         with self.assertRaisesRegex(ProcessorError, "Package build failed"):
             self.processor.send_request({"test": "request"})
 
+    def test_send_request_empty_reply(self):
+        """An empty reply should report that the server sent no reply."""
+        mock_socket = MagicMock()
+        mock_file = MagicMock()
+        mock_file.read.return_value = ""
+        mock_socket.makefile.return_value.__enter__.return_value = mock_file
+        self.processor.socket = mock_socket
+
+        with self.assertRaisesRegex(ProcessorError, "No reply from server"):
+            self.processor.send_request({"test": "request"})
+
     def test_disconnect(self):
         """Test disconnection from autopkgserver."""
         mock_socket = MagicMock()
@@ -312,13 +346,17 @@ class TestPkgCreator(unittest.TestCase):
         mock_socket.close.side_effect = OSError("Close failed")
         self.processor.socket = mock_socket
 
-        # Should not raise an exception, just log
-        self.processor.disconnect()
+        with patch.object(self.processor, "output") as mock_output:
+            self.processor.disconnect()
 
-    @patch("autopkglib.PkgCreator.disconnect")
-    @patch("autopkglib.PkgCreator.send_request")
-    @patch("autopkglib.PkgCreator.connect")
-    @patch("autopkglib.PkgCreator.pkg_already_exists")
+        mock_output.assert_called_once_with(
+            "Failed to close socket: Close failed", verbose_level=2
+        )
+
+    @patch.object(PkgCreator, "disconnect")
+    @patch.object(PkgCreator, "send_request")
+    @patch.object(PkgCreator, "connect")
+    @patch.object(PkgCreator, "pkg_already_exists")
     def test_disconnect_called_on_exception(
         self, mock_exists, mock_connect, mock_send, mock_disconnect
     ):
@@ -348,17 +386,17 @@ class TestPkgCreator(unittest.TestCase):
             "version": "1.0.0",
         }
 
-        with patch("autopkglib.PkgCreator.pkg_already_exists", return_value=True):
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
             self.processor.main()
 
         request = self.processor.env["pkg_request"]
-        self.assertTrue(request["pkgroot"].startswith("/"))
-        self.assertTrue(request["scripts"].startswith("/"))
+        self.assertTrue(os.path.isabs(request["pkgroot"]))
+        self.assertTrue(os.path.isabs(request["scripts"]))
 
-    @patch("autopkglib.PkgCreator.disconnect")
-    @patch("autopkglib.PkgCreator.send_request")
-    @patch("autopkglib.PkgCreator.connect")
-    @patch("autopkglib.PkgCreator.pkg_already_exists")
+    @patch.object(PkgCreator, "disconnect")
+    @patch.object(PkgCreator, "send_request")
+    @patch.object(PkgCreator, "connect")
+    @patch.object(PkgCreator, "pkg_already_exists")
     def test_sets_summary_result(
         self, mock_exists, mock_connect, mock_send, mock_disconnect
     ):
@@ -373,6 +411,39 @@ class TestPkgCreator(unittest.TestCase):
         self.assertIn("summary_text", summary)
         self.assertIn("data", summary)
         self.assertEqual(summary["data"]["pkg_path"], pkg_path)
+
+    def test_fills_in_default_pkgbuild_args(self):
+        """The processor should default pkgbuild_args to empty list."""
+        self.processor.env = deepcopy(self.minimal_env)
+
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
+            self.processor.main()
+
+        request = self.processor.env["pkg_request"]
+        self.assertEqual(request["pkgbuild_args"], [])
+
+    def test_pkgbuild_args_from_env(self):
+        """The processor should use pkgbuild_args from env if not in request."""
+        self.processor.env = deepcopy(self.minimal_env)
+        self.processor.env["pkgbuild_args"] = ["--filter", ".git"]
+
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
+            self.processor.main()
+
+        request = self.processor.env["pkg_request"]
+        self.assertEqual(request["pkgbuild_args"], ["--filter", ".git"])
+
+    def test_pkgbuild_args_in_request_not_overridden(self):
+        """pkgbuild_args in request should take precedence over env."""
+        self.processor.env = deepcopy(self.good_env)
+        self.processor.env["pkg_request"]["pkgbuild_args"] = ["--large-payload"]
+        self.processor.env["pkgbuild_args"] = ["--filter", ".git"]
+
+        with patch.object(PkgCreator, "pkg_already_exists", return_value=True):
+            self.processor.main()
+
+        request = self.processor.env["pkg_request"]
+        self.assertEqual(request["pkgbuild_args"], ["--large-payload"])
 
     def test_force_pkg_build_overrides_existing(self):
         """Test that force_pkg_build overrides existing package check."""

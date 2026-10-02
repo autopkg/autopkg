@@ -1,4 +1,18 @@
 #!/usr/local/autopkg/python
+#
+# Copyright 2025 Elliot Jordan
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import unittest
 
@@ -66,6 +80,21 @@ class TestFindAndReplace(unittest.TestCase):
         self.processor.main()
         self.assertEqual(self.processor.env["custom_string"], "Hello World")
         self.assertNotIn("output_string", self.processor.env)
+
+    def test_custom_output_var_keeps_declared_output_string(self):
+        """A custom output var is added to output_variables, not swapped in."""
+        self.processor.env = dict(self.single)
+        self.processor.env["result_output_var_name"] = "custom_string"
+        self.processor.main()
+        self.assertIn("custom_string", self.processor.output_variables)
+        self.assertIn("output_string", self.processor.output_variables)
+
+    def test_custom_output_var_does_not_leak_to_other_instances(self):
+        """Declaring a custom output var must not mutate the class attribute."""
+        self.processor.env = dict(self.single)
+        self.processor.env["result_output_var_name"] = "custom_string"
+        self.processor.main()
+        self.assertNotIn("custom_string", FindAndReplace().output_variables)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for Symlinker class"""
 
 import os
@@ -58,7 +59,7 @@ class Symlinker(Processor):
         try:
             os.symlink(source_path, destination_path)
             self.output(f"Symlinked {source_path} to {destination_path}")
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(
                 f"Can't symlink {source_path} to {destination_path}: {err}"
             )

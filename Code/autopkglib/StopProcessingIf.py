@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for StopProcessingIf class"""
 
 from autopkglib import Processor, ProcessorError, log_err
@@ -36,7 +37,7 @@ class StopProcessingIf(Processor):
             "required": True,
             "description": (
                 "NSPredicate-style comparison against an environment key. See "
-                "http://developer.apple.com/library/mac/#documentation/"
+                "https://developer.apple.com/library/archive/documentation/"
                 "Cocoa/Conceptual/Predicates/Articles/pSyntax.html"
             ),
         }

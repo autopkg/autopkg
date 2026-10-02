@@ -13,17 +13,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for DmgCreator class"""
 
 import os
 import subprocess
 
-from autopkglib import Processor, ProcessorError
+from autopkglib import Processor, ProcessorError, is_mac
 
 __all__ = ["DmgCreator"]
 
-DEFAULT_DMG_FORMAT = "UDZO"
-DEFAULT_DMG_FILESYSTEM = "HFS+"
+DEFAULT_DMG_FORMAT = "ULFO"
+DEFAULT_DMG_FILESYSTEM = "APFS"
 DEFAULT_ZLIB_LEVEL = 5
 
 
@@ -46,7 +47,8 @@ class DmgCreator(Processor):
         "dmg_filesystem": {
             "required": False,
             "description": (
-                f"The dmg filesystem. Defaults to {DEFAULT_DMG_FILESYSTEM}."
+                f"The dmg filesystem. Defaults to {DEFAULT_DMG_FILESYSTEM}. "
+                "Note: APFS requires macOS 10.13 or later to mount."
             ),
             "default": DEFAULT_DMG_FILESYSTEM,
         },
@@ -75,6 +77,12 @@ class DmgCreator(Processor):
     output_variables = {}
 
     def main(self) -> None:
+        if not is_mac():
+            raise ProcessorError(
+                "DMG creation is only supported on macOS. "
+                "The 'hdiutil' utility is not available on this platform."
+            )
+
         # Remove existing dmg if it exists.
         if os.path.exists(self.env["dmg_path"]):
             os.unlink(self.env["dmg_path"])
@@ -93,6 +101,8 @@ class DmgCreator(Processor):
             "UDxx",
             "UDSP",
             "UDSB",
+            "ULFO",
+            "ULMO",
         ]
 
         dmg_format = self.env.get("dmg_format", DEFAULT_DMG_FORMAT)

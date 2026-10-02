@@ -1,4 +1,18 @@
 #!/usr/local/autopkg/python
+#
+# Copyright 2019 Nick McSpadden
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import argparse
 import getpass
@@ -14,7 +28,7 @@ import urllib.request
 import certifi
 
 
-class GitHubAPIError(BaseException):
+class GitHubAPIError(Exception):
     """Base error for GitHub API interactions"""
 
     pass
@@ -47,8 +61,7 @@ def api_call(
 
     req = urllib.request.Request(baseurl + endpoint, headers=headers)
     try:
-        context = ssl.SSLContext()
-        context.load_verify_locations(certifi.where())
+        context = ssl.create_default_context(cafile=certifi.where())
         results = urllib.request.urlopen(req, data=data, context=context)
     except urllib.error.HTTPError as err:
         print("HTTP error making API call!", file=sys.stderr)
@@ -61,9 +74,9 @@ def api_call(
         try:
             parsed = json.loads(results.read())
             return parsed
-        except BaseException as err:
+        except Exception as err:
             print(err, file=sys.stderr)
-            raise GitHubAPIError
+            raise GitHubAPIError(str(err)) from err
     return None
 
 
@@ -76,7 +89,13 @@ def output(quiet, msg):
 def repo_add(repo):
     """Add a repo using 'repo-add'."""
     cmd = ["/usr/local/bin/autopkg", "repo-add", repo]
-    subprocess.run(cmd, check=False, capture_output=True)
+    result = subprocess.run(cmd, check=False, capture_output=True)
+    if result.returncode != 0:
+        print(
+            f"WARNING: repo-add for {repo} failed with status "
+            f"{result.returncode}: {result.stderr.decode(errors='replace').strip()}",
+            file=sys.stderr,
+        )
 
 
 def get_repo_list(prefs):
@@ -85,6 +104,11 @@ def get_repo_list(prefs):
     if prefs:
         cmd.extend(["--prefs", prefs])
     result = subprocess.run(cmd, check=False, capture_output=True)
+    if result.returncode != 0:
+        sys.exit(
+            f"Error running repo-list, autopkg exited with status "
+            f"{result.returncode}: {result.stderr.decode(errors='replace').strip()}"
+        )
     full_repo_list = result.stdout.strip().splitlines()
     repo_list = [x.split(b" ")[0].split(b".")[-1].decode() for x in full_repo_list]
     return repo_list
@@ -163,7 +187,8 @@ def main():
         page += 1
 
     # Ignore autopkg itself
-    repos.remove("autopkg/autopkg")
+    if "autopkg/autopkg" in repos:
+        repos.remove("autopkg/autopkg")
     for repo in repos:
         dirname = repo.replace("autopkg/", "")
         if dirname in repo_list and not args.ignore_existing:

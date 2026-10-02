@@ -13,22 +13,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for InstallFromDMG class"""
 
-import os.path
-import plistlib
-import socket
-
-from autopkglib import ProcessorError
+from autopkglib import _AUTOPKGINSTALLD_SOCKET, _AutopkginstalldClient
 from autopkglib.DmgMounter import DmgMounter
 
-AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
-
+# Kept for third-party code that imported it; rebinding it has no effect.
+AUTOPKGINSTALLD_SOCKET = _AUTOPKGINSTALLD_SOCKET
 
 __all__ = ["InstallFromDMG"]
 
 
-class InstallFromDMG(DmgMounter):
+class InstallFromDMG(_AutopkginstalldClient, DmgMounter):
     """Calls autopkginstalld to copy items from a disk image to the root
     filesystem."""
 
@@ -108,44 +105,7 @@ class InstallFromDMG(DmgMounter):
                     "data": {"dmg_path": self.env["dmg_path"]},
                 }
         finally:
-            self.unmount(self.env["dmg_path"])
-
-    def connect(self) -> None:
-        """Connect to autopkginstalld"""
-        try:
-            self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            self.socket.connect(AUTOPKGINSTALLD_SOCKET)
-        except OSError as err:
-            raise ProcessorError(f"Couldn't connect to autopkginstalld: {err.strerror}")
-
-    def send_request(self, request) -> None:
-        """Send an install request to autopkginstalld"""
-        self.socket.send(plistlib.dumps(request))
-        with os.fdopen(self.socket.fileno()) as fileref:
-            while True:
-                data = fileref.readline()
-                if data:
-                    if data.startswith("OK:"):
-                        return data.replace("OK:", "").rstrip()
-                    elif data.startswith("ERROR:"):
-                        break
-                    else:
-                        self.output(data.rstrip())
-                else:
-                    break
-
-        errors = data.rstrip().split("\n")
-        if not errors:
-            errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
-        raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
-
-    def disconnect(self) -> None:
-        """Disconnect from autopkginstalld"""
-        try:
-            self.socket.close()
-        except OSError:
-            # the socket is already closed
-            pass
+            self.unmount_if_mounted(self.env["dmg_path"])
 
     def main(self) -> None:
         """Install something!"""

@@ -1,3 +1,19 @@
+#!/usr/local/autopkg/python
+#
+# Copyright 2020 Taylor Boyko
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import sys
 from urllib.parse import urlparse
@@ -16,10 +32,19 @@ class MunkiLib:
             from munkilib.admin import munkiimportlib
             from munkilib.cliutils import path2url
         except ImportError as err:
+            if not os.path.isdir(os.path.join(munkilib_dir, "munkilib")):
+                # munkilib ships in munkitools_pythonlibs, which the Munki 7 Swift
+                # tools no longer need at runtime and a future Munki release may
+                # stop installing.
+                raise ProcessorError(
+                    f"munkilib not found in {munkilib_dir}. It is installed by the "
+                    "munkitools_pythonlibs package; install that package, or point "
+                    "MUNKILIB_DIR at the directory containing munkilib."
+                ) from err
             raise ProcessorError(
-                f"munkilib import error: {str(err)}\nMunki tools version 3.2.0.3462 or "
-                "later is required."
-            )
+                f"munkilib import error: {str(err)}\nMunkilib version 3.2.0.3462 "
+                "through 6.7.1 is required."
+            ) from err
 
         # if munki_repo is a filesystem path, convert it to a format that is understood by
         # munkirepo.
@@ -59,6 +84,24 @@ class MunkiLib:
             return self._full_path(path)
 
         return None
+
+    def put_pkginfo_to_repo(self, pkginfo, pkginfo_path) -> None:
+        """Updates an existing pkginfo file in the repo via the repo plugin."""
+        try:
+            from munkilib import FoundationPlist
+        except ImportError as err:
+            raise ProcessorError(
+                f"Could not import munkilib FoundationPlist: {err}"
+            ) from err
+
+        try:
+            relative_path = os.path.relpath(pkginfo_path, self.munki_repo)
+            content = FoundationPlist.writePlistToString(pkginfo)
+            self.repo.put(relative_path, content)
+        except Exception as err:
+            raise ProcessorError(
+                f"Could not write pkginfo {pkginfo_path}: {err}"
+            ) from err
 
     def extract_and_copy_icon_to_repo(
         self, pkg_path, pkginfo, import_multiple=True

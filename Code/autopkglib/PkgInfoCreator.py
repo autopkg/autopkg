@@ -13,12 +13,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """See docstring for PkgInfoCreator class"""
 
 import math
 import os
 import plistlib
-from xml.etree import ElementTree
+from typing import NoReturn
+from xml.etree import ElementTree  # nosec B405
 
 from autopkglib import Processor, ProcessorError
 
@@ -100,8 +102,14 @@ class PkgInfoCreator(Processor):
             else:
                 pkg_info.set("auth", "none")
         if "IFPkgFlagRestartAction" in info:
+            restart_action = info["IFPkgFlagRestartAction"]
+            if restart_action not in conversion_map:
+                self.output(
+                    f"WARNING: Unrecognized IFPkgFlagRestartAction "
+                    f"'{restart_action}' in template; treating as 'none'."
+                )
             pkg_info.set(
-                "postinstall-action", conversion_map[info["IFPkgFlagRestartAction"]]
+                "postinstall-action", conversion_map.get(restart_action, "none")
             )
 
         payload = ElementTree.SubElement(pkg_info, "payload")
@@ -110,7 +118,7 @@ class PkgInfoCreator(Processor):
 
         return ElementTree.ElementTree(pkg_info)
 
-    def convert_flat_info_to_bundle(self, info) -> None:
+    def convert_flat_info_to_bundle(self, info) -> NoReturn:
         """Converts pkg info from flat format to bundle format"""
         # since we now only support flat packages, just raise an exception
         raise ProcessorError("Bundle package creation no longer supported!")
@@ -121,12 +129,16 @@ class PkgInfoCreator(Processor):
         if template_path.endswith(".plist"):
             # Try to load Info.plist in bundle format.
             try:
-                with open(self.env["template_path"], "rb") as f:
+                with open(template_path, "rb") as f:
                     info = plistlib.load(f)
-            except Exception:
+            except OSError as err:
                 raise ProcessorError(
-                    f"Malformed Info.plist template {self.env['template_path']}"
-                )
+                    f"Could not read Info.plist template {template_path}: {err}"
+                ) from err
+            except Exception as err:
+                raise ProcessorError(
+                    f"Malformed Info.plist template {template_path}: {err}"
+                ) from err
             if template_type == "bundle":
                 return info
             else:
@@ -134,11 +146,17 @@ class PkgInfoCreator(Processor):
         else:
             # Try to load PackageInfo in flat format.
             try:
-                info = ElementTree.parse(template_path)
-            except Exception:
+                info = ElementTree.parse(
+                    template_path
+                )  # nosec B314 - recipe-supplied template; DoS accepted
+            except OSError as err:
                 raise ProcessorError(
-                    f"Malformed PackageInfo template {self.env['template_path']}"
-                )
+                    f"Could not read PackageInfo template {template_path}: {err}"
+                ) from err
+            except ElementTree.ParseError as err:
+                raise ProcessorError(
+                    f"Malformed PackageInfo template {template_path}: {err}"
+                ) from err
             if template_type == "flat":
                 return info
             else:
@@ -179,12 +197,6 @@ class PkgInfoCreator(Processor):
         payload.set("numberOfFiles", str(nfiles))
 
         info.write(self.env["infofile"])
-
-    def create_bundle_info(self, template) -> None:
-        """Create Info.plist data for bundle-style pkg"""
-        # We don't support the creation of bundle-style pkgs
-        # any longer, so raise an exception
-        raise ProcessorError("Bundle package creation no longer supported!")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 #!/usr/local/autopkg/python
 #
+# Copyright 2025 Elliot Jordan
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -18,6 +20,7 @@ import unittest
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from xml.etree import ElementTree
+from xml.parsers.expat import ExpatError
 
 from autopkglib import ProcessorError
 from autopkglib.PkgInfoCreator import PkgInfoCreator
@@ -126,6 +129,27 @@ class TestPkgInfoCreator(unittest.TestCase):
         self.assertIn(
             "Bundle package creation no longer supported", str(context.exception)
         )
+
+    def test_main_loads_relative_plist_template_from_recipe_dir(self):
+        """Test main() loads a relative plist template resolved from RECIPE_DIR."""
+        self._create_plist_template("RelativeInfo.plist")
+        self.processor.env["template_path"] = "RelativeInfo.plist"
+
+        original_cwd = os.getcwd()
+        with TemporaryDirectory() as unrelated_cwd:
+            try:
+                os.chdir(unrelated_cwd)
+                self.processor.main()
+            finally:
+                os.chdir(original_cwd)
+
+        self.assertTrue(os.path.exists(self.infofile))
+        tree = ElementTree.parse(self.infofile)
+        root = tree.getroot()
+
+        self.assertEqual(root.tag, "pkg-info")
+        self.assertEqual(root.get("identifier"), "com.example.testapp")
+        self.assertEqual(root.get("version"), "1.0.0")
 
     # Test template finding
     def test_find_template_absolute_path_exists(self):
@@ -239,6 +263,41 @@ class TestPkgInfoCreator(unittest.TestCase):
             self.processor.load_template(template_path, "flat")
 
         self.assertIn("Malformed Info.plist template", str(context.exception))
+        self.assertIsInstance(
+            context.exception.__cause__, plistlib.InvalidFileException
+        )
+
+    def test_load_template_malformed_xml_plist(self):
+        """Test loading a malformed XML plist raises a processor error."""
+        template_path = os.path.join(self.tmp_dir.name, "bad-xml.plist")
+        with open(template_path, "w") as f:
+            f.write(
+                '<?xml version="1.0" encoding="UTF-8"?>\n'
+                '<plist version="1.0">\n'
+                "<dict>\n"
+                "<key>name</key>\n"
+                "<string>Test</dict>\n"
+                "</plist>\n"
+            )
+
+        with self.assertRaises(ProcessorError) as context:
+            self.processor.load_template(template_path, "flat")
+
+        self.assertIn("Malformed Info.plist template", str(context.exception))
+        self.assertIsInstance(context.exception.__cause__, ExpatError)
+
+    def test_load_template_missing_plist_reports_read_error(self):
+        """Test that a missing plist template is not reported as malformed."""
+        template_path = os.path.join(self.tmp_dir.name, "missing.plist")
+
+        with self.assertRaises(ProcessorError) as context:
+            self.processor.load_template(template_path, "flat")
+
+        self.assertIn(
+            f"Could not read Info.plist template {template_path}",
+            str(context.exception),
+        )
+        self.assertIsInstance(context.exception.__cause__, OSError)
 
     def test_load_template_malformed_xml(self):
         """Test loading malformed XML template raises error."""
@@ -252,6 +311,20 @@ class TestPkgInfoCreator(unittest.TestCase):
             self.processor.load_template(template_path, "flat")
 
         self.assertIn("Malformed PackageInfo template", str(context.exception))
+        self.assertIsInstance(context.exception.__cause__, ElementTree.ParseError)
+
+    def test_load_template_missing_xml_reports_read_error(self):
+        """Test that a missing XML template is not reported as malformed."""
+        template_path = os.path.join(self.tmp_dir.name, "missing.xml")
+
+        with self.assertRaises(ProcessorError) as context:
+            self.processor.load_template(template_path, "flat")
+
+        self.assertIn(
+            f"Could not read PackageInfo template {template_path}",
+            str(context.exception),
+        )
+        self.assertIsInstance(context.exception.__cause__, OSError)
 
     # Test bundle to flat conversion
     def test_convert_bundle_info_to_flat_basic(self):
@@ -301,6 +374,18 @@ class TestPkgInfoCreator(unittest.TestCase):
                 root = flat_tree.getroot()
 
                 self.assertEqual(root.get("postinstall-action"), expected_flat)
+
+    def test_convert_bundle_info_to_flat_unknown_restart_action(self):
+        """An unrecognized restart action should fall back to 'none', not raise."""
+        bundle_info = {
+            "CFBundleIdentifier": "com.example.app",
+            "IFPkgFlagRestartAction": "RequireTeleportation",
+        }
+
+        flat_tree = self.processor.convert_bundle_info_to_flat(bundle_info)
+        root = flat_tree.getroot()
+
+        self.assertEqual(root.get("postinstall-action"), "none")
 
     def test_convert_bundle_info_to_flat_auth_none(self):
         """Test bundle to flat conversion with non-root authorization."""
@@ -452,15 +537,6 @@ class TestPkgInfoCreator(unittest.TestCase):
             self.processor.create_flat_info(template)
 
         self.assertIn("PackageInfo root should be pkg-info", str(context.exception))
-
-    def test_create_bundle_info_raises_error(self):
-        """Test that create_bundle_info raises error."""
-        with self.assertRaises(ProcessorError) as context:
-            self.processor.create_bundle_info({})
-
-        self.assertIn(
-            "Bundle package creation no longer supported", str(context.exception)
-        )
 
     # Test edge cases and error conditions
     def test_main_with_plist_template_flat_package(self):

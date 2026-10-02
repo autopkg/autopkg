@@ -17,22 +17,24 @@
 """Core/shared autopkglib functions"""
 
 import glob
-import imp
 import importlib.resources
+import importlib.util
 import json
 import os
 import plistlib
 import pprint
 import re
+import socket
 import subprocess
 import sys
+import textwrap
 import traceback
 from copy import deepcopy
-from distutils.version import LooseVersion
-from typing import IO, Any, Union
+from typing import IO, Any, Iterable, Union
 
 import appdirs
 import yaml
+from autopkglib.autopkgyaml import AutoPkgYAMLLoader
 
 # Type for methods that accept either a filesystem path or a file-like object.
 FileOrPath = Union[IO, str, bytes, int]
@@ -58,9 +60,55 @@ def is_linux() -> bool:
     return "linux" in sys.platform.lower()
 
 
+def is_path_under(path, base) -> bool:
+    """Return True if path resolves to base or a child of base."""
+    try:
+        real_path = os.path.realpath(os.path.expanduser(path))
+        real_base = os.path.realpath(os.path.expanduser(base))
+        return os.path.commonpath([real_base, real_path]) == real_base
+    except (TypeError, ValueError):
+        return False
+
+
+def _normalize_dirs(dirs) -> list[str]:
+    """Return a list of real, expanded paths from ``dirs``."""
+    if not dirs:
+        return []
+    if isinstance(dirs, str):
+        dirs = [dirs]
+    return [os.path.realpath(os.path.expanduser(d)) for d in dirs]
+
+
+def _path_under_dirs(path: str, dirs) -> bool:
+    """Return True when ``path`` resides under any directory in ``dirs``.
+
+    An empty or missing ``dirs`` accepts any path. Callers that need scoped
+    resolution must pass a non-empty list.
+    """
+    if not dirs:
+        return True
+    normalized_path = os.path.realpath(os.path.expanduser(path))
+    return any(
+        is_path_under(normalized_path, directory) for directory in _normalize_dirs(dirs)
+    )
+
+
+_LOG_TO_STDERR = False
+
+
+def redirect_log_to_stderr(enabled: bool = True) -> None:
+    """Route log() to stderr instead of stdout for the rest of the process.
+
+    For verbs that write machine-readable output, stdout is the payload.
+    Informational messages printed there (a recipe map rebuild, an overridden
+    map path) corrupt it for anything parsing stdout."""
+    global _LOG_TO_STDERR
+    _LOG_TO_STDERR = enabled
+
+
 def log(msg, error=False) -> None:
     """Message logger, prints to stdout/stderr."""
-    if error:
+    if error or _LOG_TO_STDERR:
         print(msg, file=sys.stderr)
     else:
         print(msg)
@@ -123,6 +171,33 @@ RE_KEYREF = re.compile(r"%(?P<key>[a-zA-Z_][a-zA-Z_0-9]*)%")
 
 # Supported recipe extensions
 RECIPE_EXTS = (".recipe", ".recipe.plist", ".recipe.yaml")
+
+# Default filesystem locations used by autopkg
+DEFAULT_USER_LIBRARY_DIR = "~/Library/AutoPkg"
+DEFAULT_LIBRARY_DIR = "/Library/AutoPkg"
+DEFAULT_USER_OVERRIDES_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeOverrides")
+DEFAULT_USER_RECIPES_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "Recipes")
+DEFAULT_USER_CACHE_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "Cache")
+DEFAULT_USER_REPOS_DIR = os.path.join(DEFAULT_USER_LIBRARY_DIR, "RecipeRepos")
+# Canonical on-disk location of the recipe map
+DEFAULT_RECIPE_MAP = os.path.join(DEFAULT_USER_LIBRARY_DIR, "recipe_map.json")
+DEFAULT_SEARCH_DIRS = [
+    ".",
+    DEFAULT_USER_RECIPES_DIR,
+    os.path.join(DEFAULT_LIBRARY_DIR, "Recipes"),
+]
+
+
+def autopkg_user_folder() -> str:
+    """Return the absolute path to the user's AutoPkg folder, creating it if
+    possible. A creation ``OSError`` is ignored here and surfaces at the
+    real write site instead."""
+    folder = os.path.abspath(os.path.expanduser(DEFAULT_USER_LIBRARY_DIR))
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except OSError:
+        pass
+    return folder
 
 
 class PreferenceError(Exception):
@@ -307,10 +382,29 @@ class Preferences:
 # Set the global preferences object
 globalPreferences = Preferences()
 
+# Set the global recipe map. The four top-level dicts map:
+#   identifiers           -> identifier string -> absolute recipe path
+#   shortnames            -> recipe shortname  -> absolute recipe path
+#   overrides             -> override shortname -> absolute override path
+#   overrides-identifiers -> override identifier -> absolute override path
+globalRecipeMap: dict[str, dict[str, str]] = {
+    "identifiers": {},
+    "shortnames": {},
+    "overrides": {},
+    "overrides-identifiers": {},
+}
+
 
 def get_pref(key) -> Any | None:
     """Return a single pref value (or None) for a domain."""
     return globalPreferences.get_pref(key)
+
+
+def get_cache_dir(override: str | None = None) -> str:
+    """Return the normalized AutoPkg cache directory."""
+    return os.path.abspath(
+        os.path.expanduser(override or get_pref("CACHE_DIR") or DEFAULT_USER_CACHE_DIR)
+    )
 
 
 def set_pref(key, value) -> None:
@@ -335,19 +429,23 @@ def remove_recipe_extension(name) -> str:
 
 
 def recipe_from_file(filename) -> VarDict | None:
-    """Create a recipe dictionary from a file. Handle exceptions and log"""
+    """Create a recipe dictionary from a file. Handle exceptions and log.
+
+    YAML is parsed with ``AutoPkgYAMLLoader`` (a ``SafeLoader``), so crafted
+    tags can't execute code; map builds parse every recipe they find, not
+    just the one being run. Float-looking scalars (``VERSION: 1.0``) load as
+    strings, matching plist recipes."""
     if not os.path.isfile(filename):
-        return
+        return None
 
     if filename.endswith(".yaml"):
         try:
-            # try to read it as yaml
             with open(filename, "rb") as f:
-                recipe_dict = yaml.load(f, Loader=yaml.FullLoader)
+                recipe_dict = yaml.load(f, Loader=AutoPkgYAMLLoader)
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: yaml error for {filename}: {err}")
-            return
+            return None
 
     else:
         try:
@@ -357,7 +455,7 @@ def recipe_from_file(filename) -> VarDict | None:
             return recipe_dict
         except Exception as err:
             log_err(f"WARNING: plist error for {filename}: {err}")
-            return
+            return None
 
 
 def get_identifier(recipe) -> str | None:
@@ -381,23 +479,692 @@ def get_identifier_from_recipe_file(filename) -> str | None:
     return get_identifier(recipe_dict)
 
 
-def find_recipe_by_identifier(identifier, search_dirs) -> str | None:
-    """Search search_dirs for a recipe with the given
-    identifier"""
+def valid_recipe_dict_with_keys(recipe_dict, keys_to_verify) -> bool:
+    """Attempts to read a dict and ensures the keys in
+    keys_to_verify exist. Returns False on any failure, True otherwise."""
+    return bool(recipe_dict) and all(key in recipe_dict for key in keys_to_verify)
+
+
+def valid_recipe_dict(recipe_dict) -> bool:
+    """Returns True if recipe dict is a valid recipe,
+    otherwise returns False"""
+    return (
+        valid_recipe_dict_with_keys(recipe_dict, ["Input", "Process"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+        or valid_recipe_dict_with_keys(recipe_dict, ["Input", "ParentRecipe"])
+    )
+
+
+def valid_recipe_file(filename) -> bool:
+    """Returns True if filename contains a valid recipe,
+    otherwise returns False"""
+    recipe_dict = recipe_from_file(filename)
+    return valid_recipe_dict(recipe_dict)
+
+
+def valid_override_dict(recipe_dict) -> bool:
+    """Returns True if the recipe is a valid override,
+    otherwise returns False"""
+    return valid_recipe_dict_with_keys(
+        recipe_dict, ["Input", "ParentRecipe"]
+    ) or valid_recipe_dict_with_keys(recipe_dict, ["Input", "Recipe"])
+
+
+def valid_override_file(filename) -> bool:
+    """Returns True if filename contains a valid override,
+    otherwise returns False"""
+    override_dict = recipe_from_file(filename)
+    return valid_override_dict(override_dict)
+
+
+def get_search_dirs() -> list[str]:
+    """Return search dirs from preferences or default list"""
+    dirs: Any = get_pref("RECIPE_SEARCH_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or list(DEFAULT_SEARCH_DIRS)
+
+
+def get_override_dirs() -> list[str]:
+    """Return override dirs from preferences or default list"""
+    default = [DEFAULT_USER_OVERRIDES_DIR]
+
+    dirs: Any = get_pref("RECIPE_OVERRIDE_DIRS")
+    if isinstance(dirs, str):
+        # convert a string to a list
+        dirs = [dirs]
+    return dirs or default
+
+
+def _recipe_glob_patterns(directory, name=None):
+    if name is None:
+        for ext in RECIPE_EXTS:
+            yield os.path.join(directory, f"*{ext}")
+        for ext in RECIPE_EXTS:
+            yield os.path.join(directory, "*", f"*{ext}")
+    else:
+        for ext in RECIPE_EXTS:
+            yield os.path.join(directory, f"{name}{ext}")
+        for ext in RECIPE_EXTS:
+            yield os.path.join(directory, "*", f"{name}{ext}")
+
+
+def _iter_recipe_glob_matches(search_dirs, name=None, follow_symlinks=False):
+    """Yield recipe glob matches that resolve inside each search directory.
+
+    follow_symlinks keeps matches that are symlinks resolving elsewhere. Use
+    it only for user-written override dirs, never for recipe repo clones."""
+    if isinstance(search_dirs, str):
+        search_dirs = [search_dirs]
     for directory in search_dirs:
-        # TODO: Combine with similar code in get_recipe_list() and find_recipe_by_name()
         normalized_dir = os.path.abspath(os.path.expanduser(directory))
-        patterns = [os.path.join(normalized_dir, f"*{ext}") for ext in RECIPE_EXTS]
-        patterns.extend(
-            [os.path.join(normalized_dir, f"*/*{ext}") for ext in RECIPE_EXTS]
-        )
-        for pattern in patterns:
-            matches = glob.glob(pattern)
-            for match in matches:
-                if get_identifier_from_recipe_file(match) == identifier:
-                    return match
+        for pattern in _recipe_glob_patterns(normalized_dir, name=name):
+            for match in glob.glob(pattern):
+                if follow_symlinks or is_path_under(match, normalized_dir):
+                    yield match
+
+
+def find_recipe_by_identifier_on_disk(
+    identifier, search_dirs, follow_symlinks=False
+) -> str | None:
+    """Search search_dirs on disk for a recipe with the given identifier.
+
+    This is the legacy on-disk scan used as a fallback when the recipe map
+    cannot resolve a recipe."""
+    for match in _iter_recipe_glob_matches(
+        search_dirs, follow_symlinks=follow_symlinks
+    ):
+        if get_identifier_from_recipe_file(match) == identifier:
+            return match
 
     return None
+
+
+def find_recipe_by_name_on_disk(name, search_dirs, follow_symlinks=False) -> str | None:
+    """Search search_dirs on disk for a recipe by file/directory naming rules.
+
+    This is the legacy on-disk scan used as a fallback when the recipe map
+    cannot resolve a recipe."""
+    # drop extension from the end of the name because we're
+    # going to add it back on...
+    name = remove_recipe_extension(name)
+    # search by "Name", using file/directory hierarchy rules
+    for match in _iter_recipe_glob_matches(
+        search_dirs, name=name, follow_symlinks=follow_symlinks
+    ):
+        if valid_recipe_file(match):
+            return match
+
+    return None
+
+
+# Compatibility alias. Keep this name pointing at the on-disk scanner so
+# existing callers and tests that mock ``find_recipe_by_identifier`` keep
+# working. Callers that want map-based behaviour should use
+# ``find_recipe_by_identifier_in_map`` explicitly.
+find_recipe_by_identifier = find_recipe_by_identifier_on_disk
+
+
+# ---------------------------------------------------------------------------
+# Recipe map
+# ---------------------------------------------------------------------------
+#
+# The recipe map is an on-disk JSON cache of recipes and overrides discovered
+# in configured search and override directories. It lets autopkg resolve a
+# recipe by identifier or shortname without walking every recipe directory on
+# each invocation, which is the dominant cost for users with many recipe repos.
+#
+# Glossary:
+#   identifier      A recipe's globally-unique reverse-DNS ID, read from
+#                   its ``Identifier`` field (e.g. ``com.github.autopkg.X``).
+#   shortname       The recipe's filename minus the ``.recipe`` /
+#                   ``.recipe.plist`` / ``.recipe.yaml`` extension.
+#   override        A recipe in RECIPE_OVERRIDE_DIRS. Has precedence over a
+#                   stock recipe of the same name during resolution.
+#   search dir      An entry in RECIPE_SEARCH_DIRS.
+#   pref-scoped     The persisted map reflects the prefs at build time.
+#                   CLI ``--search-dir`` / ``--override-dir`` flags that
+#                   differ from the pref baseline by membership or order
+#                   bypass the map and scan only the requested dirs on disk.
+#
+# On-disk layout:
+#   Path:  ``~/Library/AutoPkg/recipe_map.json``
+#          (overridable via AUTOPKG_RECIPE_MAP_PATH env var or
+#          RECIPE_MAP_PATH pref — issue #901)
+#   Keys:  ``identifiers``, ``shortnames``, ``overrides``,
+#          ``overrides-identifiers``, plus ``schema_version`` for schema
+#          validation.
+#
+# Missing or invalid maps are regenerated on demand. The explicit
+# ``autopkg generate-recipe-map`` verb remains available for environments
+# (e.g. CI/CD) that want to build the cache up-front. See issues #884,
+# #893, #898.
+#
+# Resolution flow (used by ``find_recipe`` in Code/autopkg):
+#   1. Is the caller scope map-safe?
+#        yes → consult globalRecipeMap (O(1))
+#        no  → on-disk scan of ONLY the effective dirs in order
+#   2. Miss?
+#        yes → on-disk fallback of the effective dirs
+#   3. Still miss? ``locate_recipe`` triggers one cwd-inclusive rebuild
+#      (once per process) and retries; divergent caller scopes still scan
+#      only their effective dirs.
+#
+# External callers are map-safe only when dirs are omitted or normalized-
+# order-equal to prefs. Parent-recursion safety is threaded explicitly by
+# ``load_recipe`` because recursion appends the child recipe's directory.
+
+
+def find_recipe_by_identifier_in_map(
+    identifier: str, skip_overrides: bool = False
+) -> str | None:
+    """Resolve an identifier to a recipe path via the global recipe map.
+
+    Returns None if no entry exists or the file is gone. Stock entries are
+    only stat'ed, since this is on the hot path. Override entries are also
+    checked against the file's current identifier, because users edit
+    overrides; a mismatch raises StaleRecipeMapError rather than silently
+    falling through to a stock recipe with the same identifier."""
+    if not skip_overrides and identifier in globalRecipeMap.get(
+        "overrides-identifiers", {}
+    ):
+        override_path = globalRecipeMap["overrides-identifiers"][identifier]
+        if os.path.isfile(override_path):
+            on_disk_id = get_identifier_from_recipe_file(override_path)
+            if on_disk_id == identifier:
+                return override_path
+            if on_disk_id is None:
+                # File is unparseable, truncated, or missing an Identifier key.
+                raise StaleRecipeMapError(
+                    f"Recipe map entry for '{identifier}' points to "
+                    f"'{override_path}', but that file is unreadable or has no "
+                    "Identifier. Check the file, then run "
+                    "`autopkg generate-recipe-map` to rebuild."
+                )
+            raise StaleRecipeMapError(
+                f"Recipe map entry for '{identifier}' points to "
+                f"'{override_path}', but that file's identifier is now "
+                f"'{on_disk_id}'. The map is stale — run "
+                "`autopkg generate-recipe-map` to rebuild, then re-run using "
+                "the correct identifier."
+            )
+    if identifier in globalRecipeMap.get("identifiers", {}):
+        recipe_path = globalRecipeMap["identifiers"][identifier]
+        if os.path.isfile(recipe_path):
+            return recipe_path
+    return None
+
+
+def find_recipe_by_name_in_map(name: str, skip_overrides: bool = False) -> str | None:
+    """Resolve a recipe shortname to a recipe path via the global recipe map.
+
+    Overrides take precedence over stock recipes unless ``skip_overrides`` is
+    True. Returns None if no entry exists or the cached path has disappeared
+    from disk. See ``find_recipe_by_identifier_in_map`` for why we don't
+    re-parse the file here."""
+    if not skip_overrides and name in globalRecipeMap.get("overrides", {}):
+        override_path = globalRecipeMap["overrides"][name]
+        if os.path.isfile(override_path):
+            return override_path
+    if name in globalRecipeMap.get("shortnames", {}):
+        recipe_path = globalRecipeMap["shortnames"][name]
+        if os.path.isfile(recipe_path):
+            return recipe_path
+    return None
+
+
+# Keys in globalRecipeMap that index by recipe Identifier (read from the
+# plist/yaml). All other keys index by shortname (filename minus extension).
+_IDENTIFIER_KEYS = frozenset({"identifiers", "overrides-identifiers"})
+
+
+def map_keys_to_paths(
+    keynames: Iterable[str], repo_dir: str, follow_symlinks: bool = False
+) -> dict[str, dict[str, str]]:
+    """Build multiple recipe-map buckets in one walk of ``repo_dir``.
+
+    For identifier-keyed dicts (``identifiers``, ``overrides-identifiers``)
+    the key is read from the recipe file's Identifier field; for the
+    shortname-keyed dicts (``shortnames``, ``overrides``) the key is the
+    filename minus the recipe extension.
+
+    First-wins: if a key is already present in the return bucket or in
+    ``globalRecipeMap[keyname]`` the new path is ignored."""
+    keynames = tuple(keynames)
+    recipe_maps: dict[str, dict[str, str]] = {keyname: {} for keyname in keynames}
+    needs_identifier = any(keyname in _IDENTIFIER_KEYS for keyname in keynames)
+    for match in _iter_recipe_glob_matches([repo_dir], follow_symlinks=follow_symlinks):
+        identifier = (
+            get_identifier_from_recipe_file(match) if needs_identifier else None
+        )
+        shortname = remove_recipe_extension(os.path.basename(match))
+        if needs_identifier and not identifier:
+            log_err(
+                f"WARNING: {match} is potentially an invalid file, not "
+                "adding it to the recipe map! Please file a GitHub Issue "
+                "for this repo."
+            )
+        for keyname, recipe_map in recipe_maps.items():
+            key = identifier if keyname in _IDENTIFIER_KEYS else shortname
+            if not key or key in recipe_map or key in globalRecipeMap.get(keyname, {}):
+                continue
+            recipe_map[key] = match
+    return recipe_maps
+
+
+def map_key_to_paths(keyname: str, repo_dir: str) -> dict[str, str]:
+    """Build one recipe-map bucket; a single-key map_keys_to_paths()."""
+    return map_keys_to_paths((keyname,), repo_dir)[keyname]
+
+
+def add_recipe_to_map(recipe_path: str, is_override: bool) -> None:
+    """Insert a single recipe/override into ``globalRecipeMap`` and
+    re-persist. Avoids a full RECIPE_SEARCH_DIRS tree walk when we
+    already know exactly which file changed (e.g. ``make-override``
+    and ``new-recipe`` have just written the file).
+
+    Honours first-wins semantics: existing entries are preserved, so
+    a new recipe with an identifier that clashes with a pre-existing
+    one is NOT added (matching ``map_key_to_paths``). On the rare
+    clash the caller gets a warning log and the persisted map is
+    left unchanged.
+
+    Silently no-ops when the recipe map is disabled."""
+    if _recipe_map_disabled():
+        return
+    if not globalRecipeMap.get("identifiers") and os.path.exists(_recipe_map_path()):
+        read_recipe_map()
+    recipe_dict = recipe_from_file(recipe_path)
+    if recipe_dict is None:
+        log_err(
+            f"WARNING: {recipe_path} is not a readable recipe; not "
+            "adding it to the recipe map."
+        )
+        return
+    identifier = get_identifier(recipe_dict)
+    shortname = remove_recipe_extension(os.path.basename(recipe_path))
+    id_key = "overrides-identifiers" if is_override else "identifiers"
+    name_key = "overrides" if is_override else "shortnames"
+    id_table = globalRecipeMap.setdefault(id_key, {})
+    name_table = globalRecipeMap.setdefault(name_key, {})
+
+    changed = False
+    if identifier and identifier not in id_table:
+        id_table[identifier] = recipe_path
+        changed = True
+    if shortname and shortname not in name_table:
+        name_table[shortname] = recipe_path
+        changed = True
+    if changed:
+        write_recipe_map_to_disk()
+
+
+def calculate_recipe_map(
+    extra_search_dirs: list[str] | None = None,
+    extra_override_dirs: list[str] | None = None,
+    skip_cwd: bool = True,
+    persist: bool | None = None,
+) -> None:
+    """Recalculate ``globalRecipeMap`` from scratch by walking every recipe
+    search directory and every override directory.
+
+    Mutates ``globalRecipeMap`` in place rather than rebinding the name so
+    any module that imported the symbol with ``from autopkglib import
+    globalRecipeMap`` continues to see the fresh contents.
+
+    By default the map is written to disk only when no ``extra_*`` dirs are
+    given, so transient dirs don't leak into the cache. ``persist=False``
+    keeps the rebuild in memory (the one-shot cwd rebuild); ``True`` always
+    writes."""
+    # Honour the disable escape hatch here too — otherwise users who've
+    # set AUTOPKG_DISABLE_RECIPE_MAP still pay the full scan cost on
+    # repo-add / repo-update / make-override etc.
+    if _recipe_map_disabled():
+        return
+
+    # Mutate in place so every importer sees the refresh.
+    for sub in (
+        "identifiers",
+        "shortnames",
+        "overrides",
+        "overrides-identifiers",
+    ):
+        globalRecipeMap.setdefault(sub, {}).clear()
+
+    extra_search_dirs = list(extra_search_dirs or [])
+    extra_override_dirs = list(extra_override_dirs or [])
+
+    # Defer to get_search_dirs() so the pref-or-default resolution lives
+    # in exactly one place.
+    for search_dir in get_search_dirs() + extra_search_dirs:
+        if search_dir == "." and skip_cwd:
+            # Deliberately skip '.' — adding cwd to the persistent map is
+            # surprising for users who run autopkg from arbitrary locations.
+            continue
+        elif search_dir == ".":
+            # If the caller opted back in to scanning '.', resolve it so the
+            # absolute path ends up in the map.
+            search_dir = os.path.abspath(".")
+        recipe_maps = map_keys_to_paths(("identifiers", "shortnames"), search_dir)
+        for keyname, recipe_map in recipe_maps.items():
+            globalRecipeMap[keyname].update(recipe_map)
+
+    for override in get_override_dirs() + extra_override_dirs:
+        if override == ".":
+            # Match the search-dir behaviour: '.' is only scanned when the
+            # caller opts in via skip_cwd=False.
+            if skip_cwd:
+                continue
+            override = os.path.abspath(".")
+        # Override dirs are user-written, so symlinked overrides count, as in
+        # 2.9. Search dirs (recipe repo clones) keep rejecting them.
+        recipe_maps = map_keys_to_paths(
+            ("overrides", "overrides-identifiers"), override, follow_symlinks=True
+        )
+        for keyname, recipe_map in recipe_maps.items():
+            globalRecipeMap[keyname].update(recipe_map)
+
+    if persist is None:
+        persist = not (extra_search_dirs or extra_override_dirs)
+    if persist:
+        write_recipe_map_to_disk()
+
+
+# Shared one-shot latch for every CLI and library lookup path. Without it,
+# unrelated misses in one process could each trigger a full cwd-inclusive map
+# rebuild.
+_recipe_map_cwd_rebuild_attempted = False
+
+
+def _try_cwd_rebuild_once(reason: str) -> bool:
+    """Perform a one-shot cwd-inclusive recipe-map rebuild.
+
+    Return True only when this call performed the rebuild so callers know
+    whether to retry their lookup.
+    """
+    global _recipe_map_cwd_rebuild_attempted
+    if _recipe_map_cwd_rebuild_attempted:
+        return False
+    _recipe_map_cwd_rebuild_attempted = True
+    log(f"Rebuilding recipe map with current working directories ({reason})...")
+    calculate_recipe_map(skip_cwd=False, persist=False)
+    return True
+
+
+# Schema version baked into the persisted map. Increment when existing cache
+# files cannot be read safely so we can force a rebuild rather than reading
+# stale or incompatible content.
+RECIPE_MAP_SCHEMA_VERSION = 1
+
+
+def _expanduser_for_euid(path: str, euid: int) -> str:
+    """Expand ``~`` without trusting inherited HOME when running as root."""
+    if euid == 0 and (path == "~" or path.startswith("~/")):
+        try:
+            import pwd
+
+            root_home = pwd.getpwuid(0).pw_dir
+        except (ImportError, KeyError):
+            root_home = None
+        if root_home:
+            return os.path.join(root_home, path[2:]) if path != "~" else root_home
+    return os.path.expanduser(path)
+
+
+def _recipe_map_path() -> str:
+    """Return the absolute, expanded path to the recipe map file on disk.
+
+    Resolution order (issue #901):
+    1. ``AUTOPKG_RECIPE_MAP_PATH`` environment variable (CI/CD friendly;
+       ignored when running as root).
+    2. ``RECIPE_MAP_PATH`` preference key (per-user override).
+    3. ``DEFAULT_RECIPE_MAP`` (``~/Library/AutoPkg/recipe_map.json``).
+
+    Security notes:
+    * Environment variables are ignored when running as root so an
+      unprivileged caller cannot influence a privileged process's write
+      target via sudo environment preservation.
+    * ``DEFAULT_RECIPE_MAP`` is stored unexpanded (with a leading ``~``)
+      so tests can monkey-patch ``os.path.expanduser``; resolve it
+      lazily here."""
+    try:
+        euid = os.geteuid()
+    except AttributeError:
+        # Windows doesn't have geteuid; treat as unprivileged.
+        euid = -1
+
+    override_source: str | None = None
+    override = os.environ.get("AUTOPKG_RECIPE_MAP_PATH")
+    if override and euid == 0:
+        log_err(
+            "SECURITY WARNING: autopkg is running as root and "
+            "AUTOPKG_RECIPE_MAP_PATH was ignored. Consider stripping "
+            "AUTOPKG_* from your sudoers env_keep configuration."
+        )
+        override = None
+    elif override:
+        override_source = "AUTOPKG_RECIPE_MAP_PATH environment variable"
+    if not override:
+        pref = get_pref("RECIPE_MAP_PATH")
+        if pref:
+            override = pref
+            override_source = "RECIPE_MAP_PATH preference"
+
+    target = override or DEFAULT_RECIPE_MAP
+    resolved = os.path.abspath(_expanduser_for_euid(target, euid))
+
+    if override and override_source:
+        if euid == 0:
+            log_err(
+                "SECURITY WARNING: autopkg is running as root and the "
+                f"recipe map path has been redirected via {override_source} "
+                f"to {resolved}. If this was not set by the system "
+                "administrator it may be a privilege-escalation attempt. "
+                "Consider stripping AUTOPKG_* from your sudoers env_keep "
+                "configuration."
+            )
+        else:
+            log(f"Recipe map path overridden via {override_source}: {resolved}")
+    return resolved
+
+
+def _recipe_map_disabled() -> bool:
+    """Escape hatch. If either the ``AUTOPKG_DISABLE_RECIPE_MAP`` env var
+    or the ``DISABLE_RECIPE_MAP`` pref is truthy, the recipe map is bypassed
+    entirely: lookups fall back to on-disk scans and writes are skipped.
+
+    Intended as a mitigation for users who hit a bug they can't reproduce
+    locally — they can bypass the map without editing code."""
+    if os.environ.get("AUTOPKG_DISABLE_RECIPE_MAP"):
+        return True
+    pref = get_pref("DISABLE_RECIPE_MAP")
+    return bool(pref)
+
+
+# Module-level latch tracking whether the last write attempt failed. When
+# True we skip further writes for the life of the process to avoid spamming
+# the log with the same OSError on every verb. Test fixtures reset this
+# in setUp by assigning directly.
+_recipe_map_write_disabled: bool = False
+
+
+def write_recipe_map_to_disk() -> None:
+    """Persist ``globalRecipeMap`` to the recipe-map file as sorted JSON.
+
+    The write is atomic: we write to ``<path>.tmp`` in the same directory,
+    fsync, then ``os.replace`` it into position. This protects concurrent
+    autopkg invocations from reading a half-written file.
+
+    Failures to write (permission denied, read-only filesystem, etc.) are
+    logged but not raised — the in-memory map is still usable for the
+    lifetime of the process. After the first failure subsequent calls in
+    the same process are silent no-ops to avoid log spam."""
+    global _recipe_map_write_disabled
+    if _recipe_map_write_disabled:
+        return
+    if _recipe_map_disabled():
+        # Escape hatch: don't touch disk at all.
+        return
+
+    target = _recipe_map_path()
+    # Ensure the containing directory exists for both default and custom
+    # map paths.
+    target_dir = os.path.dirname(target)
+    if target_dir:
+        try:
+            os.makedirs(target_dir, exist_ok=True)
+        except OSError:
+            # Fall through; the open below will surface the real error.
+            pass
+
+    # Wrap the persisted dict with a schema version so future versions can
+    # detect and migrate/rebuild incompatible formats.
+    payload = {
+        "schema_version": RECIPE_MAP_SCHEMA_VERSION,
+        **globalRecipeMap,
+    }
+
+    # mkstemp opens with O_EXCL and won't follow a symlink planted at the
+    # temp path (CWE-59/CWE-377), unlike a plain open().
+    tmp_dir = target_dir or "."
+    tmp_basename = f".{os.path.basename(target)}.tmp"
+    tmp_fd = -1
+    tmp: str | None = None
+    try:
+        import tempfile as _tempfile
+
+        tmp_fd, tmp = _tempfile.mkstemp(
+            prefix=tmp_basename,
+            dir=tmp_dir,
+        )
+        # Tighten permissions so a shared-homedir setup doesn't leak the
+        # map's file listing to other users on the system.
+        try:
+            os.chmod(tmp, 0o600)
+        except OSError:
+            # Chmod not supported on every filesystem; soft-fail.
+            pass
+        with os.fdopen(tmp_fd, "w") as f:
+            # fdopen takes ownership of the fd; null it out so the
+            # finally clause below doesn't double-close.
+            tmp_fd = -1
+            json.dump(
+                payload,
+                f,
+                ensure_ascii=True,
+                indent=2,
+                sort_keys=True,
+            )
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except (OSError, AttributeError):
+                # fsync can fail on some filesystems (e.g., tmpfs). The
+                # replace below is still atomic enough for our needs.
+                pass
+        os.replace(tmp, target)
+        tmp = None  # Successfully renamed; no cleanup needed.
+    except OSError as err:
+        _recipe_map_write_disabled = True
+        log_err(
+            f"WARNING: Could not write recipe map to {target}: {err}. "
+            "Further write attempts in this process will be skipped. "
+            "To resolve: check write permissions on the target, set "
+            "RECIPE_MAP_PATH (or AUTOPKG_RECIPE_MAP_PATH) to a writable "
+            "location, or set AUTOPKG_DISABLE_RECIPE_MAP=1 to bypass "
+            "the cache entirely."
+        )
+    finally:
+        # Best-effort cleanup of the partial tempfile if we didn't rename
+        # it into position.
+        if tmp_fd != -1:
+            try:
+                os.close(tmp_fd)
+            except OSError:
+                pass
+        if tmp and os.path.exists(tmp):
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
+def handle_reading_recipe_map_file() -> dict:
+    """Read the recipe map from disk. Returns an empty dict on any I/O or
+    JSON error — callers are expected to treat that as a signal to rebuild
+    the map."""
+    try:
+        with open(_recipe_map_path()) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # Silent: this is the normal case on a fresh install and the caller
+        # will trigger a rebuild.
+        return {}
+    except (OSError, json.JSONDecodeError) as err:
+        log_err(f"WARNING: Cannot read the recipe map file: {err}")
+        return {}
+
+
+# Required top-level keys in the in-memory / persisted map structure.
+_EXPECTED_MAP_KEYS = frozenset(
+    ("identifiers", "shortnames", "overrides", "overrides-identifiers")
+)
+
+
+def validate_recipe_map(recipe_map: dict) -> bool:
+    """Return True if ``recipe_map`` has the full set of expected top-level
+    keys AND, if a ``schema_version`` is present, it matches what this
+    version of autopkg knows how to read.
+
+    Missing ``schema_version`` is treated as a legacy v1 map from an older
+    persisted file; missing required dict keys always invalidate the map."""
+    if not _EXPECTED_MAP_KEYS.issubset(recipe_map.keys()):
+        return False
+    version = recipe_map.get("schema_version")
+    if version is None:
+        # Legacy file from a version before we started writing the
+        # schema_version key — treat as v1.
+        return True
+    return version == RECIPE_MAP_SCHEMA_VERSION
+
+
+def read_recipe_map(rebuild: bool = False, allow_continuing: bool = False) -> None:
+    """Load the recipe map from disk into ``globalRecipeMap``.
+
+    * ``rebuild=True`` forces a full rebuild regardless of on-disk state.
+    * Otherwise: valid file → load; missing/invalid → auto-rebuild once.
+
+    Missing or invalid maps auto-rebuild instead of exiting; fresh installs
+    and CI pipelines hit that case constantly. See issues #884, #893, #898.
+
+    ``allow_continuing`` is accepted to preserve the public API. Automatic
+    map creation makes it a no-op."""
+    _ = allow_continuing  # retained for API compatibility
+
+    if _recipe_map_disabled():
+        return
+
+    if rebuild:
+        calculate_recipe_map()
+        return
+
+    recipe_map = handle_reading_recipe_map_file()
+    if validate_recipe_map(recipe_map):
+        for sub in _EXPECTED_MAP_KEYS:
+            globalRecipeMap.setdefault(sub, {}).clear()
+            globalRecipeMap[sub].update(recipe_map.get(sub, {}))
+        return
+
+    if not recipe_map:
+        log(
+            "Recipe map not found; generating it on demand. Run "
+            "`autopkg generate-recipe-map` explicitly (e.g. in CI) to "
+            "avoid paying this cost on every fresh run."
+        )
+    else:
+        log("Recipe map is invalid or from an older schema; rebuilding now.")
+    calculate_recipe_map()
 
 
 def get_autopkg_version() -> str:
@@ -416,18 +1183,20 @@ def get_autopkg_version() -> str:
 
 
 def version_equal_or_greater(this, that) -> bool:
-    """Compares two LooseVersion objects. Returns True if this is
+    """Compares two APLooseVersion objects. Returns True if this is
     equal to or greater than that"""
-    return LooseVersion(this) >= LooseVersion(that)
+    return APLooseVersion(this) >= APLooseVersion(that)
 
 
 def update_data(a_dict, key, value) -> None:
     """Update a_dict keys with value. Existing data can be referenced
     by wrapping the key in %percent% signs."""
 
-    def getdata(match) -> Any:
-        """Returns data from a match object"""
-        return a_dict[match.group("key")]
+    def getdata(match) -> str:
+        """Returns data from a match object, coerced to str for substitution.
+        None and False become ""; anything else, including True, uses str()."""
+        val = a_dict[match.group("key")]
+        return "" if val is None or val is False else str(val)
 
     def do_variable_substitution(item) -> Any:
         """Do variable substitution for item"""
@@ -533,6 +1302,53 @@ class ProcessorError(Exception):
     pass
 
 
+_AUTOPKGINSTALLD_SOCKET = "/var/run/autopkginstalld"
+
+
+class _AutopkginstalldClient:
+    """Shared socket protocol for processors that call autopkginstalld."""
+
+    def connect(self) -> None:
+        """Connect to autopkginstalld."""
+        try:
+            self.socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.socket.connect(_AUTOPKGINSTALLD_SOCKET)
+        except OSError as err:
+            raise ProcessorError(f"Couldn't connect to autopkginstalld: {err.strerror}")
+
+    def send_request(self, request) -> str:
+        """Send a request to autopkginstalld."""
+        self.socket.sendall(plistlib.dumps(request))
+        # makefile, not os.fdopen(self.socket.fileno()): fdopen takes ownership
+        # of the descriptor and closes it here, leaving disconnect() to close a
+        # descriptor the socket no longer owns. makefile shares it instead, so
+        # the fd is closed exactly once. Matches PkgCreator.
+        with self.socket.makefile(mode="r") as fileref:
+            while True:
+                data = fileref.readline()
+                if data:
+                    if data.startswith("OK:"):
+                        return data.replace("OK:", "").rstrip()
+                    if data.startswith("ERROR:"):
+                        break
+                    self.output(data.rstrip())
+                else:
+                    break
+
+        if not data.strip():
+            errors = ["ERROR:No reply from autopkginstalld (crash?), check system logs"]
+        else:
+            errors = data.rstrip().split("\n")
+        raise ProcessorError(", ".join([s.replace("ERROR:", "") for s in errors]))
+
+    def disconnect(self) -> None:
+        """Disconnect from autopkginstalld."""
+        try:
+            self.socket.close()
+        except OSError:
+            pass
+
+
 class Processor:
     """Processor base class.
 
@@ -540,6 +1356,9 @@ class Processor:
     returns a new or updated property list that can be processed further.
     """
 
+    description: str
+    input_variables: VarDict
+    output_variables: VarDict
     lifecycle: dict = {}
 
     def __init__(self, env=None, infile=None, outfile=None):
@@ -579,7 +1398,7 @@ class Processor:
                 self.env = plistlib.loads(indata)
             else:
                 self.env = {}
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(err) from err
 
     def write_output_plist(self) -> None:
@@ -591,7 +1410,7 @@ class Processor:
         plist_safe = {}
 
         for env_key in self.env:
-            if not self.env[env_key] is None:
+            if self.env[env_key] is not None:
                 plist_safe[env_key] = self.env[env_key]
 
         try:
@@ -599,7 +1418,7 @@ class Processor:
                 plistlib.dump(plist_safe, f)
         except TypeError:
             plistlib.dump(plist_safe, self.outfile.buffer)
-        except BaseException as err:
+        except Exception as err:
             raise ProcessorError(err) from err
 
     def parse_arguments(self) -> None:
@@ -619,7 +1438,7 @@ class Processor:
         for key, value in list(arguments.items()):
             update_data(self.env, key, value)
 
-    def process(self) -> None:
+    def process(self) -> VarDict:
         """Main processing loop."""
         # Check if this processor is deprecated and emit warning
         deprecated_version = self.lifecycle.get("deprecated")
@@ -643,7 +1462,7 @@ class Processor:
         self.main()
         return self.env
 
-    def cmdexec(self, command, description) -> str | None:
+    def cmdexec(self, command, description) -> bytes:
         """Execute a command and return output."""
 
         try:
@@ -657,13 +1476,51 @@ class Processor:
                 f"{err.errno}: {err.strerror}"
             ) from err
         if proc.returncode != 0:
-            raise ProcessorError(f"{description} failed: {stderr}")
+            raise ProcessorError(f"{description} failed: {stderr!r}")
 
         return stdout
+
+    def _print_help(self) -> None:
+        """Print processor description and variable documentation."""
+        description = " ".join(
+            textwrap.dedent(getattr(self, "description", "")).split()
+        )
+        input_variables = getattr(self, "input_variables", {})
+        output_variables = getattr(self, "output_variables", {})
+        lifecycle = getattr(self, "lifecycle", {})
+        print(f"{self.__class__.__name__}: {description}")
+        if lifecycle.get("introduced"):
+            print(f"\nIntroduced in AutoPkg {lifecycle['introduced']}.")
+        if lifecycle.get("deprecated"):
+            print(f"\nDeprecated in AutoPkg {lifecycle['deprecated']}.")
+        self._print_vars("Input variables", input_variables, show_required=True)
+        self._print_vars("Output variables", output_variables)
+        print(
+            "\nNOTE: Direct processor invocation with `key=value` is for "
+            "development only. Normal usage is in the Process array of recipes."
+        )
+
+    def _print_vars(
+        self, label: str, variables: VarDict, show_required: bool = False
+    ) -> None:
+        """Print a labeled block of processor variables."""
+        if not variables:
+            return
+        width = max(len(k) for k in variables)
+        print(f"\n{label}:")
+        for key, flags in variables.items():
+            required = " (required)" if show_required and flags.get("required") else ""
+            desc = flags.get("description", "")
+            print(f"  {key:<{width}}  {desc}{required}")
 
     def execute_shell(self) -> None:
         """Execute as a standalone binary on the commandline."""
 
+        if {"-h", "--help"} & set(sys.argv[1:]) or (
+            not sys.argv[1:] and sys.stdin.isatty()
+        ):
+            self._print_help()
+            sys.exit(0)
         try:
             if not sys.argv[1:]:
                 self.read_input_plist()
@@ -693,7 +1550,16 @@ class Processor:
                 fh = open(plist_file, "rb")
             else:
                 fh = plist_file
-            return plistlib.load(fh)
+            data = fh.read()
+            try:
+                return plistlib.loads(data)
+            except plistlib.InvalidFileException as err:
+                # Some build toolchains (e.g. Wails/Go) emit XML plists
+                # starting with "<!DOCTYPE plist" instead of "<?xml …>",
+                # which plistlib's auto-detection doesn't recognize.
+                if not data.lstrip().startswith(b"<!DOCTYPE plist"):
+                    raise err
+                return plistlib.loads(data, fmt=plistlib.FMT_XML)
         except Exception as err:
             raise ProcessorError(f"{exception_text}: {err}") from err
         finally:
@@ -753,6 +1619,12 @@ class AutoPackagerLoadError(Exception):
     pass
 
 
+class StaleRecipeMapError(AutoPackagerError):
+    """The recipe map points at an override whose identifier has changed."""
+
+    pass
+
+
 class AutoPackager:
     """Instantiate and execute processors from a recipe."""
 
@@ -761,13 +1633,18 @@ class AutoPackager:
         self.env = env
         self.results = []
         self.env["AUTOPKG_VERSION"] = get_autopkg_version()
+        if "GITHUB_TOKEN" not in self.env:
+            from autopkglib.github import get_github_token
+
+            if token := get_github_token():
+                self.env["GITHUB_TOKEN"] = token
 
     def output(self, msg, verbose_level=1) -> None:
         """Print msg if verbosity is >= than verbose_level"""
         if self.verbose >= verbose_level:
             print(msg)
 
-    def get_recipe_identifier(self, recipe) -> str | None:
+    def get_recipe_identifier(self, recipe) -> str:
         """Return the identifier given an input recipe dict."""
         identifier = recipe.get("Identifier") or recipe["Input"].get("IDENTIFIER")
         if not identifier:
@@ -778,6 +1655,7 @@ class AutoPackager:
             recipe_path = remove_recipe_extension(recipe_path)
             path_parts = recipe_path.split("/")
             identifier = "-".join(path_parts)
+        assert identifier is not None
         return identifier
 
     def process_cli_overrides(self, recipe, cli_values) -> None:
@@ -850,14 +1728,22 @@ class AutoPackager:
         """Process a recipe."""
         identifier = self.get_recipe_identifier(recipe)
         # define a cache/work directory for use by the recipe
-        cache_dir = self.env.get("CACHE_DIR") or os.path.expanduser(
-            "~/Library/AutoPkg/Cache"
-        )
-        self.env["RECIPE_CACHE_DIR"] = os.path.join(cache_dir, identifier)
+        cache_dir = get_cache_dir(self.env.get("CACHE_DIR"))
+        recipe_cache_dir = os.path.normpath(os.path.join(cache_dir, identifier))
+        if not is_path_under(recipe_cache_dir, cache_dir):
+            raise AutoPackagerError(
+                f"Recipe identifier {identifier!r} resolves outside CACHE_DIR "
+                f"{cache_dir!r}"
+            )
+        self.env["CACHE_DIR"] = cache_dir
+        self.env["RECIPE_CACHE_DIR"] = recipe_cache_dir
 
+        # Results are written to receipts and autopkg_results.plist, so keep the
+        # GitHub token out of them. It stays in self.env for substitution.
         recipe_input_dict = {}
         for key in list(self.env.keys()):
-            recipe_input_dict[key] = self.env[key]
+            if key != "GITHUB_TOKEN":
+                recipe_input_dict[key] = self.env[key]
         self.results.append({"Recipe input": recipe_input_dict})
 
         # make sure the RECIPE_CACHE_DIR exists, creating it if needed
@@ -874,7 +1760,6 @@ class AutoPackager:
             pprint.pprint(self.env)
 
         for step in recipe["Process"]:
-
             if self.verbose:
                 print(step["Processor"])
 
@@ -883,7 +1768,27 @@ class AutoPackager:
             )[0]
             processor_class = get_processor(processor_name, verbose=self.verbose)
             processor = processor_class(self.env)
-            processor.inject(step.get("Arguments", {}))
+            arguments = step.get("Arguments", {})
+            if processor_name == "PkgCreator" and isinstance(arguments, dict):
+                pkg_request = arguments.get("pkg_request", {})
+                pkg_scripts = (
+                    pkg_request.get("scripts")
+                    if isinstance(pkg_request, dict)
+                    else None
+                )
+                if (
+                    isinstance(pkg_scripts, str)
+                    and "%scripts%" in pkg_scripts
+                    and self.env.get("scripts")
+                ):
+                    log_err(
+                        "WARNING: PkgCreator package scripts reference the recipe "
+                        "input/runtime variable 'scripts'. Package scripts supplied "
+                        "this way are not represented in parent recipe trust "
+                        "information. Confirm this scripts path is expected for this "
+                        "run. Processing will continue."
+                    )
+            processor.inject(arguments)
 
             input_dict = {}
             for key in list(processor.input_variables.keys()):
@@ -951,8 +1856,40 @@ def _cmp(x, y) -> int:
     return (x > y) - (x < y)
 
 
-class APLooseVersion(LooseVersion):
-    """Subclass of distutils.version.LooseVersion to fix issues under Python 3"""
+class APLooseVersion:
+    """Compare version strings using the legacy distutils LooseVersion algorithm.
+
+    Vendored from distutils.version.LooseVersion (removed in Python 3.12) with some
+    AutoPkg-specific comparison fixes.
+    """
+
+    component_re = re.compile(r"(\d+ | [a-z]+ | \.)", re.VERBOSE)
+
+    def __init__(self, vstring=None) -> None:
+        """Parse vstring (treating None as an empty string)."""
+        self.parse(str(vstring) if vstring is not None else "")
+
+    def parse(self, vstring) -> None:
+        """Split a version string into a list of int/str components.
+
+        Parsing logic copied verbatim from distutils.version.LooseVersion.
+        """
+        self.vstring = vstring
+        components = [x for x in self.component_re.split(vstring) if x and x != "."]
+        for i, obj in enumerate(components):
+            try:
+                components[i] = int(obj)
+            except ValueError:
+                pass
+        self.version = components
+
+    def __str__(self) -> str:
+        """Return the original (unparsed) version string."""
+        return self.vstring
+
+    def __repr__(self) -> str:
+        """Return a debug representation."""
+        return f"APLooseVersion ('{self}')"
 
     def _pad(self, version_list, max_length) -> list:
         """Pad a version list by adding extra 0 components to the end if needed."""
@@ -963,16 +1900,16 @@ class APLooseVersion(LooseVersion):
         return cmp_list
 
     def _compare(self, other) -> int:
-        """Complete comparison mechanism since LooseVersion's is broken in Python 3."""
-        if not isinstance(other, (LooseVersion, APLooseVersion)):
+        """Return -1/0/1; pads with zeros so 1.0 == 1.0.0, ints sort below strings."""
+        if not isinstance(other, APLooseVersion):
             other = APLooseVersion(other)
         max_length = max(len(self.version), len(other.version))
         self_cmp_version = self._pad(self.version, max_length)
         other_cmp_version = self._pad(other.version, max_length)
         cmp_result = 0
-        for index, value in enumerate(self_cmp_version):
+        for value, other_value in zip(self_cmp_version, other_cmp_version, strict=True):
             try:
-                cmp_result = _cmp(value, other_cmp_version[index])
+                cmp_result = _cmp(value, other_value)
             except TypeError:
                 # integer is less than character/string
                 if isinstance(value, int):
@@ -1012,8 +1949,10 @@ class APLooseVersion(LooseVersion):
         return self._compare(other) >= 0
 
 
-_CORE_PROCESSOR_NAMES = []
-_PROCESSOR_NAMES = []
+_CORE_PROCESSOR_NAMES: list[str] = []
+_PROCESSOR_NAMES: list[str] = []
+# Single source of truth for name -> processor class. See add_processor().
+_PROCESSORS: dict[str, type] = {}
 
 
 def import_processors() -> None:
@@ -1025,17 +1964,20 @@ def import_processors() -> None:
 
     # Warning! Fancy dynamic importing ahead!
     #
-    # import the filename as a submodule
-    # then add the attribute with the same name to the globals()
-    #
-    # This is the equivalent of:
+    # import the filename as a submodule, then take the attribute with the
+    # same name. This is the equivalent of:
     #
     #    from Bar.Foo import Foo
     #
     for name in filter(lambda f: f not in ("__init__", "xattr"), processor_files):
-        globals()[name] = getattr(
+        processor_class = getattr(
             __import__(__name__ + "." + name, fromlist=[name]), name
         )
+        _PROCESSORS[name] = processor_class
+        # Compatibility mirror: third-party shared processors do
+        # `from autopkglib import URLGetter`. Only core names are mirrored, and
+        # only here, where the name set is fixed and trusted.
+        globals()[name] = processor_class
         _PROCESSOR_NAMES.append(name)
         _CORE_PROCESSOR_NAMES.append(name)
 
@@ -1043,8 +1985,12 @@ def import_processors() -> None:
 # convenience functions for adding and accessing processors
 # since these can change dynamically
 def add_processor(name, processor_object) -> None:
-    """Adds a Processor to the autopkglib namespace"""
-    globals()[name] = processor_object
+    """Registers a Processor for lookup by name.
+
+    Deliberately does not write into autopkglib's module globals: `name` comes
+    from a recipe, and binding it here would let a recipe shadow autopkglib's
+    own imports (os, plistlib) and API (Processor, ProcessorError)."""
+    _PROCESSORS[name] = processor_object
     if name not in _PROCESSOR_NAMES:
         _PROCESSOR_NAMES.append(name)
 
@@ -1068,6 +2014,60 @@ def extract_processor_name_with_recipe_identifier(
     return (processor_name, identifier)
 
 
+def resolve_shared_processor_recipe_path(
+    processor_recipe_id: str, search_dirs
+) -> str | None:
+    """Resolve a shared processor recipe within the active search dirs.
+
+    Prefer the O(1) recipe map, but reject a pref-scoped map hit outside the
+    caller's active search dirs. Fall back to an on-disk scan, then retry the
+    map once after a cwd-inclusive rebuild for issue #894.
+    """
+    shared_processor_recipe_path = find_recipe_by_identifier_in_map(processor_recipe_id)
+    if shared_processor_recipe_path and not _path_under_dirs(
+        shared_processor_recipe_path, search_dirs
+    ):
+        shared_processor_recipe_path = None
+    if shared_processor_recipe_path is None:
+        shared_processor_recipe_path = find_recipe_by_identifier_on_disk(
+            processor_recipe_id, search_dirs
+        )
+    if shared_processor_recipe_path is None and _try_cwd_rebuild_once(
+        f"resolving shared processor {processor_recipe_id!r}"
+    ):
+        shared_processor_recipe_path = find_recipe_by_identifier_in_map(
+            processor_recipe_id
+        )
+        if shared_processor_recipe_path and not _path_under_dirs(
+            shared_processor_recipe_path, search_dirs
+        ):
+            shared_processor_recipe_path = None
+    return shared_processor_recipe_path
+
+
+def _load_processor_from_file(processor_name, processor_filename, verbose=None):
+    """Import processor_name from processor_filename, register it in
+    autopkglib's registry, and return it."""
+    try:
+        spec = importlib.util.spec_from_file_location(
+            processor_name, processor_filename
+        )
+        _tmp = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_tmp)
+        # look for an attribute with the step Processor name
+        _processor = getattr(_tmp, processor_name)
+    except (ImportError, AttributeError) as err:
+        log_err(f"WARNING: {processor_filename}: {err}")
+        if verbose and verbose > 2:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exc(file=sys.stdout)
+            traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+        raise AutoPackagerLoadError(err) from err
+    # register the processor for lookup by name
+    add_processor(processor_name, _processor)
+    return _processor
+
+
 def get_processor(processor_name, verbose=None, recipe=None, env=None):
     """Returns a Processor object given a name and optionally a recipe,
     importing a processor from the recipe directory if available"""
@@ -1086,13 +2086,38 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
             processor_recipe_id,
         ) = extract_processor_name_with_recipe_identifier(processor_name)
         if processor_recipe_id:
-            shared_processor_recipe_path = find_recipe_by_identifier(
-                processor_recipe_id, env["RECIPE_SEARCH_DIRS"]
+            search_dirs = env.get("RECIPE_SEARCH_DIRS")
+            if search_dirs is None:
+                search_dirs = get_search_dirs()
+            shared_processor_recipe_path = resolve_shared_processor_recipe_path(
+                processor_recipe_id, search_dirs
             )
-            if shared_processor_recipe_path:
-                processor_search_dirs.append(
-                    os.path.dirname(shared_processor_recipe_path)
+            # The map only stats files, but this directory goes on the import
+            # path, so confirm it holds a real recipe before trusting it.
+            if shared_processor_recipe_path and not valid_recipe_file(
+                shared_processor_recipe_path
+            ):
+                shared_processor_recipe_path = None
+            # A qualified reference names exactly one implementation: load it
+            # from the resolved recipe's directory or fail loudly. Never fall
+            # through to a same-named core (or previously imported) processor.
+            if shared_processor_recipe_path is None:
+                raise KeyError(
+                    f"Shared processor '{processor_recipe_id}/{processor_name}' not "
+                    "found under the active search dirs."
                 )
+            processor_filename = os.path.join(
+                os.path.dirname(shared_processor_recipe_path),
+                processor_name + ".py",
+            )
+            if not os.path.exists(processor_filename):
+                raise KeyError(
+                    f"Shared processor '{processor_recipe_id}/{processor_name}' "
+                    f"not found at {processor_filename}."
+                )
+            return _load_processor_from_file(
+                processor_name, processor_filename, verbose
+            )
 
         # search recipe dirs for processor
         if recipe.get("PARENT_RECIPES"):
@@ -1107,26 +2132,13 @@ def get_processor(processor_name, verbose=None, recipe=None, env=None):
         for directory in deduped_processors:
             processor_filename = os.path.join(directory, processor_name + ".py")
             if os.path.exists(processor_filename):
-                try:
-                    # attempt to import the module
-                    _tmp = imp.load_source(processor_name, processor_filename)
-                    # look for an attribute with the step Processor name
-                    _processor = getattr(_tmp, processor_name)
-                    # add the processor to autopkglib's namespace
-                    add_processor(processor_name, _processor)
-                    # we've added a Processor, so stop searching
-                    break
-                except (ImportError, AttributeError) as err:
-                    # if we aren't successful, that might be OK, we're
-                    # going see if the processor was already imported
-                    log_err(f"WARNING: {processor_filename}: {err}")
-                    if verbose > 2:
-                        exc_type, exc_value, exc_traceback = sys.exc_info()
-                        traceback.print_exc(file=sys.stdout)
-                        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
-                    raise AutoPackagerLoadError(err) from err
+                _load_processor_from_file(processor_name, processor_filename, verbose)
+                # we've added a Processor, so stop searching
+                break
 
-    return globals()[processor_name]
+    # KeyError here is the "Unknown processor" contract AutoPackager.verify()
+    # depends on; don't soften it to a .get().
+    return _PROCESSORS[processor_name]
 
 
 def processor_names():
@@ -1154,7 +2166,7 @@ def plist_serializer(obj) -> Any:
             obj[k] = "" if v is None else plist_serializer(v)
     elif isinstance(obj, list):
         for item in range(len(obj)):
-            plist_serializer(obj[item])
+            obj[item] = "" if obj[item] is None else plist_serializer(obj[item])
     return obj
 
 

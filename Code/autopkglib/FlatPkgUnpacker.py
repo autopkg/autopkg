@@ -20,9 +20,8 @@
 import os.path
 import shutil
 import subprocess
-from glob import glob
 
-from autopkglib import ProcessorError
+from autopkglib import ProcessorError, is_mac
 from autopkglib.DmgMounter import DmgMounter
 
 __all__ = ["FlatPkgUnpacker"]
@@ -76,6 +75,12 @@ class FlatPkgUnpacker(DmgMounter):
 
     def unpack_flat_pkg(self) -> None:
         """Unpacks a flat package using either xar or pkgutil"""
+        if not is_mac():
+            raise ProcessorError(
+                "Flat package unpacking is only supported on macOS. "
+                "The 'pkgutil' and 'xar' utilities are not available on this platform."
+            )
+
         # Create the directory if needed.
         if not os.path.exists(self.env["destination_path"]):
             try:
@@ -165,7 +170,9 @@ class FlatPkgUnpacker(DmgMounter):
             if dmg:
                 # Mount dmg and copy path inside.
                 mount_point = self.mount(dmg_path)
-                self.source_path = glob(os.path.join(mount_point, dmg_source_path))
+                _, self.source_path = self.glob_paths_in_mount(
+                    mount_point, dmg_source_path
+                )
                 if not self.source_path:
                     raise ProcessorError(
                         f"No valid path found as given by 'flat_pkg_path': "
@@ -186,8 +193,7 @@ class FlatPkgUnpacker(DmgMounter):
                 f"Unpacked {self.source_path} to {self.env['destination_path']}"
             )
         finally:
-            if dmg:
-                self.unmount(dmg_path)
+            self.unmount_if_mounted(dmg_path)
 
 
 if __name__ == "__main__":
