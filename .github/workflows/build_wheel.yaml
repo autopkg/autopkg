@@ -1,0 +1,67 @@
+---
+name: Build wheel
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+    branches:
+      - dev*
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist and wheel
+        # build makes the wheel from the sdist, so this also catches files
+        # missing from the sdist (e.g. version.plist)
+        run: |
+          python -m pip install build
+          python -m build
+
+      - name: Install wheel into a clean venv
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            bin="$RUNNER_TEMP/venv/Scripts"
+          else
+            bin="$RUNNER_TEMP/venv/bin"
+          fi
+          "$bin/python" -m pip install dist/*.whl
+          echo "VENV_BIN=$bin" >> "$GITHUB_ENV"
+
+      - name: Smoke test installed autopkg
+        # run outside the checkout so imports come from the wheel, not Code/
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          "$VENV_BIN/python" "$VENV_BIN/autopkg" version
+          "$VENV_BIN/python" "$VENV_BIN/autopkg" list-processors
+          "$VENV_BIN/python" "$VENV_BIN/autopkg" processor-info URLDownloader
+          # the installer must rewrite the shebang to the venv's Python
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            "$VENV_BIN/autopkg" version
+          fi
+
+      - name: Upload artifacts
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
