@@ -17,6 +17,9 @@ dependencies = [
     "certifi",
     "lxml",
     "pyyaml",
+    # pkg_resources is imported by MLBZ521-recipes and n8felton-recipes and was
+    # removed in setuptools 82. Drop the cap once those recipes stop using it.
+    "setuptools<82",
     "xattr; sys_platform == 'darwin' or sys_platform == 'linux'",
     "pyobjc-core; sys_platform == 'darwin'",
     "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
