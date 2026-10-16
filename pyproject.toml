@@ -34,13 +34,13 @@ Homepage = "https://github.com/autopkg/autopkg"
 Documentation = "https://github.com/autopkg/autopkg/wiki"
 Changelog = "https://github.com/autopkg/autopkg/blob/master/CHANGELOG.md"
 
+[project.scripts]
+# Runs Code/autopkg, which setup.py copies into the wheel. The script stays
+# where the macOS pkg, install.sh, autopkg.ps1 and the tests expect it.
+autopkg = "autopkgcmd.entrypoint:main"
+
 [tool.setuptools]
 package-dir = { "" = "Code" }
-# Ship the CLI as a script rather than a console_scripts entry point so it
-# can stay at Code/autopkg, where the macOS pkg, install.sh, autopkg.ps1 and
-# the tests expect it. Installers rewrite its shebang to the target Python.
-# The cost is no autopkg.exe on Windows; run `python <venv>\Scripts\autopkg`.
-script-files = ["Code/autopkg"]
 
 [tool.setuptools.packages.find]
 where = ["Code"]

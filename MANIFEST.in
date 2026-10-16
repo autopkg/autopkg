@@ -1,0 +1,3 @@
+# The CLI script isn't a module, so the sdist doesn't pick it up on its own.
+# setup.py copies it into the wheel.
+include Code/autopkg

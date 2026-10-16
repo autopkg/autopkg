@@ -50,14 +50,11 @@ jobs:
         # run outside the checkout so imports come from the wheel, not Code/
         shell: bash
         working-directory: ${{ runner.temp }}
+        # on Windows this runs the autopkg.exe console-script launcher
         run: |
-          "$VENV_BIN/python" "$VENV_BIN/autopkg" version
-          "$VENV_BIN/python" "$VENV_BIN/autopkg" list-processors
-          "$VENV_BIN/python" "$VENV_BIN/autopkg" processor-info URLDownloader
-          # the installer must rewrite the shebang to the venv's Python
-          if [ "$RUNNER_OS" != "Windows" ]; then
-            "$VENV_BIN/autopkg" version
-          fi
+          "$VENV_BIN/autopkg" version
+          "$VENV_BIN/autopkg" list-processors
+          "$VENV_BIN/autopkg" processor-info URLDownloader
 
       - name: Upload artifacts
         if: matrix.os == 'ubuntu-latest'
