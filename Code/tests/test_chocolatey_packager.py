@@ -444,13 +444,13 @@ class TestChocolateyPackagerValidation(unittest.TestCase):
 
         proc = self.processor(env)
 
-        with unittest.mock.patch.object(
-            proc, "write_build_configs"
-        ), unittest.mock.patch.object(
-            proc, "choco_pack", return_value=fake_nupkg
-        ), unittest.mock.patch.object(
-            _ChocolateyPackager_mod, "rmtree"
-        ) as mock_rmtree:
+        with (
+            unittest.mock.patch.object(proc, "write_build_configs"),
+            unittest.mock.patch.object(proc, "choco_pack", return_value=fake_nupkg),
+            unittest.mock.patch.object(
+                _ChocolateyPackager_mod, "rmtree"
+            ) as mock_rmtree,
+        ):
             result_env = proc.process()
 
         mock_rmtree.assert_not_called()
