@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. This projec
 
 ### Changed
 
-- Bumped certifi module to 2026.10.19.
+- Bumped certifi module to 2026.10.19, along with black, setuptools, and virtualenv and its dependencies.
 
 
 ## [3.0.0](https://github.com/autopkg/autopkg/compare/v2.9.0...v3.0.0) (September 28, 2026)
