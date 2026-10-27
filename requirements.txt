@@ -118,3 +118,4 @@ virtualenv==21.14.13
     # via pre-commit
 xattr==1.2.0 ; sys_platform == 'darwin' or sys_platform == 'linux'
     # via -r requirements.in
+--no-binary :all:
