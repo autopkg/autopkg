@@ -38,9 +38,10 @@ class TestFileMover(unittest.TestCase):
 
     def test_main_moves_file_and_outputs_message(self):
         """Test that main() renames source to target and outputs the correct message."""
-        with patch.object(_FileMover_mod, "rename") as mock_rename, patch.object(
-            self.processor, "output"
-        ) as mock_output:
+        with (
+            patch.object(_FileMover_mod, "rename") as mock_rename,
+            patch.object(self.processor, "output") as mock_output,
+        ):
             self.processor.main()
 
         mock_rename.assert_called_once_with("/path/to/source", "/path/to/target")

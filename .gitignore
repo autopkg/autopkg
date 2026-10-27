@@ -14,6 +14,11 @@ autopkg.code-workspace
 coverage.xml
 htmlcov
 
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+
 # Virtual environments
 .venv/
 venv/
