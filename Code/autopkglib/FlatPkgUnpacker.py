@@ -53,6 +53,15 @@ class FlatPkgUnpacker(DmgMounter):
             ),
             "default": False,
         },
+        "expand_full": {
+            "required": False,
+            "description": (
+                "If true, pkgutil --expand-full is used. "
+                "Defaults to False. Note if this option is used then the "
+                "payloads are expanded, becoming directories."
+            ),
+            "default": False,
+        },
         "destination_path": {
             "required": True,
             "description": (
@@ -142,10 +151,11 @@ class FlatPkgUnpacker(DmgMounter):
                     f"Can't remove {self.env['destination_path']}: {err.strerror}"
                 )
 
+        expand_argument = "--expand-full" if self.env["expand_full"] else "--expand"
         try:
             pkgutilcmd = [
                 "/usr/sbin/pkgutil",
-                "--expand",
+                expand_argument,
                 self.source_path,
                 self.env["destination_path"],
             ]
